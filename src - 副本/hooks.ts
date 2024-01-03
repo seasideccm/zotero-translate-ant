@@ -1,3 +1,10 @@
+import {
+  BasicExampleFactory,
+  HelperExampleFactory,
+  KeyExampleFactory,
+  PromptExampleFactory,
+  UIExampleFactory,
+} from "./modules/examples";
 import { config } from "../package.json";
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
@@ -18,12 +25,20 @@ async function onStartup() {
   }
 
   initLocale();
+
+  BasicExampleFactory.registerPrefs();
+
+  BasicExampleFactory.registerNotifier();
+
+  KeyExampleFactory.registerShortcuts();
+
   await onMainWindowLoad(window);
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
+
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -40,6 +55,30 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     progress: 30,
     text: `[30%] ${getString("startup-begin")}`,
   });
+
+  UIExampleFactory.registerStyleSheet();
+
+  UIExampleFactory.registerRightClickMenuItem();
+
+  UIExampleFactory.registerRightClickMenuPopup();
+
+  UIExampleFactory.registerWindowMenuWithSeparator();
+
+  await UIExampleFactory.registerExtraColumn();
+
+  await UIExampleFactory.registerExtraColumnWithCustomCell();
+
+  await UIExampleFactory.registerCustomItemBoxRow();
+
+  UIExampleFactory.registerLibraryTabPanel();
+
+  await UIExampleFactory.registerReaderTabPanel();
+
+  PromptExampleFactory.registerNormalCommandExample();
+
+  PromptExampleFactory.registerAnonymousCommandExample();
+
+  PromptExampleFactory.registerConditionalCommandExample();
 
   await Zotero.Promise.delay(1000);
 
@@ -73,7 +112,7 @@ async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
-  extraData: { [key: string]: any; },
+  extraData: { [key: string]: any },
 ) {
   // You can add your code to the corresponding notify type
   ztoolkit.log("notify", event, type, ids, extraData);
@@ -82,8 +121,7 @@ async function onNotify(
     type == "tab" &&
     extraData[ids[0]].type == "reader"
   ) {
-    //BasicExampleFactory.exampleNotifierCallback();
-    () => { };
+    BasicExampleFactory.exampleNotifierCallback();
   } else {
     return;
   }
@@ -95,7 +133,7 @@ async function onNotify(
  * @param type event type
  * @param data event data
  */
-async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
+async function onPrefsEvent(type: string, data: { [key: string]: any }) {
   switch (type) {
     case "load":
       registerPrefsScripts(data.window);
@@ -107,7 +145,12 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 
 function onShortcuts(type: string) {
   switch (type) {
-
+    case "larger":
+      KeyExampleFactory.exampleShortcutLargerCallback();
+      break;
+    case "smaller":
+      KeyExampleFactory.exampleShortcutSmallerCallback();
+      break;
     default:
       break;
   }
@@ -115,7 +158,21 @@ function onShortcuts(type: string) {
 
 function onDialogEvents(type: string) {
   switch (type) {
-
+    case "dialogExample":
+      HelperExampleFactory.dialogExample();
+      break;
+    case "clipboardExample":
+      HelperExampleFactory.clipboardExample();
+      break;
+    case "filePickerExample":
+      HelperExampleFactory.filePickerExample();
+      break;
+    case "progressWindowExample":
+      HelperExampleFactory.progressWindowExample();
+      break;
+    case "vtableExample":
+      HelperExampleFactory.vtableExample();
+      break;
     default:
       break;
   }
