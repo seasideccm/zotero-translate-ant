@@ -1,21 +1,22 @@
 import { config } from "../../../package.json";
+
 export async function getDB(dbName?: string) {
     dbName = dbName || "addonDB.sqlite";
     const dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
     if (!await IOUtils.exists(dir)) {
         await IOUtils.makeDirectory(dir);
     }
-    let path = PathUtils.join(dir, dbName);
+    const path = PathUtils.join(dir, dbName);
     // 创建数据库实例
     const addonDB = new Zotero.DBConnection(path);
-    path = addonDB._dbPath;
+
     try {
         let msg;
         // Test read access, if failure throw error
         await addonDB.test();
         // Test write access on path
-        if (!Zotero.File.pathToFile(OS.Path.dirname(path)).isWritable()) {
-            msg = 'Cannot write to ' + OS.Path.dirname(path) + '/';
+        if (!Zotero.File.pathToFile(dir).isWritable()) {
+            msg = 'Cannot write to ' + dir + '/';
         }
         // Test write access on Zotero database
         else if (!Zotero.File.pathToFile(path).isWritable()) {
@@ -24,7 +25,6 @@ export async function getDB(dbName?: string) {
         else {
             msg = false;
         }
-
         if (msg) {
             const e = {
                 name: 'NS_ERROR_FILE_ACCESS_DENIED',
@@ -83,6 +83,32 @@ export async function getDB(dbName?: string) {
         });
     }
 
+
+
+    const schemaData = {
+        sentence: {
+            id: "INTEGER PRIMARY KEY",
+            sourceText: "TEXT NOT NULL",
+            targetText: "TEXT NOT NULL",
+            score: "INTEGER"
+        }
+    };
+
+    /**
+     * 
+     * @param schema 
+     * @param dir option default:chrome://${config.addonRef}/content/
+     * @returns 
+     */
+    async function getSchemaSQL(schema: string, dir?: string) {
+        if (!schema) {
+            throw ('Schema type not provided to _getSchemaSQL()');
+        }
+        dir = dir || `chrome://${config.addonRef}/content/schema/`;
+        const path = dir + `${schema}.sql`;
+        return await Zotero.File.getResourceAsync(path);
+    }
+
     function _checkDataDirAccessError(e: any) {
         if (e.name != 'NS_ERROR_FILE_ACCESS_DENIED' && !e.message.includes('2152857621')) {
             return false;
@@ -113,30 +139,6 @@ export async function getDB(dbName?: string) {
         Zotero.startupError = msg;
         return true;
     }
-}
-
-const schemaData = {
-    sentence: {
-        id: "INTEGER PRIMARY KEY",
-        sourceText: "TEXT NOT NULL",
-        targetText: "TEXT NOT NULL",
-        score: "INTEGER"
-    }
-};
-
-/**
- * 
- * @param schema 
- * @param dir option default:chrome://${config.addonRef}/content/
- * @returns 
- */
-function getSchemaSQL(schema: string, dir?: string) {
-    if (!schema) {
-        throw ('Schema type not provided to _getSchemaSQL()');
-    }
-    dir = dir || `chrome://${config.addonRef}/content/schema/`;
-    const path = dir + `${schema}.sql`;
-    return Zotero.File.getResourceAsync(path);
 }
 
 
