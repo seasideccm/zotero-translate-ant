@@ -1,8 +1,20 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { arrToObj } from "../../utils/tools";
-//import { getDB } from "../database/addonDatabase";
+import { getDB } from "../addonDatabase";
 import { makeTagElementProps } from "./uiTools";
+
+
+
+const keysForButtonMenu = ["label", "func", "args"];
+//getDB
+const menuitemGroupArr = [
+    [arrToObj(keysForButtonMenu, ["test", getDB, []])],
+];
+
+
+
+
 
 
 export async function zoteroMenubarEndButton() {
@@ -15,13 +27,6 @@ export async function zoteroMenubarEndButton() {
         makeTagElementProps({ tag: "toolbarseparator" }), parent
     );
     const menupopupID = "_menupopupImgTableTool2";
-
-    const keysForButtonMenu = ["label", "func", "args"];
-    //getDB
-    const menuitemGroupArr = [
-        [arrToObj(keysForButtonMenu, ["开始测试", () => { }, []])],
-    ];
-
     const toolbaritemProps = makeTagElementProps({
         tag: "toolbaritem",
         id: config.addonRef + "_toolbaritem",
@@ -33,12 +38,10 @@ export async function zoteroMenubarEndButton() {
     const menubarProps = makeTagElementProps({
         tag: "menubar",
         id: config.addonRef + "_topTools",
-        //classList: ["tool-group", "annotation-tools"],
         attributes: {
             align: "right",
         },
         styles: {
-            //width: "200px",
             padding: "4px 4px"
         },
     });
@@ -49,8 +52,6 @@ export async function zoteroMenubarEndButton() {
         classList: ["toolbarbutton-menu-dropmarker"],
     };
     const buttonProps = makeTagElementProps({
-        enableElementDOMLog: false,
-        ignoreIfExists: true,
         namespace: "html",
         tag: "button",
         id: config.addonRef + "_imgTableTool2",

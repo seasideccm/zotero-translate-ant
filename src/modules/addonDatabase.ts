@@ -1,4 +1,4 @@
-import { config } from "../../../package.json";
+import { config } from "../../package.json";
 
 export async function getDB(dbName?: string) {
     dbName = dbName || "addonDB.sqlite";
@@ -55,7 +55,12 @@ export async function getDB(dbName?: string) {
     //确保数据库已经初始化
     //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
     // queryAsync 连接数据库，不存在则会创建
-    if (!addonDB.dbInitialized) await initializeSchema(addonDB);
+    if (!addonDB.dbInitialized) {
+        //查表
+        const tablesName = await addonDB.queryAsync("select name from sqlite_master where type='table' order by name");
+        if (tablesName.length === 0) await initializeSchema(addonDB);
+
+    };
     return addonDB;
 
     async function initializeSchema(DB: any) {

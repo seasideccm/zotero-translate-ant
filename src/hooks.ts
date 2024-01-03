@@ -1,8 +1,8 @@
 import { config } from "../package.json";
+import { addonCenter } from "./modules/ui";
 import { getString, initLocale } from "./utils/locale";
-import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
-import { zoteroMenubarEndButton } from "./modules/ui/toolbarButton";
+
 
 async function onStartup() {
   await Promise.all([
@@ -10,14 +10,11 @@ async function onStartup() {
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
-
-  // TODO: Remove this after zotero#3387 is merged
-  if (__env__ === "development") {
-    // Keep in sync with the scripts/startup.mjs
+  /* if (__env__ === "development") {
+    // Keep in sync with the scripts/.mjs
     const loadDevToolWhen = `Plugin ${config.addonID} startup`;
     ztoolkit.log(loadDevToolWhen);
-  }
-
+  } */
   initLocale();
   await onMainWindowLoad(window);
 }
@@ -25,33 +22,20 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
-  zoteroMenubarEndButton();
+  addonCenter();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
+  });
+  popupWin.createLine({
+    text: getString("startup-begin"),
+    type: "default",
+    progress: 0,
   })
-    .createLine({
-      text: getString("startup-begin"),
-      type: "default",
-      progress: 0,
-    })
     .show();
 
-  await Zotero.Promise.delay(1000);
-  popupWin.changeLine({
-    progress: 30,
-    text: `[30%] ${getString("startup-begin")}`,
-  });
-
-  await Zotero.Promise.delay(1000);
-
-  popupWin.changeLine({
-    progress: 100,
-    text: `[100%] ${getString("startup-finish")}`,
-  });
   popupWin.startCloseTimer(5000);
 
-  addon.hooks.onDialogEvents("dialogExample");
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
@@ -100,7 +84,7 @@ async function onNotify(
 async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
-      registerPrefsScripts(data.window);
+      //registerPrefsScripts(data.window);
       break;
     default:
       return;
