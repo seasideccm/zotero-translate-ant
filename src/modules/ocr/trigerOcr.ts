@@ -15,16 +15,35 @@ export function rightClick() {
 
 function trigerByImage(e: MouseEvent) {
     const tagName = (e.target as any).tagName;
-    ztoolkit.log("tagName", tagName);
-    if (tagName === 'IMG') {
+    //ztoolkit.log("tagName", tagName);
+    if (e.target && tagName === 'IMG') {
+        let ocrIcon = addon.data.globalState?.ocrIcon;
+        if (!ocrIcon) {
+            const menuitemGroupArr = [
+                [arrToObj(["label", "func", "args"], ["OCR", ocrImage, [tagName.src, undefined]])]
+            ];
+            ocrIcon = makeClickButton("ocrIcon", menuitemGroupArr);
+            addon.data["globalState"] ? addon.data["globalState"].ocrIcon = ocrIcon : addon.data["globalState"] = { ocrIcon: ocrIcon };
+        }
 
-        const menuitemGroupArr = [
-            [arrToObj(["label", "func", "args"], ["OCR", ocrImage, [tagName.src, undefined]])]
-        ];
-        const ocrIcon = makeClickButton("ocrIcon", menuitemGroupArr);
         if (ocrIcon.state == "closed") {
-
-            ocrIcon.openPopupAtScreen(e.screenX, e.screenY, false);
+            ocrIcon.openPopup(e.target, 'before_end', 0, 0, false, false, e);
+            /*  (e.target as HTMLImageElement).addEventListener("mouseout", async function hide(e) {
+                 await Zotero.Promise.delay(300);
+                 ocrIcon.hidePopup();
+                 (e.target as HTMLImageElement).removeEventListener("mouseout", hide);
+             }); */
+        }
+        if (ocrIcon.state == "open") {
+            if (ocrIcon.anchorNode !== e.target) {
+                ocrIcon.hidePopup();
+                ocrIcon.openPopup(e.target, 'before_end', 0, 0, false, false, e);
+                /* (e.target as HTMLImageElement).addEventListener("mouseout", async function hide(e) {
+                    await Zotero.Promise.delay(300);
+                    ocrIcon.hidePopup();
+                    (e.target as HTMLImageElement).removeEventListener("mouseout", hide);
+                });*/
+            }
         }
         //@ts-ignore has screenX
         //imgCtxObj.contextMenu.moveTo(e.screenX, e.screenY);
@@ -32,6 +51,40 @@ function trigerByImage(e: MouseEvent) {
 
 
     }
+}
+
+const getDom = (e: any) => {
+
+    ztoolkit.log(mousePosition(e.nativeEvent));
+
+    const element = document.elementFromPoint(mousePosition(e.nativeEvent).x, mousePosition(e.nativeEvent).y);
+
+    console.log(element);
+
+};
+
+//获取绝对位置
+
+const mousePosition = (ev: any) => {
+
+    let evs;
+
+    if (!ev) evs = window.event;
+
+    if (ev.pageX || ev.pageY) {
+
+        return { x: ev.pageX, y: ev.pageY };
+
+    }
+
+    return {
+
+        x: ev.clientX + document.documentElement.scrollLeft - document.body.clientLeft,
+
+        y: ev.clientY + document.documentElement.scrollTop - document.body.clientTop
+
+    };
+
 }
 
 

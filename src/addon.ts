@@ -15,9 +15,10 @@ class Addon {
     prefs?: {
       window: Window;
       columns: Array<ColumnOptions>;
-      rows: Array<{ [dataKey: string]: string }>;
+      rows: Array<{ [dataKey: string]: string; }>;
     };
     dialog?: DialogHelper;
+    globalState: any,
   };
   // Lifecycle hooks
   public hooks: typeof hooks;
