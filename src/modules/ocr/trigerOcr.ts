@@ -2,15 +2,9 @@ import { arrToObj } from "../../utils/tools";
 import { makeClickButton } from "../ui/toolbarButton";
 import { ocrImage } from "./runOcr";
 
-export function rightClick() {
-    window.addEventListener('contextmenu', function (e) {
-        e.preventDefault();
-        ztoolkit.log("右键点击");
-    });
-    window.addEventListener("mouseover", function (e) {
-        Zotero.Utilities.throttle(trigerByImage, 300)(e);
-    });
 
+export function listenImageCallback(e: MouseEvent) {
+    Zotero.Utilities.throttle(trigerByImage, 300)(e);
 }
 
 function trigerByImage(e: MouseEvent) {
@@ -22,7 +16,7 @@ function trigerByImage(e: MouseEvent) {
             const menuitemGroupArr = [
                 [arrToObj(["label", "func", "args"], ["OCR", ocrImage, [tagName.src, undefined]])]
             ];
-            ocrIcon = makeClickButton("ocrIcon", menuitemGroupArr);
+            ocrIcon = makeClickButton("-ocrIcon", menuitemGroupArr);
             addon.data["globalState"] ? addon.data["globalState"].ocrIcon = ocrIcon : addon.data["globalState"] = { ocrIcon: ocrIcon };
         }
 
@@ -53,38 +47,5 @@ function trigerByImage(e: MouseEvent) {
     }
 }
 
-const getDom = (e: any) => {
-
-    ztoolkit.log(mousePosition(e.nativeEvent));
-
-    const element = document.elementFromPoint(mousePosition(e.nativeEvent).x, mousePosition(e.nativeEvent).y);
-
-    console.log(element);
-
-};
-
-//获取绝对位置
-
-const mousePosition = (ev: any) => {
-
-    let evs;
-
-    if (!ev) evs = window.event;
-
-    if (ev.pageX || ev.pageY) {
-
-        return { x: ev.pageX, y: ev.pageY };
-
-    }
-
-    return {
-
-        x: ev.clientX + document.documentElement.scrollLeft - document.body.clientLeft,
-
-        y: ev.clientY + document.documentElement.scrollTop - document.body.clientTop
-
-    };
-
-}
 
 

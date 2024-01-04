@@ -1,6 +1,7 @@
 import { config } from "../package.json";
-import { rightClick } from "./modules/ocr/trigerOcr";
+import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { addonCenter } from "./modules/ui";
+import { listenImageItem } from "./modules/ui/listenImageItem";
 import { getString, initLocale } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
 
@@ -24,7 +25,8 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
   addonCenter();
-  rightClick();
+  window.addEventListener("mouseover", listenImageCallback, false);
+  listenImageItem();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -41,9 +43,11 @@ async function onMainWindowLoad(win: Window): Promise<void> {
 
 }
 
+
 async function onMainWindowUnload(win: Window): Promise<void> {
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
+  window.removeEventListener("mouseover", listenImageCallback, false);
 }
 
 function onShutdown(): void {
