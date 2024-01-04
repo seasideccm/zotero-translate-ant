@@ -51,7 +51,7 @@ export async function readImage(path: string) {
     const fileType = "image/" + temp.pop();
     const fileName = temp.join('');
     const file = new File([blob], fileName, { type: fileType, lastModified: Date.now() });
-    const base64 = await getImageBase64(file);
+    const base64 = await trigerByImageBase64(file);
     return {
         width: imgWidthHeight?.width as number,
         height: imgWidthHeight?.height as number,
@@ -78,7 +78,7 @@ export async function saveImage(dataURL: string, outputPath: string) {
     };
 }
 
-export function getImageBase64(blob: any) {
+export function trigerByImageBase64(blob: any) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(blob);

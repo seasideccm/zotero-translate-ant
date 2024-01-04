@@ -13,10 +13,6 @@ const menuitemGroupArr = [
 ];
 
 
-
-
-
-
 export async function zoteroMenubarEndButton() {
     if (document.querySelector("#" + config.addonRef + "_imgTableTool")) { return; }
     const parent = document.querySelector("#toolbar-menubar")!;
@@ -95,7 +91,7 @@ export async function zoteroMenubarEndButton() {
     );
 }
 
-export const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButton: HTMLButtonElement) => {
+export const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButton?: HTMLButtonElement) => {
     const menupopup: any = makeMenupopup(idPostfix);
     menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
         menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
@@ -104,7 +100,8 @@ export const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], th
             menuseparator(menupopup);
         }
     });
-    menupopup.openPopup(thisButton, 'after_start', 0, 0, false, false);
+    if (thisButton) menupopup.openPopup(thisButton, 'after_start', 0, 0, false, false);
+    return menupopup;
 };
 export const menuseparator = (menupopup: any) => {
     ztoolkit.UI.appendElement({

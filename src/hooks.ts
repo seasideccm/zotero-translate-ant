@@ -1,4 +1,5 @@
 import { config } from "../package.json";
+import { rightClick } from "./modules/ocr/trigerOcr";
 import { addonCenter } from "./modules/ui";
 import { getString, initLocale } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
@@ -23,6 +24,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
   addonCenter();
+  rightClick();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -35,6 +37,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     .show();
 
   popupWin.startCloseTimer(5000);
+
 
 }
 
@@ -100,12 +103,16 @@ function onShortcuts(type: string) {
 }
 
 function onDialogEvents(type: string) {
+
+
   switch (type) {
 
     default:
       break;
   }
 }
+
+
 
 // Add your hooks here. For element click, etc.
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
