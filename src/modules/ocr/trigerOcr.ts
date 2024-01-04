@@ -7,7 +7,9 @@ export function rightClick() {
         e.preventDefault();
         ztoolkit.log("右键点击");
     });
-    window.addEventListener("mouseover", trigerByImage);
+    window.addEventListener("mouseover", function (e) {
+        Zotero.Utilities.throttle(trigerByImage, 300)(e);
+    });
 
 }
 
@@ -20,7 +22,10 @@ function trigerByImage(e: MouseEvent) {
             [arrToObj(["label", "func", "args"], ["OCR", ocrImage, [tagName.src, undefined]])]
         ];
         const ocrIcon = makeClickButton("ocrIcon", menuitemGroupArr);
-        ocrIcon.openPopupAtScreen(e.screenX, e.screenY, true);
+        if (ocrIcon.state == "closed") {
+
+            ocrIcon.openPopupAtScreen(e.screenX, e.screenY, false);
+        }
         //@ts-ignore has screenX
         //imgCtxObj.contextMenu.moveTo(e.screenX, e.screenY);
         ztoolkit.log("发现图片");
