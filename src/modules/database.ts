@@ -1,4 +1,5 @@
 import { config } from "../../package.json";
+import { insertLangCode } from "./database/insertLangCode";
 
 export async function getDB(dbName?: string) {
     dbName = dbName || "addonDB.sqlite";
@@ -9,6 +10,7 @@ export async function getDB(dbName?: string) {
     const path = PathUtils.join(dir, dbName);
     // 创建数据库实例
     const addonDB = new Zotero.DBConnection(path);
+
 
     try {
         let msg;
@@ -69,8 +71,9 @@ export async function getDB(dbName?: string) {
                 await DB.queryAsync("PRAGMA page_size = 4096");
                 await DB.queryAsync("PRAGMA encoding = 'UTF-8'");
                 await DB.queryAsync("PRAGMA auto_vacuum = 1");
-                const sql = await getSchemaSQL('addonSchema');
+                const sql = await getSchemaSQL('initSchema');
                 await DB.executeSQLFile(sql);
+                await insertLangCode(DB);
                 DB.dbInitialized = true;
             }
             catch (e) {
@@ -87,18 +90,6 @@ export async function getDB(dbName?: string) {
             }
         });
     }
-
-
-
-    const schemaData = {
-        sentence: {
-            id: "INTEGER PRIMARY KEY",
-            sourceText: "TEXT NOT NULL",
-            targetText: "TEXT NOT NULL",
-            score: "INTEGER"
-        }
-    };
-
     /**
      * 
      * @param schema 
@@ -145,8 +136,76 @@ export async function getDB(dbName?: string) {
         return true;
     }
 }
+class Tanslation {
+    sourceText: string;
+    targetText: string;
+    translateMode: string;
+    originID: number;
+    originKey: string;
+    originLibraryID: number;
+    score: number;
+    constructor(option: any) {
+        this.sourceText = option.sourceText;
+        this.targetText = option.targetText;
+        this.translateMode = option.translateMode;
+        this.originID = option.originID;
+        this.originKey = option.originKey;
+        this.originLibraryID = option.originLibraryID;
+        this.score = option.score || 0;
+    }
+}
+async function tanslationData(option: any) {
+
+    const tables = ["translation", "translateMode", "score", "sourceText", "targetText"];
+    ["langCode", "sourceText"];
 
 
+}
 
+/**
+ * 创建临时表，新建表，导入数据，删除旧表
+ * @param tableName 
+ * @param allColumnsDefine 
+ */
+export async function modifyColumn(tableName: string, allColumnsDefine: string) {
+    const DB = await getDB();
+    await DB.executeTransaction(async function () {
+        const oldColumns = await DB.getColumns(tableName);
+        let sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+        sql = `CREATE TABLE ${tableName} (${allColumnsDefine})`;
+        await DB.queryAsync(sql);
+        const newColumns = await DB.getColumns(tableName);
+        if (oldColumns && newColumns && oldColumns.length === newColumns.length) {
+            sql = `INSERT INTO ${tableName} SELECT * FROM ${tableName}_tempTable`;
+            await DB.queryAsync(sql);
+        }
+        sql = `DROP TABLE ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+    });
+
+}
+
+async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
+    const DB = await getDB();
+    const sqlColumns = Object.keys(data);
+    sqlColumns.unshift(data.tableName);
+    const sqlValues = sqlColumns.map((key) => data[key]);
+    const env = {
+        sqlColumns: sqlColumns,
+        sqlValues: sqlValues
+    };
+
+    if (!op || op == "insert") {
+        const sql = "INSERT INTO " + data.tableName + " (" + env.sqlColumns.join(", ") + ") "
+            + "VALUES (" + env.sqlValues.map(() => "?").join() + ")";
+        await DB.queryAsync(sql, env.sqlValues);
+    }
+    if (op && op == "update" && record) {
+        const sql = "UPDATE " + data.tableName + " SET " + env.sqlColumns.join("=?, ") + "=? WHERE " + record.filed + "=?";
+        env.sqlValues.push(parseInt(record.value));
+        await Zotero.DB.queryAsync(sql, env.sqlValues);
+    }
+}
 
 

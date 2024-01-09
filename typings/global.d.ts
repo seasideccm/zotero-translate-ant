@@ -21,4 +21,19 @@ declare const addon: import("../src/addon").default;
 
 declare const __env__: "production" | "development";
 
-declare class Localization {}
+declare class Localization { }
+
+declare namespace XUL {
+  interface MenuPopup {
+    state: string;
+    anchorNode: nsIDOMElement;
+    triggerNode: nsIDOMNode;
+    openPopup(anchor: nsIDOMElement, position: string, x: number, y: number, isContextMenu: boolean, attributesOverride: boolean, triggerEvent: Event): void;
+  }
+}
+
+
+
+
+
+

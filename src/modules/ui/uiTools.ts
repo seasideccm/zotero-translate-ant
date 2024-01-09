@@ -1,4 +1,6 @@
 import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
+import { config } from "../../../package.json";
+import { getString } from "../../utils/locale";
 
 /**
  * @param option 
@@ -50,3 +52,64 @@ export function makeTagElementProps(option: ElementProps | TagElementProps) {
     if (!option.tag) option.tag = "div";
     return Object.assign(preDefined, option) as TagElementProps;
 }
+
+export const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButton?: HTMLButtonElement) => {
+    const menupopup: any = makeMenupopup(idPostfix);
+    menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
+        menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
+        //首个菜单组之后，每组均添加分割条，最后一组之后不添加
+        if (i < menuitemGroupArr.length - 1) {
+            menuseparator(menupopup);
+        }
+    });
+    if (thisButton) menupopup.openPopup(thisButton, 'after_start', 0, 0, false, false);
+    return menupopup;
+};
+export const menuseparator = (menupopup: any) => {
+    ztoolkit.UI.appendElement({
+        tag: "menuseparator",
+        namespace: "xul",
+    }, menupopup);
+};
+
+export const makeMenupopup = (idPostfix: string) => {
+    const menupopup = ztoolkit.UI.appendElement({
+        tag: "menupopup",
+        id: config.addonRef + idPostfix,
+        namespace: "xul",
+        children: [
+        ]
+    }, document.querySelector("#browser")!) as XUL.MenuPopup;
+    return menupopup;
+};
+
+
+export const makeMenuitem = (option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any,) => {
+    let label = getString(option.label);
+    label = label.includes("batchTranslate-") ? option.label : label;
+    const makeMenuitem = ztoolkit.UI.appendElement({
+        tag: "menuitem",
+        namespace: "xul",
+        attributes: {
+            label: label,
+        }
+    }, menupopup);
+    /* makeMenuitem.addEventListener("command", () => {
+        option.func(...option.args);
+    }); */
+    const func = option.func;
+    if (judgeAsync(func)) {
+        makeMenuitem.addEventListener("command", async () => {
+            await func(...option.args);
+        });
+    } else {
+        makeMenuitem.addEventListener("command", () => {
+            option.func(...option.args);
+        });
+    }
+};
+
+export const judgeAsync = (fun: any) => {
+    const AsyncFunction = (async () => { }).constructor;
+    return fun instanceof AsyncFunction;
+};

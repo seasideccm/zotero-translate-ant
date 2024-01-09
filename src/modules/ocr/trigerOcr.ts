@@ -1,6 +1,8 @@
-import { arrToObj } from "../../utils/tools";
-import { makeClickButton } from "../ui/toolbarButton";
 import { ocrImage } from "./runOcr";
+import { config } from "../../../package.json";
+import { ocrIconSvg } from "../../utils/const";
+import { makeTagElementProps } from "../ui/uiTools";
+
 
 
 export function listenImageCallback(e: MouseEvent) {
@@ -9,43 +11,50 @@ export function listenImageCallback(e: MouseEvent) {
 
 function trigerByImage(e: MouseEvent) {
     const tagName = (e.target as any).tagName;
-    //ztoolkit.log("tagName", tagName);
     if (e.target && tagName === 'IMG') {
-        let ocrIcon = addon.data.globalState?.ocrIcon;
-        if (!ocrIcon) {
-            const menuitemGroupArr = [
-                [arrToObj(["label", "func", "args"], ["OCR", ocrImage, [tagName.src, undefined]])]
-            ];
-            ocrIcon = makeClickButton("-ocrIcon", menuitemGroupArr);
-            addon.data["globalState"] ? addon.data["globalState"].ocrIcon = ocrIcon : addon.data["globalState"] = { ocrIcon: ocrIcon };
-        }
+        const container = (e.target as HTMLElement).parentNode! as HTMLElement;
+        container.style.display = "flex";
+        container.style.position = "relative";
+        const src = (e.target as HTMLImageElement).src;
+        const ocrIconProps = makeTagElementProps({
+            tag: "img",
+            id: `${config.addonRef}-ocrIcon`,
+            namespace: "html",
+            styles: {
+                width: `${20 + 8}px`,
+                height: "20px",
+            },
+            attributes: {
+                src: ocrIconSvg,
+                alt: "",
+            },
+        });
+        const ocrIcon = ztoolkit.UI.appendElement(
+            makeTagElementProps({
+                tag: "div",
+                id: `${config.addonRef}-ocrIconBox`,
+                namespace: "html",
+                ignoreIfExists: false,
+                styles: {
+                    zIndex: "255",
+                    display: "folat",
+                    position: "absolute",
+                    right: "0px",
+                    top: "0px",
 
-        if (ocrIcon.state == "closed") {
-            ocrIcon.openPopup(e.target, 'before_end', 0, 0, false, false, e);
-            /*  (e.target as HTMLImageElement).addEventListener("mouseout", async function hide(e) {
-                 await Zotero.Promise.delay(300);
-                 ocrIcon.hidePopup();
-                 (e.target as HTMLImageElement).removeEventListener("mouseout", hide);
-             }); */
-        }
-        if (ocrIcon.state == "open") {
-            if (ocrIcon.anchorNode !== e.target) {
-                ocrIcon.hidePopup();
-                ocrIcon.openPopup(e.target, 'before_end', 0, 0, false, false, e);
-                /* (e.target as HTMLImageElement).addEventListener("mouseout", async function hide(e) {
-                    await Zotero.Promise.delay(300);
-                    ocrIcon.hidePopup();
-                    (e.target as HTMLImageElement).removeEventListener("mouseout", hide);
-                });*/
-            }
-        }
-        //@ts-ignore has screenX
-        //imgCtxObj.contextMenu.moveTo(e.screenX, e.screenY);
-        ztoolkit.log("发现图片");
-
-
+                },
+                children: [ocrIconProps],
+                listeners: [
+                    {
+                        type: "click",
+                        listener: function fn() {
+                            if (src) {
+                                ocrImage(src);
+                            }
+                        },
+                    },
+                ],
+            }), container);
     }
 }
-
-
 

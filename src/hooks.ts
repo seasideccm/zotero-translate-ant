@@ -1,7 +1,7 @@
 import { config } from "../package.json";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
-import { addonCenter } from "./modules/ui";
-import { listenImageItem } from "./modules/ui/listenImageItem";
+import { monitorImageItem } from "./modules/ui/monitorImageItem";
+import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
 
@@ -24,9 +24,9 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
-  addonCenter();
+  mountButtonEndMenubar();
   window.addEventListener("mouseover", listenImageCallback, false);
-  listenImageItem();
+  monitorImageItem();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,

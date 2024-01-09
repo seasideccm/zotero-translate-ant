@@ -32,6 +32,7 @@
   },
   "homepage": "https://github.com/seasideccm/zotero-batch-translate#readme",
   "dependencies": {
+    "franc-min": "^6.1.0",
     "zotero-plugin-toolkit": "^2.3.15"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { ApiName, BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr, extractData } from "./baiduOCR";
 
-export async function ocrImage(imgSrc: string, secretKey: string) {
+export async function ocrImage(imgSrc: string, secretKey?: string) {
     secretKey = secretKey || "20230302001582861#uXy0Gx8MaL8Wc46DIlvJ";
     //const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
     let apiName: ApiName;

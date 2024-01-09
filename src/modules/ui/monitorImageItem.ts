@@ -1,5 +1,5 @@
 
-export async function listenImageItem() {
+export async function monitorImageItem() {
     let itemsTree;
     while (!(itemsTree = document.getElementById("zotero-items-tree"))) {
         await Zotero.Promise.delay(1000);
