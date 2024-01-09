@@ -60,9 +60,19 @@ export async function getDB(dbName?: string) {
     if (!addonDB.dbInitialized) {
         //查表
         const tablesName = await addonDB.queryAsync("select name from sqlite_master where type='table' order by name");
-        if (tablesName.length === 0) await initializeSchema(addonDB);
+        if (tablesName.length === 0) {
+            await initializeSchema(addonDB);
+        } else {
+            // 检查数据库是否完整
+            const integrityCheck = await addonDB.queryAsync("PRAGMA integrity_check");
+            if (integrityCheck[0].integrity_check != 'ok') {
+                ztoolkit.log(Zotero.getString('startupError.databaseIntegrityCheckFailed'));
+            }
+            addonDB.dbInitialized = true;
+        }
 
     };
+
     return addonDB;
 
     async function initializeSchema(DB: any) {
