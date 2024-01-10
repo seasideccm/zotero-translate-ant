@@ -18,7 +18,6 @@ export class Translation {
     score: number | null;
     targetlangCode: string | null;
     sourceLangCode: string | null;
-    writeTable: any | null;
 
     constructor(options: any) {
         this.translateID = options.translateID || null;
@@ -54,7 +53,7 @@ export class Translation {
                 catch (e: any) {
                     if (e.message && e.message.includes("UNIQUE constraint")) {
                         //如果错误是唯一性约束，则继续
-                        ztoolkit.log(e);
+                        ztoolkit.log("Item already exists");
                     } else {
                         throw (e);
                     }
@@ -72,30 +71,19 @@ export class Translation {
                 }
                 return value;
             }
-
-            let sqlValues = [this.sourceLangCode as string, this.sourceText];
+            //insert sourceText
+            let sqlValues: any[] = [this.sourceLangCode, this.sourceText];
             await insert("sourceText", ["langCode", "sourceText"], sqlValues);
-
-
-
-
-
-            /* let queryField = "sourceText";
-            let valueField = "sourceTextID";
-            let valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
-            let value = await DB.valueQueryAsync(valueSQL, [this.sourceText], { debug: true }); */
             this.sourceTextID = await valueQuery("sourceText", "sourceTextID", "sourceText", this.sourceText);
-
-
+            //insert targetText
             sqlValues = [this.targetlangCode as string, this.targetText];
             await insert("targetText", ["langCode", "targetText"], sqlValues);
-
-
-            /* queryField = "targetText";
-            valueField = "targetTextID";
-            valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
-            value = await DB.valueQueryAsync(valueSQL, [this.targetText], { debug: true }); */
             this.targetTextID = await valueQuery("targetText", "targetTextID", "targetText", this.targetText);
+            // insset translation
+            sqlValues = [this.sourceTextID, this.targetTextID, this.originID, this.originKey, this.originLibraryID];
+            await insert("translation", ["sourceTextID", "targetTextID", "originID", "originKey", "originLibraryID"], sqlValues);
+            //this.translateID = await valueQuery("translation", "translateID", "targetTextID", this.targetTextID);
+            this.translateID = await DB.valueQueryAsync("SELECT translateID FROM translation ORDER BY translateID DESC LIMIT 1");
 
         }
         );

@@ -18,8 +18,9 @@ class Addon {
       rows: Array<{ [dataKey: string]: string; }>;
     };
     dialog?: DialogHelper;
-    globalState: any,
+
   };
+  public contain: any;
   // Lifecycle hooks
   public hooks: typeof hooks;
   // APIs
@@ -33,6 +34,7 @@ class Addon {
     };
     this.hooks = hooks;
     this.api = {};
+    this.contain = {};
   }
 }
 

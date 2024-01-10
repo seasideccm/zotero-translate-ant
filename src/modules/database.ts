@@ -1,15 +1,42 @@
 import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
 
+/**
+ * 连接数据库
+ * @param dbName 可选，数据库名称或完整路径
+ * @returns
+ * @example
+ * 参数形式示例
+ * 1. "F:\\download\\zotero\\zotero7DataDirectory\\batchTranslate\\addonDB.sqlite" 
+ *    注意单个反斜杠 "\" 是转义标识，故而请使用双反斜杠
+ * 2. addonDB
+ * 3. addonDB.sqlite
+ * 4. "F:\\download\\zotero\\zotero7DataDirectory\\batchTranslate\\"
+ * 5. "F:\\download\\zotero\\zotero7DataDirectory\\batchTranslate"
+ * 6. 留空则连接默认数据库（可在插件选项中指定）
+ */
 export async function getDB(dbName?: string) {
-    dbName = dbName || "addonDB.sqlite";
+
+    //todo pref set dbname
+    dbName = dbName || `${config.addonRef}`;
+    let addonDB = addon.contain.database?.[dbName];
+    if (addonDB) {
+        try {
+            await addonDB.test();
+            return addonDB;
+        }
+        catch (e) {
+            ztoolkit.log(e);
+        }
+    }
+
     const dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
     if (!await IOUtils.exists(dir)) {
         await IOUtils.makeDirectory(dir);
     }
-    const path = PathUtils.join(dir, dbName);
+    const path = PathUtils.join(dir, dbName + ".sqlite");
     // 创建数据库实例
-    const addonDB = new Zotero.DBConnection(path);
+    addonDB = new Zotero.DBConnection(path);
 
 
     try {
@@ -72,6 +99,7 @@ export async function getDB(dbName?: string) {
         }
 
     };
+    addon.contain.database ? addon.contain.database[dbName] = addonDB : addon.contain.database = { [dbName]: addonDB };
 
     return addonDB;
 
