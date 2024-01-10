@@ -57,10 +57,11 @@ export class Translation {
                 }
             }
 
-            let fieldName = "sourceText";
-            let valueSQL = `SELECT ${fieldName} FROM ${tableName} WHERE value=?`;
+            let queryField = "sourceText";
+            let valueField = "sourceTextID";
+            let valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
             let value = await DB.valueQueryAsync(valueSQL, [this.sourceText], { debug: true });
-            this[fieldName as keyof typeof this] = value;
+            this[valueField as keyof typeof this] = value;
 
             sqlColumns = ["langCode", "targetText"];
             sqlValues = [this.targetlangCode as string, this.targetText];
@@ -78,11 +79,11 @@ export class Translation {
                 }
             }
 
-
-            fieldName = "targetText";
-            valueSQL = `SELECT ${fieldName} FROM ${tableName} WHERE value=?`;
+            queryField = "targetText";
+            valueField = "targetTextID";
+            valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
             value = await DB.valueQueryAsync(valueSQL, [this.targetText], { debug: true });
-            this[fieldName as keyof typeof this] = value;
+            this[valueField as keyof typeof this] = value;
 
         }
         );
