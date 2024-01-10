@@ -1,5 +1,6 @@
 import { franc } from "franc-min";
 import { getDB } from "../database";
+import { config } from "../../../package.json";
 
 export class Translation {
     // 定义翻译的字段
@@ -36,57 +37,69 @@ export class Translation {
         this.sourceLangCode = options.langCode || franc(this.sourceText) || '';
 
     }
+
+
+    makeQuerySQL() {
+
+    }
     async save() {
         const DB = await getDB();
         if (!DB) return;
         await DB.executeTransaction(async () => {
-            let sqlColumns = ["langCode", "sourceText"];
-            let sqlValues = [this.sourceLangCode as string, this.sourceText];
-            let tableName = "sourceText";
-            let sql = `INSERT INTO ${tableName} (${sqlColumns.join(',')}) VALUES (${sqlValues.map(() => "?").join()})`;
-
-            try {
-                await DB.queryAsync(sql, sqlValues);
-            }
-            catch (e: any) {
-                if (e.message && e.message.includes("UNIQUE constraint")) {
-                    //如果错误是唯一性约束，则继续
-                    ztoolkit.log(e);
-                } else {
-                    throw (e);
+            async function insert(tableName: string, sqlColumns: string[], sqlValues: any[]) {
+                const sql = `INSERT INTO ${tableName} (${sqlColumns.join(',')}) VALUES (${sqlValues.map(() => "?").join()})`;
+                try {
+                    await DB.queryAsync(sql, sqlValues);
+                }
+                catch (e: any) {
+                    if (e.message && e.message.includes("UNIQUE constraint")) {
+                        //如果错误是唯一性约束，则继续
+                        ztoolkit.log(e);
+                    } else {
+                        throw (e);
+                    }
                 }
             }
 
-            let queryField = "sourceText";
+            async function valueQuery(tableName: string, valueField: string, queryField: string, queryValue: any) {
+                const valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
+                let value;
+                try {
+                    value = await DB.valueQueryAsync(valueSQL, [queryValue], { debug: true });
+                }
+                catch (e: any) {
+                    ztoolkit.log(e);
+                }
+                return value;
+            }
+
+            let sqlValues = [this.sourceLangCode as string, this.sourceText];
+            await insert("sourceText", ["langCode", "sourceText"], sqlValues);
+
+
+
+
+
+            /* let queryField = "sourceText";
             let valueField = "sourceTextID";
             let valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
-            let value = await DB.valueQueryAsync(valueSQL, [this.sourceText], { debug: true });
-            this[valueField as keyof typeof this] = value;
+            let value = await DB.valueQueryAsync(valueSQL, [this.sourceText], { debug: true }); */
+            this.sourceTextID = await valueQuery("sourceText", "sourceTextID", "sourceText", this.sourceText);
 
-            sqlColumns = ["langCode", "targetText"];
+
             sqlValues = [this.targetlangCode as string, this.targetText];
-            tableName = "targetText";
-            sql = `INSERT INTO ${tableName}  (${sqlColumns.join(',')}) VALUES (${sqlValues.map(() => "?").join()})`;
-            try {
-                await DB.queryAsync(sql, sqlValues);
-            }
-            catch (e: any) {
-                if (e.message && e.message.includes("UNIQUE constraint")) {
-                    //如果错误是唯一性约束，则继续
-                    ztoolkit.log(e);
-                } else {
-                    throw (e);
-                }
-            }
+            await insert("targetText", ["langCode", "targetText"], sqlValues);
 
-            queryField = "targetText";
+
+            /* queryField = "targetText";
             valueField = "targetTextID";
             valueSQL = `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
-            value = await DB.valueQueryAsync(valueSQL, [this.targetText], { debug: true });
-            this[valueField as keyof typeof this] = value;
+            value = await DB.valueQueryAsync(valueSQL, [this.targetText], { debug: true }); */
+            this.targetTextID = await valueQuery("targetText", "targetTextID", "targetText", this.targetText);
 
         }
         );
+        const testConn = DB;
     }
 
 }
