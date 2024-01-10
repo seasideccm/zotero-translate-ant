@@ -46,7 +46,7 @@ export class Translation {
         if (!DB) return;
         await DB.executeTransaction(async () => {
             async function insert(tableName: string, sqlColumns: string[], sqlValues: any[]) {
-                const sql = `INSERT INTO ${tableName} (${sqlColumns.join(',')}) VALUES (${sqlValues.map(() => "?").join()})`;
+                const sql = `INSERT OR IGNORE INTO ${tableName} (${sqlColumns.join(',')}) VALUES (${sqlValues.map(() => "?").join()})`;
                 try {
                     await DB.queryAsync(sql, sqlValues);
                 }
