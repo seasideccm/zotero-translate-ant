@@ -5,7 +5,6 @@
 -- Valid language ("english," "chines," etc.)
 
 DROP TABLE IF EXISTS language;
-
 CREATE TABLE
     language (
         langID INTEGER PRIMARY KEY AUTOINCREMENT,
