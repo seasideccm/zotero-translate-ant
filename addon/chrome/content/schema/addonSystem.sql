@@ -18,11 +18,3 @@ CREATE TABLE
         value,
         PRIMARY KEY (setting, key)
     );
-
-CREATE TABLE
-    settings (
-        setting TEXT,
-        key TEXT,
-        value,
-        PRIMARY KEY (setting, key)
-    )
