@@ -1,6 +1,14 @@
 import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
 
+/* export class DB extends Zotero.DBConnection {
+    constructor(dbNameOrPath: string) {
+        super(dbNameOrPath);        
+        addon.mountPoing.database= this;
+
+    }
+} */
+
 /**
  * 连接数据库
  * @param dbName 可选，数据库名称或完整路径
@@ -19,7 +27,7 @@ export async function getDB(dbName?: string) {
 
     //todo pref set dbname
     dbName = dbName || `${config.addonRef}`;
-    let addonDB = addon.contain.database?.[dbName];
+    let addonDB = addon.mountPoing.database;
     if (addonDB) {
         try {
             await addonDB.test();
@@ -47,7 +55,7 @@ export async function getDB(dbName?: string) {
         if (!Zotero.File.pathToFile(dir).isWritable()) {
             msg = 'Cannot write to ' + dir + '/';
         }
-        // Test write access on Zotero database
+        // Test write access on database
         else if (!Zotero.File.pathToFile(path).isWritable()) {
             msg = 'Cannot write to ' + path;
         }
@@ -87,6 +95,7 @@ export async function getDB(dbName?: string) {
     if (!addonDB.dbInitialized) {
         //查表
         const tablesName = await addonDB.queryAsync("select name from sqlite_master where type='table' order by name");
+        //const addonDBVersion = await Zotero.DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
         if (tablesName.length === 0) {
             await initializeSchema(addonDB);
         } else {
@@ -99,8 +108,8 @@ export async function getDB(dbName?: string) {
         }
 
     };
-    addon.contain.database ? addon.contain.database[dbName] = addonDB : addon.contain.database = { [dbName]: addonDB };
-
+    //addon.mountPoing.database ? addon.mountPoing.database[dbName] = addonDB : addon.mountPoing.database = { [dbName]: addonDB };
+    addon.mountPoing.database = addonDB;
     return addonDB;
 
     async function initializeSchema(DB: any) {
@@ -174,6 +183,11 @@ export async function getDB(dbName?: string) {
         return true;
     }
 }
+
+async function bakeupDatebase(addonDB: any) {
+    addonDB._externalDB = false;
+    return await addonDB.backupDatabase();
+}
 class Tanslation {
     sourceText: string;
     targetText: string;
@@ -245,5 +259,7 @@ async function saveDateToDB(data: any, op?: string, record?: { filed: string; va
         await Zotero.DB.queryAsync(sql, env.sqlValues);
     }
 }
+
+
 
 

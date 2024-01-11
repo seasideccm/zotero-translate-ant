@@ -38,9 +38,6 @@ export class Translation {
     }
 
 
-    makeQuerySQL() {
-
-    }
     async save() {
         const DB = await getDB();
         if (!DB) return;
@@ -58,6 +55,10 @@ export class Translation {
                         throw (e);
                     }
                 }
+            }
+
+            function querySQL(tableName: string, valueField: string, queryField: string, queryValue: any) {
+                return `SELECT ${valueField} FROM ${tableName} WHERE ${queryField}=?`;
             }
 
             async function valueQuery(tableName: string, valueField: string, queryField: string, queryValue: any) {
@@ -79,15 +80,29 @@ export class Translation {
             sqlValues = [this.targetlangCode as string, this.targetText];
             await insert("targetText", ["langCode", "targetText"], sqlValues);
             this.targetTextID = await valueQuery("targetText", "targetTextID", "targetText", this.targetText);
-            // insset translation
-            sqlValues = [this.sourceTextID, this.targetTextID, this.originID, this.originKey, this.originLibraryID];
-            await insert("translation", ["sourceTextID", "targetTextID", "originID", "originKey", "originLibraryID"], sqlValues);
-            //this.translateID = await valueQuery("translation", "translateID", "targetTextID", this.targetTextID);
-            this.translateID = await DB.valueQueryAsync("SELECT translateID FROM translation ORDER BY translateID DESC LIMIT 1");
+            // insert translation
+            sqlValues = [this.sourceTextID, this.targetTextID];
+            await insert("translation", ["sourceTextID", "targetTextID"], sqlValues);
+            this.translateID = await valueQuery("translation", "translateID", "targetTextID", this.targetTextID);
+
+            const valueSQL = `SELECT translateID FROM translation WHERE targetTextID=${this.targetTextID} AND sourceTextID=${this.sourceTextID}`;
+            try {
+                this.translateID = await DB.valueQueryAsync(valueSQL);
+            }
+            catch (e: any) {
+                ztoolkit.log(e);
+            }
+
+            //最后一条记录
+            //this.translateID = await DB.valueQueryAsync("SELECT translateID FROM translation ORDER BY translateID DESC LIMIT 1");
+            // insert translationOrigin
+            sqlValues = [this.translateID, this.originID, this.originKey, this.originLibraryID];
+            await insert("translationOrigin", ["translateID", "originID", "originKey", "originLibraryID"], sqlValues);
+
 
         }
         );
-        const testConn = DB;
+        await DB.closeDatabase();
     }
 
 }
@@ -96,6 +111,11 @@ export async function testClass() {
     const firstTranslation = new Translation({
         sourceText: "Franc has been ported to several other programming languages.",
         targetText: "Franc 库已移植到多种编程语言上。",
+        originID: 1423,
+        originKey: "HHKKLL",
+        originLibraryID: 1
+
+
     });
     ztoolkit.log("firstTranslation",
         firstTranslation

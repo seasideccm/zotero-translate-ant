@@ -20,7 +20,7 @@ class Addon {
     dialog?: DialogHelper;
 
   };
-  public contain: any;
+  public mountPoing: any;
   // Lifecycle hooks
   public hooks: typeof hooks;
   // APIs
@@ -34,7 +34,7 @@ class Addon {
     };
     this.hooks = hooks;
     this.api = {};
-    this.contain = {};
+    this.mountPoing = {};
   }
 }
 

@@ -63,7 +63,6 @@ CREATE TABLE
     );
 
 DROP TABLE IF EXISTS translation;
-
 CREATE TABLE
     translation (
         translateID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +70,22 @@ CREATE TABLE
         targetTextID INTEGER NOT NULL,
         dateAdded TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (sourceTextID, targetTextID) -- 多列唯一性约束
+    );
+-- CREATE UNIQUE INDEX translation_s_t ON translation(sourceTextID,targetTextID);
+
+DROP TABLE IF EXISTS translationOrigin;
+CREATE TABLE
+    translationOrigin (
+        translateID INTEGER NOT NULL,
         originID INTEGER,
         originKey TEXT,
-        originLibraryID INTEGER
+        originLibraryID INTEGER,
+        UNIQUE (translateID,originID,originKey,originLibraryID)
     );
+
+CREATE TABLE version (
+    schema TEXT PRIMARY KEY,
+    version INT NOT NULL
+);
+CREATE INDEX schema ON version(schema);
