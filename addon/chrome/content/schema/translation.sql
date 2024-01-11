@@ -1,10 +1,12 @@
 -- 1
 
--- 翻山蚁 sqlite 表
+-- 翻山蚁 译文
+-- sqlite 表
 
 -- Valid language ("english," "chines," etc.)
 
 DROP TABLE IF EXISTS language;
+
 CREATE TABLE
     language (
         langID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,14 +15,6 @@ CREATE TABLE
         zoteroPrimaryDialects TEXT,
         zoteroCode TEXT,
         francCode TEXT
-    );
-
-DROP TABLE IF EXISTS fields;
-
-CREATE TABLE
-    fields (
-        fieldID INTEGER PRIMARY KEY,
-        fieldName TEXT
     );
 
 -- sourceText
@@ -62,6 +56,7 @@ CREATE TABLE
     );
 
 DROP TABLE IF EXISTS translation;
+
 CREATE TABLE
     translation (
         translateID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,17 +69,25 @@ CREATE TABLE
 -- CREATE UNIQUE INDEX translation_s_t ON translation(sourceTextID,targetTextID);
 
 DROP TABLE IF EXISTS translationOrigin;
+
 CREATE TABLE
     translationOrigin (
         translateID INTEGER NOT NULL,
         originID INTEGER,
         originKey TEXT,
         originLibraryID INTEGER,
-        UNIQUE (translateID,originID,originKey,originLibraryID)
+        UNIQUE (
+            translateID,
+            originID,
+            originKey,
+            originLibraryID
+        )
     );
 
-CREATE TABLE version (
-    schema TEXT PRIMARY KEY,
-    version INT NOT NULL
-);
+CREATE TABLE
+    version (
+        schema TEXT PRIMARY KEY,
+        version INT NOT NULL
+    );
+
 CREATE INDEX schema ON version(schema);

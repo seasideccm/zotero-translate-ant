@@ -41,7 +41,7 @@ export async function fileToblob(path: string) {
     return new Blob([buf]);
 }
 
-const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
+export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 export async function readImage(path: string) {
     if (!await OS.File.exists(path)) { return; }
     const buf = await OS.File.read(path, {});
@@ -59,6 +59,19 @@ export async function readImage(path: string) {
         fileType: fileType,
         fileName: fileName
     };
+}
+
+export function getNameNoExt(fileNameOrPath: string) {
+    let fileNameNoExt;
+    const baseName = OS.Path.basename(fileNameOrPath);
+    const pos = baseName.lastIndexOf('.');
+    if (pos > 0) {
+        fileNameNoExt = baseName.substr(0, pos);
+        const ext = baseName.substr(pos + 1);
+    } else {
+        fileNameNoExt = baseName;
+    }
+    return fileNameNoExt;
 }
 
 export async function saveImage(dataURL: string, outputPath: string) {
