@@ -74,6 +74,10 @@ export function getNameNoExt(fileNameOrPath: string) {
     return fileNameNoExt;
 }
 
+export function getDir(fileNameOrPath: string) {
+    return OS.Path.dirname(fileNameOrPath);
+}
+
 export async function saveImage(dataURL: string, outputPath: string) {
     const temp = base64ToBytes(dataURL);
     if (!temp) return;
