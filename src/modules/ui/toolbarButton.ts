@@ -4,14 +4,17 @@ import { arrToObj } from "../../utils/tools";
 import { getDB, modifyColumn } from "../database";
 import { testClass } from "../database/translationItem";
 import { makeClickButton, makeTagElementProps } from "./uiTools";
+import { dodo } from "../../utils/iso-639-3";
 
 
 
 const keysForButtonMenu = ["label", "func", "args"];
 const paras = ["测试类", testClass, []];
+const paras2 = ["iso测试", dodo, []];
 
 const menuitemGroupArr = [
     [arrToObj(keysForButtonMenu, paras)],
+    [arrToObj(keysForButtonMenu, paras2)],
 ];
 
 

@@ -62,7 +62,9 @@ export class DB extends Zotero.DBConnection {
             const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
             //const addonDBVersion = await DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
             if (tablesName.length === 0) {
-                await this.initializeSchema();
+                await this.initializeSchema('translation');
+                await insertLangCode(this);
+                this.dbInitialized = true;
             } else {
                 // 检查数据库是否完整
                 const integrityCheck = await this.queryAsync("PRAGMA integrity_check");
@@ -74,16 +76,14 @@ export class DB extends Zotero.DBConnection {
 
         };
     }
-    async initializeSchema() {
+    async initializeSchema(schemaName: string) {
         await this.executeTransaction(async () => {
             try {
                 await this.queryAsync("PRAGMA page_size = 4096");
                 await this.queryAsync("PRAGMA encoding = 'UTF-8'");
                 await this.queryAsync("PRAGMA auto_vacuum = 1");
-                const sql = await getSchemaSQL('translation');
+                const sql = await getSchemaSQL(schemaName);
                 await this.executeSQLFile(sql);
-                await insertLangCode(this);
-                this.dbInitialized = true;
             }
             catch (e) {
                 ztoolkit.log(e, 1);
@@ -130,6 +130,299 @@ export class DB extends Zotero.DBConnection {
         Zotero.startupError = msg;
         return true;
     }
+
+    /**
+     * 
+     * @param schema 
+     * @param dir option default:chrome://${config.addonRef}/content/
+     * @returns 
+     */
+    async getSchemaSQL(schemaName: string, dir?: string) {
+        if (!schemaName) {
+            throw ('Schema type not provided to _getSchemaSQL()');
+        }
+        dir = dir || `chrome://${config.addonRef}/content/schema/`;
+        const path = dir + `${schemaName}.sql`;
+        return await Zotero.File.getResourceAsync(path);
+    }
+
+    async bakeupDB() {
+        this._externalDB = false;
+        const result = await this.backupDatabase();
+        this._externalDB = true;
+        return result;
+    }
+
+
+    /**
+     * 创建临时表，新建表，导入数据，删除旧表
+     * @param tableName 
+     * @param allColumnsDefine 
+     */
+    async modifyColumn(tableName: string, allColumnsDefine: string) {
+        await this.executeTransaction(async () => {
+            const oldColumns = await this.getColumns(tableName);
+            let sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
+            await this.queryAsync(sql);
+            sql = `CREATE TABLE ${tableName} (${allColumnsDefine})`;
+            await this.queryAsync(sql);
+            const newColumns = await this.getColumns(tableName);
+            if (oldColumns && newColumns && oldColumns.length === newColumns.length) {
+                sql = `INSERT INTO ${tableName} SELECT * FROM ${tableName}_tempTable`;
+                await this.queryAsync(sql);
+                /* try{
+                    await this.queryAsync(sql);
+                }
+                catch(e:any){
+                    ztoolkit.log(e)
+                    throw e
+                } */
+            }
+            sql = `DROP TABLE ${tableName}_tempTable`;
+            await this.queryAsync(sql);
+        });
+
+    }
+
+    async saveDate(tableName: string,
+        data: {
+            [columsField: string]: any;
+        }) {
+        const sqlColumns = Object.keys(data);
+        const sqlValues = sqlColumns.map((key) => data[key]);
+        const sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "
+            + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+        await this.queryAsync(sql, sqlValues);
+
+    }
+
+    async updateDate(tableName: string,
+        data: { [columsField: string]: any; },
+        record: { [columsField: string]: any; }) {
+        const sqlColumns = Object.keys(data);
+        const sqlValues = sqlColumns.map((key) => data[key]);
+        const condition = Object.keys(record).map(e => e + "=?").join(" AND ");
+        const sql = "UPDATE " + tableName + " SET " + sqlColumns.join("=?, ") + "=? WHERE " + condition;
+        sqlValues.push(...Object.values(record));
+        await this.queryAsync(sql, sqlValues);
+
+    }
+
+    async integrityCheck(DB: any, fix: boolean, options: any = {}) {
+        ztoolkit.log("Checking database schema integrity");
+
+        // Just as a sanity check, make sure combined field tables are populated,
+        // so that we don't try to wipe out all data
+        //if (!(await DB.valueQueryAsync("SELECT COUNT(*) FROM fieldsCombined"))
+        //    || !(await DB.valueQueryAsync("SELECT COUNT(*) FROM itemTypeFieldsCombined"))) {
+        //    ztoolkit.log("Combined field tables are empty -- skipping integrity check");
+        //    return false;
+        //}
+
+
+
+        // The first position is for testing and the second is for repairing. Can be either SQL
+        // statements or promise-returning functions. For statements, the repair entry can be either
+        // a string or an array with multiple statements. Check functions should return false if no
+        // error, and either true or data to pass to the repair function on error. Functions should
+        // avoid assuming any global state (e.g., loaded data).
+        let checks = [
+            [
+                // Create any tables or indexes that are missing and delete any tables or triggers
+                // that still exist but should have been deleted
+                //
+                // This is skipped for automatic checks, because it can cause problems with schema
+                // update steps that don't expect tables to exist.
+                async function () {
+                    const statementsToRun = [];
+                    // Get all existing tables, indexes, and triggers
+                    const sql = "SELECT "
+                        + "CASE type "
+                        + "WHEN 'table' THEN 'table:' || tbl_name "
+                        + "WHEN 'index' THEN 'index:' || name "
+                        + "WHEN 'trigger' THEN 'trigger:' || name "
+                        + "END "
+                        + "FROM sqlite_master WHERE type IN ('table', 'index', 'trigger')";
+                    const schema = new Set(await DB.columnQueryAsync(sql));
+
+                    // Check for deleted tables and triggers that still exist
+                    const deletedTables = [
+                        "transactionSets",
+                        "transactions",
+                        "transactionLog",
+                    ];
+                    const deletedTriggers = [
+                        "insert_date_field",
+                        "update_date_field",
+                    ];
+                    for (const table of deletedTables) {
+                        if (schema.has('table:' + table)) {
+                            statementsToRun.push("DROP TABLE " + table);
+                        }
+                    }
+                    for (const trigger of deletedTriggers) {
+                        if (schema.has('trigger:' + trigger)) {
+                            statementsToRun.push("DROP TRIGGER " + trigger);
+                        }
+                    }
+
+                    // Check for missing tables and indexes
+                    const statements = await DB.parseSQLFile(await getSchemaSQL('translation'));
+                    for (const statement of statements) {
+                        let matches = statement.match(/^CREATE TABLE\s+([^\s]+)/);
+                        if (matches) {
+                            const table = matches[1];
+                            if (!schema.has('table:' + table)) {
+                                ztoolkit.log(`Table ${table} is missing`, 2);
+                                statementsToRun.push(statement);
+                            }
+                            continue;
+                        }
+
+                        matches = statement.match(/^CREATE INDEX\s+([^\s]+)/);
+                        if (matches) {
+                            const index = matches[1];
+                            if (!schema.has('index:' + index)) {
+                                ztoolkit.log(`Index ${index} is missing`, 2);
+                                statementsToRun.push(statement);
+                            }
+                            continue;
+                        }
+                    }
+
+                    return statementsToRun.length ? statementsToRun : false;
+                },
+                async function (statements: any[]) {
+                    for (const statement of statements) {
+                        await DB.queryAsync(statement);
+                    }
+                },
+                {
+                    reconcile: true
+                }
+            ],
+
+            // Foreign key checks
+            [
+                async function () {
+                    const rows = await DB.queryAsync("PRAGMA foreign_key_check");
+                    if (!rows.length) return false;
+                    const suffix1 = rows.length == 1 ? '' : 's';
+                    const suffix2 = rows.length == 1 ? 's' : '';
+                    ztoolkit.log(`Found ${rows.length} row${suffix1} that violate${suffix2} foreign key constraints`, 1);
+                    return rows;
+                },
+                // If fixing, delete rows that violate FK constraints
+                async function (rows: any[]) {
+                    for (const row of rows) {
+                        await DB.queryAsync(`DELETE FROM ${row.table} WHERE ROWID=?`, row.rowid);
+                    }
+                }
+            ],
+
+            // Can't be a FK with itemTypesCombined
+            [
+                "SELECT COUNT(*) > 0 FROM items WHERE itemTypeID IS NULL",
+                "DELETE FROM items WHERE itemTypeID IS NULL",
+            ],
+
+            // Fields not in type
+            [
+                "SELECT COUNT(*) > 0 FROM itemData WHERE fieldID NOT IN (SELECT fieldID FROM itemTypeFieldsCombined WHERE itemTypeID=(SELECT itemTypeID FROM items WHERE itemID=itemData.itemID))",
+                "DELETE FROM itemData WHERE fieldID NOT IN (SELECT fieldID FROM itemTypeFieldsCombined WHERE itemTypeID=(SELECT itemTypeID FROM items WHERE itemID=itemData.itemID))",
+            ],
+
+            // TEXT userID
+            [
+                "SELECT COUNT(*) > 0 FROM settings WHERE setting='account' AND key='userID' AND TYPEOF(value)='text'",
+                async function () {
+                    const userID = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='account' AND key='userID'");
+                    await DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID.trim()));
+                }
+            ],
+
+        ];
+
+        // Remove reconcile steps
+        if (options && options.skipReconcile) {
+            //@ts-ignore has
+            checks = checks.filter(x => !x[2] || !x[2].reconcile);
+        }
+
+        for (const check of checks) {
+            let errorsFound = false;
+            // SQL statement
+            if (typeof check[0] == 'string') {
+                errorsFound = await DB.valueQueryAsync(check[0]);
+            }
+            // Function
+            else {
+                //@ts-ignore has
+                errorsFound = await check[0]();
+            }
+            if (!errorsFound) {
+                continue;
+            }
+
+            ztoolkit.log("Test failed!", 1);
+
+            if (fix) {
+                try {
+                    // Single query
+                    if (typeof check[1] == 'string') {
+                        await DB.queryAsync(check[1]);
+                    }
+                    // Multiple queries
+                    else if (Array.isArray(check[1])) {
+                        for (const s of check[1]) {
+                            await DB.queryAsync(s);
+                        }
+                    }
+                    // Function
+                    else {
+                        // If data was provided by the check function, pass that to the fix function
+                        const checkData = typeof errorsFound != 'boolean' ? errorsFound : null;
+                        //@ts-ignore has
+                        await check[1](checkData);
+                    }
+                    continue;
+                }
+                catch (e: any) {
+                    Zotero.logError(e);
+                    // Clear flag on failure, to avoid showing an error on every startup if someone
+                    // doesn't know how to deal with it
+                    await setIntegrityCheckRequired(false, DB);
+                }
+            }
+
+            return false;
+        }
+
+        // Clear flag on success
+        if (fix) {
+            await setIntegrityCheckRequired(false, DB);
+        }
+
+        return true;
+    };
+
+
+    async integrityCheckRequired(DB: any) {
+        return !!await DB.valueQueryAsync(
+            "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"
+        );
+    };
+
+    async setIntegrityCheckRequired(required: boolean, DB: any) {
+        let sql;
+        if (required) {
+            sql = "REPLACE INTO settings VALUES ('db', 'integrityCheck', 1)";
+        }
+        else {
+            sql = "DELETE FROM settings WHERE setting='db' AND key='integrityCheck'";
+        }
+        await DB.queryAsync(sql);
+    };
 }
 
 /**
@@ -164,8 +457,7 @@ export async function getDB(dbName?: string) {
         await IOUtils.makeDirectory(dir);
     }
     dir == "." ? dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef) : () => { };
-    dbName = dbName ? getNameNoExt(dbName) : `${config.addonRef}DB`;
-    dbName = dbName + ".sqlite";
+    dbName = dbName ? getNameNoExt(dbName) + ".sqlite" : `${config.addonRef}DB.sqlite`;
     const path = PathUtils.join(dir, dbName!);
     // 创建数据库实例
     addonDB = new DB(path);
@@ -304,12 +596,12 @@ export async function getDB(dbName?: string) {
  * @param dir option default:chrome://${config.addonRef}/content/
  * @returns 
  */
-async function getSchemaSQL(schema: string, dir?: string) {
-    if (!schema) {
+async function getSchemaSQL(schemaName: string, dir?: string) {
+    if (!schemaName) {
         throw ('Schema type not provided to _getSchemaSQL()');
     }
     dir = dir || `chrome://${config.addonRef}/content/schema/`;
-    const path = dir + `${schema}.sql`;
+    const path = dir + `${schemaName}.sql`;
     return await Zotero.File.getResourceAsync(path);
 }
 
@@ -318,13 +610,6 @@ async function bakeupDatebase(addonDB: any) {
     return await addonDB.backupDatabase();
 }
 
-async function tanslationData(option: any) {
-
-    const tables = ["translation", "translateMode", "score", "sourceText", "targetText"];
-    ["langCode", "sourceText"];
-
-
-}
 
 /**
  * 创建临时表，新建表，导入数据，删除旧表

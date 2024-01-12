@@ -33,6 +33,7 @@
   "homepage": "https://github.com/seasideccm/zotero-batch-translate#readme",
   "dependencies": {
     "franc-min": "^6.1.0",
+    "iso-639-3": "^3.0.1",
     "zotero-plugin-toolkit": "^2.3.15"
   },
   "devDependencies": {
