@@ -1,6 +1,6 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
-import { arrToObj } from "../../utils/tools";
+import { arrToObj, getFilesPathOrName } from "../../utils/tools";
 import { getDB, modifyColumn } from "../database";
 import { testClass } from "../database/translationItem";
 import { makeClickButton, makeTagElementProps } from "./uiTools";
@@ -11,10 +11,12 @@ import { dodo } from "../../utils/iso-639-3";
 const keysForButtonMenu = ["label", "func", "args"];
 const paras = ["测试类", testClass, []];
 const paras2 = ["iso测试", dodo, []];
+const paras3 = ["获取目录文件名", getFilesPathOrName, ["F:\\zotero-batch-translate\\addon\\chrome\\content\\schema"]];
 
 const menuitemGroupArr = [
     [arrToObj(keysForButtonMenu, paras)],
     [arrToObj(keysForButtonMenu, paras2)],
+    [arrToObj(keysForButtonMenu, paras3)],
 ];
 
 

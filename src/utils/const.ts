@@ -2,6 +2,8 @@ import { config } from "../../package.json";
 export const addonStorageDir = PathUtils.join(Zotero.getStorageDirectory().path, config.addonName);
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
+export const SCHEMA_NAMES = ["addonSystem", "translation"];
+
 export const svgPrefix = 'data:image/svg+xml,';
 //缺少</path>不显示svg, 
 //分割符为空格，不是逗号

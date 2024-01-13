@@ -1,12 +1,16 @@
 import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
-import { getDir, getNameNoExt } from "../utils/tools";
+import { getDir, getNameNoExt, getResourceFilesNameAsync } from "../utils/tools";
+import { SCHEMA_NAMES } from "../utils/const";
 
 export class DB extends Zotero.DBConnection {
 
     constructor(dbNameOrPath: string) {
         super(dbNameOrPath);
         this.init().then(() => { addon.mountPoing.database = this; });
+        this.schemaVersions = {};
+        this.dbversion = {};
+        this.getAllSchemaSQLVersion().then((res) => { });
     }
     async init() {
         try {
@@ -58,6 +62,7 @@ export class DB extends Zotero.DBConnection {
         //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
         // queryAsync 连接数据库，不存在则会创建
         if (!this.dbInitialized) {
+            //dbInitializedCheck
             //查表
             const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
             //const addonDBVersion = await DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
@@ -139,12 +144,36 @@ export class DB extends Zotero.DBConnection {
      */
     async getSchemaSQL(schemaName: string, dir?: string) {
         if (!schemaName) {
-            throw ('Schema type not provided to _getSchemaSQL()');
+            throw ('Schema type not provided to getSchemaSQL()');
         }
         dir = dir || `chrome://${config.addonRef}/content/schema/`;
+        schemaName = getNameNoExt(schemaName);
         const path = dir + `${schemaName}.sql`;
         return await Zotero.File.getResourceAsync(path);
     }
+
+
+    async getSchemaSQLVersion(schemaName: string) {
+        const sql = await this.getSchemaSQL(schemaName);
+        if (!sql) {
+            throw ('empty Schema');
+        }
+        const match = sql.match(/^-- ([0-9]+)/);
+        if (!match || !match[1]) {
+            throw ('Schema version not found');
+        }
+        const schemaVersion = parseInt(match[1]);
+        this.schemaVersions[schemaName] = schemaVersion;
+        return schemaVersion;
+    }
+
+    async getAllSchemaSQLVersion() {
+        const schemaNames = await getResourceFilesNameAsync();
+        for (const schemaName of schemaNames) {
+            await this.getSchemaSQLVersion(schemaName);
+        }
+    }
+
 
     async bakeupDB() {
         this._externalDB = false;
@@ -659,22 +688,6 @@ async function saveDateToDB(data: any, op?: string, record?: { filed: string; va
 
 async function integrityCheck(DB: any, fix: boolean, options: any = {}) {
     ztoolkit.log("Checking database schema integrity");
-
-    // Just as a sanity check, make sure combined field tables are populated,
-    // so that we don't try to wipe out all data
-    //if (!(await DB.valueQueryAsync("SELECT COUNT(*) FROM fieldsCombined"))
-    //    || !(await DB.valueQueryAsync("SELECT COUNT(*) FROM itemTypeFieldsCombined"))) {
-    //    ztoolkit.log("Combined field tables are empty -- skipping integrity check");
-    //    return false;
-    //}
-
-
-
-    // The first position is for testing and the second is for repairing. Can be either SQL
-    // statements or promise-returning functions. For statements, the repair entry can be either
-    // a string or an array with multiple statements. Check functions should return false if no
-    // error, and either true or data to pass to the repair function on error. Functions should
-    // avoid assuming any global state (e.g., loaded data).
     let checks = [
         [
             // Create any tables or indexes that are missing and delete any tables or triggers

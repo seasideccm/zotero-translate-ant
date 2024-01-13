@@ -1,3 +1,43 @@
+import { config } from "../../package.json";
+
+
+export async function getResourceFilesNameAsync(url?: string) {
+    url = url || `chrome://${config.addonRef}/content/schema/`;
+    const result = await Zotero.HTTP.request("GET", url);
+    const filesInfo = result.response.split("\n").filter((e: string) => e.includes("FILE"));
+    const files = filesInfo.map((e: string) => e.split(" ")[1]);
+    return files;
+}
+
+/**
+ * 获取文件夹中的文件名
+ * @param dir 
+ * @param option 是否包含子文件夹、是否保留扩展名
+ * @returns 
+ */
+export async function getFilesPathOrName(dir: string, option: any = { subDirectory: true, extension: false }) {
+    const filesPathOrName: string[] = [];
+    async function onOntry(entry: any) {
+        if (entry.isDir && option.subDirectory) {
+            await Zotero.File.iterateDirectory(entry.path, onOntry);
+        }
+        else if (entry.isDir && !option.subDirectory) {
+            return;
+        }
+        else {
+            if (!entry.name) return;
+            if (option.extension) {
+                filesPathOrName.push(entry.name);
+            } else {
+                filesPathOrName.push(getNameNoExt(entry.name));
+            }
+        }
+    }
+    await Zotero.File.iterateDirectory(dir, onOntry);
+    ztoolkit.log(filesPathOrName);
+    return filesPathOrName;
+}
+
 export function arrToObj(keys: string[], values: any[]) {
     if (keys.length !== values.length) {
         throw "keys and values amount is not equal";
