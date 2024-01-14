@@ -1,13 +1,13 @@
 import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
-import { getDir, getNameNoExt, getResourceFilesNameAsync } from "../utils/tools";
+import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { SCHEMA_NAMES } from "../utils/const";
 
 export class DB extends Zotero.DBConnection {
 
     constructor(dbNameOrPath: string) {
         super(dbNameOrPath);
-        this.init().then(() => { addon.mountPoing.database = this; });
+        this.init().then(() => { addon.mountPoint.database = this; });
         this.schemaVersions = {};
         this.dbversion = {};
         this.getAllSchemaSQLVersion().then((res) => { });
@@ -147,7 +147,7 @@ export class DB extends Zotero.DBConnection {
             throw ('Schema type not provided to getSchemaSQL()');
         }
         dir = dir || `chrome://${config.addonRef}/content/schema/`;
-        schemaName = getNameNoExt(schemaName);
+        schemaName = fileNameNoExt(schemaName);
         const path = dir + `${schemaName}.sql`;
         return await Zotero.File.getResourceAsync(path);
     }
@@ -168,16 +168,16 @@ export class DB extends Zotero.DBConnection {
     }
 
     async getAllSchemaSQLVersion() {
-        const schemaNames = await getResourceFilesNameAsync();
+        const schemaNames = await resourceFilesName();
         for (const schemaName of schemaNames) {
             await this.getSchemaSQLVersion(schemaName);
         }
     }
 
 
-    async bakeupDB() {
+    async bakeupDB(suffix: any = false, force: boolean = false) {
         this._externalDB = false;
-        const result = await this.backupDatabase();
+        const result = await this.backupDatabase(suffix, force);
         this._externalDB = true;
         return result;
     }
@@ -486,7 +486,7 @@ export async function getDB(dbName?: string) {
         await IOUtils.makeDirectory(dir);
     }
     dir == "." ? dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef) : () => { };
-    dbName = dbName ? getNameNoExt(dbName) + ".sqlite" : `${config.addonRef}DB.sqlite`;
+    dbName = dbName ? fileNameNoExt(dbName) + ".sqlite" : `${config.addonRef}DB.sqlite`;
     const path = PathUtils.join(dir, dbName!);
     // 创建数据库实例
     addonDB = new DB(path);

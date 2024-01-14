@@ -18,3 +18,16 @@ CREATE TABLE
         value,
         PRIMARY KEY (setting, key)
     );
+
+DROP TABLE IF EXISTS syncedSettings;
+-- Settings that get synced between Zotero installations
+CREATE TABLE
+    syncedSettings (
+        setting TEXT NOT NULL,
+        libraryID INT NOT NULL,
+        value NOT NULL,
+        version INT NOT NULL DEFAULT 0,
+        synced INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (setting, libraryID),
+        FOREIGN KEY (libraryID) REFERENCES libraries(libraryID) ON DELETE CASCADE
+    );

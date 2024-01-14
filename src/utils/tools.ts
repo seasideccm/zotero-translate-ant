@@ -1,11 +1,12 @@
 import { config } from "../../package.json";
+import { franc } from 'franc-min';
 
 
-export async function getResourceFilesNameAsync(url?: string) {
+export async function resourceFilesName(url?: string) {
     url = url || `chrome://${config.addonRef}/content/schema/`;
     const result = await Zotero.HTTP.request("GET", url);
     const filesInfo = result.response.split("\n").filter((e: string) => e.includes("FILE"));
-    const files = filesInfo.map((e: string) => e.split(" ")[1]);
+    const files = filesInfo.map((e: string) => fileNameNoExt(e.split(" ")[1])).filter((e: any) => e && e != "");
     return files;
 }
 
@@ -29,7 +30,7 @@ export async function getFilesPathOrName(dir: string, option: any = { subDirecto
             if (option.extension) {
                 filesPathOrName.push(entry.name);
             } else {
-                filesPathOrName.push(getNameNoExt(entry.name));
+                filesPathOrName.push(fileNameNoExt(entry.name));
             }
         }
     }
@@ -101,7 +102,7 @@ export async function readImage(path: string) {
     };
 }
 
-export function getNameNoExt(fileNameOrPath: string) {
+export function fileNameNoExt(fileNameOrPath: string) {
     let fileNameNoExt;
     const baseName = OS.Path.basename(fileNameOrPath);
     const pos = baseName.lastIndexOf('.');
