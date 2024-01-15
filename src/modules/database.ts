@@ -2,6 +2,7 @@ import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { SCHEMA_NAMES } from "../utils/const";
+import { Schema } from "./database/schema";
 
 export class DB extends Zotero.DBConnection {
 
@@ -62,6 +63,9 @@ export class DB extends Zotero.DBConnection {
         //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
         // queryAsync 连接数据库，不存在则会创建
         if (!this.dbInitialized) {
+            const schema = new Schema;
+
+
             //dbInitializedCheck
             //查表
             const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
@@ -470,7 +474,7 @@ export class DB extends Zotero.DBConnection {
  */
 export async function getDB(dbName?: string) {
 
-    let addonDB = addon.mountPoing.database;
+    let addonDB = addon.mountPoint.database;
     if (addonDB) {
         try {
             await addonDB.test();
@@ -556,8 +560,8 @@ export async function getDB(dbName?: string) {
             }
     
         };
-        //addon.mountPoing.database ? addon.mountPoing.database[dbName] = addonDB : addon.mountPoing.database = { [dbName]: addonDB };
-        addon.mountPoing.database = addonDB;
+        //addon.mountPoint.database ? addon.mountPoint.database[dbName] = addonDB : addon.mountPoint.database = { [dbName]: addonDB };
+        addon.mountPoint.database = addonDB;
         return addonDB;
     
         async function initializeSchema(DB: any) {

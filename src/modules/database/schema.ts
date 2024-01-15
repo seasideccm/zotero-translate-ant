@@ -3,6 +3,7 @@ import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, SCHEMA_NAMES } from "../../utils/
 import { version as addonVersion } from "../../../package.json";
 
 
+
 export class Schema {
     dbInitialized = false;
     _schemaUpdateDeferred = Zotero.Promise.defer();

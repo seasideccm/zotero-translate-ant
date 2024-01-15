@@ -120,6 +120,7 @@ export async function testClass() {
     ztoolkit.log("firstTranslation",
         firstTranslation
     );
+
     await firstTranslation.save();
 }
 
