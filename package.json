@@ -41,6 +41,7 @@
     "@types/node": "^20.10.5",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
+    "@types/bulebird": "^3.5.42",
     "chokidar": "^3.5.3",
     "compressing": "^1.10.0",
     "esbuild": "^0.19.9",

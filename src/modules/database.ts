@@ -1,12 +1,15 @@
 import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
-import { SCHEMA_NAMES } from "../utils/const";
 import { Schema } from "./database/schema";
+
+export class ss extends Zotero.Search{
+    
+}
 
 export class DB extends Zotero.DBConnection {
 
-    constructor(dbNameOrPath: string) {
+    constructor(dbNameOrPath?: string) {
         super(dbNameOrPath);
         this.init().then(() => { addon.mountPoint.database = this; });
         this.schemaVersions = {};
@@ -457,6 +460,10 @@ export class DB extends Zotero.DBConnection {
         await DB.queryAsync(sql);
     };
 }
+
+const dddd=new DB()
+dddd.
+
 
 /**
  * 连接数据库
