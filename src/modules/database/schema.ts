@@ -12,9 +12,25 @@ export class Schema {
     //数据库结构兼容插件（软件）的最大版本号
     _maxCompatibility = MAX_COMPATIBILITY;
     _localUpdateInProgress = false;
+    isCompatible: any = undefined;
     DB = addon.mountPoint.database;
 
-
+    async checkCompat() {
+        const compatibility = await this.getSchemaVersion("compatibility");
+        //当前数据库兼容版本号大于插件的数据库兼容版本号。
+        //可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。
+        if (compatibility > this._maxCompatibility) {
+            const dbAddonVersion = await this.DB.valueQueryAsync(
+                "SELECT value FROM settings "
+                + "WHERE setting='addon' AND key='lastCompatibleVersion'"
+            );
+            const msg = "Database is incompatible with this addon version. 可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。"
+                + `(${compatibility} > ${this._maxCompatibility})`;
+            ztoolkit.log(msg);
+            return false;
+        }
+        return true;
+    }
     /**
      * Fetch the schema version from current version table of database
      * @param schema 
@@ -60,24 +76,19 @@ export class Schema {
     }
 
     async updateSchema(schema: string, options: any = {}) {
+        if (typeof this.isCompatible == "undefined") {
+            this.isCompatible = await this.checkCompat();
+        }
+        if (!this.isCompatible) throw "not Compatible";
+
         schema = schema || 'translation';
         const schemaVersion = await this.getSchemaVersion(schema);
-        const compatibility = await this.getSchemaVersion("compatibility");
+
         if (!schemaVersion) {
             Zotero.debug('Database does not exist -- creating\n');
             return this.initializeSchema();
         }
-        //当前数据库兼容版本号大于插件的数据库兼容版本号。
-        //可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。
-        if (compatibility > this._maxCompatibility) {
-            const dbAddonVersion = await this.DB.valueQueryAsync(
-                "SELECT value FROM settings "
-                + "WHERE setting='addon' AND key='lastCompatibleVersion'"
-            );
-            const msg = "Database is incompatible with this addon version. 可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。"
-                + `(${compatibility} > ${this._maxCompatibility})`;
-            throw new this.DB.IncompatibleVersionException(msg, dbAddonVersion);
-        }
+
 
         // Check if DB is coming from the DB Repair Tool and should be checked
         const integrityCheckRequired = await this.integrityCheckRequired();
@@ -400,6 +411,7 @@ export class Schema {
             for (const schema of sqlFiles) {
                 const sql = await this.getSchemaSQL(schema);
                 await this.DB.executeSQLFile(sql);
+                //@ts-ignore has
                 const version = parseInt(sql.match(/^-- ([0-9]+)/)[1]);
                 this._schemaVersions[schema] = version;
                 await this.updateSchemaVersion(schema, version);
@@ -420,42 +432,10 @@ export class Schema {
             );
             throw e;
         }
-    }.bind(this);
+    };
 
     async initializeSchema() {
-        const doInitSchema = async function () {
-            try {
-                // Enable auto-vacuuming
-                await this.DB.queryAsync("PRAGMA page_size = 4096");
-                await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
-                await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
-
-                const sqlFiles = SCHEMA_NAMES;
-                for (const schema of sqlFiles) {
-                    const sql = await this.getSchemaSQL(schema);
-                    await this.DB.executeSQLFile(sql);
-                    const version = parseInt(sql.match(/^-- ([0-9]+)/)[1]);
-                    this._schemaVersions[schema] = version;
-                    await this.updateSchemaVersion(schema, version);
-                }
-                await this.updateLastAddonVersion();
-                await this.updateCompatibility(this._maxCompatibility);
-                this.dbInitialized = true;
-            }
-            catch (e) {
-                Zotero.debug(e, 1);
-                Components.utils.reportError(e);
-                const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                    .getService(Components.interfaces.nsIPromptService);
-                ps.alert(
-                    null,
-                    Zotero.getString('general.error'),
-                    Zotero.getString('startupError', Zotero.appName)
-                );
-                throw e;
-            }
-        }.bind(this);
-        await this.DB.executeTransaction(doInitSchema);
+        await this.DB.executeTransaction(this.doInitSchema.bind(this));
     }
 
 
