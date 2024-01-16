@@ -2,44 +2,148 @@ import { config } from "../../package.json";
 import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { Schema } from "./database/schema";
+import { SCHEMA_NAMES } from "../utils/const";
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     schemaVersions: any;
     schema?: Schema;
+    accessibility: boolean | null;
+    /**
+     * - 参数为完整路径时，Zotero 将创建的数据库标记为外部，
+     * - 仅传入名称时，标为内部数据库
+     * @param dbNameOrPath
+     * @example
+     * Zotero.DB = new Zotero.DBConnection('zotero')
+     */
     constructor(dbNameOrPath: string) {
         super(dbNameOrPath);
+        this.accessibility = null;
         addon.mountPoint.database = this;
         this.schemaVersions = {};
-        this.init();
+        this.integrityCheck().then((res: boolean) => {
+            if (!res) {
+
+            }
+        });
+        this.checkSchema();
+
+        //this.init();
         //.then(() => { this.getAllSchemaSQLVersion().then((res) => { }); });
 
     }
 
 
+    /**
+         * Initializes the DB connection
+         */
+    /*  _initDB = Zotero.Promise.coroutine(function* (haveReleasedLock: any) {
+         // Initialize main database connection
+ 
+         try {
+             // Test read access
+             yield this.test();
+ 
+             const dbfile = Zotero.DataDirectory.getDatabase();
+ 
+             // Test write access on Zotero data directory
+             if (!Zotero.File.pathToFile(OS.Path.dirname(dbfile)).isWritable()) {
+                 var msg = 'Cannot write to ' + OS.Path.dirname(dbfile) + '/';
+             }
+             // Test write access on Zotero database
+             else if (!Zotero.File.pathToFile(dbfile).isWritable()) {
+                 var msg = 'Cannot write to ' + dbfile;
+             }
+             else {
+                 var msg = false;
+             }
+ 
+             if (msg) {
+                 const e = {
+                     name: 'NS_ERROR_FILE_ACCESS_DENIED',
+                     message: msg,
+                     toString: function () { return this.message; }
+                 };
+                 throw (e);
+             }
+         }
+         catch (e) {
+             if (_checkDataDirAccessError(e)) { }
+             // Storage busy
+             else if (e.message.includes('2153971713')) {
+                 Zotero.startupError = Zotero.getString('startupError.databaseInUse');
+             }
+             else {
+                 const stack = e.stack ? Zotero.Utilities.Internal.filterStack(e.stack) : null;
+                 Zotero.startupError = Zotero.getString('startupError', Zotero.appName) + "\n\n"
+                     + Zotero.getString('db.integrityCheck.reportInForums') + "\n\n"
+                     + (stack || e);
+             }
+ 
+             Zotero.debug(e.toString(), 1);
+             Components.utils.reportError(e); // DEBUG: doesn't always work
+             Zotero.skipLoading = true;
+             return false;
+         }
+ 
+         return true;
+     }.bind(this)); */
 
-    async init() {
-        //确保数据库已经初始化
-        //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
-        // queryAsync 连接数据库，不存在则会创建
+
+    async checkSchema() {
         if (!this.schema) {
             this.schema = new Schema();
         }
         if (!this.schema.dbInitialized) {
+            let;
+            for (const schemaName of SCHEMA_NAMES) {
+
+                if (!(await this.schema.getSchemaVersion(schemaName))) {
+
+                }
+            }
             await this.schema.initializeSchema();
         }
+        const ok = await this.schema.integrityCheck();
+    }
+    shutdown = Zotero.Promise.coroutine(function* () {
+        Zotero.debug("Shutting down Zotero");
 
-        const integrityCheck = await this.queryAsync("PRAGMA integrity_check");
-        if (integrityCheck[0].integrity_check != 'ok') {
-            ztoolkit.log(Zotero.getString('startupError.databaseIntegrityCheckFailed'));
+        try {
+            // set closing to true
+            Zotero.closing = true;
+
+            // run shutdown listener
+            const shutdownPromises = [];
+            for (const listener of _shutdownListeners) {
+                try {
+                    shutdownPromises.push(listener());
+                }
+                catch (e) {
+                    Zotero.logError(e);
+                }
+            }
+            yield Promise.all(shutdownPromises);
+
+            if (Zotero.DB) {
+                // close DB
+                yield Zotero.DB.closeDatabase(true);
+            }
+        } catch (e) {
+            Zotero.logError(e);
         }
+    });
 
+    init() {
+        () => { };
+        const integrity = this.integrityCheck();
+    }
 
-
+    async accessibilityTest() {
         try {
             let msg;
             // Test read access, if failure throw error
-            //this.test();
+            await this.test();
             // Test write access on path
             const dir = PathUtils.parent(this._dbPath)!;
             if (!Zotero.File.pathToFile(dir).isWritable()) {
@@ -78,11 +182,13 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
                 );
             }
             ztoolkit.log(e);
+            this.accessibility = false;
         }
 
-
+        return this.accessibility = true;
 
     }
+
     async initializeSchema(schemaName: string) {
         await this.executeTransaction(async () => {
             try {
@@ -280,7 +386,7 @@ export async function initDB(dbName?: string) {
     }
 
     // 创建数据库实例
-    const DBPath = await initDBPath();
+    const DBPath = await makeDBPath();
     addonDB = new DB(DBPath);
     /* if (!addonDB.dbInitialized) {
         await addonDB.init();
@@ -487,7 +593,7 @@ export async function initDB(dbName?: string) {
         } */
 }
 
-async function initDBPath(dbName?: string) {
+async function makeDBPath(dbName?: string) {
     //dir.replace(/\/|\\$/gm, '')
     let dir = dbName ? getDir(dbName) : PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
     if (!await IOUtils.exists(dir)) {

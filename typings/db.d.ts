@@ -122,7 +122,7 @@ declare namespace Zotero {
         // TEMP
         info(): Promise<any>;
         quickCheck(): Promise<await>;
-        integrityCheck(): Promise<await>;
+        integrityCheck(): Promise<boolean>;
         isCorruptionError(e: any): boolean;
         /**
          * Close the database
