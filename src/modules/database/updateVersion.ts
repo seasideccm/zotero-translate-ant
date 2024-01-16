@@ -1,8 +1,8 @@
-/* export  function getDBVersion (DB:any) {
+/* export  function initDBVersion (DB:any) {
     if (DB._dbVersions[schema]) {
         return Zotero.Promise.resolve(_dbVersions[schema]);
     }
-    let dbSystemVersion = yield Zotero.Schema.getDBVersion('system')
+    let dbSystemVersion = yield Zotero.Schema.initDBVersion('system')
     var sql = "SELECT version FROM version WHERE schema='" + schema + "'";
     return Zotero.DB.valueQueryAsync(sql)
         .then(function (dbVersion) {
@@ -42,7 +42,7 @@
     // 'compatibility' is incremented manually by upgrade steps in order to break DB
     // compatibility with older versions.
     var versions = await Zotero.Promise.all([
-        this.getDBVersion('userdata'), this.getDBVersion('compatibility')
+        this.initDBVersion('userdata'), this.initDBVersion('compatibility')
     ]);
     var [userdata, compatibility] = versions;
     if (!userdata) {

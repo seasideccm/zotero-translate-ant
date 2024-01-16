@@ -31,3 +31,10 @@ CREATE TABLE
         PRIMARY KEY (setting, libraryID),
         FOREIGN KEY (libraryID) REFERENCES libraries(libraryID) ON DELETE CASCADE
     );
+    
+DROP TABLE IF EXISTS version;
+
+    CREATE TABLE version (
+    schema TEXT PRIMARY KEY,
+    version INT NOT NULL
+);

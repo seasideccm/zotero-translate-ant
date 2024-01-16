@@ -1,6 +1,8 @@
 
 import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, SCHEMA_NAMES } from "../../utils/const";
-import { version as addonVersion } from "../../../package.json";
+import { version as addonVersion, config } from "../../../package.json";
+import { fileNameNoExt } from "../../utils/tools";
+
 
 
 
@@ -267,7 +269,7 @@ export class Schema {
                     // Check for missing tables and indexes
                     const statements = await this.DB.parseSQLFile(await this.getSchemaSQL('translation'));
                     for (const statement of statements) {
-                        const matches = statement.match(/^CREATE TABLE\s+([^\s]+)/);
+                        let matches = statement.match(/^CREATE TABLE\s+([^\s]+)/);
                         if (matches) {
                             const table = matches[1];
                             if (!schema.has('table:' + table)) {
@@ -392,12 +394,15 @@ export class Schema {
         await Zotero.DB.queryAsync(sql);
     };
 
-    getSchemaSQL(schema: string) {
+    getSchemaSQL(schema: string, dir?: string) {
         if (!schema) {
             throw ('Schema type not provided to this.getSchemaSQL()');
         }
+        dir = dir || `chrome://${config.addonRef}/content/schema/`;
+        schema = fileNameNoExt(schema);
+        const path = dir + `${schema}.sql`;
 
-        return Zotero.File.getResourceAsync(`resource://zotero/schema/${schema}.sql`);
+        return Zotero.File.getResourceAsync(path);
     }
 
 

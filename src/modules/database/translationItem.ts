@@ -1,6 +1,6 @@
 import { franc } from "franc-min";
-import { getDB } from "../database";
-import { config } from "../../../package.json";
+import { initDB } from "../database";
+
 
 export class Translation {
     // 定义翻译的字段
@@ -39,7 +39,7 @@ export class Translation {
 
 
     async save() {
-        const DB = await getDB();
+        const DB = await initDB();
         if (!DB) return;
         await DB.executeTransaction(async () => {
             async function insert(tableName: string, sqlColumns: string[], sqlValues: any[]) {
@@ -120,8 +120,8 @@ export async function testClass() {
     ztoolkit.log("firstTranslation",
         firstTranslation
     );
-
-    await firstTranslation.save();
+    const DB = await initDB();
+    //await firstTranslation.save();
 }
 
 

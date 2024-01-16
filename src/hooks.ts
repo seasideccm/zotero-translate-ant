@@ -1,4 +1,5 @@
 import { config } from "../package.json";
+import { initDB } from "./modules/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
@@ -27,6 +28,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountButtonEndMenubar();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
+  //await initDB();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
