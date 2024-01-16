@@ -3,17 +3,14 @@ import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { Schema } from "./database/schema";
 
-export class ss extends Zotero.Search{
-    
-}
-
-export class DB extends Zotero.DBConnection {
-
+//通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
+export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
+    schemaVersions: any;
+    schema?: Schema;
     constructor(dbNameOrPath?: string) {
         super(dbNameOrPath);
         this.init().then(() => { addon.mountPoint.database = this; });
         this.schemaVersions = {};
-        this.dbversion = {};
         this.getAllSchemaSQLVersion().then((res) => { });
     }
     async init() {
@@ -65,13 +62,14 @@ export class DB extends Zotero.DBConnection {
         //确保数据库已经初始化
         //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
         // queryAsync 连接数据库，不存在则会创建
-        if (!this.dbInitialized) {
-            const schema = new Schema;
-
-
+        if (!this.schema) {
+            this.schema = new Schema();
+        }
+        if (!this.schema.dbInitialized) {
+            await this.schema.initializeSchema();
             //dbInitializedCheck
             //查表
-            const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
+            /* const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
             //const addonDBVersion = await DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
             if (tablesName.length === 0) {
                 await this.initializeSchema('translation');
@@ -84,7 +82,7 @@ export class DB extends Zotero.DBConnection {
                     ztoolkit.log(Zotero.getString('startupError.databaseIntegrityCheckFailed'));
                 }
                 this.dbInitialized = true;
-            }
+            } */
 
         };
     }
@@ -461,8 +459,9 @@ export class DB extends Zotero.DBConnection {
     };
 }
 
-const dddd=new DB()
-dddd.
+
+
+
 
 
 /**

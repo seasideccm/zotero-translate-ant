@@ -1,5 +1,7 @@
+
 declare namespace Zotero {
-    export interface DBConnection {
+    interface DBConnection {
+        //constructor(dbNameOrPath?: string) { };
         new(dbNameOrPath?: string): this;
         MAX_BOUND_PARAMETERS: 999;
         DB_CORRUPTION_STRINGS: [
@@ -58,7 +60,7 @@ declare namespace Zotero {
          *    transaction and re-enable after. (`PRAGMA foreign_keys=0|1` is a no-op during a transaction.)
          * @return {Promise} - Promise for result of generator function
          */
-        executeTransaction(func: any, options: any): Promise<await>;
+        executeTransaction(func: any, options?: any): Promise<await>;
         inTransaction(): boolean;
         waitForTransaction(id: any): any;
         requireTransaction(): void;
@@ -147,4 +149,9 @@ declare namespace Zotero {
         _debug(str: any, level: any): void;
     }
 }
+
+
+
+
+
 

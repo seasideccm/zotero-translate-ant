@@ -32,26 +32,26 @@
   },
   "homepage": "https://github.com/seasideccm/zotero-batch-translate#readme",
   "dependencies": {
-    "franc-min": "^6.1.0",
+    "franc-min": "^6.2.0",
     "iso-639-3": "^3.0.1",
-    "zotero-plugin-toolkit": "^2.3.15"
+    "zotero-plugin-toolkit": "^2.3.17"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.5.42",
     "@types/franc": "^5.0.3",
-    "@types/node": "^20.10.5",
-    "@typescript-eslint/eslint-plugin": "^6.16.0",
-    "@typescript-eslint/parser": "^6.16.0",
-    "@types/bulebird": "^3.5.42",
+    "@types/node": "^20.11.3",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
     "chokidar": "^3.5.3",
     "compressing": "^1.10.0",
-    "esbuild": "^0.19.9",
+    "esbuild": "^0.19.11",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.1.1",
+    "prettier": "^3.2.2",
     "release-it": "^17.0.1",
-    "replace-in-file": "^7.0.2",
+    "replace-in-file": "^7.1.0",
     "typescript": "^5.3.3",
-    "zotero-types": "^1.3.11"
+    "zotero-types": "^1.3.13"
   },
   "eslintConfig": {
     "env": {
