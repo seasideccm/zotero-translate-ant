@@ -10,9 +10,7 @@
 DROP TRIGGER IF EXISTS translation_targetTextID_targetText_targetTextID;
 
 CREATE TRIGGER translation_targetTextID_targetText_targetTextID 
-AFTER DELETE ON translation 
-FOR EACH ROW 
-WHEN (SELECT COUNT(*) FROM translation WHERE targetTextID = OLD.targetTextID) = 0 
-BEGIN 
-	DELETE FROM targetText WHERE targetTextID = OLD.targetTextID;
-END; 
+  AFTER DELETE ON translation 
+  FOR EACH ROW WHEN (SELECT COUNT(*) FROM translation WHERE targetTextID = OLD.targetTextID) ISNULL BEGIN 
+	DELETE FROM targetText WHERE targetTextID = OLD.targetTextID;---
+  END;

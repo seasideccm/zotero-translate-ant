@@ -3,12 +3,15 @@ import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { Schema } from "./database/schema";
 import { SCHEMA_NAMES } from "../utils/const";
+import { promises } from "dns";
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     schemaVersions: any;
     schema?: Schema;
     accessibility: boolean | null;
+    initPromise: Promise<void>;
+
     /**
      * - 参数为完整路径时，Zotero 将创建的数据库标记为外部，
      * - 仅传入名称时，标为内部数据库
@@ -21,9 +24,10 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         this.accessibility = null;
         addon.mountPoint.database = this;
         this.schemaVersions = {};
-        this.init;
+        this.initPromise = this.init();
     }
-    init = (async () => {
+
+    async init() {
         const integrityDB = await this.integrityCheck();
         if (!integrityDB) {
             throw ("addon database needs to be repaired");
@@ -32,8 +36,19 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         if (!integritySchema) {
             throw ("addon database schema needs to be repaired");
         };
-        await this.accessibilityTest();
-    })();
+        const accessibility = await this.accessibilityTest();
+        if (!accessibility) {
+            throw ("addon database can't access");
+        }
+
+    };
+
+    /* this._ready = new Promise((resolve, reject) => {
+        webL10n.setLanguage(fixupLangCode(lang), () => {
+            resolve(webL10n);
+        });
+    }); */
+
 
 
 
@@ -393,7 +408,7 @@ export async function initDB(dbName?: string) {
     }
 
     while (!addonDB.accessibility) {
-        await addonDB.accessibilityTest();
+        await addonDB.initPromise;
     }
     return addonDB;
 

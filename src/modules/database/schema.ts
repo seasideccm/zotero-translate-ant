@@ -224,7 +224,7 @@ export class Schema {
      *     and indexes that should have been created and drop existing ones that should have been
      *     deleted
      */
-    async integrityCheck(fix: boolean = false, options: any = {}) {
+    async integrityCheck(fix: boolean = true, options: any = {}) {
         Zotero.debug(`Checking ${config.addonRef} database schema integrity`);
         let checks: any[] = [
             [
