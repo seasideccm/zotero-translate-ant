@@ -1,11 +1,9 @@
 import { config } from "../../package.json";
-import { insertLangCode } from "./database/insertLangCode";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { Schema } from "./database/schema";
 import { SCHEMA_NAMES } from "../utils/const";
-import { promises } from "dns";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
-import { getString } from "../utils/locale";
+
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
@@ -75,12 +73,6 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     }
 
     async accessibilityTest() {
-        if (!await this.integrityCheck()) {
-            return this.accessibility = false;
-        };
-        if (!await this.checkSchema()) {
-            return this.accessibility = false;
-        };
         try {
             let msg;
             // Test read access, if failure throw error
@@ -130,29 +122,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
     }
 
-    async initializeSchema(schemaName: string) {
-        await this.executeTransaction(async () => {
-            try {
-                await this.queryAsync("PRAGMA page_size = 4096");
-                await this.queryAsync("PRAGMA encoding = 'UTF-8'");
-                await this.queryAsync("PRAGMA auto_vacuum = 1");
-                const sql = await getSchemaSQL(schemaName);
-                await this.executeSQLFile(sql);
-            }
-            catch (e) {
-                ztoolkit.log(e, 1);
-                Components.utils.reportError(e);
-                const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                    .getService(Components.interfaces.nsIPromptService);
-                ps.alert(
-                    null,
-                    Zotero.getString('general.error'),
-                    Zotero.getString('startupError', Zotero.appName)
-                );
-                throw e;
-            }
-        });
-    }
+
 
     _checkDataDirAccessError(e: any) {
         if (e.name != 'NS_ERROR_FILE_ACCESS_DENIED' && !e.message.includes('2152857621')) {
@@ -290,10 +260,6 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 }
 
 
-
-
-
-
 /**
  * 连接数据库
  * @param dbName 可选，数据库名称或完整路径
@@ -308,7 +274,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
  * 5. "F:\\download\\zotero\\zotero7DataDirectory\\batchTranslate\\addonDB"
  * 6. 留空则连接默认数据库（可在插件选项中指定）
  */
-export async function initDB(dbName?: string) {
+export async function getDB(dbName?: string) {
     let addonDB: DB | undefined = addon.mountPoint.database;
     if (!addonDB) {
         const DBPath = await makeDBPath();
@@ -372,7 +338,7 @@ async function bakeupDatebase(addonDB: any) {
  * @param allColumnsDefine 
  */
 export async function modifyColumn(tableName: string, allColumnsDefine: string) {
-    const DB = await initDB();
+    const DB = await getDB();
     await DB.executeTransaction(async function () {
         const oldColumns = await DB.getColumns(tableName);
         let sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
@@ -391,7 +357,7 @@ export async function modifyColumn(tableName: string, allColumnsDefine: string) 
 }
 
 async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
-    const DB = await initDB();
+    const DB = await getDB();
     const sqlColumns = Object.keys(data);
     sqlColumns.unshift(data.tableName);
     const sqlValues = sqlColumns.map((key) => data[key]);

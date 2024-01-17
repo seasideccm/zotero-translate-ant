@@ -21,10 +21,7 @@ class Addon {
     dialog?: DialogHelper;
 
   };
-  public mountPoint: {
-    database?: DB;
-    [key: string]: any;
-  };
+  public mountPoint: any;
   // Lifecycle hooks
   public hooks: typeof hooks;
   // APIs

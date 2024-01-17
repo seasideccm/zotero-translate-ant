@@ -1,3 +1,6 @@
+interface IncompatibleVersionException {
+    new(msg: any, dbClientVersion: any): this;
+}
 
 declare namespace Zotero {
     interface DBConnection {
@@ -38,7 +41,8 @@ declare namespace Zotero {
         };
         _dbIsCorrupt: boolean | null;
         _transactionPromise: Zotero.Promise | null;
-        IncompatibleVersionException: Error;
+        IncompatibleVersionException: IncompatibleVersionException;
+
         path: string;
         /**
          * Test a read-only connection to the database, throwing any errors that occur
@@ -51,7 +55,7 @@ declare namespace Zotero {
         addCurrentCallback(type: 'begin' | 'commit' | 'rollback', cb: any): void;
         removeCallback(type: 'begin' | 'commit' | 'rollback', id: string): void;
         rollbackAllTransactions(): number | boolean;
-        getColumns(table: string): boolean | string;
+        getColumns(table: string): Promise<false | string[]>;
         getNextName(libraryID: any, table: any, field: any, name: any): Promise<string>;
         /**
          * @param {Function} func - Async function containing `await Zotero.DB.queryAsync()` and similar
@@ -86,7 +90,7 @@ declare namespace Zotero {
          * @param {Array|String|Integer} [params]  SQL parameters to bind
          * @return {Promise<Array|Boolean>}  A promise for either the value or FALSE if no result
          */
-        valueQueryAsync(sql: any, params: any, options: any): Promise<any>;
+        valueQueryAsync(sql: any, params?: any, options?: any): Promise<any>;
         /**
          * @param {String} sql SQL statement to run
          * @param {Array|String|Integer} [params] SQL parameters to bind
@@ -100,7 +104,7 @@ declare namespace Zotero {
          */
         columnQueryAsync(sql: any, params: any, options: any): Promise<[]>;
         logQuery(sql: any, params: [], options: any): void;
-        tableExists(table: any, db: any): Promise<boolean>;
+        tableExists(table: any, dbName?: string): Promise<boolean>;
         columnExists(table: any, column: any): Promise<boolean>;
         indexExists(index: any, db: any): Promise<boolean>;
         parseSQLFile(sql: string): string[];
@@ -149,6 +153,7 @@ declare namespace Zotero {
         _debug(str: any, level: any): void;
     }
 }
+
 
 
 

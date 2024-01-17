@@ -2,21 +2,32 @@
 import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, SCHEMA_NAMES } from "../../utils/const";
 import { version as addonVersion, config } from "../../../package.json";
 import { fileNameNoExt } from "../../utils/tools";
+import { DB } from "../database";
+
 
 
 
 
 export class Schema {
-    dbInitialized = false;
-    _schemaUpdateDeferred = Zotero.Promise.defer();
-    schemaUpdatePromise = this._schemaUpdateDeferred.promise;
-    _schemaVersions: any = {};
-    minorUpdateFrom = MINOR_UPDATE_FROM;
+    dbInitialized: boolean = false;
+    _schemaUpdateDeferred: any;
+    schemaUpdatePromise: any;
+    _schemaVersions: any;
+    minorUpdateFrom: number = MINOR_UPDATE_FROM;
     //数据库结构兼容插件（软件）的最大版本号
-    _maxCompatibility = MAX_COMPATIBILITY;
-    _localUpdateInProgress = false;
-    isCompatible: any = undefined;
-    DB = addon.mountPoint.database;
+    _maxCompatibility: number = MAX_COMPATIBILITY;
+    _localUpdateInProgress: boolean = false;
+    isCompatible: boolean | null = null;
+    DB: DB = addon.mountPoint.database;
+
+    constructior() {
+        this._schemaUpdateDeferred = Zotero.Promise.defer();
+        this.schemaUpdatePromise = this._schemaUpdateDeferred.promise;
+        this._schemaVersions = {};
+        this.checkCompat();
+    }
+
+
 
     async checkCompat() {
         const compatibility = await this.getSchemaVersion("compatibility");
@@ -233,7 +244,7 @@ export class Schema {
                 //
                 // This is skipped for automatic checks, because it can cause problems with schema
                 // update steps that don't expect tables to exist.
-                async function () {
+                async function (this: any) {
                     const statementsToRun = [];
 
                     // Get all existing tables, indexes, and triggers
@@ -299,7 +310,7 @@ export class Schema {
 
                     return statementsToRun.length ? statementsToRun : false;
                 }.bind(this),
-                async function (statements: any) {
+                async function (this: any, statements: any) {
                     for (const statement of statements) {
                         await this.DB.queryAsync(statement);
                     }

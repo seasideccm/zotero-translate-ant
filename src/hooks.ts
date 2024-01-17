@@ -1,5 +1,5 @@
 import { config } from "../package.json";
-import { initDB } from "./modules/database";
+import { DB } from "./modules/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
@@ -28,7 +28,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountButtonEndMenubar();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
-  //await initDB();
+  //await getDB();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -56,7 +56,9 @@ async function onMainWindowUnload(win: Window): Promise<void> {
 async function onShutdown(): Promise<void> {
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
-  await addon.mountPoint.database?.closeDatabase();
+  if (addon.mountPoint.database) {
+    await (addon.mountPoint.database as DB).closeDatabase();
+  }
   // Remove addon object
   addon.data.alive = false;
   delete Zotero[config.addonInstance];

@@ -1,5 +1,5 @@
 import { franc } from "franc-min";
-import { initDB } from "../database";
+import { getDB } from "../database";
 
 
 export class Translation {
@@ -39,7 +39,7 @@ export class Translation {
 
 
     async save() {
-        const DB = await initDB();
+        const DB = await getDB();
         if (!DB) return;
         await DB.executeTransaction(async () => {
             async function insert(tableName: string, sqlColumns: string[], sqlValues: any[]) {
@@ -120,7 +120,7 @@ export async function testClass() {
     ztoolkit.log("firstTranslation",
         firstTranslation
     );
-    const DB = await initDB();
+    const DB = await getDB();
     //await firstTranslation.save();
 }
 
