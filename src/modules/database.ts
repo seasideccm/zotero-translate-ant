@@ -21,17 +21,21 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         this.accessibility = null;
         addon.mountPoint.database = this;
         this.schemaVersions = {};
-        this.integrityCheck().then((res: boolean) => {
-            if (!res) {
-
-            }
-        });
-        this.checkSchema();
-
-        //this.init();
-        //.then(() => { this.getAllSchemaSQLVersion().then((res) => { }); });
-
+        this.init;
     }
+    init = (async () => {
+        const integrityDB = await this.integrityCheck();
+        if (!integrityDB) {
+            throw ("addon database needs to be repaired");
+        }
+        const integritySchema = await this.checkSchema();
+        if (!integritySchema) {
+            throw ("addon database schema needs to be repaired");
+        };
+        await this.accessibilityTest();
+    })();
+
+
 
 
     /**
@@ -95,16 +99,27 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
             this.schema = new Schema();
         }
         if (!this.schema.dbInitialized) {
-            let;
             for (const schemaName of SCHEMA_NAMES) {
-
-                if (!(await this.schema.getSchemaVersion(schemaName))) {
-
+                if (await this.schema.getSchemaVersion(schemaName)) {
+                    this.schema.dbInitialized = true;
+                } else {
+                    this.schema.dbInitialized = false;
+                    break;
                 }
             }
-            await this.schema.initializeSchema();
+            if (!this.schema.dbInitialized) {
+                await this.schema.initializeSchema();
+            }
         }
-        const ok = await this.schema.integrityCheck();
+        //if(this.schema.updateRequired()){
+        // await this.schema.updateSchema
+        // }
+        if (await this.schema.integrityCheck()) {
+            return true;
+        } else {
+            return false;
+        }
+
     }
     shutdown = Zotero.Promise.coroutine(function* () {
         Zotero.debug("Shutting down Zotero");
@@ -134,12 +149,15 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         }
     });
 
-    init() {
-        () => { };
-        const integrity = this.integrityCheck();
-    }
+
 
     async accessibilityTest() {
+        if (!await this.integrityCheck()) {
+            return this.accessibility = false;
+        };
+        if (!await this.checkSchema()) {
+            return this.accessibility = false;
+        };
         try {
             let msg;
             // Test read access, if failure throw error
@@ -182,7 +200,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
                 );
             }
             ztoolkit.log(e);
-            this.accessibility = false;
+            return this.accessibility = false;
         }
 
         return this.accessibility = true;
@@ -368,229 +386,17 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
  * 6. 留空则连接默认数据库（可在插件选项中指定）
  */
 export async function initDB(dbName?: string) {
-
-    let addonDB = addon.mountPoint.database;
-    if (addonDB) {
-        try {
-            await addonDB.test();
-            if (await addonDB.integrityCheck()) {
-                return addonDB;
-            } else {
-                () => { };
-            }
-
-        }
-        catch (e) {
-            ztoolkit.log(e);
-        }
+    let addonDB: DB = addon.mountPoint.database;
+    if (!addonDB) {
+        const DBPath = await makeDBPath();
+        addonDB = new DB(DBPath);
     }
 
-    // 创建数据库实例
-    const DBPath = await makeDBPath();
-    addonDB = new DB(DBPath);
-    /* if (!addonDB.dbInitialized) {
-        await addonDB.init();
-    } */
-    //return addonDB;
-
-
-    try {
-        let msg;
-        // Test read access, if failure throw error
-        addonDB.test();
-        // Test write access on path
-        const dir = PathUtils.parent(addonDB._dbPath)!;
-        if (!Zotero.File.pathToFile(dir).isWritable()) {
-            msg = 'Cannot write to ' + dir + '/';
-        }
-        // Test write access on database
-        else if (!Zotero.File.pathToFile(addonDB._dbPath).isWritable()) {
-            msg = 'Cannot write to ' + addonDB._dbPath;
-        }
-        else {
-            msg = false;
-        }
-        if (msg) {
-            const e = {
-                name: 'NS_ERROR_FILE_ACCESS_DENIED',
-                message: msg,
-                toString: function () { return this.message; }
-            };
-            throw (e);
-        }
-    }
-    catch (e: any) {
-        if (addonDB._checkDataDirAccessError(e)) {
-            ztoolkit.log(e);
-        }
-        // Storage busy
-        else if (e.message.includes('2153971713')) {
-            ztoolkit.log(Zotero.getString('startupError.databaseInUse'));
-        }
-        else {
-            const stack = e.stack ? Zotero.Utilities.Internal.filterStack(e.stack) : null;
-            ztoolkit.log(
-                Zotero.getString('startupError', Zotero.appName) + "\n\n"
-                + Zotero.getString('db.integrityCheck.reportInForums') + "\n\n"
-                + (stack || e)
-            );
-        }
-        ztoolkit.log(e);
+    while (!addonDB.accessibility) {
+        await addonDB.accessibilityTest();
     }
     return addonDB;
 
-    //确保数据库已经初始化
-    //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
-    // queryAsync 连接数据库，不存在则会创建
-    /* if (!this.schema) {
-        this.schema = new Schema();
-    }
-    if (!this.schema.dbInitialized) {
-        await this.schema.initializeSchema();
-        //dbInitializedCheck
-        //查表
-        */
-    /* const tablesName = await this.queryAsync("select name from sqlite_master where type='table' order by name");
-    //const addonDBVersion = await DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
-    if (tablesName.length === 0) {
-        await this.initializeSchema('translation');
-        await insertLangCode(this);
-        this.dbInitialized = true;
-    } else {
-        // 检查数据库是否完整
-        const integrityCheck = await this.queryAsync("PRAGMA integrity_check");
-        if (integrityCheck[0].integrity_check != 'ok') {
-            ztoolkit.log(Zotero.getString('startupError.databaseIntegrityCheckFailed'));
-        }
-        this.dbInitialized = true;
-    } */
-
-    //}; */
-
-
-
-    /*     try {
-            let msg;
-            // Test read access, if failure throw error
-            await addonDB.test();
-            // Test write access on path
-            if (!Zotero.File.pathToFile(dir).isWritable()) {
-                msg = 'Cannot write to ' + dir + '/';
-            }
-            // Test write access on database
-            else if (!Zotero.File.pathToFile(path).isWritable()) {
-                msg = 'Cannot write to ' + path;
-            }
-            else {
-                msg = false;
-            }
-            if (msg) {
-                const e = {
-                    name: 'NS_ERROR_FILE_ACCESS_DENIED',
-                    message: msg,
-                    toString: function () { return this.message; }
-                };
-                throw (e);
-            }
-        }
-        catch (e: any) {
-            if (_checkDataDirAccessError(e)) {
-                ztoolkit.log(e);
-            }
-            // Storage busy
-            else if (e.message.includes('2153971713')) {
-                ztoolkit.log(Zotero.getString('startupError.databaseInUse'));
-            }
-            else {
-                const stack = e.stack ? Zotero.Utilities.Internal.filterStack(e.stack) : null;
-                ztoolkit.log(
-                    Zotero.getString('startupError', Zotero.appName) + "\n\n"
-                    + Zotero.getString('db.integrityCheck.reportInForums') + "\n\n"
-                    + (stack || e)
-                );
-            }
-            ztoolkit.log(e);
-        }
-        //确保数据库已经初始化
-        //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
-        // queryAsync 连接数据库，不存在则会创建
-        if (!addonDB.dbInitialized) {
-            //查表
-            const tablesName = await addonDB.queryAsync("select name from sqlite_master where type='table' order by name");
-            //const addonDBVersion = await DB.valueQueryAsync("SELECT version FROM version WHERE schema='translation'");
-            if (tablesName.length === 0) {
-                await initializeSchema(addonDB);
-            } else {
-                // 检查数据库是否完整
-                const integrityCheck = await addonDB.queryAsync("PRAGMA integrity_check");
-                if (integrityCheck[0].integrity_check != 'ok') {
-                    ztoolkit.log(Zotero.getString('startupError.databaseIntegrityCheckFailed'));
-                }
-                addonDB.dbInitialized = true;
-            }
-    
-        };
-        //addon.mountPoint.database ? addon.mountPoint.database[dbName] = addonDB : addon.mountPoint.database = { [dbName]: addonDB };
-        addon.mountPoint.database = addonDB;
-        return addonDB;
-    
-        async function initializeSchema(DB: any) {
-            await DB.executeTransaction(async function () {
-                try {
-                    await DB.queryAsync("PRAGMA page_size = 4096");
-                    await DB.queryAsync("PRAGMA encoding = 'UTF-8'");
-                    await DB.queryAsync("PRAGMA auto_vacuum = 1");
-                    const sql = await getSchemaSQL('translation');
-                    await DB.executeSQLFile(sql);
-                    await insertLangCode(DB);
-                    DB.dbInitialized = true;
-                }
-                catch (e) {
-                    ztoolkit.log(e, 1);
-                    Components.utils.reportError(e);
-                    const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                        .getService(Components.interfaces.nsIPromptService);
-                    ps.alert(
-                        null,
-                        Zotero.getString('general.error'),
-                        Zotero.getString('startupError', Zotero.appName)
-                    );
-                    throw e;
-                }
-            });
-        }
-    
-    
-        function _checkDataDirAccessError(e: any) {
-            if (e.name != 'NS_ERROR_FILE_ACCESS_DENIED' && !e.message.includes('2152857621')) {
-                return false;
-            }
-    
-            let msg = Zotero.getString('dataDir.databaseCannotBeOpened', Zotero.clientName)
-                + "\n\n"
-                + Zotero.getString('dataDir.checkPermissions', Zotero.clientName);
-            // If already using default directory, just show it
-            if (Zotero.DataDirectory.dir == Zotero.DataDirectory.defaultDir) {
-                msg += "\n\n" + Zotero.getString('dataDir.location', Zotero.DataDirectory.dir);
-            }
-            // Otherwise suggest moving to default, since there's a good chance this is due to security
-            // software preventing Zotero from accessing the selected directory (particularly if it's
-            // a Firefox profile)
-            else {
-                msg += "\n\n"
-                    + Zotero.getString('dataDir.moveToDefaultLocation', Zotero.clientName)
-                    + "\n\n"
-                    + Zotero.getString(
-                        'dataDir.migration.failure.full.current', Zotero.DataDirectory.dir
-                    )
-                    + "\n"
-                    + Zotero.getString(
-                        'dataDir.migration.failure.full.recommended', Zotero.DataDirectory.defaultDir
-                    );
-            }
-            Zotero.startupError = msg;
-            return true;
-        } */
 }
 
 async function makeDBPath(dbName?: string) {
@@ -674,7 +480,7 @@ async function saveDateToDB(data: any, op?: string, record?: { filed: string; va
     }
 }
 
-async function integrityCheck(DB: any, fix: boolean, options: any = {}) {
+/* async function integrityCheck(DB: any, fix: boolean, options: any = {}) {
     ztoolkit.log("Checking database schema integrity");
     let checks = [
         [
@@ -854,7 +660,7 @@ async function integrityCheck(DB: any, fix: boolean, options: any = {}) {
     }
 
     return true;
-};
+}; */
 
 
 async function integrityCheckRequired(DB: any) {

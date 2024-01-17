@@ -92,6 +92,8 @@ CREATE TABLE
             originLibraryID
         )
     );
+    
+DROP TABLE IF EXISTS version;
 
 CREATE TABLE
     version (

@@ -77,6 +77,9 @@ export class Schema {
         this._schemaVersions[schema] = schemaVersion;
         return schemaVersion;
     }
+    updateRequired() {
+
+    }
 
     async updateSchema(schema: string, options: any = {}) {
         if (typeof this.isCompatible == "undefined") {
@@ -129,7 +132,7 @@ export class Schema {
             }
 
 
-            updated = await this.DB.executeTransaction(async function (conn: any) {
+            updated = await this.DB.executeTransaction(async function (this: any, conn: any) {
                 let updated = await this.doUpdateSchema(schema);
                 updated = await this.migrateSchema(schemaVersion, options);
                 await this.doUpdateSchema('triggers');
@@ -222,7 +225,7 @@ export class Schema {
      *     deleted
      */
     async integrityCheck(fix: boolean = false, options: any = {}) {
-        Zotero.debug("Checking database schema integrity");
+        Zotero.debug(`Checking ${config.addonRef} database schema integrity`);
         let checks: any[] = [
             [
                 // Create any tables or indexes that are missing and delete any tables or triggers
@@ -267,7 +270,11 @@ export class Schema {
                     }
 
                     // Check for missing tables and indexes
-                    const statements = await this.DB.parseSQLFile(await this.getSchemaSQL('translation'));
+                    let statements: any[] = [];
+                    for (const schemaName of SCHEMA_NAMES) {
+                        const sqls = await this.DB.parseSQLFile(await this.getSchemaSQL(schemaName));
+                        statements = statements.concat(sqls);
+                    }
                     for (const statement of statements) {
                         let matches = statement.match(/^CREATE TABLE\s+([^\s]+)/);
                         if (matches) {
@@ -304,7 +311,7 @@ export class Schema {
 
             // Foreign key checks
             [
-                async function () {
+                async function (this: any) {
                     const rows = await this.DB.queryAsync("PRAGMA foreign_key_check");
                     if (!rows.length) return false;
                     const suffix1 = rows.length == 1 ? '' : 's';
@@ -313,7 +320,7 @@ export class Schema {
                     return rows;
                 }.bind(this),
                 // If fixing, delete rows that violate FK constraints
-                async function (rows: any) {
+                async function (this: any, rows: any) {
                     for (const row of rows) {
                         await this.DB.queryAsync(`DELETE FROM ${row.table} WHERE ROWID=?`, row.rowid);
                     }
