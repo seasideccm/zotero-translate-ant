@@ -129,7 +129,7 @@ declare namespace Zotero {
          * @param {Boolean} [permanent] If true, throw an error instead of
          *     allowing code to re-open the database again
          */
-        closeDatabase(permanent?: boolean | undefined): Promise<void>;
+        closeDatabase(permanent?: boolean): Promise<void>;
         backupDatabase(suffix: any, force: any): Promise<boolean | undefined>;
         /**
          * Escape '_', '%', and '\' in an SQL LIKE expression so that it can be used with ESCAPE '\' to

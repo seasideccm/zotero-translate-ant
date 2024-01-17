@@ -2,6 +2,7 @@ import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTab
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
+import { DB } from "./modules/database";
 
 class Addon {
   public data: {
@@ -20,7 +21,10 @@ class Addon {
     dialog?: DialogHelper;
 
   };
-  public mountPoint: any;
+  public mountPoint: {
+    database?: DB;
+    [key: string]: any;
+  };
   // Lifecycle hooks
   public hooks: typeof hooks;
   // APIs

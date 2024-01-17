@@ -33,6 +33,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     closeOnClick: true,
     closeTime: -1,
   });
+  addon.mountPoint.popupWin = popupWin;
   popupWin.createLine({
     text: getString("startup-begin"),
     type: "default",
@@ -52,9 +53,10 @@ async function onMainWindowUnload(win: Window): Promise<void> {
   window.removeEventListener("mouseover", listenImageCallback, false);
 }
 
-function onShutdown(): void {
+async function onShutdown(): Promise<void> {
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
+  await addon.mountPoint.database?.closeDatabase();
   // Remove addon object
   addon.data.alive = false;
   delete Zotero[config.addonInstance];
