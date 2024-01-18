@@ -41,24 +41,33 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         if (!accessibility) {
             throw ("addon database can't access");
         }
+        if (await this.schema!.checkSchemasUpdate()) {
+            throw ("addon database needs update");
+        }
 
     };
 
     async checkSchema() {
         if (!this.schema) {
             this.schema = new Schema();
+            await this.schema.checkInitialized();
         }
-        if (!await this.schema.checkInitialized()) {
-            return false;
+        if (!this.schema.initialized) {
+            await this.schema.initializeSchema();
+            if (!this.schema.initialized) {
+                return false;
+            } else {
+                return true;
+            }
         }
-        //if(this.schema.updateRequired()){
-        // await this.schema.updateSchema
-        // }
-        if (await this.schema.integrityCheck()) {
-            return true;
-        } else {
-            return false;
+        if (!await this.accessibilityTest()) return false;
+        if (!await this.schema.integrityCheck()) return false;
+        if (await this.schema.checkSchemasUpdate()) {
+            await this.schema.updateSchema;
         }
+
+        return false;
+
 
     }
 

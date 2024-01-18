@@ -1,4 +1,4 @@
-
+import { OS } from "../../utils/tools";
 export async function monitorImageItem() {
     let itemsTree;
     while (!(itemsTree = document.getElementById("zotero-items-tree"))) {

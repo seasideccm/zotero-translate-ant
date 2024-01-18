@@ -3,6 +3,7 @@ import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, schemaConfig } from "../../utils/
 import { version as addonVersion, config } from "../../../package.json";
 import { fileNameNoExt } from "../../utils/tools";
 import { DB } from "../database";
+import { OS } from "../../utils/tools";
 
 
 
@@ -34,7 +35,7 @@ export class Schema {
 
     }
     async checkInitialized() {
-        if (this.initialized) return true;
+        //if (this.initialized) return true;
         const sql = "SELECT value FROM settings "
             + "WHERE setting='schema' AND key='initialized'";
         try {
@@ -46,13 +47,7 @@ export class Schema {
         catch (e) {
             ztoolkit.log(e);
         }
-        await this.initializeSchema();
-
-        if (this.initialized) {
-            return true;
-        }
         return false;
-
     };
 
 
@@ -61,14 +56,15 @@ export class Schema {
         if (!compatibility) {
             await this.initializeSchema();
         }
-        //当前数据库兼容版本号大于插件的数据库兼容版本号。
-        //可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。
+        //如果安装不兼容的旧版插件，将导致
+        //当前数据库兼容版本号大于现有的插件数据库兼容版本号。
+        //考虑数据库降级或使用之前备份的数据库。
         if (compatibility > this._maxCompatibility) {
             const dbAddonVersion = await this.DB.valueQueryAsync(
                 "SELECT value FROM settings "
                 + "WHERE setting='addon' AND key='lastCompatibleVersion'"
             );
-            const msg = "Database is incompatible with this addon version. 可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。"
+            const msg = "Database is incompatible with this addon version. 考虑数据库降级或使用之前备份的数据库。"
                 + `(${compatibility} > ${this._maxCompatibility})`;
             ztoolkit.log(msg);
             return false;
@@ -118,22 +114,61 @@ export class Schema {
         this._schemaVersions[schema] = schemaVersion;
         return schemaVersion;
     }
-    updateRequired() {
 
+    async checkSchemasUpdate() {
+        for (const schema of Object.keys(schemaConfig)) {
+            if (await this.checkUpdate(schema)) {
+                await this.updateSchema(schema);
+                //return true;
+            };
+        }
+        return false;
+    }
+    async checkUpdate(schema: string) {
+        const dbSchemaVersion = await this.getSchemaVersion(schema);
+        const schemaVersion = schemaConfig[schema as keyof typeof schemaConfig].version;
+        if (dbSchemaVersion == schemaVersion) {
+            return false;
+        }
+        if (dbSchemaVersion > schemaVersion) {
+            const dbAddonVersion = await this.DB.valueQueryAsync(
+                "SELECT value FROM settings WHERE setting='addon' AND key='lastCompatibleVersion'"
+            );
+            throw new this.DB.IncompatibleVersionException(
+                `Addon '${schema}' DB version (${dbSchemaVersion}) is newer than SQL file (${schemaVersion})`,
+                dbAddonVersion
+            );
+        }
+        return true;
     }
 
     async updateSchema(schema: string, options: any = {}) {
         if (typeof this.isCompatible == "undefined") {
             this.isCompatible = await this.checkCompat();
         }
-        if (!this.isCompatible) throw "not Compatible";
-
-        schema = schema || 'translation';
+        if (!this.isCompatible) {
+            const msg = "Database is incompatible with " + config.addonName + " " + addonVersion + " version.";
+            Zotero.debug(msg);
+            addon.mountPoint.popupWin.createLine({
+                text: msg,
+                type: "default",
+            }).show();
+            return;
+        }
         const schemaVersion = await this.getSchemaVersion(schema);
-
         if (!schemaVersion) {
-            Zotero.debug('Database does not exist -- creating\n');
-            return this.initializeSchema();
+            const msg = 'Database does not exist -- creating\n';
+            Zotero.debug(msg);
+            addon.mountPoint.popupWin.createLine({
+                text: msg,
+                type: "default",
+            }).show();
+            const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master");
+            if (tableNames.length == 0) {
+                return this.initializeSchema();
+            } else {
+
+            }
         }
 
 
@@ -166,7 +201,7 @@ export class Schema {
             // If we need to run migration steps, skip the check until after the update, since
             // the integrity check is expecting to run on the current data model.
             let integrityCheckDone = false;
-            const toVersion = await this.getSchemaSQLVersion(schema);
+            const toVersion = schemaSqlFileVersion;
             if (integrityCheckRequired && schemaVersion >= toVersion) {
                 await this.integrityCheck(true);
                 integrityCheckDone = true;
@@ -247,7 +282,17 @@ export class Schema {
         return updated;
     };
 
-
+    /**
+      * Requires a transaction
+      */
+    async doUpdateSchema(schema: string) {
+        this.DB.requireTransaction();
+        if (!await this.checkUpdate(schema)) return false;
+        const schemaVersion: string = String(await this.getSchemaSQLVersion(schema));
+        const sql = await this.getSchemaSQL(schema);
+        await this.DB.executeSQLFile(sql);
+        return this.updateSchemaVersion(schema, schemaVersion);
+    };
 
 
     async integrityCheckRequired() {
@@ -346,6 +391,7 @@ export class Schema {
                     }
                 }.bind(this),
                 {
+                    //用于指示数据库模式完整性检查函数是否应该执行对数据库模式的调和操作。这意味着在执行完整性检查时，如果设置了 reconcile: true，函数将尝试创建缺失的表或索引，并删除应该被删除的现有表或触发器。这有助于确保数据库模式的一致性和完整性。
                     reconcile: true
                 }
             ],
@@ -495,7 +541,7 @@ export class Schema {
     };
 
     async initializeSchema() {
-        await this.DB.executeTransaction(this.doInitSchema.bind(this));
+        return await this.DB.executeTransaction(this.doInitSchema.bind(this));
     }
 
 
@@ -508,31 +554,6 @@ export class Schema {
         version = String(version);
         return this.DB.queryAsync(sql, [schema, parseInt(version)]);
     }
-
-
-    /**
-     * Requires a transaction
-     */
-    async doUpdateSchema(schema: string) {
-        const dbSchemaVersion = await this.getSchemaVersion(schema);
-        const schemaVersion: string = String(await this.getSchemaSQLVersion(schema));
-        if (dbSchemaVersion == schemaVersion) {
-            return false;
-        }
-        if (dbSchemaVersion > schemaVersion) {
-            const dbAddonVersion = await this.DB.valueQueryAsync(
-                "SELECT value FROM settings WHERE setting='addon' AND key='lastCompatibleVersion'"
-            );
-            throw new this.DB.IncompatibleVersionException(
-                `Addon '${schema}' DB version (${dbSchemaVersion}) is newer than SQL file (${schemaVersion})`,
-                dbAddonVersion
-            );
-        }
-        const sql = await this.getSchemaSQL(schema);
-        await this.DB.executeSQLFile(sql);
-        return this.updateSchemaVersion(schema, schemaVersion);
-    };
-
 
     async updateCompatibility(version: number) {
         if (version > this._maxCompatibility) {
