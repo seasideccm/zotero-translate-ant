@@ -1,15 +1,14 @@
 -- 1
-
+-- 设置整型主键时，无需  AUTOINCREMENT
 -- 翻山蚁 译文
 -- sqlite 表
-
 -- Valid language ("english," "chines," etc.)
 
 DROP TABLE IF EXISTS language;
 
 CREATE TABLE
     language (
-        langID INTEGER PRIMARY KEY AUTOINCREMENT,
+        langID INTEGER PRIMARY KEY,
         langNameNative TEXT,
         langNameEn TEXT,
         zoteroPrimaryDialects TEXT,
@@ -22,7 +21,7 @@ DROP TABLE IF EXISTS sourceText;
 
 CREATE TABLE
     sourceText (
-        sourceTextID INTEGER PRIMARY KEY AUTOINCREMENT,
+        sourceTextID INTEGER PRIMARY KEY,
         langCode TEXT NOT NULL,
         sourceText TEXT NOT NULL UNIQUE
     );
@@ -32,7 +31,7 @@ DROP TABLE IF EXISTS targetText;
 
 CREATE TABLE
     targetText (
-        targetTextID INTEGER PRIMARY KEY AUTOINCREMENT,
+        targetTextID INTEGER PRIMARY KEY,
         langCode TEXT NOT NULL,
         targetText TEXT NOT NULL UNIQUE
     );
@@ -65,7 +64,7 @@ DROP TABLE IF EXISTS translation;
 CREATE TABLE
     translation (
         -- 译文关系表
-        translateID INTEGER PRIMARY KEY AUTOINCREMENT,
+        translateID INTEGER PRIMARY KEY,
         sourceTextID INTEGER NOT NULL,
         targetTextID INTEGER NOT NULL,
         dateAdded TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -101,4 +100,5 @@ CREATE TABLE
         version INT NOT NULL
     );
 
+DROP INDEX IF EXISTS schema;
 CREATE INDEX schema ON version(schema);

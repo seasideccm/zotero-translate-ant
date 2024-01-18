@@ -99,7 +99,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
             }
         }
         catch (e: any) {
-            if (this._checkDataDirAccessError(e)) {
+            if (_checkDataDirAccessError(e)) {
                 ztoolkit.log(e);
             }
             // Storage busy
@@ -122,78 +122,12 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
     }
 
-
-
-    _checkDataDirAccessError(e: any) {
-        if (e.name != 'NS_ERROR_FILE_ACCESS_DENIED' && !e.message.includes('2152857621')) {
-            return false;
-        }
-
-        let msg = Zotero.getString('dataDir.databaseCannotBeOpened', Zotero.clientName)
-            + "\n\n"
-            + Zotero.getString('dataDir.checkPermissions', Zotero.clientName);
-        // If already using default directory, just show it
-        if (Zotero.DataDirectory.dir == Zotero.DataDirectory.defaultDir) {
-            msg += "\n\n" + Zotero.getString('dataDir.location', Zotero.DataDirectory.dir);
-        }
-        // Otherwise suggest moving to default, since there's a good chance this is due to security
-        // software preventing Zotero from accessing the selected directory (particularly if it's
-        // a Firefox profile)
-        else {
-            msg += "\n\n"
-                + Zotero.getString('dataDir.moveToDefaultLocation', Zotero.clientName)
-                + "\n\n"
-                + Zotero.getString(
-                    'dataDir.migration.failure.full.current', Zotero.DataDirectory.dir
-                )
-                + "\n"
-                + Zotero.getString(
-                    'dataDir.migration.failure.full.recommended', Zotero.DataDirectory.defaultDir
-                );
-        }
-        Zotero.startupError = msg;
-        return true;
-    }
-
     /**
-     * 
-     * @param schema 
-     * @param dir option default:chrome://${config.addonRef}/content/
+     * 将插件数据库先设置为内部数据库，备份后恢复为外部数据库
+     * @param suffix 
+     * @param force 
      * @returns 
      */
-    async getSchemaSQL(schemaName: string, dir?: string) {
-        if (!schemaName) {
-            throw ('Schema type not provided to getSchemaSQL()');
-        }
-        dir = dir || `chrome://${config.addonRef}/content/schema/`;
-        schemaName = fileNameNoExt(schemaName);
-        const path = dir + `${schemaName}.sql`;
-        return await Zotero.File.getResourceAsync(path);
-    }
-
-
-    async getSchemaSQLVersion(schemaName: string) {
-        const sql = await this.getSchemaSQL(schemaName);
-        if (!sql) {
-            throw ('empty Schema');
-        }
-        const match = sql.match(/^-- ([0-9]+)/);
-        if (!match || !match[1]) {
-            throw ('Schema version not found');
-        }
-        const schemaVersion = parseInt(match[1]);
-        this.schemaVersions[schemaName] = schemaVersion;
-        return schemaVersion;
-    }
-
-    async getAllSchemaSQLVersion() {
-        const schemaNames = await resourceFilesName();
-        for (const schemaName of schemaNames) {
-            await this.getSchemaSQLVersion(schemaName);
-        }
-    }
-
-
     async bakeupDB(suffix: any = false, force: boolean = false) {
         this._externalDB = false;
         const result = await this.backupDatabase(suffix, force);
@@ -203,7 +137,8 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
 
     /**
-     * 创建临时表，新建表，导入数据，删除旧表
+     * 重新定义表的字段（列）
+     * - 创建临时表，新建表，导入数据，删除旧表
      * @param tableName 
      * @param allColumnsDefine 
      */
@@ -232,15 +167,35 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
     }
 
-    async saveDate(tableName: string,
-        data: {
-            [columsField: string]: any;
-        }) {
-        const sqlColumns = Object.keys(data);
-        const sqlValues = sqlColumns.map((key) => data[key]);
-        const sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "
-            + "VALUES (" + sqlValues.map(() => "?").join() + ")";
-        await this.queryAsync(sql, sqlValues);
+    //data: { [columsField: string]: any; } | { [columsField: string]: any; }[] | any[] | any[][]
+    async saveDate(tableName: string, dataValues: any[] | any[][], sqlColumns: string[] = []
+    ) {
+        this.requireTransaction();
+        if (sqlColumns.length == 0) {
+            const tableColumns = await this.getColumns(tableName);
+            if (!tableColumns || tableColumns.length == 0) {
+                throw ("Query failed: table colums not found");
+            }
+            sqlColumns = tableColumns;
+        }
+
+
+        if (!Array.isArray(dataValues[0])) {
+            dataValues = [dataValues];
+        }
+        if (dataValues[0].length != sqlColumns.length) {
+            throw ("Colums and Values mismatch");
+        }
+        for (const sqlValues of dataValues) {
+            const sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "
+                + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+            await this.queryAsync(sql, sqlValues);
+        }
+
+
+        //const sqlColumns = Object.keys(data);
+        //const sqlValues = sqlColumns.map((key) => data[key]);
+
 
     }
 
@@ -309,27 +264,50 @@ async function makeDBPath(dbName?: string) {
     return path;
 }
 
+function _checkDataDirAccessError(e: any) {
+
+    if (e.name != 'NS_ERROR_FILE_ACCESS_DENIED' && !e.message.includes('2152857621')) {
+        return false;
+    }
+
+    let msg = Zotero.getString('dataDir.databaseCannotBeOpened', Zotero.clientName)
+        + "\n\n"
+        + Zotero.getString('dataDir.checkPermissions', Zotero.clientName);
+    if (Zotero.DataDirectory.dir == Zotero.DataDirectory.defaultDir) {
+        msg += "\n\n" + Zotero.getString('dataDir.location', Zotero.DataDirectory.dir);
+    }
+
+    else {
+        msg += "\n\n"
+            + Zotero.getString('dataDir.moveToDefaultLocation', Zotero.clientName)
+            + "\n\n"
+            + Zotero.getString(
+                'dataDir.migration.failure.full.current', Zotero.DataDirectory.dir
+            )
+            + "\n"
+            + Zotero.getString(
+                'dataDir.migration.failure.full.recommended', Zotero.DataDirectory.defaultDir
+            );
+    }
+    Zotero.startupError = msg;
+    return true;
+}
 
 
-/**
- * 
- * @param schema 
- * @param dir option default:chrome://${config.addonRef}/content/
- * @returns 
- */
-async function getSchemaSQL(schemaName: string, dir?: string) {
+
+/* async function getSchemaSQL(schemaName: string, dir?: string) {
     if (!schemaName) {
         throw ('Schema type not provided to _getSchemaSQL()');
     }
     dir = dir || `chrome://${config.addonRef}/content/schema/`;
     const path = dir + `${schemaName}.sql`;
     return await Zotero.File.getResourceAsync(path);
-}
+} */
 
-async function bakeupDatebase(addonDB: any) {
+/* async function bakeupDatebase(addonDB: any) {
     addonDB._externalDB = false;
     return await addonDB.backupDatabase();
-}
+} */
 
 
 /**
@@ -337,7 +315,7 @@ async function bakeupDatebase(addonDB: any) {
  * @param tableName 
  * @param allColumnsDefine 
  */
-export async function modifyColumn(tableName: string, allColumnsDefine: string) {
+/* export async function modifyColumn(tableName: string, allColumnsDefine: string) {
     const DB = await getDB();
     await DB.executeTransaction(async function () {
         const oldColumns = await DB.getColumns(tableName);
@@ -354,9 +332,9 @@ export async function modifyColumn(tableName: string, allColumnsDefine: string) 
         await DB.queryAsync(sql);
     });
 
-}
+} */
 
-async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
+/* async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
     const DB = await getDB();
     const sqlColumns = Object.keys(data);
     sqlColumns.unshift(data.tableName);
@@ -376,7 +354,7 @@ async function saveDateToDB(data: any, op?: string, record?: { filed: string; va
         env.sqlValues.push(parseInt(record.value));
         await DB.queryAsync(sql, env.sqlValues);
     }
-}
+} */
 
 /* async function integrityCheck(DB: any, fix: boolean, options: any = {}) {
     ztoolkit.log("Checking database schema integrity");
@@ -561,13 +539,13 @@ async function saveDateToDB(data: any, op?: string, record?: { filed: string; va
 }; */
 
 
-async function integrityCheckRequired(DB: any) {
+/* async function integrityCheckRequired(DB: any) {
     return !!await DB.valueQueryAsync(
         "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"
     );
-};
+}; */
 
-async function setIntegrityCheckRequired(required: boolean, DB: any) {
+/* async function setIntegrityCheckRequired(required: boolean, DB: any) {
     let sql;
     if (required) {
         sql = "REPLACE INTO settings VALUES ('db', 'integrityCheck', 1)";
@@ -576,6 +554,6 @@ async function setIntegrityCheckRequired(required: boolean, DB: any) {
         sql = "DELETE FROM settings WHERE setting='db' AND key='integrityCheck'";
     }
     await DB.queryAsync(sql);
-};
+}; */
 
 

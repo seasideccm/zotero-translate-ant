@@ -9,22 +9,28 @@ import { DB } from "../database";
 
 
 export class Schema {
-    dbInitialized: boolean = false;
+    dbInitialized: boolean;
     _schemaUpdateDeferred: any;
     schemaUpdatePromise: any;
     _schemaVersions: any;
-    minorUpdateFrom: number = MINOR_UPDATE_FROM;
+    minorUpdateFrom: number;
     //数据库结构兼容插件（软件）的最大版本号
-    _maxCompatibility: number = MAX_COMPATIBILITY;
-    _localUpdateInProgress: boolean = false;
-    isCompatible: boolean | null = null;
-    DB: DB = addon.mountPoint.database;
+    _maxCompatibility: number;
+    _localUpdateInProgress: boolean;
+    isCompatible: boolean | null;
+    DB: DB;
 
-    constructior() {
+    constructor() {
+        this.dbInitialized = false;
         this._schemaUpdateDeferred = Zotero.Promise.defer();
         this.schemaUpdatePromise = this._schemaUpdateDeferred.promise;
+        this.minorUpdateFrom = MINOR_UPDATE_FROM;
+        this._maxCompatibility = MAX_COMPATIBILITY;
+        this._localUpdateInProgress = false;
         this._schemaVersions = {};
+        this.isCompatible = null;
         this.checkCompat();
+        this.DB = addon.mountPoint.database;
     }
 
 
@@ -51,7 +57,7 @@ export class Schema {
      * @returns 
      */
     getSchemaVersion(schema: string) {
-        if (this._schemaVersions[schema]) {
+        if (this._schemaVersions && this._schemaVersions[schema]) {
             //@ts-ignore has
             return Zotero.Promise.resolve(this._schemaVersions[schema]);
         }
@@ -412,6 +418,12 @@ export class Schema {
         await Zotero.DB.queryAsync(sql);
     };
 
+    /**
+     * 
+     * @param schema 
+     * @param dir option default:chrome://${config.addonRef}/content/schema/
+     * @returns Promise<string>
+     */
     getSchemaSQL(schema: string, dir?: string) {
         if (!schema) {
             throw ('Schema type not provided to this.getSchemaSQL()');
