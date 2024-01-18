@@ -1,6 +1,6 @@
 import { ocrImage } from "./runOcr";
 import { config } from "../../../package.json";
-import { ocrIconSvg } from "../../utils/const";
+import { ocrIconSvg } from "../../utils/constant";
 import { makeTagElementProps } from "../ui/uiTools";
 
 

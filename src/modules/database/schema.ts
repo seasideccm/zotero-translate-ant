@@ -1,5 +1,5 @@
 
-import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, SCHEMA_NAMES } from "../../utils/const";
+import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, schemaConfig } from "../../utils/constant";
 import { version as addonVersion, config } from "../../../package.json";
 import { fileNameNoExt } from "../../utils/tools";
 import { DB } from "../database";
@@ -9,7 +9,7 @@ import { DB } from "../database";
 
 
 export class Schema {
-    dbInitialized: boolean;
+    initialized: boolean;
     _schemaUpdateDeferred: any;
     schemaUpdatePromise: any;
     _schemaVersions: any;
@@ -21,7 +21,8 @@ export class Schema {
     DB: DB;
 
     constructor() {
-        this.dbInitialized = false;
+
+        this.initialized = false;
         this._schemaUpdateDeferred = Zotero.Promise.defer();
         this.schemaUpdatePromise = this._schemaUpdateDeferred.promise;
         this.minorUpdateFrom = MINOR_UPDATE_FROM;
@@ -29,14 +30,37 @@ export class Schema {
         this._localUpdateInProgress = false;
         this._schemaVersions = {};
         this.isCompatible = null;
-        this.checkCompat();
         this.DB = addon.mountPoint.database;
-    }
 
+    }
+    async checkInitialized() {
+        if (this.initialized) return true;
+        const sql = "SELECT value FROM settings "
+            + "WHERE setting='schema' AND key='initialized'";
+        try {
+            const init = await this.DB.valueQueryAsync(sql);
+            if (init) {
+                return this.initialized = true;
+            }
+        }
+        catch (e) {
+            ztoolkit.log(e);
+        }
+        await this.initializeSchema();
+
+        if (this.initialized) {
+            return true;
+        }
+        return false;
+
+    };
 
 
     async checkCompat() {
         const compatibility = await this.getSchemaVersion("compatibility");
+        if (!compatibility) {
+            await this.initializeSchema();
+        }
         //当前数据库兼容版本号大于插件的数据库兼容版本号。
         //可能之前安装过最新插件，现在又想使用旧版。考虑数据库降级或使用之前备份的数据库。
         if (compatibility > this._maxCompatibility) {
@@ -288,7 +312,7 @@ export class Schema {
 
                     // Check for missing tables and indexes
                     let statements: any[] = [];
-                    for (const schemaName of SCHEMA_NAMES) {
+                    for (const schemaName of Object.keys(schemaConfig)) {
                         const sqls = await this.DB.parseSQLFile(await this.getSchemaSQL(schemaName));
                         statements = statements.concat(sqls);
                     }
@@ -443,8 +467,7 @@ export class Schema {
             await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
             await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
 
-            const sqlFiles = SCHEMA_NAMES;
-            for (const schema of sqlFiles) {
+            for (const schema of Object.keys(schemaConfig)) {
                 const sql = await this.getSchemaSQL(schema);
                 await this.DB.executeSQLFile(sql);
                 //@ts-ignore has
@@ -454,7 +477,8 @@ export class Schema {
             }
             await this.updateLastAddonVersion();
             await this.updateCompatibility(this._maxCompatibility);
-            this.dbInitialized = true;
+            await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
+            this.initialized = true;
         }
         catch (e) {
             Zotero.debug(e, 1);
@@ -548,9 +572,9 @@ export class Schema {
     }
 
 
-    updateLastAddonVersion() {
+    async updateLastAddonVersion() {
         const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
-        return this.DB.queryAsync(sql, addonVersion);
+        return await this.DB.queryAsync(sql, addonVersion);
     }
 
 

@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
 import { Schema } from "./database/schema";
-import { SCHEMA_NAMES } from "../utils/const";
+import { schemaConfig } from "../utils/constant";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
 
@@ -48,18 +48,8 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         if (!this.schema) {
             this.schema = new Schema();
         }
-        if (!this.schema.dbInitialized) {
-            for (const schemaName of SCHEMA_NAMES) {
-                if (await this.schema.getSchemaVersion(schemaName)) {
-                    this.schema.dbInitialized = true;
-                } else {
-                    this.schema.dbInitialized = false;
-                    break;
-                }
-            }
-            if (!this.schema.dbInitialized) {
-                await this.schema.initializeSchema();
-            }
+        if (!await this.schema.checkInitialized()) {
+            return false;
         }
         //if(this.schema.updateRequired()){
         // await this.schema.updateSchema

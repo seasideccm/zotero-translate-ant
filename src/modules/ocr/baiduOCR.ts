@@ -1,5 +1,5 @@
 
-import { addonStorageDir } from "../../utils/const";
+import { addonStorageDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
 import { base64ToBlob, fileToblob, readImage, saveImage } from "../../utils/tools";
 

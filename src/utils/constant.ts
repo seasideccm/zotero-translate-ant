@@ -2,9 +2,21 @@ import { config } from "../../package.json";
 export const addonStorageDir = PathUtils.join(Zotero.getStorageDirectory().path, config.addonName);
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
-export const SCHEMA_NAMES = ["addonSystem", "translation", "triggers"];
+
 export const MINOR_UPDATE_FROM = 1;
 export const MAX_COMPATIBILITY = 1;
+export const schemaConfig = {
+        "addonSystem": {
+                "version": 1,
+        },
+
+        "translation": {
+                "version": 1,
+        },
+        "triggers": {
+                "version": 1,
+        }
+};
 
 export const svgPrefix = 'data:image/svg+xml,';
 //缺少</path>不显示svg, 
