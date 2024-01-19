@@ -8,7 +8,7 @@ export const schemaConfig = {
         },
 
         "translation": {
-                "version": 1,
+                "version": 2,
         },
         "triggers": {
                 "version": 1,

@@ -7,9 +7,6 @@ import { OS } from "../../utils/tools";
 
 
 
-const;
-var xx = "";
-migrate[xx as keyof typeof migrate];
 export class Schema {
     initialized: boolean;
     _schemaUpdateDeferred: any;
@@ -143,6 +140,7 @@ export class Schema {
     }
     async checkUpdate(schema: string) {
         const dbSchemaVersion = await this.getSchemaVersion(schema);
+        if (!dbSchemaVersion) return true;
         const schemaVersion = schemaConfig[schema as keyof typeof schemaConfig].version;
         if (dbSchemaVersion == schemaVersion) {
             return false;
@@ -170,21 +168,27 @@ export class Schema {
                 text: msg,
                 type: "default",
             }).show();
-            return;
+            throw (msg);
         }
         const schemaVersion = await this.getSchemaVersion(schema);
         if (!schemaVersion) {
-            const msg = 'Database does not exist -- creating\n';
-            Zotero.debug(msg);
-            addon.mountPoint.popupWin.createLine({
-                text: msg,
-                type: "default",
-            }).show();
             const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master");
             if (tableNames.length == 0) {
                 //如果数据库为空则初始化
+                const msg = 'database does not exist any schema -- creating\n';
+                Zotero.debug(msg);
+                addon.mountPoint.popupWin.createLine({
+                    text: msg,
+                    type: "default",
+                }).show();
                 return await this.initializeSchema();
             } else {
+                const msg = schema + ' schema does not exist -- creating\n';
+                Zotero.debug(msg);
+                addon.mountPoint.popupWin.createLine({
+                    text: msg,
+                    type: "default",
+                }).show();
                 return await this.DB.executeTransaction(async function (this: any, conn: any) {
                     await this.doUpdateSchema(schema);
                 }.bind(this));
@@ -228,17 +232,15 @@ export class Schema {
                 await this.integrityCheck(true);
                 integrityCheckDone = true;
             }
-
-
             updated = await this.DB.executeTransaction(async function (this: any, conn: any) {
                 //如果数据表存在动态写入的数据则需要数据迁移
                 //如果表建立以后数据不再变动，则执行sql文件重建表
-                //let updated = await this.doUpdateSchema(schema);
                 let updated;
-                if (schema == 'triggers') {
+                if (['triggers'].includes(schema)) {
                     updated = await this.doUpdateSchema(schema);
+                } else {
+                    updated = await this.migrateSchema(schema, schemaVersion, toVersion, options);
                 }
-                updated = await this.migrateSchema(schema, schemaVersion, toVersion, options);
                 return updated;
             }.bind(this));
 
@@ -247,6 +249,9 @@ export class Schema {
                 await this.integrityCheck(true);
             }
 
+        }
+        catch (e) {
+            this._schemaUpdateDeferred.reject(e);
         }
         finally {
             await this.DB.queryAsync("PRAGMA foreign_keys = true");
@@ -276,7 +281,7 @@ export class Schema {
         if (updated) {
             // Upgrade seems to have been a success -- delete any previous backups
             const maxPrevious = schemaVersion - 1;
-            const file = Zotero.File.pathToFile(Zotero.DataDirectory.dir);
+            const file = Zotero.File.pathToFile(PathUtils.parent(this.DB._dbPath)!);
             const toDelete = [];
             try {
                 const files = file.directoryEntries;
@@ -306,28 +311,23 @@ export class Schema {
 
         // Reset sync queue tries if new version
         await this.checkAddonVersion();
+        this._schemaUpdateDeferred.resolve(true);
         return updated;
     };
 
     migrate: any = {
         addonSystem: async function (fromVersion: number, toVersion: number) {
-            // Step through version changes until we reach the current version
-            //
-            // Each block performs the changes necessary to move from the
-            // previous revision to that one.
+            ztoolkit.log("is schema, this._maxCompatibility=", this._maxCompatibility, "fromVersion=", fromVersion);
+            // 表结构和数据按版本逐一升级
             for (let i = fromVersion + 1; i <= toVersion; i++) {
-                if (i == 80) {
-                    //await this.updateCompatibility(1);
-                    //修改值
-                    //let userID = await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='account' AND key='userID'");
-                    //if (userID && typeof userID == 'string') {
-                    //userID = userID.trim();
-                    //if (userID) {
-                    //await this.DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID));
-                    //}
-                    //}
+                if (i == 2) {
+                    //参数是数据库兼容的 zotero 大版本
+                    await this.updateCompatibility(7);
 
-                    // Delete 'libraries' rows not in 'groups', which shouldn't exist
+                    //修改值
+
+                    //await this.DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID));
+
                     //await this.DB.queryAsync("DELETE FROM libraries WHERE libraryID != 0 AND libraryID NOT IN (SELECT libraryID FROM groups)");
 
                     //修改表结构，表重名名，新建表，插入数据，保留或删除旧表
@@ -350,22 +350,15 @@ export class Schema {
                     //await _migrateUserData_80_filePaths();
                     //删除旧表
                     //await this.DB.queryAsync("DROP TABLE annotationsOld");
-
-
                 }
 
 
                 else if (i == 122) {
-                    await this.DB.queryAsync("REPLACE INTO fileTypes VALUES(8, 'ebook')");
-                    await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub+zip')");
-                    // Incorrect, for compatibility
-                    await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub')");
+                    //替换值
+                    //await this.DB.queryAsync("REPLACE INTO fileTypes VALUES(8, 'ebook')");
+                    //await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub+zip')");
+
                 }
-
-                // TEMP: When adding 123, check whether IA.authorName fix in items.js::_loadAnnotations()
-                // can be updated due to update steps being indempodent
-
-                // If breaking compatibility or doing anything dangerous, clear minorUpdateFrom
             }
         },
 
@@ -391,14 +384,13 @@ export class Schema {
             }
         }
         this.DB.requireTransaction();
-        if (this.migrate[schema]) {
-            this.migrate[schema](fromVersion, toVersion);
+        if (!this.migrate[schema]) {
+            return false;
         }
-
+        this.migrate[schema].apply(this, [fromVersion, toVersion]);
         await this.updateSchemaVersion(schema, toVersion);
         return true;
     };
-
 
     /**
      * 执行 sql 文件，创建数据表
@@ -412,17 +404,15 @@ export class Schema {
         const schemaVersion: string = String(await this.getSchemaSQLVersion(schema));
         const sql = await this.getSchemaSQL(schema);
         await this.DB.executeSQLFile(sql);
-        return this.updateSchemaVersion(schema, schemaVersion);
+        await this.updateSchemaVersion(schema, schemaVersion);
+        return true;
     };
-
 
     async integrityCheckRequired() {
         return !!await this.DB.valueQueryAsync(
             "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"
         );
     };
-
-
 
     /**
      * @param {Boolean} [fix=false]
@@ -593,10 +583,8 @@ export class Schema {
         if (fix) {
             await this.setIntegrityCheckRequired(false);
         }
-
         return true;
     };
-
 
     async setIntegrityCheckRequired(required: boolean) {
         let sql;
@@ -625,7 +613,6 @@ export class Schema {
 
         return Zotero.File.getResourceAsync(path);
     }
-
 
     async doInitSchema() {
         try {
@@ -666,28 +653,27 @@ export class Schema {
         return await this.DB.executeTransaction(this.doInitSchema.bind(this));
     }
 
-
     /*
      * Update a DB schema version tag in an existing database
      */
     async updateSchemaVersion(schema: string, version: string | number) {
         this._schemaVersions[schema] = version;
         const sql = "REPLACE INTO version (schema,version) VALUES (?,?)";
-        version = String(version);
-        return this.DB.queryAsync(sql, [schema, parseInt(version)]);
+        if (typeof version == "string") {
+            version = parseInt(version);
+        }
+        return await this.DB.queryAsync(sql, [schema, version]);
     }
 
     async updateCompatibility(version: number) {
         if (version > this._maxCompatibility) {
             throw new Error("Can't set compatibility greater than _maxCompatibility");
         }
-
         await this.DB.queryAsync(
             "REPLACE INTO settings VALUES ('addon', 'lastCompatibleVersion', ?)", [addonVersion]
         );
         await this.updateSchemaVersion('compatibility', version);
     };
-
 
     checkAddonVersion() {
         return this.DB.executeTransaction(async () => {
@@ -708,20 +694,15 @@ export class Schema {
         });
     }
 
-
     getLastAddonVersion() {
         const sql = "SELECT value FROM settings WHERE setting='addon' AND key='lastVersion'";
         return this.DB.valueQueryAsync(sql);
     }
 
-
     async updateLastAddonVersion() {
         const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
         return await this.DB.queryAsync(sql, addonVersion);
     }
-
-
-
 }
 
 
