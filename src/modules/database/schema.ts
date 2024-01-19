@@ -1,5 +1,5 @@
 
-import { MAX_COMPATIBILITY, MINOR_UPDATE_FROM, schemaConfig } from "../../utils/constant";
+import { schemaConfig } from "../../utils/constant";
 import { version as addonVersion, config } from "../../../package.json";
 import { fileNameNoExt } from "../../utils/tools";
 import { DB } from "../database";
@@ -7,8 +7,9 @@ import { OS } from "../../utils/tools";
 
 
 
-
-
+const;
+var xx = "";
+migrate[xx as keyof typeof migrate];
 export class Schema {
     initialized: boolean;
     _schemaUpdateDeferred: any;
@@ -26,8 +27,13 @@ export class Schema {
         this.initialized = false;
         this._schemaUpdateDeferred = Zotero.Promise.defer();
         this.schemaUpdatePromise = this._schemaUpdateDeferred.promise;
-        this.minorUpdateFrom = MINOR_UPDATE_FROM;
-        this._maxCompatibility = MAX_COMPATIBILITY;
+        // If updating from this userdata version or later, don't show "Upgrading database…" and don't make
+        // DB backup first. This should be set to false when breaking compatibility or making major changes.
+        this.minorUpdateFrom = 1;
+        //最大兼容版本号，锚定 zotero 大版本号，代表该版本插件的数据库兼容性。
+        //若大于当前 zotero 版本，代表兼容下一个新版本的 zotero 或插件所采用的数据库结构。
+        //若旧数据库的兼容版本号大于该值，说明目前安装的为旧版插件，数据库需要降级。
+        this._maxCompatibility = 7;
         this._localUpdateInProgress = false;
         this._schemaVersions = {};
         this.isCompatible = null;
@@ -54,7 +60,13 @@ export class Schema {
     async checkCompat() {
         const compatibility = await this.getSchemaVersion("compatibility");
         if (!compatibility) {
-            await this.initializeSchema();
+            //初始化成功，最后返回兼容性为true
+            try {
+                await this.initializeSchema();
+            }
+            catch (e) {
+                return this.isCompatible = false;
+            }
         }
         //如果安装不兼容的旧版插件，将导致
         //当前数据库兼容版本号大于现有的插件数据库兼容版本号。
@@ -64,12 +76,17 @@ export class Schema {
                 "SELECT value FROM settings "
                 + "WHERE setting='addon' AND key='lastCompatibleVersion'"
             );
-            const msg = "Database is incompatible with this addon version. 考虑数据库降级或使用之前备份的数据库。"
+            const msg = "Database is incompatible with this addon " + dbAddonVersion + " version. 考虑数据库降级或使用之前备份的数据库。"
                 + `(${compatibility} > ${this._maxCompatibility})`;
+            addon.mountPoint.popupWin.createLine({
+                text: msg,
+                type: "default",
+            }).show();
             ztoolkit.log(msg);
-            return false;
+            return this.isCompatible = false;
+
         }
-        return true;
+        return this.isCompatible = true;
     }
     /**
      * Fetch the schema version from current version table of database
@@ -143,8 +160,8 @@ export class Schema {
     }
 
     async updateSchema(schema: string, options: any = {}) {
-        if (typeof this.isCompatible == "undefined") {
-            this.isCompatible = await this.checkCompat();
+        if (this.isCompatible == null) {
+            await this.checkCompat();
         }
         if (!this.isCompatible) {
             const msg = "Database is incompatible with " + config.addonName + " " + addonVersion + " version.";
@@ -165,22 +182,27 @@ export class Schema {
             }).show();
             const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master");
             if (tableNames.length == 0) {
-                return this.initializeSchema();
+                //如果数据库为空则初始化
+                return await this.initializeSchema();
             } else {
-
+                return await this.DB.executeTransaction(async function (this: any, conn: any) {
+                    await this.doUpdateSchema(schema);
+                }.bind(this));
             }
         }
 
 
         // Check if DB is coming from the DB Repair Tool and should be checked
+        // 当数据库连接出现问题，则设置下次启动数据库执行完整性检查（todo）
         const integrityCheckRequired = await this.integrityCheckRequired();
         // Check whether bundled userdata schema has been updated
+        // sql 文件开头的版本号应当和 schemaConfig的常量相同
         const schemaSqlFileVersion = await this.getSchemaSQLVersion(schema);
         options.minor = this.minorUpdateFrom && schemaVersion >= this.minorUpdateFrom;
 
         // If non-minor userdata upgrade, make backup of database first
         if (schemaVersion < schemaSqlFileVersion && !options.minor) {
-            await this.DB.bakeupDB(schemaVersion, true);
+            await this.DB.bakeupDB(schema + schemaVersion, true);
         }
         // Automatic backup
         else if (integrityCheckRequired) {
@@ -209,9 +231,14 @@ export class Schema {
 
 
             updated = await this.DB.executeTransaction(async function (this: any, conn: any) {
-                let updated = await this.doUpdateSchema(schema);
-                updated = await this.migrateSchema(schemaVersion, options);
-                await this.doUpdateSchema('triggers');
+                //如果数据表存在动态写入的数据则需要数据迁移
+                //如果表建立以后数据不再变动，则执行sql文件重建表
+                //let updated = await this.doUpdateSchema(schema);
+                let updated;
+                if (schema == 'triggers') {
+                    updated = await this.doUpdateSchema(schema);
+                }
+                updated = await this.migrateSchema(schema, schemaVersion, toVersion, options);
                 return updated;
             }.bind(this));
 
@@ -282,9 +309,103 @@ export class Schema {
         return updated;
     };
 
+    migrate: any = {
+        addonSystem: async function (fromVersion: number, toVersion: number) {
+            // Step through version changes until we reach the current version
+            //
+            // Each block performs the changes necessary to move from the
+            // previous revision to that one.
+            for (let i = fromVersion + 1; i <= toVersion; i++) {
+                if (i == 80) {
+                    //await this.updateCompatibility(1);
+                    //修改值
+                    //let userID = await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='account' AND key='userID'");
+                    //if (userID && typeof userID == 'string') {
+                    //userID = userID.trim();
+                    //if (userID) {
+                    //await this.DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID));
+                    //}
+                    //}
+
+                    // Delete 'libraries' rows not in 'groups', which shouldn't exist
+                    //await this.DB.queryAsync("DELETE FROM libraries WHERE libraryID != 0 AND libraryID NOT IN (SELECT libraryID FROM groups)");
+
+                    //修改表结构，表重名名，新建表，插入数据，保留或删除旧表
+                    //await this.DB.queryAsync("ALTER TABLE libraries RENAME TO librariesOld");
+                    //await this.DB.queryAsync("CREATE TABLE libraries (\n    libraryID INTEGER PRIMARY KEY,\n    type TEXT NOT NULL,\n    editable INT NOT NULL,\n    filesEditable INT NOT NULL,\n    version INT NOT NULL DEFAULT 0,\n    lastSync INT NOT NULL DEFAULT 0,\n    lastStorageSync INT NOT NULL DEFAULT 0\n)");
+                    //await this.DB.queryAsync("INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (1, 'user', 1, 1)");                
+                    //await this.DB.queryAsync("INSERT INTO libraries SELECT libraryID, libraryType, editable, filesEditable, 0, 0, 0 FROM librariesOld JOIN groups USING (libraryID)");
+
+                    //删除触发器
+                    //await this.DB.queryAsync("DROP TRIGGER IF EXISTS fki_annotations_itemID_itemAttachments_itemID");                
+                    //建立索引
+                    //await this.DB.queryAsync("CREATE INDEX collections_synced ON collections(synced)");
+                    //更新旧表数据，新表导入数据
+                    //await this.DB.queryAsync("UPDATE syncedSettingsOld SET libraryID=1 WHERE libraryID=0");
+                    //await this.DB.queryAsync("INSERT OR IGNORE INTO syncedSettings SELECT * FROM syncedSettingsOld");
+                    //删除索引，重建索引
+                    //await this.DB.queryAsync("DROP INDEX IF EXISTS itemData_fieldID");
+                    //await this.DB.queryAsync("CREATE INDEX itemData_fieldID ON itemData(fieldID)");
+                    //执行函数
+                    //await _migrateUserData_80_filePaths();
+                    //删除旧表
+                    //await this.DB.queryAsync("DROP TABLE annotationsOld");
+
+
+                }
+
+
+                else if (i == 122) {
+                    await this.DB.queryAsync("REPLACE INTO fileTypes VALUES(8, 'ebook')");
+                    await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub+zip')");
+                    // Incorrect, for compatibility
+                    await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub')");
+                }
+
+                // TEMP: When adding 123, check whether IA.authorName fix in items.js::_loadAnnotations()
+                // can be updated due to update steps being indempodent
+
+                // If breaking compatibility or doing anything dangerous, clear minorUpdateFrom
+            }
+        },
+
+        translation: function (fromVersion: number, toVersion: number) {
+
+        },
+        //xx: () => {    },
+    };
+
+    async migrateSchema(schema: string, fromVersion: number, toVersion: number, options: any = {}) {
+        //const toVersion = await this.getSchemaSQLVersion(schema);
+
+        if (fromVersion >= toVersion) {
+            return false;
+        }
+
+        Zotero.debug('Updating' + schema + 'data tables from version ' + fromVersion + ' to ' + toVersion);
+
+        if (options.onBeforeUpdate) {
+            const maybePromise = options.onBeforeUpdate({ minor: options.minor });
+            if (maybePromise && maybePromise.then) {
+                await maybePromise;
+            }
+        }
+        this.DB.requireTransaction();
+        if (this.migrate[schema]) {
+            this.migrate[schema](fromVersion, toVersion);
+        }
+
+        await this.updateSchemaVersion(schema, toVersion);
+        return true;
+    };
+
+
     /**
-      * Requires a transaction
-      */
+     * 执行 sql 文件，创建数据表
+     * Requires a transaction
+     * @param schema 
+     * @returns 
+     */
     async doUpdateSchema(schema: string) {
         this.DB.requireTransaction();
         if (!await this.checkUpdate(schema)) return false;
@@ -523,6 +644,7 @@ export class Schema {
             }
             await this.updateLastAddonVersion();
             await this.updateCompatibility(this._maxCompatibility);
+            this.isCompatible = true;
             await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
             this.initialized = true;
         }
@@ -599,84 +721,7 @@ export class Schema {
     }
 
 
-    async migrateSchema(schema: string, fromVersion: number, options: any = {}) {
-        const toVersion = await this.getSchemaSQLVersion(schema);
 
-        if (fromVersion >= toVersion) {
-            return false;
-        }
-
-        Zotero.debug('Updating' + schema + 'data tables from version ' + fromVersion + ' to ' + toVersion);
-
-        if (options.onBeforeUpdate) {
-            const maybePromise = options.onBeforeUpdate({ minor: options.minor });
-            if (maybePromise && maybePromise.then) {
-                await maybePromise;
-            }
-        }
-
-        this.DB.requireTransaction();
-
-
-
-        // Step through version changes until we reach the current version
-        //
-        // Each block performs the changes necessary to move from the
-        // previous revision to that one.
-        for (let i = fromVersion + 1; i <= toVersion; i++) {
-            if (i == 80) {
-                //await this.updateCompatibility(1);
-                //修改值
-                //let userID = await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='account' AND key='userID'");
-                //if (userID && typeof userID == 'string') {
-                //userID = userID.trim();
-                //if (userID) {
-                //await this.DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID));
-                //}
-                //}
-
-                // Delete 'libraries' rows not in 'groups', which shouldn't exist
-                //await this.DB.queryAsync("DELETE FROM libraries WHERE libraryID != 0 AND libraryID NOT IN (SELECT libraryID FROM groups)");
-
-                //修改表结构，表重名名，新建表，插入数据，保留或删除旧表
-                //await this.DB.queryAsync("ALTER TABLE libraries RENAME TO librariesOld");
-                //await this.DB.queryAsync("CREATE TABLE libraries (\n    libraryID INTEGER PRIMARY KEY,\n    type TEXT NOT NULL,\n    editable INT NOT NULL,\n    filesEditable INT NOT NULL,\n    version INT NOT NULL DEFAULT 0,\n    lastSync INT NOT NULL DEFAULT 0,\n    lastStorageSync INT NOT NULL DEFAULT 0\n)");
-                //await this.DB.queryAsync("INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (1, 'user', 1, 1)");                
-                //await this.DB.queryAsync("INSERT INTO libraries SELECT libraryID, libraryType, editable, filesEditable, 0, 0, 0 FROM librariesOld JOIN groups USING (libraryID)");
-
-                //删除触发器
-                //await this.DB.queryAsync("DROP TRIGGER IF EXISTS fki_annotations_itemID_itemAttachments_itemID");                
-                //建立索引
-                //await this.DB.queryAsync("CREATE INDEX collections_synced ON collections(synced)");
-                //更新旧表数据，新表导入数据
-                //await this.DB.queryAsync("UPDATE syncedSettingsOld SET libraryID=1 WHERE libraryID=0");
-                //await this.DB.queryAsync("INSERT OR IGNORE INTO syncedSettings SELECT * FROM syncedSettingsOld");
-                //删除索引，重建索引
-                //await this.DB.queryAsync("DROP INDEX IF EXISTS itemData_fieldID");
-                //await this.DB.queryAsync("CREATE INDEX itemData_fieldID ON itemData(fieldID)");
-                //执行函数
-                //await _migrateUserData_80_filePaths();
-                //删除旧表
-                //await this.DB.queryAsync("DROP TABLE annotationsOld");
-
-
-            }
-
-
-            else if (i == 122) {
-                await this.DB.queryAsync("REPLACE INTO fileTypes VALUES(8, 'ebook')");
-                await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub+zip')");
-                // Incorrect, for compatibility
-                await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub')");
-            }
-
-            // TEMP: When adding 123, check whether IA.authorName fix in items.js::_loadAnnotations()
-            // can be updated due to update steps being indempodent
-
-            // If breaking compatibility or doing anything dangerous, clear minorUpdateFrom
-        }
-
-        await this.updateSchemaVersion(schema, toVersion);
-        return true;
-    };
 }
+
+

@@ -1,5 +1,6 @@
 -- 1
 -- 翻山蚁
+-- 有用户数据，更新时应当迁移数据
 DROP TABLE IF EXISTS fields;
 
 CREATE TABLE fields (fieldID INTEGER PRIMARY KEY, fieldName TEXT);
