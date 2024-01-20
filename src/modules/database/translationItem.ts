@@ -120,7 +120,7 @@ export async function testClass() {
     ztoolkit.log("firstTranslation",
         firstTranslation
     );
-    const DB = await getDB();
+    //const DB = await getDB();
     //await firstTranslation.save();
 }
 

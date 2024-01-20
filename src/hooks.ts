@@ -1,5 +1,5 @@
 import { config } from "../package.json";
-import { DB } from "./modules/database";
+import { DB, getDB } from "./modules/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
@@ -38,12 +38,9 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     text: getString("startup-begin"),
     type: "default",
     progress: 0,
-  })
-    .show();
-
+  }).show();
   popupWin.startCloseTimer(5000);
-
-
+  await getDB();
 }
 
 

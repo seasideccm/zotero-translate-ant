@@ -1,3 +1,6 @@
+/*
+adapted from Zotero
+*/
 
 import { schemaConfig } from "../../utils/constant";
 import { version as addonVersion, config } from "../../../package.json";
@@ -38,19 +41,13 @@ export class Schema {
 
     }
     async checkInitialized() {
-        //if (this.initialized) return true;
+        if (this.initialized) return true;
         const sql = "SELECT value FROM settings "
             + "WHERE setting='schema' AND key='initialized'";
-        try {
-            const init = await this.DB.valueQueryAsync(sql);
-            if (init) {
-                return this.initialized = true;
-            }
+        if (await this.DB.valueQueryAsync(sql)) {
+            this.initialized = true;
         }
-        catch (e) {
-            ztoolkit.log(e);
-        }
-        return false;
+        return this.initialized;
     };
 
 
@@ -129,15 +126,29 @@ export class Schema {
         return schemaVersion;
     }
 
+    //检查表并更新
     async checkSchemasUpdate() {
         for (const schema of Object.keys(schemaConfig)) {
             if (await this.checkUpdate(schema)) {
-                await this.updateSchema(schema);
-                //return true;
-            };
-        }
-        return false;
+                try {
+                    if (!await this.updateSchema(schema)) {
+                        throw ("fail auto Update Schema ");
+                    };
+                } catch (e: any) {
+                    ztoolkit.log(e);
+                    throw (e);
+                }
+            }
+        };
+        return true;
     }
+
+
+    /**
+     * 比较sql文件与数据库存储的版本信息
+     * @param schema 
+     * @returns 
+     */
     async checkUpdate(schema: string) {
         const dbSchemaVersion = await this.getSchemaVersion(schema);
         if (!dbSchemaVersion) return true;
@@ -310,7 +321,7 @@ export class Schema {
         }
 
         // Reset sync queue tries if new version
-        await this.checkAddonVersion();
+        await this.checkAddonVersionChange();
         this._schemaUpdateDeferred.resolve(true);
         return updated;
     };
@@ -360,10 +371,11 @@ export class Schema {
 
                 }
             }
+            return true;
         },
 
         translation: function (fromVersion: number, toVersion: number) {
-
+            return true;
         },
         //xx: () => {    },
     };
@@ -409,13 +421,18 @@ export class Schema {
     };
 
     async integrityCheckRequired() {
+        await this.DB.valueQueryAsync(
+            "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"
+        );
         return !!await this.DB.valueQueryAsync(
             "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"
         );
     };
 
     /**
-     * @param {Boolean} [fix=false]
+     * 检查表是否缺失，删除无用表，检查外键约束，可选自动修复
+     *  
+     * @param {Boolean} [fix=true] default true
      * @param {Object} [options]
      * @param {Boolean} [options.skipReconcile=false] - Don't reconcile the schema to create tables
      *     and indexes that should have been created and drop existing ones that should have been
@@ -566,6 +583,7 @@ export class Schema {
                         const checkData = typeof errorsFound != 'boolean' ? errorsFound : null;
                         await check[1](checkData);
                     }
+                    //成功
                     continue;
                 }
                 catch (e) {
@@ -575,7 +593,7 @@ export class Schema {
                     await this.setIntegrityCheckRequired(false);
                 }
             }
-
+            //失败
             return false;
         }
 
@@ -647,6 +665,7 @@ export class Schema {
             );
             throw e;
         }
+        return true;
     };
 
     async initializeSchema() {
@@ -675,23 +694,13 @@ export class Schema {
         await this.updateSchemaVersion('compatibility', version);
     };
 
-    checkAddonVersion() {
-        return this.DB.executeTransaction(async () => {
-            const lastVersion = await this.getLastAddonVersion();
-            const currentVersion = addonVersion;
-            if (currentVersion == lastVersion) {
-                return false;
-            }
-            Zotero.debug(`Addon version has changed from ${lastVersion} to ${currentVersion}`);
-
-            // Retry all queued objects immediately on upgrade
-            //await Zotero.Sync.Data.Local.resetSyncQueueTries();
-
-            // Update version
-            await this.updateLastAddonVersion();
-
-            return true;
-        });
+    async checkAddonVersionChange() {
+        const lastVersion = await this.getLastAddonVersion();
+        const currentVersion = addonVersion;
+        if (currentVersion == lastVersion) {
+            return false;
+        }
+        return true;
     }
 
     getLastAddonVersion() {
@@ -699,10 +708,47 @@ export class Schema {
         return this.DB.valueQueryAsync(sql);
     }
 
+    /**
+     * 检查表完整性，检查表更新，更新插件版本号
+     * @returns 
+     */
     async updateLastAddonVersion() {
-        const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
-        return await this.DB.queryAsync(sql, addonVersion);
+        await this.integrityCheck();
+        await this.checkSchemasUpdate();
+        return await this.DB.executeTransaction(
+            async function (this: any) {
+                const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
+                return await this.DB.queryAsync(sql, addonVersion);
+            }.bind(this));
     }
+
+    //todo reverse update
+    //rollBack() {    }
+}
+
+export async function checkSchema() {
+    let schema: Schema | null = new Schema();
+    await schema.checkInitialized();
+    if (!schema.initialized) {
+        //初始化表结构，无需检查完整性和更新
+        await schema.initializeSchema();
+        if (!schema.initialized) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    if (await schema.checkAddonVersionChange()) {
+        schema.updateLastAddonVersion;
+        return true;
+    };
+    if (await schema.integrityCheckRequired()) {
+        //失败则中止
+        if (!await schema.integrityCheck()) return false;
+    }
+    await schema.checkSchemasUpdate();
+    schema = null;
+    return true;
 }
 
 

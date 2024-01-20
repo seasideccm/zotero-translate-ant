@@ -1,12 +1,8 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { arrToObj, getFilesPathOrName } from "../../utils/tools";
-import { initDB, modifyColumn } from "../database";
 import { testClass } from "../database/translationItem";
 import { makeClickButton, makeTagElementProps } from "./uiTools";
-import { dodo } from "../../utils/iso-639-3";
-
-
 
 const keysForButtonMenu = ["label", "func", "args"];
 const paras = ["测试类", testClass, []];

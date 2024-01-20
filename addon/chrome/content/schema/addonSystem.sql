@@ -1,4 +1,5 @@
--- 1
+-- 2
+-- 版本要保持一致 src\utils\constant.ts schemaConfig.version
 -- 翻山蚁
 -- 有用户数据，更新时应当迁移数据
 DROP TABLE IF EXISTS fields;

@@ -4,15 +4,20 @@ export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm
 
 export const schemaConfig = {
         "addonSystem": {
-                "version": 1,
+                "version": 2,
         },
 
         "translation": {
-                "version": 2,
+                "version": 3,
         },
         "triggers": {
                 "version": 1,
-        }
+        },
+        "apiAccount": {
+                "version": 1,
+        },
+
+
 };
 
 export const svgPrefix = 'data:image/svg+xml,';

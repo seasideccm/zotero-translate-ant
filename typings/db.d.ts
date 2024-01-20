@@ -126,6 +126,18 @@ declare namespace Zotero {
         // TEMP
         info(): Promise<any>;
         quickCheck(): Promise<await>;
+
+        /**
+         * - await this.valueQueryAsync("PRAGMA integrity_check(1)")
+         * - The integrity_check pragma look for:
+                - Table or index entries that are out of sequence
+                - Misformatted records
+                - Missing pages
+                - Missing or surplus index entries
+                - UNIQUE, CHECK, and NOT NULL constraint errors
+                - Integrity of the freelist
+                - Sections of the database that are used more than once, or not at all
+         */
         integrityCheck(): Promise<boolean>;
         isCorruptionError(e: any): boolean;
         /**

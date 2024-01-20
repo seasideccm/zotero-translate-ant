@@ -1,14 +1,11 @@
 import { config } from "../../package.json";
 import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
-import { Schema } from "./database/schema";
-import { schemaConfig } from "../utils/constant";
+import { checkSchema } from "./database/schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
-    schemaVersions: any;
-    schema?: Schema;
     accessibility: boolean | null;
     initPromise: Promise<void>;
 
@@ -23,53 +20,25 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         super(dbNameOrPath);
         this.accessibility = null;
         addon.mountPoint.database = this;
-        this.schemaVersions = {};
         this.initPromise = this.init();
     }
 
     async init() {
-
+        // 检查数据库完整性
         const integrityDB = await this.integrityCheck();
         if (!integrityDB) {
-            throw ("addon database needs to be repaired");
+            throw ("addon database integrityCheck found error");
         }
-        const integritySchema = await this.checkSchema();
-        if (!integritySchema) {
+        // 检查表结构
+        if (!await checkSchema()) {
             throw ("addon database schema needs to be repaired");
         };
-        const accessibility = await this.accessibilityTest();
-        if (!accessibility) {
+        //检查数据库读写
+        if (!await this.accessibilityTest()) {
             throw ("addon database can't access");
-        }
-        if (await this.schema!.checkSchemasUpdate()) {
-            throw ("addon database needs update");
         }
 
     };
-
-    async checkSchema() {
-        if (!this.schema) {
-            this.schema = new Schema();
-            await this.schema.checkInitialized();
-        }
-        if (!this.schema.initialized) {
-            await this.schema.initializeSchema();
-            if (!this.schema.initialized) {
-                return false;
-            } else {
-                return true;
-            }
-        }
-        if (!await this.accessibilityTest()) return false;
-        if (!await this.schema.integrityCheck()) return false;
-        if (await this.schema.checkSchemasUpdate()) {
-            await this.schema.updateSchema;
-        }
-
-        return false;
-
-
-    }
 
     async accessibilityTest() {
         try {
@@ -207,10 +176,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         const sql = "UPDATE " + tableName + " SET " + sqlColumns.join("=?, ") + "=? WHERE " + condition;
         sqlValues.push(...Object.values(record));
         await this.queryAsync(sql, sqlValues);
-
     }
-
-
 }
 
 
@@ -234,12 +200,11 @@ export async function getDB(dbName?: string) {
         const DBPath = await makeDBPath();
         addonDB = new DB(DBPath);
     }
-
-    while (!addonDB.accessibility) {
-        await addonDB.initPromise;
+    await addonDB.initPromise;
+    if (!addonDB.accessibility) {
+        await addonDB.init();
     }
     return addonDB;
-
 }
 
 async function makeDBPath(dbName?: string) {
@@ -292,16 +257,6 @@ function _checkDataDirAccessError(e: any) {
     return true;
 }
 
-
-
-/* async function getSchemaSQL(schemaName: string, dir?: string) {
-    if (!schemaName) {
-        throw ('Schema type not provided to _getSchemaSQL()');
-    }
-    dir = dir || `chrome://${config.addonRef}/content/schema/`;
-    const path = dir + `${schemaName}.sql`;
-    return await Zotero.File.getResourceAsync(path);
-} */
 
 /* async function bakeupDatebase(addonDB: any) {
     addonDB._externalDB = false;

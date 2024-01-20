@@ -1,4 +1,5 @@
--- 2
+-- 3
+-- 版本要保持一致 src\utils\constant.ts schemaConfig.version
 -- 设置整型主键时，无需  AUTOINCREMENT
 -- 翻山蚁 译文
 -- sqlite 表
