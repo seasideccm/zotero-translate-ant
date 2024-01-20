@@ -66,7 +66,6 @@ function openDevTool() {
 async function main() {
   // build
   await build();
-
   // start Zotero
   startZotero(openDevTool);
 

@@ -12,6 +12,7 @@ import { existsSync, readdirSync, renameSync } from "fs";
 import path from "path";
 import { env, exit } from "process";
 import replaceInFile from "replace-in-file";
+import { replaceStringCustom } from "./replaceStringCustom.mjs";
 
 const { replaceInFileSync } = replaceInFile;
 
@@ -215,6 +216,8 @@ export async function main() {
 
   copyFolderRecursiveSync("addon", buildDir);
   replaceString(buildTime);
+ 
+
   Logger.debug("[Build] Replace OK");
 
   prepareLocaleFiles();
@@ -223,6 +226,8 @@ export async function main() {
   Logger.debug("[Build] Run esbuild OK");
 
   Logger.debug("[Build] Addon prepare OK");
+
+   replaceStringCustom();
 
   if (process.env.NODE_ENV === "production") {
     await zip.compressDir(
@@ -244,6 +249,10 @@ export async function main() {
 
 if (process.env.NODE_ENV === "production") {
   main().catch((err) => {
+    Logger.error(err);
+    exit(1);
+  });
+  buildExtras().catch((err) => {
     Logger.error(err);
     exit(1);
   });
