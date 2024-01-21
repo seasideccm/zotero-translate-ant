@@ -12,7 +12,7 @@ import { existsSync, readdirSync, renameSync } from "fs";
 import path from "path";
 import { env, exit } from "process";
 import replaceInFile from "replace-in-file";
-import { replaceStringCustom } from "./replaceStringCustom.mjs";
+//import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
 const { replaceInFileSync } = replaceInFile;
 
@@ -221,13 +221,16 @@ export async function main() {
   Logger.debug("[Build] Replace OK");
 
   prepareLocaleFiles();
-
+  
   await build(esbuildOptions);
+  
   Logger.debug("[Build] Run esbuild OK");
 
   Logger.debug("[Build] Addon prepare OK");
 
-   replaceStringCustom();
+  //await replaceStringExtra();
+
+  //Logger.debug("[Build] schemaCofig prepare ok");
 
   if (process.env.NODE_ENV === "production") {
     await zip.compressDir(

@@ -20,7 +20,8 @@ export const schemaConfig = {
 
 };
 //@ts-ignore
-export const schemaConfigTest = __schemaConfigTest__;
+export const schemaConfigTest = __schemaConfig__;
+
 
 export const svgPrefix = 'data:image/svg+xml,';
 //缺少</path>不显示svg, 

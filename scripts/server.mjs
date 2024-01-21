@@ -7,6 +7,7 @@ import { execSync } from "child_process";
 import chokidar from "chokidar";
 import { context } from "esbuild";
 import { exit } from "process";
+//import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
 process.env.NODE_ENV = "development";
 
@@ -36,6 +37,8 @@ async function watch() {
           .catch((err) => {
             Logger.error(err);
           });
+          //const result=await replaceStringExtra()
+          //Logger.info("[ schemaCofig modify ]");
       }
       // reload
       reload();
