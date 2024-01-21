@@ -75,6 +75,8 @@ pref-switchService = 选用该翻译引擎
 pref-deleteService = 删除该翻译引擎
 pref-recoverService =  恢复所有禁用的引擎
 pref-Priority-help = 翻译引擎排序或批量禁用：选中单个项目，上下键调整顺序；选中单个或多个项目，按 delete 或 backspace 键禁用。
-pref-sourceLang = 源语言
+pref-sourceLang = 原文语言
 pref-targetLang = 目标语言
 pref-restoreDefultColor = 恢复默认颜色
+
+pref-help = { $name } Build { $version } { $time }

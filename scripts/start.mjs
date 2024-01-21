@@ -61,7 +61,8 @@ function prepareDevEnv() {
         return;
       }
       if (line.includes("extensions.zotero.dataDir") && dataDir !== "") {
-        return `user_pref("extensions.zotero.dataDir", "${dataDir}");`;
+        return `user_pref("extensions.zotero.dataDir", "${dataDir}");
+        "${dataDir.replace(/\\\\?/g, "\\\\")}");`;
       }
       return line;
     });

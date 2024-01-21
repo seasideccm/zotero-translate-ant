@@ -1,6 +1,7 @@
 import { config } from "../package.json";
 import { DB, getDB } from "./modules/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
+import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
@@ -19,6 +20,7 @@ async function onStartup() {
     ztoolkit.log(loadDevToolWhen);
   } */
   initLocale();
+  registerPrefs();
   await onMainWindowLoad(window);
 }
 
@@ -94,7 +96,7 @@ async function onNotify(
 async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
-      //registerPrefsScripts(data.window);
+      registerPrefsScripts(data.window);
       break;
     default:
       return;

@@ -1,0 +1,190 @@
+<linkset>
+  <html:link rel="localization" href="__addonRef__-preferences.ftl" />
+</linkset>
+<vbox
+  id="zotero-prefpane-__addonRef__"
+  onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', {window})"
+>
+  <label>
+    <html:div style="text-align: center">
+      <html:h2 data-l10n-id="pref-title"></html:h2>
+    </html:div>
+  </label>
+
+  <label>
+    <html:h3 data-l10n-id="pref-descript"></html:h3>
+  </label>
+
+  <groupbox>
+    <vbox>
+      <hbox>
+        <label data-l10n-id="pref-sourceLang"></label>
+        <!-- Replace -->
+        <box id="__addonRef__-sourceLang-placeholder"></box>
+      </hbox>
+      <splitter />
+      <hbox>
+        <label data-l10n-id="pref-targetLang"></label>
+        <!-- Replace -->
+        <box id="__addonRef__-targetLang-placeholder"></box>
+      </hbox>
+      <checkbox
+        id="__addonRef__-bilingualContrast"
+        native="true"
+        preference="extensions.zotero.__addonRef__.bilingualContrast"
+        data-l10n-id="pref-bilingualContrast"
+      />
+      <checkbox
+        id="__addonRef__-isSourceFirst"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isSourceFirst"
+        data-l10n-id="pref-isSourceFirst"
+      />
+      <groupbox>
+        <caption data-l10n-id="pref-handleContentBeforeTitle" />
+        <radiogroup
+          id="__addonRef__-handleContentBeforeTitle"
+          preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
+        >
+          <hbox>
+            <radio
+              data-l10n-id="pref-moveToArticleEnd"
+              value="moveToArticleEnd"
+              selected="true"
+            />
+            <radio
+              data-l10n-id="pref-moveToPageEnd"
+              value="moveToPageEnd"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-moveAfterTitle"
+              value="moveAfterTitle"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-deleteIt"
+              value="deleteIt"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-nothingToDo"
+              value="nothingToDo"
+              selected="false"
+            />
+          </hbox>
+        </radiogroup>
+      </groupbox>
+      <checkbox
+        id="__addonRef__-isPay"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPay"
+        data-l10n-id="pref-isPay"
+      />
+      <checkbox
+        id="__addonRef__-isPreferredSameService"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPreferredSameService"
+        data-l10n-id="pref-isPreferredSameService"
+      />
+      <checkbox
+        id="__addonRef__-isPreferredHasSecretKey"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
+        data-l10n-id="pref-isPreferredHasSecretKey"
+      />
+      <checkbox
+        id="__addonRef__-isPriority"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPriority"
+        data-l10n-id="pref-isPriority"
+      />
+
+      <checkbox
+        id="__addonRef__-isSkipLocal"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isSkipLocal"
+        data-l10n-id="pref-isSkipLocal"
+      />
+
+      <hbox>
+        <label data-l10n-id="pref-untranslatedLanguage"></label>
+        <html:input
+          size="30"
+          type="text"
+          id="__addonRef__-untranslatedLanguage"
+          preference="extensions.zotero.__addonRef__.untranslatedLanguage"
+        ></html:input>
+      </hbox>
+      <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
+    </vbox>
+  </groupbox>
+</vbox>
+
+<label>
+  <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
+</label>
+<groupbox>
+  <caption data-l10n-id="pref-thumbnailSize" />
+  <radiogroup
+    id="__addonRef__-thumbnailSize"
+    preference="extensions.zotero.__addonRef__.thumbnailSize"
+  >
+    <hbox>
+      <radio
+        data-l10n-id="pref-thumbnailSizeSmall"
+        value="small"
+        selected="true"
+      />
+      <radio
+        data-l10n-id="pref-thumbnailSizeMedium"
+        value="medium"
+        selected="false"
+      />
+      <radio
+        data-l10n-id="pref-thumbnailSizeLarge"
+        value="large"
+        selected="false"
+      />
+    </hbox>
+  </radiogroup>
+  <caption data-l10n-id="pref-windowSizeOnViewImage" />
+  <radiogroup
+    id="__addonRef__-screenSizeViewer"
+    preference="extensions.zotero.__addonRef__.windowSizeOnViewImage"
+  >
+    <hbox>
+      <radio data-l10n-id="pref-maxScreen" value="max" selected="false" />
+      <radio data-l10n-id="pref-fullScreen" value="full" selected="true" />
+      <radio data-l10n-id="pref-originScreen" value="origin" selected="false" />
+    </hbox>
+  </radiogroup>
+  <hbox width="100px">
+    <caption data-l10n-id="pref-backgroundColorDialogImgViewer" />
+    <html:input
+      type="color"
+      id="__addonRef__-backgroundColorViewer"
+      preference="extensions.zotero.__addonRef__.backgroundColorDialogImgViewer"
+      width="20px"
+      value="#b90f0f"
+    >
+    </html:input>
+    <button
+      data-l10n-id="pref-restoreDefultColor"
+      oncommand='const color=document.getElementById("__addonRef__-backgroundColorViewer");
+      color.value="#b90f0f";'
+    ></button>
+  </hbox>
+</groupbox>
+
+<groupbox>
+  <label>
+    <html:h3 data-l10n-id="pref-about"></html:h3>
+  </label>
+  <label>
+    <html:h4
+      data-l10n-id="pref-version"
+      data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__","author":"__author__"}'
+    ></html:h4>
+  </label>
+</groupbox>

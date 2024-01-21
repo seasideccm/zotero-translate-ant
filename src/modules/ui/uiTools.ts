@@ -113,3 +113,35 @@ export const judgeAsync = (fun: any) => {
     const AsyncFunction = (async () => { }).constructor;
     return fun instanceof AsyncFunction;
 };
+
+
+export function makeId(type: string) {
+    return `${config.addonRef}-${type}`;
+}
+
+/**
+@param keyword: string
+*/
+export function getElementValue(keyword: string) {
+    const ele = selectEle(keyword);
+    if (ele !== undefined && ele != null) {
+        if ((ele as any).tagName == "checkbox") {
+            return (ele as XUL.Checkbox).checked;
+        } else {
+            return (ele as any).value;
+        }
+    }
+
+}
+/**
+  @param keyword: string
+*/
+export function selectEle(keyword: string) {
+    const doc = addon.data.prefs?.window?.document;
+    if (!doc) {
+        return;
+    }
+    const selector = "#" + makeId(keyword);
+    const ele = doc.querySelector(selector);
+    return ele;
+}
