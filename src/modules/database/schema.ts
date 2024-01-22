@@ -42,8 +42,7 @@ export class Schema {
     }
     async checkInitialized() {
         if (this.initialized) return true;
-        const sql = "SELECT value FROM settings "
-            + "WHERE setting='schema' AND key='initialized'";
+        const sql = "SELECT value FROM settings WHERE setting='schema' AND key='initialized'";
         try {
             const queryResult = await this.DB.valueQueryAsync(sql);
             if (queryResult) {
@@ -53,7 +52,6 @@ export class Schema {
         catch (e) {
             ztoolkit.log(e);
         }
-
         return this.initialized;
     };
 
@@ -94,11 +92,10 @@ export class Schema {
      * @param schema 
      * @returns 
      */
-    getSchemaVersion(schema: string) {
-        if (this._schemaVersions && this._schemaVersions[schema]) {
-            //@ts-ignore has
-            return Zotero.Promise.resolve(this._schemaVersions[schema]);
-        }
+    async getSchemaVersion(schema: string) {
+        //if (this._schemaVersions && this._schemaVersions[schema]) {
+        //@ts-ignore has
+        //return Zotero.Promise.resolve(this._schemaVersions[schema]);        }
 
         const sql = "SELECT version FROM version WHERE schema='" + schema + "'";
         return this.DB.valueQueryAsync(sql)
@@ -196,7 +193,7 @@ export class Schema {
                     text: msg,
                     type: "default",
                 }).show();
-                return await this.initializeSchema();
+                return this.initializeSchema();
             } else {
                 const msg = schema + ' schema does not exist -- creating\n';
                 Zotero.debug(msg);
@@ -204,7 +201,7 @@ export class Schema {
                     text: msg,
                     type: "default",
                 }).show();
-                return await this.DB.executeTransaction(async function (this: any, conn: any) {
+                return this.DB.executeTransaction(async function (this: any, conn: any) {
                     await this.doUpdateSchema(schema);
                 }.bind(this));
             }
@@ -635,46 +632,56 @@ export class Schema {
 
         return Zotero.File.getResourceAsync(path);
     }
+    //doInitSchema()
+    async initializeSchema() {
+        await this.DB.executeTransaction(async function (this: any) {
+            try {
+                await this.DB.queryAsync("PRAGMA page_size = 4096");
+                await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
+                await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
+                const promises = [];
+                const promisesFollow = [];
+                for (const schema of Object.keys(schemaConfig)) {
+                    const sql = await this.getSchemaSQL(schema);
+                    if (schema == "triggers") {
+                        promisesFollow.push(this.DB.executeSQLFile(sql));
+                    } else {
+                        promises.push(this.DB.executeSQLFile(sql));
+                    }
 
-    async doInitSchema() {
-        try {
-            // Enable auto-vacuuming
-            await this.DB.queryAsync("PRAGMA page_size = 4096");
-            await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
-            await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
+                }
+                await Promise.all(promises);
+                const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master WHERE name='translation'");
 
-            for (const schema of Object.keys(schemaConfig)) {
-                const sql = await this.getSchemaSQL(schema);
-                await this.DB.executeSQLFile(sql);
-                //@ts-ignore has
-                const version = parseInt(sql.match(/^-- ([0-9]+)/)[1]);
-                this._schemaVersions[schema] = version;
-                await this.updateSchemaVersion(schema, version);
+                for (const schema of Object.keys(schemaConfig)) {
+                    const version = schemaConfig[schema]["version"];
+                    promisesFollow.push(this.updateSchemaVersion(schema, version));
+                }
+                await Promise.all(promisesFollow);
+                await this.updateLastAddonVersion();
+                await this.updateCompatibility(this._maxCompatibility);
+                this.isCompatible = true;
+                await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
+                this.initialized = true;
             }
-            await this.updateLastAddonVersion();
-            await this.updateCompatibility(this._maxCompatibility);
-            this.isCompatible = true;
-            await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
-            this.initialized = true;
-        }
-        catch (e) {
-            Zotero.debug(e, 1);
-            Components.utils.reportError(e);
-            const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                .getService(Components.interfaces.nsIPromptService);
-            ps.alert(
-                null,
-                Zotero.getString('general.error'),
-                Zotero.getString('startupError', Zotero.appName)
-            );
-            throw e;
-        }
-        return true;
+            catch (e) {
+                ztoolkit.log(e);
+                Components.utils.reportError(e);
+                const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                    .getService(Components.interfaces.nsIPromptService);
+                ps.alert(
+                    null,
+                    Zotero.getString('general.error'),
+                    Zotero.getString('startupError', Zotero.appName)
+                );
+                throw e;
+            }
+
+        }.bind(this));
+
     };
 
-    async initializeSchema() {
-        return await this.DB.executeTransaction(this.doInitSchema.bind(this));
-    }
+
 
     /*
      * Update a DB schema version tag in an existing database
@@ -685,7 +692,7 @@ export class Schema {
         if (typeof version == "string") {
             version = parseInt(version);
         }
-        return await this.DB.queryAsync(sql, [schema, version]);
+        return this.DB.queryAsync(sql, [schema, version]);
     }
 
     async updateCompatibility(version: number) {
@@ -719,10 +726,11 @@ export class Schema {
     async updateLastAddonVersion() {
         await this.integrityCheck();
         await this.checkSchemasUpdate();
-        return await this.DB.executeTransaction(
+        return this.DB.executeTransaction(
             async function (this: any) {
                 const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
-                return await this.DB.queryAsync(sql, addonVersion);
+                const result = await this.DB.queryAsync(sql, addonVersion);
+                return result;
             }.bind(this));
     }
 
@@ -743,7 +751,7 @@ export async function checkSchema() {
         }
     }
     if (await schema.checkAddonVersionChange()) {
-        schema.updateLastAddonVersion;
+        await schema.updateLastAddonVersion;
         return true;
     };
     if (await schema.integrityCheckRequired()) {

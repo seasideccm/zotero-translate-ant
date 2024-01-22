@@ -200,7 +200,13 @@ export async function getDB(dbName?: string) {
         const DBPath = await makeDBPath();
         addonDB = new DB(DBPath);
     }
-    await addonDB.initPromise;
+    try {
+
+        await addonDB.initPromise;
+    }
+    catch (e: any) {
+        ztoolkit.log(e);
+    }
     if (!addonDB.accessibility) {
         await addonDB.init();
     }
@@ -260,7 +266,7 @@ function _checkDataDirAccessError(e: any) {
 
 /* async function bakeupDatebase(addonDB: any) {
     addonDB._externalDB = false;
-    return await addonDB.backupDatabase();
+    return addonDB.backupDatabase();
 } */
 
 

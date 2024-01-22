@@ -27,9 +27,9 @@ export {
  */
 async function baiduOcr(secretKey: string, option: BaiduOcrAccurateBasic | BaiduOcrPictureTr) {
     if (secretKey.length > 50) {
-        return await baiduOcrAccurate(secretKey)(option as BaiduOcrAccurateBasic);
+        return baiduOcrAccurate(secretKey)(option as BaiduOcrAccurateBasic);
     } else {
-        return await baiduPictureTranslate(secretKey)(option as BaiduOcrPictureTr);
+        return baiduPictureTranslate(secretKey)(option as BaiduOcrPictureTr);
     }
 };
 
