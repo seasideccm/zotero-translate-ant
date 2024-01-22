@@ -44,9 +44,16 @@ export class Schema {
         if (this.initialized) return true;
         const sql = "SELECT value FROM settings "
             + "WHERE setting='schema' AND key='initialized'";
-        if (await this.DB.valueQueryAsync(sql)) {
-            this.initialized = true;
+        try {
+            const queryResult = await this.DB.valueQueryAsync(sql);
+            if (queryResult) {
+                this.initialized = true;
+            }
         }
+        catch (e) {
+            ztoolkit.log(e);
+        }
+
         return this.initialized;
     };
 
