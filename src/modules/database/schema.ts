@@ -160,10 +160,7 @@ export class Schema {
             const dbAddonVersion = await this.DB.valueQueryAsync(
                 "SELECT value FROM settings WHERE setting='addon' AND key='lastCompatibleVersion'"
             );
-            throw new this.DB.IncompatibleVersionException(
-                `Addon '${schema}' DB version (${dbSchemaVersion}) is newer than SQL file (${schemaVersion})`,
-                dbAddonVersion
-            );
+            throw new Error(`Addon ${schema} DB version (${dbSchemaVersion}) is newer than SQL file (${schemaVersion}). 不兼容：数据库 ${schema} 表的版本大于 SQL 文件的版本号。`);
         }
         return true;
     }

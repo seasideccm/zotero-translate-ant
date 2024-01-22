@@ -41,7 +41,7 @@ declare namespace Zotero {
         };
         _dbIsCorrupt: boolean | null;
         _transactionPromise: Zotero.Promise | null;
-        IncompatibleVersionException: IncompatibleVersionException;
+        //IncompatibleVersionException: IncompatibleVersionException;//仅用于zotero数据库
 
         path: string;
         /**

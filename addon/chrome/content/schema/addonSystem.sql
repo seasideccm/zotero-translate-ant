@@ -7,9 +7,9 @@ DROP TABLE IF EXISTS fields;
 CREATE TABLE fields (fieldID INTEGER PRIMARY KEY, fieldName TEXT);
 
 CREATE TABLE settings (
-    setting TEXT,
-    key TEXT,
-    value,
+    setting TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
     PRIMARY KEY (setting, key)
 );
 

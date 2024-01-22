@@ -2,6 +2,7 @@ import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { getElementValue, makeId } from "./ui/uiTools";
 import { services } from "./translate/services";
+import { getDB } from "./database";
 
 
 export function registerPrefs() {
@@ -29,7 +30,7 @@ export async function registerPrefsScripts(_window: Window) {
 
 }
 
-function buildPrefsPane() {
+async function buildPrefsPane() {
   const doc = addon.data.prefs?.window?.document;
   if (!doc) {
     return;
@@ -71,6 +72,9 @@ function buildPrefsPane() {
     doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
   ); */
   // 原文语言
+  const DB = await getDB();
+  let defaultSourceLang = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='translate' AND key='defaultSourceLang'");
+  defaultSourceLang = defaultSourceLang ? defaultSourceLang : defaultSourceLang = "en-US";
   ztoolkit.UI.replaceElement(
     {
       // 下拉列表
@@ -78,6 +82,9 @@ function buildPrefsPane() {
       id: makeId("sourceLang"),
       attributes: {
         native: "true",
+        //@ts-ignore has
+        label: Zotero.Locale.availableLocales[defaultSourceLang],
+        value: defaultSourceLang,
       },
       children: [
         {
@@ -94,27 +101,31 @@ function buildPrefsPane() {
           })),
         },
       ],
+      listeners: [
+
+      ]
     },
     // 将要被替换掉的元素
     doc.querySelector(`#${makeId("sourceLang-placeholder")}`)!
   );
 
   // 目标语言
+
+
   ztoolkit.UI.replaceElement(
     {
-      // 下拉列表
       tag: "menulist",
       id: makeId("targetLang"),
       attributes: {
         native: "true",
+        label: Zotero.Locale.availableLocales[Zotero.locale],
+        value: Zotero.locale,
       },
       children: [
         {
           tag: "menupopup",
-          //map出的对象数组赋值给键 children
           children: Object.keys(Zotero.Locale.availableLocales).map(e => ({
             tag: "menuitem",
-            id: makeId(e),
             attributes: {
               //@ts-ignore has
               label: Zotero.Locale.availableLocales[e],
@@ -124,9 +135,13 @@ function buildPrefsPane() {
         },
       ],
     },
-    // 将要被替换掉的元素
     doc.querySelector(`#${makeId("targetLang-placeholder")}`)!
   );
+
+
+  //menuPopupTargetLang.parentNode!.setAttribute("label", Zotero.Locale.availableLocales[Zotero.locale]);
+
+
 
 
 }

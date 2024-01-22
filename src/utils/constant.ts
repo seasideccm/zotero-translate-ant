@@ -2,7 +2,10 @@ import { config } from "../../package.json";
 export const addonStorageDir = PathUtils.join(Zotero.getStorageDirectory().path, config.addonName);
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
-export const schemaConfig = {
+//@ts-ignore has
+export const schemaConfig = __schemaConfig__;
+
+/* {
         "addonSystem": {
                 "version": 2,
         },
@@ -18,9 +21,9 @@ export const schemaConfig = {
         },
 
 
-};
+}; */
 //@ts-ignore
-export const schemaConfigTest = __schemaConfig__;
+//export const schemaConfigTest = __schemaConfig__;
 
 
 export const svgPrefix = 'data:image/svg+xml,';

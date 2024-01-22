@@ -30,7 +30,6 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountButtonEndMenubar();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
-  //await getDB();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
