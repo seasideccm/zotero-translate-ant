@@ -22,7 +22,7 @@ export const schemaConfig = __schemaConfig__;
 
 
 }; */
-//@ts-ignore
+
 //export const schemaConfigTest = __schemaConfig__;
 
 

@@ -4,7 +4,7 @@ adapted from Zotero
 
 import { schemaConfig } from "../../utils/constant";
 import { version as addonVersion, config } from "../../../package.json";
-import { fileNameNoExt } from "../../utils/tools";
+import { fileNameNoExt, showInfo } from "../../utils/tools";
 import { DB } from "../database";
 import { OS } from "../../utils/tools";
 
@@ -168,7 +168,11 @@ export class Schema {
         }
         return true;
     }
+    async isEmptyDB() {
+        const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master");
+        return tableNames.length == 0 ? true : false;
 
+    }
     async updateSchema(schema: string, options: any = {}) {
         if (this.isCompatible == null) {
             await this.checkCompat();
@@ -184,8 +188,7 @@ export class Schema {
         }
         const schemaVersion = await this.getSchemaVersion(schema);
         if (!schemaVersion) {
-            const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master");
-            if (tableNames.length == 0) {
+            if (await this.isEmptyDB()) {
                 //如果数据库为空则初始化
                 const msg = 'database does not exist any schema -- creating\n';
                 Zotero.debug(msg);
@@ -636,6 +639,44 @@ export class Schema {
     async initializeSchema() {
         await this.DB.executeTransaction(async function (this: any) {
             try {
+                //避免循环
+                await this.DB.queryAsync("PRAGMA page_size = 4096");
+                await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
+                await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
+                let sql: string;
+                sql = await this.getSchemaSQL("addonSystem");
+                await this.DB.executeSQLFile(sql);
+                sql = await this.getSchemaSQL("apiAccount");
+                await this.DB.executeSQLFile(sql);
+                sql = await this.getSchemaSQL("translation");
+                await this.DB.executeSQLFile(sql);
+                sql = await this.getSchemaSQL("triggers");
+                await this.DB.executeSQLFile(sql);
+                let version;
+                version = schemaConfig["addonSystem"]["version"];
+                await this.updateSchemaVersion("addonSystem", version);
+                version = schemaConfig["apiAccount"]["version"];
+                await this.updateSchemaVersion("apiAccount", version);
+                version = schemaConfig["translation"]["version"];
+                await this.updateSchemaVersion("translation", version);
+                version = schemaConfig["triggers"]["version"];
+                await this.updateSchemaVersion("triggers", version);
+                await this.updateLastAddonVersion();
+                await this.updateCompatibility(this._maxCompatibility);
+                this.isCompatible = true;
+                await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
+                this.initialized = true;
+            }
+            catch (e) {
+                ztoolkit.log(e);
+                reportError(e);
+                throw e;
+            }
+
+        }.bind(this));
+
+        /* await this.DB.executeTransaction(async function (this: any) {
+            try {
                 await this.DB.queryAsync("PRAGMA page_size = 4096");
                 await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
                 await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
@@ -643,19 +684,17 @@ export class Schema {
                 const promisesFollow = [];
                 for (const schema of Object.keys(schemaConfig)) {
                     const sql = await this.getSchemaSQL(schema);
-                    if (schema == "triggers") {
-                        promisesFollow.push(this.DB.executeSQLFile(sql));
-                    } else {
+                    if (schema != "triggers") {
                         promises.push(this.DB.executeSQLFile(sql));
                     }
 
                 }
-                await Promise.all(promises);
-                const tableNames = await this.DB.queryAsync("SELECT name FROM sqlite_master WHERE name='translation'");
+                await Promise.all(promises);               
 
                 for (const schema of Object.keys(schemaConfig)) {
                     const version = schemaConfig[schema]["version"];
-                    promisesFollow.push(this.updateSchemaVersion(schema, version));
+                    if (schema != "triggers") {
+                    promisesFollow.push(this.updateSchemaVersion(schema, version));}
                 }
                 await Promise.all(promisesFollow);
                 await this.updateLastAddonVersion();
@@ -677,7 +716,7 @@ export class Schema {
                 throw e;
             }
 
-        }.bind(this));
+        }.bind(this)); */
 
     };
 
@@ -763,4 +802,14 @@ export async function checkSchema() {
     return true;
 }
 
+function reportError(e: any) {
+    Components.utils.reportError(e);
+    const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+        .getService(Components.interfaces.nsIPromptService);
+    ps.alert(
+        null,
+        Zotero.getString('general.error'),
+        Zotero.getString('startupError', Zotero.appName)
+    );
 
+}

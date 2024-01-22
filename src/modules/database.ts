@@ -1,5 +1,5 @@
 import { config } from "../../package.json";
-import { getDir, fileNameNoExt, resourceFilesName } from "../utils/tools";
+import { getDir, fileNameNoExt, resourceFilesName, showInfo } from "../utils/tools";
 import { checkSchema } from "./database/schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
@@ -206,6 +206,9 @@ export async function getDB(dbName?: string) {
     }
     catch (e: any) {
         ztoolkit.log(e);
+        showInfo(e);
+        await checkSchema();
+        throw e;
     }
     if (!addonDB.accessibility) {
         await addonDB.init();

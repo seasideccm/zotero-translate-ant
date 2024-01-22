@@ -42,6 +42,7 @@ async function baiduOauth(secretKey: string) {
         'Content-Type': 'application/json',
         Accept: 'application/json',
     };
+    //@ts-ignore has
     const tokenXhr = await Zotero.HTTP.request('POST', token_url, headersToken);
     if (tokenXhr.statusText == "OK") {
         const access_token = JSON.parse(tokenXhr.response).access_token;
@@ -80,6 +81,7 @@ function baiduOcrAccurate(secretKey: string) {
         const options = { body, headers, timeout: 30000, responseType: "json" };
         const request = await Zotero.HTTP.request('POST', url, options);
         if (request.statusText != "OK") {
+            //@ts-ignore has
             throw `Http Request Error\nHttp Status: ${request.status}\n${JSON.stringify(request.data)}`;
         }
         if (!request.response['words_result']) {
@@ -140,8 +142,10 @@ function baiduPictureTranslate(secretKey: string) {
         body.append("image", file);
         const headers = { 'Content-Type': 'multipart/form-data' };
         const options = { body, headers, timeout: 30000, responseType: "json" };
+        //@ts-ignore has
         const request = await Zotero.HTTP.request('POST', url, options);
         if (request.statusText != "OK") {
+            //@ts-ignore has
             throw `Http Request Error\nHttp Status: ${request.status}\n${JSON.stringify(request.data)}`;
         }
         if (request.response.error_msg != "success") {

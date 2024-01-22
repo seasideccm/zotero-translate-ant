@@ -4,6 +4,7 @@ import { franc } from 'franc-min';
 
 export async function resourceFilesName(url?: string) {
     url = url || `chrome://${config.addonRef}/content/schema/`;
+    //@ts-ignore has
     const result = await Zotero.HTTP.request("GET", url);
     const filesInfo = result.response.split("\n").filter((e: string) => e.includes("FILE"));
     const files = filesInfo.map((e: string) => fileNameNoExt(e.split(" ")[1])).filter((e: any) => e && e != "");
@@ -170,4 +171,39 @@ export function ReadPNG(buf: any) {
         const height = readUint32BE(buf, 20);
         return { width, height };
     }
+}
+
+
+/**
+ * 通过进度条显示信息
+ * 关闭其他窗口若为true，则关闭最近一次生成的所有进度条
+ * 但不会关闭更早的进度条窗口
+ * 不传参数用 undefined 表示
+ * @param {string} info 显示的信息
+ * @param {number} closeTime 默认不自动关闭
+ * @param {Window} window 指定显示在哪个窗口中，如指定 addon.data.prefs.window，否则主窗口
+ * @param {boolean} closeOnClick 默认点击时关闭
+ * @param {boolean} closeOtherProgressWindows 默认 true
+ * @returns 
+ */
+export function showInfo(info: string, closeTime?: number, window?: Window, closeOnClick?: boolean, closeOtherProgressWindows?: boolean) {
+
+    let popupWin = addon.mountPoint.popupWin;
+    if (!popupWin) {
+        popupWin = new ztoolkit.ProgressWindow(config.addonName, {
+            window: window ? window : undefined,
+            closeOnClick: closeOnClick ? closeOnClick : true,
+            closeTime: closeTime ? closeTime : -1,
+            closeOtherProgressWindows: closeOtherProgressWindows ? closeOtherProgressWindows : true
+        });
+    }
+    popupWin.createLine({
+        text: info,
+        type: "default",
+        progress: 0,
+    });
+    popupWin.show();
+    if (closeTime) popupWin.startCloseTimer(closeTime);
+
+    return popupWin;
 }
