@@ -14,7 +14,6 @@ export class Schema {
     initialized: boolean;
     _schemaUpdateDeferred: any;
     schemaUpdatePromise: any;
-    _schemaVersions: any;
     minorUpdateFrom: number;
     //数据库结构兼容插件（软件）的最大版本号
     _maxCompatibility: number;
@@ -35,7 +34,6 @@ export class Schema {
         //若旧数据库的兼容版本号大于该值，说明目前安装的为旧版插件，数据库需要降级。
         this._maxCompatibility = 7;
         this._localUpdateInProgress = false;
-        this._schemaVersions = {};
         this.isCompatible = null;
         this.DB = addon.mountPoint.database;
 
@@ -49,8 +47,9 @@ export class Schema {
                 this.initialized = true;
             }
         }
-        catch (e) {
+        catch (e: any) {
             ztoolkit.log(e);
+            showInfo(e);
         }
         return this.initialized;
     };
@@ -93,16 +92,12 @@ export class Schema {
      * @returns 
      */
     async getSchemaVersion(schema: string) {
-        //if (this._schemaVersions && this._schemaVersions[schema]) {
-        //@ts-ignore has
-        //return Zotero.Promise.resolve(this._schemaVersions[schema]);        }
 
         const sql = "SELECT version FROM version WHERE schema='" + schema + "'";
         return this.DB.valueQueryAsync(sql)
             .then((dbSchemaVersion: any) => {
                 if (dbSchemaVersion) {
                     dbSchemaVersion = parseInt(dbSchemaVersion);
-                    this._schemaVersions[schema] = dbSchemaVersion;
                 }
                 return dbSchemaVersion;
             })
@@ -126,7 +121,6 @@ export class Schema {
         const sql = await this.getSchemaSQL(schema);
         // @ts-ignore has
         const schemaVersion = parseInt(sql.match(/^-- ([0-9]+)/)[1]);
-        this._schemaVersions[schema] = schemaVersion;
         return schemaVersion;
     }
 
@@ -196,7 +190,12 @@ export class Schema {
                     text: msg,
                     type: "default",
                 }).show();
-                return this.initializeSchema();
+                try {
+                    await this.initializeSchema();
+                }
+                catch (e) {
+                    return false;
+                }
             } else {
                 const msg = schema + ' schema does not exist -- creating\n';
                 Zotero.debug(msg);
@@ -204,10 +203,16 @@ export class Schema {
                     text: msg,
                     type: "default",
                 }).show();
-                return this.DB.executeTransaction(async function (this: any, conn: any) {
-                    await this.doUpdateSchema(schema);
-                }.bind(this));
+                try {
+                    await this.DB.executeTransaction(async function (this: any) {
+                        await this.doUpdateSchema(schema);
+                    }.bind(this));
+                }
+                catch (e) {
+                    return false;
+                }
             }
+            return true;
         }
 
 
@@ -661,7 +666,9 @@ export class Schema {
                 await this.updateSchemaVersion("translation", version);
                 version = schemaConfig["triggers"]["version"];
                 await this.updateSchemaVersion("triggers", version);
-                await this.updateLastAddonVersion();
+                //await this.updateLastAddonVersion();
+                sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
+                await this.DB.queryAsync(sql, addonVersion);
                 await this.updateCompatibility(this._maxCompatibility);
                 this.isCompatible = true;
                 await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
@@ -674,6 +681,7 @@ export class Schema {
             }
 
         }.bind(this));
+
 
         /* await this.DB.executeTransaction(async function (this: any) {
             try {
@@ -726,7 +734,6 @@ export class Schema {
      * Update a DB schema version tag in an existing database
      */
     async updateSchemaVersion(schema: string, version: string | number) {
-        this._schemaVersions[schema] = version;
         const sql = "REPLACE INTO version (schema,version) VALUES (?,?)";
         if (typeof version == "string") {
             version = parseInt(version);
@@ -739,7 +746,7 @@ export class Schema {
             throw new Error("Can't set compatibility greater than _maxCompatibility");
         }
         await this.DB.queryAsync(
-            "REPLACE INTO settings VALUES ('addon', 'lastCompatibleVersion', ?)", [addonVersion]
+            "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastCompatibleVersion', ?)", [addonVersion]
         );
         await this.updateSchemaVersion('compatibility', version);
     };
@@ -764,43 +771,21 @@ export class Schema {
      */
     async updateLastAddonVersion() {
         await this.integrityCheck();
-        await this.checkSchemasUpdate();
-        return this.DB.executeTransaction(
+        if (!await this.checkSchemasUpdate()) { throw ("Failed  Check Schemas Update"); };
+        const result = await this.DB.executeTransaction(
             async function (this: any) {
                 const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
                 const result = await this.DB.queryAsync(sql, addonVersion);
                 return result;
             }.bind(this));
+        return result;
     }
 
     //todo reverse update
     //rollBack() {    }
 }
 
-export async function checkSchema() {
-    let schema: Schema | null = new Schema();
-    await schema.checkInitialized();
-    if (!schema.initialized) {
-        //初始化表结构，无需检查完整性和更新
-        await schema.initializeSchema();
-        if (!schema.initialized) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-    if (await schema.checkAddonVersionChange()) {
-        await schema.updateLastAddonVersion;
-        return true;
-    };
-    if (await schema.integrityCheckRequired()) {
-        //失败则中止
-        if (!await schema.integrityCheck()) return false;
-    }
-    await schema.checkSchemasUpdate();
-    schema = null;
-    return true;
-}
+
 
 function reportError(e: any) {
     Components.utils.reportError(e);

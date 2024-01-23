@@ -1,6 +1,6 @@
 import { config } from "../../package.json";
-import { getDir, fileNameNoExt, resourceFilesName, showInfo } from "../utils/tools";
-import { checkSchema } from "./database/schema";
+import { getDir, fileNameNoExt, showInfo } from "../utils/tools";
+import { Schema } from "./database/schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
 
@@ -37,7 +37,6 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
         if (!await this.accessibilityTest()) {
             throw ("addon database can't access");
         }
-
     };
 
     async accessibilityTest() {
@@ -207,7 +206,7 @@ export async function getDB(dbName?: string) {
     catch (e: any) {
         ztoolkit.log(e);
         showInfo(e);
-        await checkSchema();
+        //await checkSchema();
         throw e;
     }
     if (!addonDB.accessibility) {
@@ -266,6 +265,29 @@ function _checkDataDirAccessError(e: any) {
     return true;
 }
 
+async function checkSchema() {
+    const schema = new Schema();
+    await schema.checkInitialized();
+    if (!schema.initialized) {
+        //初始化表结构，无需检查完整性和更新
+        await schema.initializeSchema();
+        if (!schema.initialized) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    if (await schema.checkAddonVersionChange()) {
+        await schema.updateLastAddonVersion;
+        return true;
+    };
+    if (await schema.integrityCheckRequired()) {
+        //失败则中止
+        if (!await schema.integrityCheck()) return false;
+    }
+    await schema.checkSchemasUpdate();
+    return true;
+}
 
 /* async function bakeupDatebase(addonDB: any) {
     addonDB._externalDB = false;

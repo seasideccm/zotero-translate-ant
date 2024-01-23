@@ -42,7 +42,7 @@ export async function getFilesPathOrName(dir: string, option: any = { subDirecto
 
 export function arrToObj(keys: string[], values: any[]) {
     if (keys.length !== values.length) {
-        throw "keys and values amount is not equal";
+        throw ("keys and values amount is not equal");
     }
     const obj = {};
     keys.forEach((key: string, i: number) => {
