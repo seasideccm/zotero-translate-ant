@@ -20,7 +20,16 @@ async function onStartup() {
     ztoolkit.log(loadDevToolWhen);
   } */
   initLocale();
-  registerPrefs();
+
+  ztoolkit.PreferencePane.register({
+    pluginID: config.addonID,
+    src: rootURI + "chrome/content/preferences.xhtml",
+    label: getString("prefs-title"),
+    image: `chrome://${config.addonRef}/content/icons/favicon.png`,
+    defaultXUL: true,
+  });
+
+  //registerPrefs();
   await onMainWindowLoad(window);
 }
 

@@ -8,14 +8,13 @@ import { showInfo } from "../utils/tools";
 
 
 export function registerPrefs() {
-  const prefOptions = {
+  ztoolkit.PreferencePane.register({
     pluginID: config.addonID,
     src: rootURI + "chrome/content/preferences.xhtml",
     label: getString("prefs-title"),
     image: `chrome://${config.addonRef}/content/icons/favicon.png`,
     defaultXUL: true,
-  };
-  ztoolkit.PreferencePane.register(prefOptions);
+  });
 }
 
 
@@ -28,7 +27,7 @@ export async function registerPrefsScripts(_window: Window) {
   } else {
     addon.data.prefs.window = _window;
   }
-  buildPrefsPane();
+  await buildPrefsPane();
 
 }
 
@@ -37,55 +36,26 @@ async function buildPrefsPane() {
   if (!doc) {
     return;
   }
-  /* ztoolkit.UI.replaceElement(
-    {
-      // 下拉列表
-      tag: "menulist",
-      id: makeId("serviceID"),
-      attributes: {
-        native: "true",
-      },
-      listeners: [
-        {
-          type: "command",
-          listener: (e: Event) => {
-            const serviceID = getElementValue("serviceID")!;
 
-
-          },
-        },
-      ],
-      children: [
-        {
-          tag: "menupopup",
-          //map出的对象数组赋值给键 children
-          children: Object.values(services).filter(e => !e.forbidden).map((service) => ({
-            tag: "menuitem",
-            id: makeId(`${service.id}`),
-            attributes: {
-              label: getString(`service-${service.id}`),
-              value: service.id,
-            },
-          })),
-        },
-      ],
-    },
-    // 将要被替换掉的元素
-    doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
-  ); */
   // 原文语言
   let defaultSourceLang;
+  let defaultTargetLang;
   const DB = await getDB();
   if (DB) {
     try {
       defaultSourceLang = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='translate' AND key='defaultSourceLang'");
+      defaultTargetLang = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'");
     }
     catch (e) {
       ztoolkit.log(e);
     }
   }
 
-  defaultSourceLang = defaultSourceLang ? defaultSourceLang : defaultSourceLang = "en-US";
+  defaultSourceLang = defaultSourceLang ? defaultSourceLang : "en-US";
+  defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
+
+  const sourceLangPlaceholder = doc.querySelector(`#${makeId("sourceLang-placeholder")}`)!;
+  const targetLangPlaceholder = doc.querySelector(`#${makeId("targetLang-placeholder")}`)!;
   ztoolkit.UI.replaceElement(
     {
       // 下拉列表
@@ -112,73 +82,21 @@ async function buildPrefsPane() {
           })),
         },
       ],
-      /* listeners: [
-        {
-          type: "command",
-          listener: (e: Event) => {
-            showInfo("有动静");
-          }
-        }
-      ] */
     },
     // 将要被替换掉的元素
-    doc.querySelector(`#${makeId("sourceLang-placeholder")}`)!
+    sourceLangPlaceholder
   );
-  function observeValue(targetId: string, attributes: string[], keyTorecord: 'defaultSourceLang' | 'defaultTargetLang') {
-    const doc = addon.data.prefs?.window?.document;
-    if (!doc) {
-      return;
-    }
-    const win: Window | undefined = addon.data.prefs?.window;
-    if (!win) {
-      return;
-    }
-    const config: any = { attributes: true };
-    if (attributes) {
-      config.attributeFilter = attributes;
-    }
-    const target = doc.querySelector(`#${targetId}`);
-    if (!target) return;
-    const sql = "REPLACE INTO settings (setting, key, value) VALUES ('translate', '" + keyTorecord + "', ?)";
-    //callback=cb
-    async function callback(mutationsList: any[], observer: any) {
-      for (const mutation of mutationsList) {
-        if (mutation.type === "attributes") {
-          if (attributes?.includes(mutation.attributeName)) {
-            showInfo(("The selected" + mutation.attributeName + " attribute was modified."));
-            const value = mutation.target[mutation.attributeName];
-            if (!sql) return;
-            const DB = await getDB();
-            await DB.executeTransaction(async function () {
-              await DB.queryAsync(sql, value);
-            });
-
-          } else {
-            showInfo(("The " + mutation.attributeName + " attribute was modified."));
-          }
-        }
-      }
-    }
-    //@ts-ignore has
-    return new win.MutationObserver(callback);
-
-  }
-
-
-  const oob = observeValue(makeId("sourceLang"), ["value"], "defaultSourceLang");
-  oob.observe(target, config);
-
+  const sourceLangMenulist = doc.querySelector(`#${makeId("sourceLang")}`)!;
   // 目标语言
-
-
   ztoolkit.UI.replaceElement(
     {
       tag: "menulist",
       id: makeId("targetLang"),
       attributes: {
         native: "true",
-        label: Zotero.Locale.availableLocales[Zotero.locale],
-        value: Zotero.locale,
+        //@ts-ignore has
+        label: Zotero.Locale.availableLocales[defaultTargetLang],
+        value: defaultTargetLang,
       },
       children: [
         {
@@ -194,14 +112,30 @@ async function buildPrefsPane() {
         },
       ],
     },
-    doc.querySelector(`#${makeId("targetLang-placeholder")}`)!
+    targetLangPlaceholder
   );
-  observeValue(makeId("targetLang"), ["values"], "defaultTargetLang");
+  const targetLangMenulist = doc.querySelector(`#${makeId("targetLang")}`)!;
+  const configObserver = { attributes: true, attributeFilter: ["label"], attributeOldValue: true };
+  //@ts-ignore has
+  const mutationObserver = new addon.data.prefs!.window.MutationObserver(callback);
+  mutationObserver.observe(sourceLangMenulist, configObserver);
+  mutationObserver.observe(targetLangMenulist, configObserver);
 
 
-  //menuPopupTargetLang.parentNode!.setAttribute("label", Zotero.Locale.availableLocales[Zotero.locale]);
-
-
-
-
+  async function callback(mutationsList: any[]) {
+    const DB = await getDB();
+    if (!DB) return;
+    for (const mutation of mutationsList) {
+      if (!mutation.target.id.match(/(sourceLang)|(targetLang)/g)) return;
+      const value = mutation.target.value;
+      const label = mutation.target.label;
+      const keyTorecord = mutation.target.id.includes("sourceLang") ? "defaultSourceLang" : "defaultTargetLang";
+      const sql = "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
+      if (!value) return;
+      showInfo(("The " + keyTorecord + " was modified from " + mutation.oldValue + " to " + label + "."), 2000);
+      await DB.executeTransaction(async function () {
+        await DB.queryAsync(sql, [keyTorecord, value]);
+      });
+    }
+  };
 }

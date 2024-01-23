@@ -115,8 +115,8 @@ export const judgeAsync = (fun: any) => {
 };
 
 
-export function makeId(type: string) {
-    return `${config.addonRef}-${type}`;
+export function makeId(suffix: string) {
+    return `${config.addonRef}-${suffix}`;
 }
 
 /**
