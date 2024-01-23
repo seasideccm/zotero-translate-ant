@@ -120,8 +120,6 @@ async function buildPrefsPane() {
   const mutationObserver = new addon.data.prefs!.window.MutationObserver(callback);
   mutationObserver.observe(sourceLangMenulist, configObserver);
   mutationObserver.observe(targetLangMenulist, configObserver);
-
-
   async function callback(mutationsList: any[]) {
     const DB = await getDB();
     if (!DB) return;

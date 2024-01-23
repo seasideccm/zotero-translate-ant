@@ -2,6 +2,8 @@ interface IncompatibleVersionException {
     new(msg: any, dbClientVersion: any): this;
 }
 
+
+
 declare namespace Zotero {
     interface DBConnection {
         //constructor(dbNameOrPath?: string) { };
