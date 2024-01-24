@@ -12,6 +12,7 @@ pref-isSourceFirst =
 pref-isTargetFirst = 
     .label = TargetText First
 pref-handleContentBeforeTitle = How to deal with the content before the title?
+pref-bilingualSetting = bilingual Setting
 pref-moveToArticleEnd =
     .label = moveToArticleEnd
 pref-moveToPageEnd =

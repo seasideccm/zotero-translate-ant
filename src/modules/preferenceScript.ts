@@ -1,6 +1,6 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getElementValue, makeId } from "./ui/uiTools";
+import { getDom, getElementValue, makeId } from "./ui/uiTools";
 import { services } from "./translate/services";
 import { getDB } from "./database";
 import { Command } from "zotero-plugin-toolkit/dist/managers/prompt";
@@ -28,6 +28,7 @@ export async function registerPrefsScripts(_window: Window) {
     addon.data.prefs.window = _window;
   }
   await buildPrefsPane();
+  bindPrefEvents();
 
 }
 
@@ -137,3 +138,13 @@ async function buildPrefsPane() {
     }
   };
 }
+
+function bindPrefEvents() {
+  getDom("bilingualContrast")?.addEventListener("command", (e) => {
+    const checked = (e.target as XUL.Checkbox).checked;
+    const sourceTargetOrder = getDom("sourceTargetOrder") as XUL.RadioGroup;
+    if (!sourceTargetOrder) return;
+    sourceTargetOrder.disabled = !checked;
+  });
+}
+

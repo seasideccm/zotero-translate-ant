@@ -10,6 +10,7 @@ pref-isSourceFirst =
 pref-isTargetFirst = 
     .label = 译文在前
 pref-handleContentBeforeTitle = 如何处理标题前内容？
+pref-bilingualSetting = 双语设置
 pref-moveToArticleEnd =
     .label = 移到文章末尾
 pref-moveToPageEnd = 

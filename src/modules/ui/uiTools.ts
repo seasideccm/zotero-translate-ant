@@ -145,3 +145,12 @@ export function selectEle(keyword: string) {
     const ele = doc.querySelector(selector);
     return ele;
 }
+
+export function getDom(idSuffix: string) {
+    const doc = addon.data.prefs?.window?.document;
+    const win = addon.data.prefs?.window;
+    if (!doc || !win) {
+        return;
+    }
+    return doc.querySelector(`#${makeId("idSuffix")}`);
+}
