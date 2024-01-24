@@ -26,20 +26,33 @@
         <label data-l10n-id="pref-targetLang"></label>
         <box id="__addonRef__-targetLang-placeholder"></box>
       </hbox>
-
       <separator class="groove" />
-      <checkbox
-        id="__addonRef__-bilingualContrast"
-        native="true"
-        preference="extensions.zotero.__addonRef__.bilingualContrast"
-        data-l10n-id="pref-bilingualContrast"
-      />
-      <checkbox
-        id="__addonRef__-isSourceFirst"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isSourceFirst"
-        data-l10n-id="pref-isSourceFirst"
-      />
+      <hbox>
+        <checkbox
+          id="__addonRef__-bilingualContrast"
+          native="true"
+          preference="extensions.zotero.__addonRef__.bilingualContrast"
+          data-l10n-id="pref-bilingualContrast"
+        />
+
+        <radiogroup
+          id="__addonRef__-sourceTargetOrder"
+          preference="extensions.zotero.__addonRef__.sourceTargetOrder"
+        >
+          <hbox>
+            <radio
+              id="__addonRef__-isSourceFirst"
+              data-l10n-id="pref-isSourceFirst"
+            />
+            <radio
+              id="__addonRef__-isTargetFirst"
+              data-l10n-id="pref-isTargetFirst"
+            />
+          </hbox>
+        </radiogroup>
+      </hbox>
+      <splitter />
+
       <groupbox>
         <caption data-l10n-id="pref-handleContentBeforeTitle" />
         <radiogroup

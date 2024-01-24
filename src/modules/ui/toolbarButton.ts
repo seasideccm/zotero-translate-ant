@@ -5,10 +5,6 @@ import { testClass } from "../database/translationItem";
 import { openWindow } from "./testOpen";
 import { makeClickButton, makeTagElementProps } from "./uiTools";
 
-
-
-
-
 const keysForButtonMenu = ["label", "func", "args"];
 const paras = ["测试类", testClass, []];
 const paras2 = ["测试类", openWindow, []];
