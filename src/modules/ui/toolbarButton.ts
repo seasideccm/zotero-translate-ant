@@ -1,27 +1,26 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
-import { arrToObj, getFilesPathOrName } from "../../utils/tools";
+import { arrToObj } from "../../utils/tools";
 import { testClass } from "../database/translationItem";
-import { testZoteroImport } from "../../utils/zoteroModules";
+import { openWindow } from "./testOpen";
 import { makeClickButton, makeTagElementProps } from "./uiTools";
-//import zmodules = require("zmodules.js");
+
 
 
 
 
 const keysForButtonMenu = ["label", "func", "args"];
 const paras = ["测试类", testClass, []];
-const paras2 = ["zotero 导入功能", testZoteroImport, []];
-;
+const paras2 = ["测试类", openWindow, []];
+
 //const paras3 = ["zotero js 模块", zmodules, []];
 function menuitemObj(argsArr: any[]) {
     return arrToObj(keysForButtonMenu, argsArr);
 }
 
 const menuitemGroupArr = [
-    [menuitemObj(paras), menuitemObj(paras2)],
-    [menuitemObj(paras2)],
-    //[menuitemObj(paras3)]
+    [menuitemObj(paras)],
+    [menuitemObj(paras2)]
 ];
 
 
