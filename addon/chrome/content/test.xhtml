@@ -3,18 +3,24 @@
 <window
   id="test"
   title="test"
+  width="600"
+  height="450"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
   xmlns:html="http://www.w3.org/1999/xhtml"
-  style="display: flex"
 >
   <script src="test.js" />
   <vbox id="test2">
     <hbox id="search-buttons">
       <button
         label="==search=="
+        accesskey="D"
         default="true"
         oncommand="testSearch.search()"
       />
     </hbox>
   </vbox>
+  <keyset>
+    <key id="key_close" key="W" modifiers="accel" command="cmd_close" />
+  </keyset>
+  <command id="cmd_close" oncommand="window.close();" />
 </window>

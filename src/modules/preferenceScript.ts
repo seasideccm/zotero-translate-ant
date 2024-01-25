@@ -55,8 +55,8 @@ async function buildPrefsPane() {
   defaultSourceLang = defaultSourceLang ? defaultSourceLang : "en-US";
   defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
 
-  const sourceLangPlaceholder = doc.querySelector(`#${makeId("sourceLang-placeholder")}`)!;
-  const targetLangPlaceholder = doc.querySelector(`#${makeId("targetLang-placeholder")}`)!;
+  const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
+  const targetLangPlaceholder = getDom("targetLang-placeholder")!;
   ztoolkit.UI.replaceElement(
     {
       // 下拉列表
@@ -87,7 +87,7 @@ async function buildPrefsPane() {
     // 将要被替换掉的元素
     sourceLangPlaceholder
   );
-  const sourceLangMenulist = doc.querySelector(`#${makeId("sourceLang")}`)!;
+  const sourceLangMenulist = getDom("sourceLang")!;
   // 目标语言
   ztoolkit.UI.replaceElement(
     {
@@ -115,7 +115,7 @@ async function buildPrefsPane() {
     },
     targetLangPlaceholder
   );
-  const targetLangMenulist = doc.querySelector(`#${makeId("targetLang")}`)!;
+  const targetLangMenulist = getDom("targetLang")!;
   const configObserver = { attributes: true, attributeFilter: ["label"], attributeOldValue: true };
   //@ts-ignore has
   const mutationObserver = new addon.data.prefs!.window.MutationObserver(callback);

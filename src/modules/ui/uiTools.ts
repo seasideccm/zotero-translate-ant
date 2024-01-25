@@ -152,5 +152,5 @@ export function getDom(idSuffix: string) {
     if (!doc || !win) {
         return;
     }
-    return doc.querySelector(`#${makeId("idSuffix")}`);
+    return doc.querySelector(`#${makeId(idSuffix)}`);
 }

@@ -14,9 +14,12 @@
   <label>
     <html:h3 data-l10n-id="pref-descript"></html:h3>
   </label>
-
+  <separator class="groove" />
   <groupbox>
     <vbox>
+      <label>
+        <html:h4 data-l10n-id="pref-translateSetting"></html:h4>
+      </label>
       <hbox>
         <label data-l10n-id="pref-sourceLang"></label>
         <box id="__addonRef__-sourceLang-placeholder"></box>
@@ -26,7 +29,7 @@
         <label data-l10n-id="pref-targetLang"></label>
         <box id="__addonRef__-targetLang-placeholder"></box>
       </hbox>
-      <separator class="groove" />
+
       <hbox>
         <caption data-l10n-id="pref-bilingualSetting" />
         <splitter />
@@ -135,9 +138,9 @@
     </vbox>
   </groupbox>
 </vbox>
-
+<separator class="groove" />
 <label>
-  <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
+  <html:h4 data-l10n-id="pref-imageViewer"></html:h4>
 </label>
 <groupbox>
   <caption data-l10n-id="pref-thumbnailSize" />
@@ -191,15 +194,14 @@
     ></button>
   </hbox>
 </groupbox>
-
+<separator class="groove" />
 <groupbox>
   <label>
-    <html:h3 data-l10n-id="pref-about"></html:h3>
+    <html:h4 data-l10n-id="pref-about"></html:h4>
   </label>
-  <label>
-    <html:h4
-      data-l10n-id="pref-version"
-      data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__","author":"__author__"}'
-    ></html:h4>
+  <label
+    data-l10n-id="pref-version"
+    data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__","author":"__author__"}'
+  >
   </label>
 </groupbox>

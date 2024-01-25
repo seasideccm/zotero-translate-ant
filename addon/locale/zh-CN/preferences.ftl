@@ -1,5 +1,6 @@
 pref-title = 翻山蚁7
 pref-descript = zotero7 笔记翻译插件
+pref-translateSetting = 翻译设置
 pref-descript-untranslatedLanguage = franc js 库 语种识别偶有错误，请尝试修改禁止翻译的语言来修复。
 pref-enable =
     .label = 开启
@@ -33,7 +34,7 @@ pref-isSkipLocal =
     .label = 跳过翻译 Zotero UI 语言
 pref-untranslatedLanguage = 跳过翻译的语言(任意输入语言代码)
 pref-input = 输入
-pref-imageViewer = 看图
+pref-imageViewer = 看图设置
 pref-thumbnailSize = 缩略图大小
 pref-windowSizeOnViewImage = 看图时窗口状态
 pref-backgroundColorDialogImgViewer = 图库对话框背景颜色
