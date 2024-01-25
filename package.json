@@ -1,15 +1,15 @@
 {
-    "name": "zotero-translate-kit",
+    "name": "zotero-translate-ant",
     "version": "0.1.0",
-    "description": "zotero-translate-kit",
+    "description": "zotero-translate-ant",
     "config": {
         "addonName": "zoteroTranslateKit",
         "addonID": "translateKit@sscc.sscc",
         "addonRef": "translateKit",
         "addonInstance": "TranslateKit",
         "prefsPrefix": "extensions.zotero.translateKit",
-        "releasePage": "  https://github.com/seasideccm/zotero-translate-kit/releases",
-        "updateJSON": "https://raw.githubusercontent.com/seasideccm/zotero-translate-kit/main/update.json"
+        "releasePage": "  https://github.com/seasideccm/zotero-translate-ant/releases",
+        "updateJSON": "https://raw.githubusercontent.com/seasideccm/zotero-translate-ant/main/update.json"
     },
     "main": "src/index.ts",
     "scripts": {
@@ -23,14 +23,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/seasideccm/zotero-translate-kit.git"
+        "url": "git+https://github.com/seasideccm/zotero-translate-ant.git"
     },
     "author": "sscc",
     "license": "AGPL-3.0-or-later",
     "bugs": {
-        "url": "https://github.com/seasideccm/zotero-translate-kit/issues"
+        "url": "https://github.com/seasideccm/zotero-translate-ant/issues"
     },
-    "homepage": "https://github.com/seasideccm/zotero-translate-kit#readme",
+    "homepage": "https://github.com/seasideccm/zotero-translate-ant#readme",
     "dependencies": {
         "franc-min": "^6.2.0",
         "iso-639-3": "^3.0.1",
