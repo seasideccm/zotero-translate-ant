@@ -7,7 +7,7 @@ import { execSync } from "child_process";
 import chokidar from "chokidar";
 import { context } from "esbuild";
 import { exit } from "process";
-import { replaceStringExtra } from "./replaceStringExtra.mjs";
+//import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
 process.env.NODE_ENV = "development";
 
@@ -31,8 +31,8 @@ async function watch() {
       Logger.info(`${path} changed.`);
       if (path.startsWith("src")) {
         await esbuildCTX.rebuild();
-        await replaceStringExtra();
-        Logger.info("[ schemaCofig modify ]");
+        //await replaceStringExtra();
+        //Logger.info("[ schemaCofig modify ]");
       } else if (path.startsWith("addon")) {
         await build()
           // Do not abort the watcher when errors occur in builds triggered by the watcher.

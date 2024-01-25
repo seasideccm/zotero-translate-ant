@@ -5,6 +5,7 @@ import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript"
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
+import { exampleShortcutLargerCallback, exampleShortcutSmallerCallback, registerShortcuts } from "./utils/shortcut";
 import { createZToolkit } from "./utils/ztoolkit";
 
 
@@ -28,6 +29,8 @@ async function onStartup() {
     image: `chrome://${config.addonRef}/content/icons/favicon.png`,
     defaultXUL: true,
   });
+
+  registerShortcuts();
 
   //registerPrefs();
   await onMainWindowLoad(window);
@@ -113,7 +116,12 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 
 function onShortcuts(type: string) {
   switch (type) {
-
+    case "larger":
+      exampleShortcutLargerCallback();
+      break;
+    case "smaller":
+      exampleShortcutSmallerCallback();
+      break;
     default:
       break;
   }

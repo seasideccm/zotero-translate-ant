@@ -12,7 +12,7 @@ import { existsSync, readdirSync, renameSync } from "fs";
 import path from "path";
 import { env, exit } from "process";
 import replaceInFile from "replace-in-file";
-import { replaceStringExtra } from "./replaceStringExtra.mjs";																
+//import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
 const { replaceInFileSync } = replaceInFile;
 
@@ -218,9 +218,9 @@ export async function main() {
 
   Logger.debug("[Build] Addon prepare OK");
 
-  await replaceStringExtra();
-  Logger.debug("[Build] schemaCofig prepare ok");	
-  					   
+  //await replaceStringExtra();
+  //Logger.debug("[Build] schemaCofig prepare ok");
+
   if (process.env.NODE_ENV === "production") {
     Logger.debug("[Build] Packing Addon");
     await zip.compressDir(

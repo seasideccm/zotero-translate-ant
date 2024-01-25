@@ -22,10 +22,16 @@ const menuitemGroupArr = [
 
 export function mountButtonEndMenubar() {
     if (document.querySelector("#" + config.addonRef + "_imgTableTool")) { return; }
-    const parent = document.querySelector("#toolbar-menubar")!;
-    ztoolkit.UI.appendElement(
+    //const parent = document.querySelector("#toolbar-menubar")!;
+    const parent = document.querySelector("#menubar-items");
+    if (!parent) {
+        ztoolkit.log('get null: document.querySelector("#menubar-items")');
+        return;
+    }
+
+    /* ztoolkit.UI.appendElement(
         makeTagElementProps({ tag: "toolbarspring" }), parent
-    );
+    ); */
     ztoolkit.UI.appendElement(
         makeTagElementProps({ tag: "toolbarseparator" }), parent
     );
@@ -68,6 +74,7 @@ export function mountButtonEndMenubar() {
             justifyContent: "flex-end",
             width: "48px",
             padding: "4px 3px 4px 22px",
+            //backgroundColor: "rgb(234, 234, 234)",
         },
         attributes: {
             title: getString("info-imgTableTool"),

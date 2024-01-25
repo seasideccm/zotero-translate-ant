@@ -1,9 +1,28 @@
 import { config } from "../../package.json";
+
+
 export const addonStorageDir = PathUtils.join(Zotero.getStorageDirectory().path, config.addonName);
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
 //@ts-ignore has
-export const schemaConfig = __schemaConfig__;
+export const schemaConfig = {
+        addonSystem: {
+                path: `chrome://${config.addonRef}/content/schema/addonSystem.sql`,
+                version: 1,
+        },
+        apiAccount: {
+                path: `chrome://${config.addonRef}/content/schema/apiAccount.sql`,
+                version: 1,
+        },
+        translation: {
+                path: `chrome://${config.addonRef}/content/schema/translation.sql`,
+                version: 1,
+        },
+        triggers: {
+                path: `chrome://${config.addonRef}/content/schema/triggers.sql`,
+                version: 1,
+        }
+};;
 
 /* {
         "addonSystem": {
