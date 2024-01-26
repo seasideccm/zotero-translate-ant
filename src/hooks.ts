@@ -5,7 +5,7 @@ import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript"
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
-import { exampleShortcutLargerCallback, exampleShortcutSmallerCallback, registerShortcuts } from "./utils/shortcut";
+import { exampleShortcutLargerCallback, exampleShortcutSmallerCallback, registerShortcuts, registerShortcutsCache } from "./utils/shortcut";
 import { createZToolkit } from "./utils/ztoolkit";
 
 
@@ -31,6 +31,7 @@ async function onStartup() {
   });
 
   registerShortcuts();
+  registerShortcutsCache();
 
   //registerPrefs();
   await onMainWindowLoad(window);

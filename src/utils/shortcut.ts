@@ -2,7 +2,21 @@ import { config } from "../../package.json";
 
 
 
+export function registerShortcutsCache() {
+    let cachedShortcuts = addon.mountPoint.cachedShortcuts;
+    ztoolkit.Keyboard.register((ev, keyOptions) => {
+        if (keyOptions.type == "keyup") {
+            if (!cachedShortcuts || !cachedShortcuts.length) {
+                cachedShortcuts = [[ev, keyOptions]];
+                return;
+            }
+            cachedShortcuts.push([ev, keyOptions]);
+            //await Zotero.Promise.delay();
+        }
+        ztoolkit.log(cachedShortcuts);
+    });
 
+}
 
 export function registerShortcuts() {
 
@@ -36,7 +50,7 @@ export function exampleShortcutLargerCallback() {
         })
         .show();
 
-    ztoolkit.Keyboard.register((ev, keyOptions) => {
+    /* ztoolkit.Keyboard.register((ev, keyOptions) => {
         ztoolkit.log(ev, keyOptions.keyboard);
         if (keyOptions.keyboard.equals("shift,l")) {
             addon.hooks.onShortcuts("larger");
@@ -44,7 +58,7 @@ export function exampleShortcutLargerCallback() {
         if (ev.shiftKey && ev.key === "S") {
             addon.hooks.onShortcuts("smaller");
         }
-    });
+    }); */
 
 }
 
