@@ -1,11 +1,11 @@
 import { config } from "../package.json";
 import { DB, getDB } from "./modules/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
-import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
+import { registerPrefsScripts } from "./modules/preferenceScript";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
-import { exampleShortcutLargerCallback, exampleShortcutSmallerCallback, registerShortcuts, registerShortcutsCache } from "./utils/shortcut";
+import { registerFn, registerShortcutsCache, setShortcut } from "./utils/shortcut";
 import { createZToolkit } from "./utils/ztoolkit";
 
 
@@ -30,7 +30,7 @@ async function onStartup() {
     defaultXUL: true,
   });
 
-  registerShortcuts();
+  //registerShortcuts();
   registerShortcutsCache();
 
   //registerPrefs();
@@ -43,11 +43,13 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountButtonEndMenubar();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
+  setShortcut();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
   });
   addon.mountPoint.popupWin = popupWin;
+  registerFn();
   popupWin.createLine({
     text: getString("startup-begin"),
     type: "default",
@@ -118,10 +120,10 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
-      exampleShortcutLargerCallback();
+      () => { };
       break;
     case "smaller":
-      exampleShortcutSmallerCallback();
+      () => { };
       break;
     default:
       break;
