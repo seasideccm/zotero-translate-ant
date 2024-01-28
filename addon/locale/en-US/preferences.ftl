@@ -84,3 +84,5 @@ pref-targetLang = Targe Language
 pref-restoreDefultColor = Restore Defult Color
 
 pref-help = { $name } Build { $version } { $time }
+
+pref-selectAll = Select All

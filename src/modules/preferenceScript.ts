@@ -1,9 +1,7 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, getElementValue, makeId } from "./ui/uiTools";
-import { services } from "./translate/services";
+import { getDom, makeId } from "./ui/uiTools";
 import { getDB } from "./database/database";
-import { Command } from "zotero-plugin-toolkit/dist/managers/prompt";
 import { showInfo } from "../utils/tools";
 
 
@@ -131,60 +129,6 @@ async function buildPrefsPane() {
   const targetLangMenulist = getDom("targetLang")!;
 
 
-  /*  const skipLangs = getDom("skipLanguages-placeholder")!;
-   if (sourceLangMenulist.value == "autoDetect") {
-     skipLangs.hidden = true;
-   } else {
-     const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
-       tag: "checkbox",
-       attributes: {
-         //@ts-ignore has
-         label: Zotero.Locale.availableLocales[e],
-       },
-       properties: {
-         //@ts-ignore has
-         checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
-       },
-     }));
-     const checkboxsRows = [];
-     let start = 0;
-     const step = 5;
-     let end = step;
-     for (; start < checkboxs.length; start += step, end += step) {
- 
-       checkboxsRows.push(checkboxs.slice(start, end));
-     }
-     const childrenArr: any[] = checkboxsRows.map(e => ({
-       tag: "hbox",
-       children: e
-     }));
-     const caption = {
-       tag: "caption",
-       namespace: "xul",
-       attributes: {
-         label: "测试group",
-       }
-     };
-     childrenArr.unshift(caption);
- 
-     ztoolkit.UI.replaceElement({
-       tag: "groupbox",
-       namespace: "xul",
-       id: makeId("skipLangs"),
-       properties: {
-         collapse: true,
-       },
- 
-       children: childrenArr,
- 
- 
-     }, skipLangs);
-   }
-  */
-
-
-
-
   const configObserver = { attributes: true, attributeFilter: ["label"], attributeOldValue: true };
   //@ts-ignore has
   const mutationObserver = new addon.data.prefs!.window.MutationObserver(callback);
@@ -207,94 +151,170 @@ async function buildPrefsPane() {
     }
   };
 
+
+  //多账户管理
+
+  /*   ztoolkit.UI.replaceElement(
+      {
+        // 下拉列表
+        tag: "menulist",
+        id: makeId("serviceID"),
+        attributes: {
+          native: "true",
+        },
+        listeners: [
+          {
+            type: "command",
+            listener: (e: Event) => {
+              const serviceID = getElementValue("serviceID")!;
+              serviceManage.syncBaiduSecretKey(serviceID);
+              serviceManage.mergeAndRemoveDuplicates(serviceID);
+              addon.data.prefs!.rows = getRows(serviceID);
+              updatePrefsUI();
+              onPrefsEvents("update-QPS");
+              onPrefsEvents("update-charasPerTime");
+              onPrefsEvents("update-hasSecretKey");
+              onPrefsEvents("update-charasLimit");
+              onPrefsEvents("update-limitMode");
+              onPrefsEvents("update-isMultiParas");
+              onPrefsEvents("update-secretKeyInfo");
+            },
+          },
+        ],
+        children: [
+          {
+            tag: "menupopup",
+            //map出的对象数组赋值给键 children
+            children: Object.values(services).filter(e => !e.forbidden).map((service) => ({
+              tag: "menuitem",
+              id: makeId(`${service.id}`),
+              attributes: {
+                label: getString(`service-${service.id}`),
+                value: service.id,
+              },
+            })),
+          },
+        ],
+      },
+      // 将要被替换掉的元素
+      doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
+    ); */
+
 }
 
 
 
 function bindPrefEvents() {
+  bilingualContrastHide();
   getDom("bilingualContrast")?.addEventListener("command", (e) => {
-    const checked = (e.target as XUL.Checkbox).checked;
-    const sourceTargetOrder = getDom("sourceTargetOrder") as XUL.RadioGroup;
-    if (!sourceTargetOrder) return;
-    sourceTargetOrder.disabled = !checked;
+    bilingualContrastHide();
   });
 
-
-
-  skipLangsShowOrHide();
+  skipLangsHide();
   getDom("sourceLang")!.addEventListener("command", (e) => {
-    skipLangsShowOrHide();
+    skipLangsHide();
 
   });
 }
+function bilingualContrastHide(e?: Event) {
+  const target = getDom("bilingualContrast") as XUL.Checkbox;
+  if (!target) return;
+  const checked = (target as XUL.Checkbox).checked;
+  const sourceTargetOrder = getDom("sourceTargetOrder") as XUL.RadioGroup;
+  if (!sourceTargetOrder) return;
+  sourceTargetOrder.disabled = !checked;
+}
 
-
-function skipLangsShowOrHide() {
-  {
-    const sourceLangMenulist = getDom("sourceLang")! as XUL.MenuList;
-    const value = sourceLangMenulist.value;
-    const skipLangs = getDom("skipLangs");
-    if (value != "autoDetect") {
-      if (skipLangs) {
-        skipLangs.parentElement ? skipLangs.parentElement.hidden = true : () => { };
-        return;
-      }
-      const placeholder = getDom("placeholder");
-      if (!placeholder) return;
-      placeholder.parentElement ? placeholder.parentElement.hidden = true : () => { };
-      return;
-    }
+function skipLangsHide() {
+  const sourceLangMenulist = getDom("sourceLang")! as XUL.MenuList;
+  const value = sourceLangMenulist.value;
+  const skipLangs = getDom("skipLangs");
+  if (value != "autoDetect") {
     if (skipLangs) {
-      skipLangs.parentElement ? skipLangs.parentElement.hidden = false : () => { };
+      skipLangs.parentElement ? skipLangs.parentElement.hidden = true : () => { };
       return;
     }
-    const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
-      tag: "checkbox",
-      attributes: {
-        label: (Zotero.Locale.availableLocales as any)[e],
-      },
-      properties: {
-        //语种自动识别时选中与界面相同的语言，否则除了指定的源语言选中所有语言
-        checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
-      },
-    }));
-    //每行显示 5 个复选框
-    const checkboxsRows = [];
-    let start = 0;
-    const step = 5;
-    let end = step;
-    for (; start < checkboxs.length; start += step, end += step) {
-      checkboxsRows.push(checkboxs.slice(start, end));
-    }
-    //每行一个 hbox 子元素为 5个 复选框
-    const childrenArr: any[] = checkboxsRows.map(e => ({
-      tag: "hbox",
-      namespace: "xul",
-      children: e
-    }));
-    const caption = {
-      tag: "caption",
-      namespace: "xul",
-      attributes: {
-        label: "测试group",
-      }
-    };
-    childrenArr.unshift(caption);
-
-    ztoolkit.UI.replaceElement({
-      tag: "groupbox",
-      namespace: "xul",
-      id: makeId("skipLangs"),
-      properties: {
-        collapse: true,
-      },
-
-      children: childrenArr,
-
-
-    }, getDom("skipLanguages-placeholder")!);
-
-
+    const placeholder = getDom("skipLanguages-placeholder");
+    if (!placeholder) return;
+    placeholder.parentElement ? placeholder.parentElement.hidden = true : () => { };
+    return;
   }
+  if (skipLangs) {
+    skipLangs.parentElement ? skipLangs.parentElement.hidden = false : () => { };
+    return;
+  }
+  const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
+    tag: "checkbox",
+    attributes: {
+      label: (Zotero.Locale.availableLocales as any)[e],
+    },
+    properties: {
+      //语种自动识别时选中与界面相同的语言，否则除了指定的源语言选中所有语言
+      checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
+    },
+  }));
+  //每行显示 5 个复选框
+  const checkboxsRows = [];
+  let start = 0;
+  const step = 5;
+  let end = step;
+  for (; start < checkboxs.length; start += step, end += step) {
+    checkboxsRows.push(checkboxs.slice(start, end));
+  }
+  //每行一个 hbox 子元素为 5个 复选框
+  const childrenArr: any[] = checkboxsRows.map(e => ({
+    tag: "hbox",
+    namespace: "xul",
+    children: e
+  }));
+
+  ztoolkit.UI.replaceElement({
+    tag: "groupbox",
+    namespace: "xul",
+    id: makeId("skipLangs"),
+    properties: {
+      collapse: true,
+    },
+
+    children: childrenArr,
+
+
+  }, getDom("skipLanguages-placeholder")!);
+
+  getDom("skipLangs")?.addEventListener("click", function (e) {
+    const tagName = (e.target as any).tagName;
+    if (tagName && tagName == "checkbox") {
+      showInfo((e.target as XUL.Checkbox).label + ": " + (e.target as XUL.Checkbox).checked);
+    }
+  });
+  getDom("selectAll")?.addEventListener("command", function (e) {
+    let excludes;
+    if ((getDom("isSkipLocal") as XUL.Checkbox)?.checked) {
+      excludes = ["English", Zotero.Locale.availableLocales[Zotero.locale]];
+    } else {
+      excludes = ["English"];
+    }
+    const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
+    if (!checkboxs || !checkboxs.length) return;
+    for (const checkbox of checkboxs) {
+      //@ts-ignore has
+      if (excludes.includes(checkbox.label)) continue;
+
+      (checkbox as XUL.Checkbox).checked = (e.target as XUL.Checkbox).checked;
+    }
+
+  });
+  (getDom("isSkipLocal") as XUL.Checkbox)?.addEventListener("command", function (e) {
+    const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
+    if (!checkboxs || !checkboxs.length) return;
+    for (const checkbox of checkboxs) {
+      //@ts-ignore has
+      if (Zotero.Locale.availableLocales[Zotero.locale] != checkbox.label) continue;
+      (checkbox as XUL.Checkbox).checked = (e.target as XUL.Checkbox).checked;
+
+    }
+  });
+
+
 }
 

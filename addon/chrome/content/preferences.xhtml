@@ -6,140 +6,158 @@
   onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', {window})"
 >
   <label>
-    <html:div style="text-align: center">
-      <html:h2 data-l10n-id="pref-title"></html:h2>
-    </html:div>
-  </label>
-
-  <label>
     <html:h3 data-l10n-id="pref-descript"></html:h3>
   </label>
+</vbox>
+
+<vbox>
   <separator class="groove" />
-  <groupbox>
-    <vbox>
-      <label>
-        <html:h4 data-l10n-id="pref-translateSetting"></html:h4>
-      </label>
-      <hbox>
-        <label data-l10n-id="pref-sourceLang"></label>
-        <box id="__addonRef__-sourceLang-placeholder"></box>
+  <label>
+    <html:h3
+      style="text-align: center"
+      data-l10n-id="pref-translateSetting"
+    ></html:h3>
+  </label>
+  <!-- 原文和目标语言设置 -->
+  <hbox>
+    <label data-l10n-id="pref-sourceLang"></label>
+    <box id="__addonRef__-sourceLang-placeholder"></box>
 
-        <splitter />
+    <splitter />
 
-        <label data-l10n-id="pref-targetLang"></label>
-        <box id="__addonRef__-targetLang-placeholder"></box>
-      </hbox>
+    <label data-l10n-id="pref-targetLang"></label>
+    <box id="__addonRef__-targetLang-placeholder"></box>
+  </hbox>
 
-      <separator />
+  <!-- 屏蔽翻译 -->
+  <vbox>
+    <separator />
+    <hbox>
+      <label
+        style="font-weight: bold"
+        data-l10n-id="pref-untranslatedLanguage"
+      ></label>
 
-      <vbox>
-        <label data-l10n-id="pref-untranslatedLanguage"></label>
-        <box id="__addonRef__-skipLanguages-placeholder"></box>
-        <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
-      </vbox>
-
-      <separator />
-
-      <hbox>
-        <caption data-l10n-id="pref-bilingualSetting" />
-        <splitter />
-        <checkbox
-          id="__addonRef__-bilingualContrast"
-          native="true"
-          preference="extensions.zotero.__addonRef__.bilingualContrast"
-          data-l10n-id="pref-bilingualContrast"
-        />
-        <splitter />
-        <radiogroup
-          id="__addonRef__-sourceTargetOrder"
-          preference="extensions.zotero.__addonRef__.sourceTargetOrder"
-        >
-          <hbox>
-            <radio
-              id="__addonRef__-isSourceFirst"
-              data-l10n-id="pref-isSourceFirst"
-            />
-            <radio
-              id="__addonRef__-isTargetFirst"
-              data-l10n-id="pref-isTargetFirst"
-            />
-          </hbox>
-        </radiogroup>
-      </hbox>
-
-      <separator />
-
-      <groupbox>
-        <caption data-l10n-id="pref-handleContentBeforeTitle" />
-        <radiogroup
-          id="__addonRef__-handleContentBeforeTitle"
-          preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
-        >
-          <hbox>
-            <radio
-              data-l10n-id="pref-moveToArticleEnd"
-              value="moveToArticleEnd"
-              selected="true"
-            />
-            <radio
-              data-l10n-id="pref-moveToPageEnd"
-              value="moveToPageEnd"
-              selected="false"
-            />
-            <radio
-              data-l10n-id="pref-moveAfterTitle"
-              value="moveAfterTitle"
-              selected="false"
-            />
-            <radio
-              data-l10n-id="pref-deleteIt"
-              value="deleteIt"
-              selected="false"
-            />
-            <radio
-              data-l10n-id="pref-nothingToDo"
-              value="nothingToDo"
-              selected="false"
-            />
-          </hbox>
-        </radiogroup>
-      </groupbox>
-
-      <separator />
-
-      <checkbox
-        id="__addonRef__-isPay"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isPay"
-        data-l10n-id="pref-isPay"
-      />
-      <checkbox
-        id="__addonRef__-isPreferredSameService"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isPreferredSameService"
-        data-l10n-id="pref-isPreferredSameService"
-      />
-      <checkbox
-        id="__addonRef__-isPreferredHasSecretKey"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
-        data-l10n-id="pref-isPreferredHasSecretKey"
-      />
-      <checkbox
-        id="__addonRef__-isPriority"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isPriority"
-        data-l10n-id="pref-isPriority"
-      />
-
+      <checkbox id="__addonRef__-selectAll" data-l10n-id="pref-selectAll" />
       <checkbox
         id="__addonRef__-isSkipLocal"
-        native="true"
-        preference="extensions.zotero.__addonRef__.isSkipLocal"
+        checked="true"
         data-l10n-id="pref-isSkipLocal"
       />
-    </vbox>
+    </hbox>
+
+    <box id="__addonRef__-skipLanguages-placeholder"></box>
+    <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
+  </vbox>
+
+  <separator />
+  <!-- 双语设置 -->
+  <hbox>
+    <caption style="font-weight: bold" data-l10n-id="pref-bilingualSetting" />
+    <splitter />
+    <checkbox
+      id="__addonRef__-bilingualContrast"
+      preference="extensions.zotero.__addonRef__.bilingualContrast"
+      data-l10n-id="pref-bilingualContrast"
+    />
+    <splitter />
+    <radiogroup
+      id="__addonRef__-sourceTargetOrder"
+      preference="extensions.zotero.__addonRef__.sourceTargetOrder"
+    >
+      <hbox>
+        <radio
+          id="__addonRef__-isSourceFirst"
+          data-l10n-id="pref-isSourceFirst"
+        />
+        <radio
+          id="__addonRef__-isTargetFirst"
+          data-l10n-id="pref-isTargetFirst"
+        />
+      </hbox>
+    </radiogroup>
+  </hbox>
+
+  <separator />
+  <!-- 标题前内容处理方式 -->
+  <groupbox>
+    <caption
+      style="font-weight: bold"
+      data-l10n-id="pref-handleContentBeforeTitle"
+    />
+    <radiogroup
+      id="__addonRef__-handleContentBeforeTitle"
+      preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
+    >
+      <hbox>
+        <radio
+          data-l10n-id="pref-moveToArticleEnd"
+          value="moveToArticleEnd"
+          selected="true"
+        />
+        <radio
+          data-l10n-id="pref-moveToPageEnd"
+          value="moveToPageEnd"
+          selected="false"
+        />
+        <radio
+          data-l10n-id="pref-moveAfterTitle"
+          value="moveAfterTitle"
+          selected="false"
+        />
+        <radio data-l10n-id="pref-deleteIt" value="deleteIt" selected="false" />
+        <radio
+          data-l10n-id="pref-nothingToDo"
+          value="nothingToDo"
+          selected="false"
+        />
+      </hbox>
+    </radiogroup>
   </groupbox>
+
+  <separator />
+  <!-- 翻译引擎选择方式 -->
+  <checkbox
+    id="__addonRef__-isPay"
+    preference="extensions.zotero.__addonRef__.isPay"
+    data-l10n-id="pref-isPay"
+  />
+  <checkbox
+    id="__addonRef__-isPreferredSameService"
+    preference="extensions.zotero.__addonRef__.isPreferredSameService"
+    data-l10n-id="pref-isPreferredSameService"
+  />
+  <checkbox
+    id="__addonRef__-isPreferredHasSecretKey"
+    preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
+    data-l10n-id="pref-isPreferredHasSecretKey"
+  />
+  <checkbox
+    id="__addonRef__-isPriority"
+    preference="extensions.zotero.__addonRef__.isPriority"
+    data-l10n-id="pref-isPriority"
+  />
+</vbox>
+
+<!--腾讯交互，百度修改-->
+<!--多账户管理-->
+<vbox>
+  <label>
+    <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
+  </label>
+  <hbox>
+    <label data-l10n-id="pref-multi-service"></label>
+    <!-- Replace -->
+    <box id="__addonRef__-serviceID-placeholder"></box>
+    <button
+      id="__addonRef__-switchService"
+      data-l10n-id="pref-switchService"
+    ></button>
+    <button
+      id="__addonRef__-deleteService"
+      data-l10n-id="pref-deleteService"
+    ></button>
+  </hbox>
 
   <hbox>
     <label data-l10n-id="pref-underUse"></label>
@@ -149,9 +167,6 @@
     <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
   </hbox>
   <separator class="groove" />
-
-  <!--腾讯交互，百度修改-->
-  <!--多账户管理-->
 </vbox>
 
 <separator class="groove" />

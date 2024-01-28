@@ -1,7 +1,7 @@
 pref-title = 翻山蚁
 pref-descript = zotero7 笔记翻译插件
 pref-translateSetting = 翻译设置
-pref-descript-untranslatedLanguage = 语种识别采用 franc 库，但偶有错误。指定跳过翻译时一并选中识别错误的语言可降低出错率。
+pref-descript-untranslatedLanguage = 离线语种识别采用 franc 库，但偶有错误。可屏蔽翻译经常识别错误的语种。
 pref-enable =
     .label = 开启
 pref-bilingualContrast = 
@@ -10,7 +10,7 @@ pref-isSourceFirst =
     .label = 原文在前
 pref-isTargetFirst = 
     .label = 译文在前
-pref-handleContentBeforeTitle = 如何处理标题前内容？
+pref-handleContentBeforeTitle = 如何处理标题前面的内容？
 pref-bilingualSetting = 双语设置
 pref-moveToArticleEnd =
     .label = 移到文章末尾
@@ -31,8 +31,8 @@ pref-isPreferredHasSecretKey =
 pref-isPriority =
     .label = 按优先顺序切换翻译引擎
 pref-isSkipLocal =
-    .label = 跳过翻译与 Zotero UI 语言相同的语言
-pref-untranslatedLanguage = 指定跳过翻译的语言(任意输入语言代码)
+    .label = 屏蔽 Zotero 界面语言的翻译
+pref-untranslatedLanguage = 屏蔽翻译
 pref-input = 输入
 pref-imageViewer = 看图设置
 pref-thumbnailSize = 缩略图大小
@@ -84,3 +84,7 @@ pref-targetLang = 目标语言
 pref-restoreDefultColor = 恢复默认颜色
 
 pref-help = { $name } Build { $version } { $time }
+
+pref-selectAll = 
+    .label= 全选
+
