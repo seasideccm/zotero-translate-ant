@@ -1,9 +1,9 @@
 import { config } from "../package.json";
-import { DB, getDB } from "./modules/database";
+import { DB, getDB } from "./modules/database/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefsScripts } from "./modules/preferenceScript";
+import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
-import { mountButtonEndMenubar } from "./modules/ui/toolbarButton";
 import { getString, initLocale } from "./utils/locale";
 import { registerFn, registerShortcutsCache, setShortcut } from "./utils/shortcut";
 import { createZToolkit } from "./utils/ztoolkit";
@@ -40,7 +40,7 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
-  mountButtonEndMenubar();
+  mountMenu();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
   setShortcut();

@@ -5,7 +5,7 @@ adapted from Zotero
 import { schemaConfig } from "../../utils/constant";
 import { version as addonVersion, config } from "../../../package.json";
 import { fileNameNoExt, showInfo } from "../../utils/tools";
-import { DB } from "../database";
+import { DB } from "./database";
 import { OS } from "../../utils/tools";
 
 

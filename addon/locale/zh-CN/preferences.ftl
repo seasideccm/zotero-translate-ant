@@ -1,7 +1,7 @@
-pref-title = 翻山蚁7
+pref-title = 翻山蚁
 pref-descript = zotero7 笔记翻译插件
 pref-translateSetting = 翻译设置
-pref-descript-untranslatedLanguage = franc js 库 语种识别偶有错误，请尝试修改禁止翻译的语言来修复。
+pref-descript-untranslatedLanguage = 语种识别采用 franc 库，但偶有错误。指定跳过翻译时一并选中识别错误的语言可降低出错率。
 pref-enable =
     .label = 开启
 pref-bilingualContrast = 

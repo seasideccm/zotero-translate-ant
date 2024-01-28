@@ -1,7 +1,7 @@
-pref-title = FullTextTranslate
+pref-title = TranslateKit
 pref-descript = The Translation Plugin For Zotero7 Notes
 pref-translateSetting = Translate Setting
-pref-descript-untranslatedLanguage = The Franc Js Library Has An Occasional Error In language recognition. Please try to fix it by modifying the language that prohibits translation.
+pref-descript-untranslatedLanguage = Language detection is done using the Franc library, but there can be occasional errors. Choosing to skip translation while also selecting the wrong detected language can reduce the error rate.
 pref-enable =
     .label = Enable
 pref-isPay =

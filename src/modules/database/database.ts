@@ -1,6 +1,6 @@
-import { config } from "../../package.json";
-import { getDir, fileNameNoExt, showInfo } from "../utils/tools";
-import { Schema } from "./database/schema";
+import { config } from "../../../package.json";
+import { getDir, fileNameNoExt, showInfo } from "../../utils/tools";
+import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
 

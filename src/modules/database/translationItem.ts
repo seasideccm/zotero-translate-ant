@@ -1,5 +1,5 @@
 import { franc } from "franc-min";
-import { getDB } from "../database";
+import { getDB } from "./database";
 
 
 export class Translation {

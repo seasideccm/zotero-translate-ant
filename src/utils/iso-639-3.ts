@@ -1,6 +1,8 @@
 import { iso6393 } from 'iso-639-3';
 
-export function dodo() {
+import('iso-639-3').then(module => { const iso6393 = module.iso6393; });
+
+export function zoteroLangCode() {
     const lang = "eng";
     const zoteroLangCode = iso6393.filter((e: any) => e.iso6393 == lang).map((e: any) => e.iso6391);
 

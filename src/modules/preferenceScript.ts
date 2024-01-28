@@ -2,7 +2,7 @@ import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { getDom, getElementValue, makeId } from "./ui/uiTools";
 import { services } from "./translate/services";
-import { getDB } from "./database";
+import { getDB } from "./database/database";
 import { Command } from "zotero-plugin-toolkit/dist/managers/prompt";
 import { showInfo } from "../utils/tools";
 
@@ -221,110 +221,55 @@ function bindPrefEvents() {
 
 
 
-  skipLangsSwitch();
+  skipLangsShowOrHide();
   getDom("sourceLang")!.addEventListener("command", (e) => {
-    skipLangsSwitch();
-    /* const value = sourceLangMenulist.value;
-    const skipLangs = getDom("skipLangs");
-    if (value != "autoDetect") {
-      if (skipLangs) {
-        skipLangs.hidden = true;
-        return;
-      }
-
-    }
-    if (skipLangs) {
-      skipLangs.hidden = false;
-      return;
-    }
-    const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
-      tag: "checkbox",
-      attributes: {
-        //@ts-ignore has
-        label: Zotero.Locale.availableLocales[e],
-      },
-      properties: {
-        //@ts-ignore has
-        checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
-      },
-    }));
-    const checkboxsRows = [];
-    let start = 0;
-    const step = 5;
-    let end = step;
-    for (; start < checkboxs.length; start += step, end += step) {
-
-      checkboxsRows.push(checkboxs.slice(start, end));
-    }
-    const childrenArr: any[] = checkboxsRows.map(e => ({
-      tag: "hbox",
-      children: e
-    }));
-    const caption = {
-      tag: "caption",
-      namespace: "xul",
-      attributes: {
-        label: "测试group",
-      }
-    };
-    childrenArr.unshift(caption);
-
-    ztoolkit.UI.replaceElement({
-      tag: "groupbox",
-      namespace: "xul",
-      id: makeId("skipLangs"),
-      properties: {
-        collapse: true,
-      },
-
-      children: childrenArr,
-
-
-    }, getDom("skipLanguages-placeholder")!); */
-
+    skipLangsShowOrHide();
 
   });
 }
 
 
-function skipLangsSwitch() {
+function skipLangsShowOrHide() {
   {
-    const sourceLangMenulist = getDom("sourceLang")!;
+    const sourceLangMenulist = getDom("sourceLang")! as XUL.MenuList;
     const value = sourceLangMenulist.value;
     const skipLangs = getDom("skipLangs");
     if (value != "autoDetect") {
       if (skipLangs) {
-        skipLangs.parentElement.hidden = true;
+        skipLangs.parentElement ? skipLangs.parentElement.hidden = true : () => { };
         return;
       }
-      getDom("skipLanguages-placeholder").parentElement.hidden = true;
+      const placeholder = getDom("placeholder");
+      if (!placeholder) return;
+      placeholder.parentElement ? placeholder.parentElement.hidden = true : () => { };
       return;
     }
     if (skipLangs) {
-      skipLangs.parentElement.hidden = false;
+      skipLangs.parentElement ? skipLangs.parentElement.hidden = false : () => { };
       return;
     }
     const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
       tag: "checkbox",
       attributes: {
-        //@ts-ignore has
-        label: Zotero.Locale.availableLocales[e],
+        label: (Zotero.Locale.availableLocales as any)[e],
       },
       properties: {
-        //@ts-ignore has
+        //语种自动识别时选中与界面相同的语言，否则除了指定的源语言选中所有语言
         checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
       },
     }));
+    //每行显示 5 个复选框
     const checkboxsRows = [];
     let start = 0;
     const step = 5;
     let end = step;
     for (; start < checkboxs.length; start += step, end += step) {
-
       checkboxsRows.push(checkboxs.slice(start, end));
     }
+    //每行一个 hbox 子元素为 5个 复选框
     const childrenArr: any[] = checkboxsRows.map(e => ({
       tag: "hbox",
+      namespace: "xul",
       children: e
     }));
     const caption = {

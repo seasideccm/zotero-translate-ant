@@ -5,13 +5,15 @@
 -- sqlite 表
 -- Valid language ("english," "chines," etc.)
 
-CREATE TABLE  IF NOT EXISTS language (
-    langID INTEGER PRIMARY KEY,
-    langNameNative TEXT,
-    langNameEn TEXT,
-    zoteroPrimaryDialects TEXT,
-    zoteroCode TEXT,
-    francCode TEXT
+CREATE TABLE IF NOT EXISTS language (
+	langID	INTEGER NOT NULL PRIMARY KEY,
+	langNameNative	TEXT NOT NULL UNIQUE,
+	langNameEn	TEXT NOT NULL UNIQUE,
+	zoteroCode	INTEGER NOT NULL UNIQUE,
+	francCode	TEXT NOT NULL UNIQUE,
+	iso6391	TEXT NOT NULL UNIQUE,
+	zoteroPrimaryDialects	TEXT NOT NULL UNIQUE,
+    UNIQUE (langNameNative, langNameEn, zoteroCode, francCode, iso6391)
 );
 
 -- sourceText

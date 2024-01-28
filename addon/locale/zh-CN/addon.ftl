@@ -129,3 +129,4 @@ info-showBibliography = 显示参考文献
 info-baiduOcrPositon = 识别的文字位置依次是：
 test = 开始测试
 autoDetect = 自动识别
+menu-label = 翻山蚁

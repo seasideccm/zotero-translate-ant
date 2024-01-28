@@ -148,9 +148,6 @@ export function selectEle(keyword: string) {
 
 export function getDom(idSuffix: string) {
     const doc = addon.data.prefs?.window?.document;
-    const win = addon.data.prefs?.window;
-    if (!doc || !win) {
-        return;
-    }
+    if (!doc) return;
     return doc.querySelector(`#${makeId(idSuffix)}`);
 }
