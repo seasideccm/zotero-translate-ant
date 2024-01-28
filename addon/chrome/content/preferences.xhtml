@@ -30,6 +30,16 @@
         <box id="__addonRef__-targetLang-placeholder"></box>
       </hbox>
 
+      <separator />
+
+      <vbox>
+        <label data-l10n-id="pref-untranslatedLanguage"></label>
+        <box id="__addonRef__-skipLanguages-placeholder"></box>
+        <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
+      </vbox>
+
+      <separator />
+
       <hbox>
         <caption data-l10n-id="pref-bilingualSetting" />
         <splitter />
@@ -39,7 +49,11 @@
           preference="extensions.zotero.__addonRef__.bilingualContrast"
           data-l10n-id="pref-bilingualContrast"
         />
+      </hbox>
 
+      <separator />
+
+      <hbox>
         <radiogroup
           id="__addonRef__-sourceTargetOrder"
           preference="extensions.zotero.__addonRef__.sourceTargetOrder"
@@ -56,7 +70,8 @@
           </hbox>
         </radiogroup>
       </hbox>
-      <splitter />
+
+      <separator />
 
       <groupbox>
         <caption data-l10n-id="pref-handleContentBeforeTitle" />
@@ -93,6 +108,9 @@
           </hbox>
         </radiogroup>
       </groupbox>
+
+      <separator />
+
       <checkbox
         id="__addonRef__-isPay"
         native="true"
@@ -124,21 +142,12 @@
         preference="extensions.zotero.__addonRef__.isSkipLocal"
         data-l10n-id="pref-isSkipLocal"
       />
-
-      <hbox>
-        <label data-l10n-id="pref-untranslatedLanguage"></label>
-        <html:input
-          size="30"
-          type="text"
-          id="__addonRef__-untranslatedLanguage"
-          preference="extensions.zotero.__addonRef__.untranslatedLanguage"
-        ></html:input>
-      </hbox>
-      <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
     </vbox>
   </groupbox>
 </vbox>
+
 <separator class="groove" />
+
 <label>
   <html:h4 data-l10n-id="pref-imageViewer"></html:h4>
 </label>
@@ -194,7 +203,9 @@
     ></button>
   </hbox>
 </groupbox>
+
 <separator class="groove" />
+
 <groupbox>
   <label>
     <html:h4 data-l10n-id="pref-about"></html:h4>

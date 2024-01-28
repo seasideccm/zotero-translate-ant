@@ -15,7 +15,8 @@ export function 百度翻译() {
        //const BaiDu_FanYi_KaiFangPingTai = 'https://api.fanyi.baidu.com/manage/developer';
        const 百度翻译开放平台 = 'https://api.fanyi.baidu.com/manage/developer';
        ZoteroPane.loadURI('https://fanyi.baidu.com/');
-       Zotero.openInViewer('https://api.fanyi.baidu.com/manage/developer');
+       //不知道如何选中元素
+       Zotero.openInViewer('https://api.fanyi.baidu.com/');
 
 };
 export function 腾讯翻译() {
