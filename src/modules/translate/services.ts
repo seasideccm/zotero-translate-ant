@@ -1,4 +1,6 @@
-
+/**
+ * 翻译引擎
+ */
 export class TranslateService {
     id: string;
     charasPerTime: number;
@@ -43,6 +45,16 @@ export class TranslateService {
             this.secretKey = secretKey;
         this.forbidden = forbidden;
     }
+
+    //个人数据保存至 database，公共数据保存至 github（共享）和 database
+    initSave = Zotero.Promise.coroutine(function* (env) {
+
+    });
+    saveData() {
+
+    }
+
+    finalizeSave = Zotero.Promise.coroutine(function* (env) { });
 
 }
 
