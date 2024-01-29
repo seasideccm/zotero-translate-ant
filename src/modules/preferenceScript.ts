@@ -158,12 +158,12 @@ async function buildPrefsPane() {
       if (!value) return;
       showInfo(
         "The " +
-          keyTorecord +
-          " was modified from " +
-          mutation.oldValue +
-          " to " +
-          label +
-          ".",
+        keyTorecord +
+        " was modified from " +
+        mutation.oldValue +
+        " to " +
+        label +
+        ".",
         2000,
       );
       await DB.executeTransaction(async function () {
@@ -252,26 +252,27 @@ function skipLangsHide() {
     if (skipLangs) {
       skipLangs.parentElement
         ? (skipLangs.parentElement.hidden = true)
-        : () => {};
+        : () => { };
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
     placeholder.parentElement
       ? (placeholder.parentElement.hidden = true)
-      : () => {};
+      : () => { };
     return;
   }
   if (skipLangs) {
     skipLangs.parentElement
       ? (skipLangs.parentElement.hidden = false)
-      : () => {};
+      : () => { };
     return;
   }
   const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
     tag: "checkbox",
     attributes: {
-      label: (Zotero.Locale.availableLocales as any)[e],
+      //@ts-ignore has
+      label: Zotero.Locale.availableLocales[e],
     },
     properties: {
       //语种自动识别时选中与界面相同的语言，否则除了指定的源语言选中所有语言
@@ -315,8 +316,8 @@ function skipLangsHide() {
     if (tagName && tagName == "checkbox") {
       showInfo(
         (e.target as XUL.Checkbox).label +
-          ": " +
-          (e.target as XUL.Checkbox).checked,
+        ": " +
+        (e.target as XUL.Checkbox).checked,
       );
     }
   });
