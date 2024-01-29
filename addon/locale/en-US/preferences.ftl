@@ -1,4 +1,4 @@
-pref-title = TranslateKit
+pref-title = TranslateAnt
 pref-descript = The Translation Plugin For Zotero7 Notes
 pref-translateSetting = Translate Setting
 pref-descript-untranslatedLanguage = Language detection is done using the Franc library, but there can be occasional errors. Choosing to skip translation while also selecting the wrong detected language can reduce the error rate.

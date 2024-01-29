@@ -5,9 +5,12 @@ import { registerPrefsScripts } from "./modules/preferenceScript";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
-import { registerFn, registerShortcutsCache, setShortcut } from "./utils/shortcut";
+import {
+  registerFn,
+  registerShortcutsCache,
+  setShortcut,
+} from "./utils/shortcut";
 import { createZToolkit } from "./utils/ztoolkit";
-
 
 async function onStartup() {
   await Promise.all([
@@ -50,15 +53,16 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   });
   addon.mountPoint.popupWin = popupWin;
   registerFn();
-  popupWin.createLine({
-    text: getString("startup-begin"),
-    type: "default",
-    progress: 0,
-  }).show();
+  popupWin
+    .createLine({
+      text: getString("startup-begin"),
+      type: "default",
+      progress: 0,
+    })
+    .show();
   popupWin.startCloseTimer(5000);
   await getDB();
 }
-
 
 async function onMainWindowUnload(win: Window): Promise<void> {
   ztoolkit.unregisterAll();
@@ -85,7 +89,7 @@ async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
-  extraData: { [key: string]: any; },
+  extraData: { [key: string]: any },
 ) {
   // You can add your code to the corresponding notify type
   ztoolkit.log("notify", event, type, ids, extraData);
@@ -95,7 +99,7 @@ async function onNotify(
     extraData[ids[0]].type == "reader"
   ) {
     //BasicExampleFactory.exampleNotifierCallback();
-    () => { };
+    () => {};
   } else {
     return;
   }
@@ -107,7 +111,7 @@ async function onNotify(
  * @param type event type
  * @param data event data
  */
-async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
+async function onPrefsEvent(type: string, data: { [key: string]: any }) {
   switch (type) {
     case "load":
       registerPrefsScripts(data.window);
@@ -120,10 +124,10 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
-      () => { };
+      () => {};
       break;
     case "smaller":
-      () => { };
+      () => {};
       break;
     default:
       break;
@@ -131,16 +135,11 @@ function onShortcuts(type: string) {
 }
 
 function onDialogEvents(type: string) {
-
-
   switch (type) {
-
     default:
       break;
   }
 }
-
-
 
 // Add your hooks here. For element click, etc.
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.

@@ -5,8 +5,15 @@
     "target": "ES2016",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
   },
-  "include": ["src", "typings", "node_modules/zotero-types", "addon/chrome/content/test/testIncludes.js", "addon/chrome/content/test/testItemTree.jsx", "addon/chrome/content/test/test.js"],
-  "exclude": ["build", "addon"]
+  "include": [
+    "src",
+    "typings",
+    "node_modules/zotero-types",
+    "addon/chrome/content/test/testIncludes.js",
+    "addon/chrome/content/test/testItemTree.jsx",
+    "addon/chrome/content/test/test.js",
+  ],
+  "exclude": ["build", "addon"],
 }

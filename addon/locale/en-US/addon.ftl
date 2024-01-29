@@ -6,7 +6,7 @@ menuitem-pdf2Note= pdf2Note(Batch)
 menuitem-openPdfs=openPdfs
 menuitem-submenulabel = Addon Template
 menuitem-filemenulabel = Addon Template: File Menuitem
-prefs-title = TranslateKit
+prefs-title = TranslateAnt
 pref-descript = The translation plugin for zotero7 notes
 pref-bilingualContrast = bilingual contrast
 pref-isSourceFirst = isSourceFirst
@@ -132,7 +132,7 @@ info-showBibliography = show Bibliography
 info-baiduOcrPositon = The position of the recognized text are in order: 
 test = star test
 autoDetect = Auto Detect
-menu-label = TranslateKit
+menu-label = TranslateAnt
 
 
 

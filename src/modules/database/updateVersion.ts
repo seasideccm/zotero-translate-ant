@@ -23,7 +23,6 @@
         });
 }; */
 
-
 /* export async function updateDBVersion(schema, version) {
     _dbVersions[schema] = version;
     var sql = "REPLACE INTO version (schema,version) VALUES (?,?)";

@@ -17,7 +17,6 @@ class Addon {
       window: Window;
     };
     dialog?: DialogHelper;
-
   };
   public mountPoint: any;
   // Lifecycle hooks

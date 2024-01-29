@@ -5,7 +5,6 @@ import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 import { services } from "./translate/services";
 
-
 export function registerPrefs() {
   ztoolkit.PreferencePane.register({
     pluginID: config.addonID,
@@ -16,9 +15,7 @@ export function registerPrefs() {
   });
 }
 
-
 export async function registerPrefsScripts(_window: Window) {
-
   if (!addon.data.prefs) {
     addon.data.prefs = {
       window: _window,
@@ -28,7 +25,6 @@ export async function registerPrefsScripts(_window: Window) {
   }
   await buildPrefsPane();
   bindPrefEvents();
-
 }
 
 async function buildPrefsPane() {
@@ -43,10 +39,13 @@ async function buildPrefsPane() {
   const DB = await getDB();
   if (DB) {
     try {
-      defaultSourceLang = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='translate' AND key='defaultSourceLang'");
-      defaultTargetLang = await DB.valueQueryAsync("SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'");
-    }
-    catch (e) {
+      defaultSourceLang = await DB.valueQueryAsync(
+        "SELECT value FROM settings WHERE setting='translate' AND key='defaultSourceLang'",
+      );
+      defaultTargetLang = await DB.valueQueryAsync(
+        "SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'",
+      );
+    } catch (e) {
       ztoolkit.log(e);
     }
   }
@@ -57,15 +56,17 @@ async function buildPrefsPane() {
   const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
   const targetLangPlaceholder = getDom("targetLang-placeholder")!;
 
-  const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(e => ({
-    tag: "menuitem",
-    id: makeId(e),
-    attributes: {
-      //@ts-ignore has
-      label: Zotero.Locale.availableLocales[e],
-      value: e,
-    },
-  }));
+  const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(
+    (e) => ({
+      tag: "menuitem",
+      id: makeId(e),
+      attributes: {
+        //@ts-ignore has
+        label: Zotero.Locale.availableLocales[e],
+        value: e,
+      },
+    }),
+  );
   const autoDetect = {
     tag: "menuitem",
     id: makeId("autoDetect"),
@@ -73,7 +74,7 @@ async function buildPrefsPane() {
       //@ts-ignore has
       label: getString("autoDetect"),
       value: "autoDetect",
-    }
+    },
   };
   sourceLangChilds.unshift(autoDetect);
   ztoolkit.UI.replaceElement(
@@ -84,7 +85,9 @@ async function buildPrefsPane() {
       attributes: {
         native: "true",
         //@ts-ignore has
-        label: defaultSourceLang ? Zotero.Locale.availableLocales[defaultSourceLang] : getString("autoDetect"),
+        label: defaultSourceLang
+          ? Zotero.Locale.availableLocales[defaultSourceLang]
+          : getString("autoDetect"),
         value: defaultSourceLang ? defaultSourceLang : "autoDetect",
       },
       children: [
@@ -96,7 +99,7 @@ async function buildPrefsPane() {
       ],
     },
     // 将要被替换掉的元素
-    sourceLangPlaceholder
+    sourceLangPlaceholder,
   );
 
   // 目标语言
@@ -113,7 +116,7 @@ async function buildPrefsPane() {
       children: [
         {
           tag: "menupopup",
-          children: Object.keys(Zotero.Locale.availableLocales).map(e => ({
+          children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
             tag: "menuitem",
             attributes: {
               //@ts-ignore has
@@ -124,15 +127,20 @@ async function buildPrefsPane() {
         },
       ],
     },
-    targetLangPlaceholder
+    targetLangPlaceholder,
   );
   const sourceLangMenulist = getDom("sourceLang")!;
   const targetLangMenulist = getDom("targetLang")!;
 
-
-  const configObserver = { attributes: true, attributeFilter: ["label"], attributeOldValue: true };
+  const configObserver = {
+    attributes: true,
+    attributeFilter: ["label"],
+    attributeOldValue: true,
+  };
   //@ts-ignore has
-  const mutationObserver = new addon.data.prefs!.window.MutationObserver(callback);
+  const mutationObserver = new addon.data.prefs!.window.MutationObserver(
+    callback,
+  );
   mutationObserver.observe(sourceLangMenulist, configObserver);
   mutationObserver.observe(targetLangMenulist, configObserver);
   async function callback(mutationsList: any[]) {
@@ -142,27 +150,39 @@ async function buildPrefsPane() {
       if (!mutation.target.id.match(/(sourceLang)|(targetLang)/g)) return;
       const value = mutation.target.value;
       const label = mutation.target.label;
-      const keyTorecord = mutation.target.id.includes("sourceLang") ? "defaultSourceLang" : "defaultTargetLang";
-      const sql = "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
+      const keyTorecord = mutation.target.id.includes("sourceLang")
+        ? "defaultSourceLang"
+        : "defaultTargetLang";
+      const sql =
+        "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
       if (!value) return;
-      showInfo(("The " + keyTorecord + " was modified from " + mutation.oldValue + " to " + label + "."), 2000);
+      showInfo(
+        "The " +
+          keyTorecord +
+          " was modified from " +
+          mutation.oldValue +
+          " to " +
+          label +
+          ".",
+        2000,
+      );
       await DB.executeTransaction(async function () {
         await DB.queryAsync(sql, [keyTorecord, value]);
       });
     }
-  };
-
+  }
 
   //多账户管理
-  const childrenArr = Object.values(services).filter(e => !e.forbidden).map((service) => ({
-    tag: "menuitem",
-    id: makeId(`${service.id}`),
-    attributes: {
-      label: getString(`service-${service.id}`),
-      value: service.id,
-    },
-  }));
-
+  const childrenArr = Object.values(services)
+    .filter((e) => !e.forbidden)
+    .map((service) => ({
+      tag: "menuitem",
+      id: makeId(`${service.id}`),
+      attributes: {
+        label: getString(`service-${service.id}`),
+        value: service.id,
+      },
+    }));
 
   ztoolkit.UI.replaceElement(
     {
@@ -200,12 +220,9 @@ async function buildPrefsPane() {
       ],
     },
     // 将要被替换掉的元素
-    doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
+    doc.querySelector(`#${makeId("serviceID-placeholder")}`)!,
   );
-
 }
-
-
 
 function bindPrefEvents() {
   bilingualContrastHide();
@@ -216,7 +233,6 @@ function bindPrefEvents() {
   skipLangsHide();
   getDom("sourceLang")!.addEventListener("command", (e) => {
     skipLangsHide();
-
   });
 }
 function bilingualContrastHide(e?: Event) {
@@ -234,26 +250,35 @@ function skipLangsHide() {
   const skipLangs = getDom("skipLangs");
   if (value != "autoDetect") {
     if (skipLangs) {
-      skipLangs.parentElement ? skipLangs.parentElement.hidden = true : () => { };
+      skipLangs.parentElement
+        ? (skipLangs.parentElement.hidden = true)
+        : () => {};
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
-    placeholder.parentElement ? placeholder.parentElement.hidden = true : () => { };
+    placeholder.parentElement
+      ? (placeholder.parentElement.hidden = true)
+      : () => {};
     return;
   }
   if (skipLangs) {
-    skipLangs.parentElement ? skipLangs.parentElement.hidden = false : () => { };
+    skipLangs.parentElement
+      ? (skipLangs.parentElement.hidden = false)
+      : () => {};
     return;
   }
-  const checkboxs = Object.keys(Zotero.Locale.availableLocales).map(e => ({
+  const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
     tag: "checkbox",
     attributes: {
       label: (Zotero.Locale.availableLocales as any)[e],
     },
     properties: {
       //语种自动识别时选中与界面相同的语言，否则除了指定的源语言选中所有语言
-      checked: sourceLangMenulist.value == "autoDetect" ? e == Zotero.locale : sourceLangMenulist.value != e,
+      checked:
+        sourceLangMenulist.value == "autoDetect"
+          ? e == Zotero.locale
+          : sourceLangMenulist.value != e,
     },
   }));
   //每行显示 5 个复选框
@@ -265,29 +290,34 @@ function skipLangsHide() {
     checkboxsRows.push(checkboxs.slice(start, end));
   }
   //每行一个 hbox 子元素为 5个 复选框
-  const childrenArr: any[] = checkboxsRows.map(e => ({
+  const childrenArr: any[] = checkboxsRows.map((e) => ({
     tag: "hbox",
     namespace: "xul",
-    children: e
+    children: e,
   }));
 
-  ztoolkit.UI.replaceElement({
-    tag: "groupbox",
-    namespace: "xul",
-    id: makeId("skipLangs"),
-    properties: {
-      collapse: true,
+  ztoolkit.UI.replaceElement(
+    {
+      tag: "groupbox",
+      namespace: "xul",
+      id: makeId("skipLangs"),
+      properties: {
+        collapse: true,
+      },
+
+      children: childrenArr,
     },
-
-    children: childrenArr,
-
-
-  }, getDom("skipLanguages-placeholder")!);
+    getDom("skipLanguages-placeholder")!,
+  );
 
   getDom("skipLangs")?.addEventListener("click", function (e) {
     const tagName = (e.target as any).tagName;
     if (tagName && tagName == "checkbox") {
-      showInfo((e.target as XUL.Checkbox).label + ": " + (e.target as XUL.Checkbox).checked);
+      showInfo(
+        (e.target as XUL.Checkbox).label +
+          ": " +
+          (e.target as XUL.Checkbox).checked,
+      );
     }
   });
   getDom("selectAll")?.addEventListener("command", function (e) {
@@ -305,19 +335,18 @@ function skipLangsHide() {
 
       (checkbox as XUL.Checkbox).checked = (e.target as XUL.Checkbox).checked;
     }
-
   });
-  (getDom("isSkipLocal") as XUL.Checkbox)?.addEventListener("command", function (e) {
-    const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
-    if (!checkboxs || !checkboxs.length) return;
-    for (const checkbox of checkboxs) {
-      //@ts-ignore has
-      if (Zotero.Locale.availableLocales[Zotero.locale] != checkbox.label) continue;
-      (checkbox as XUL.Checkbox).checked = (e.target as XUL.Checkbox).checked;
-
-    }
-  });
-
-
+  (getDom("isSkipLocal") as XUL.Checkbox)?.addEventListener(
+    "command",
+    function (e) {
+      const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
+      if (!checkboxs || !checkboxs.length) return;
+      for (const checkbox of checkboxs) {
+        //@ts-ignore has
+        if (Zotero.Locale.availableLocales[Zotero.locale] != checkbox.label)
+          continue;
+        (checkbox as XUL.Checkbox).checked = (e.target as XUL.Checkbox).checked;
+      }
+    },
+  );
 }
-
