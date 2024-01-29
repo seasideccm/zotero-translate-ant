@@ -86,8 +86,8 @@ async function buildPrefsPane() {
         native: "true",
         //@ts-ignore has
         label: defaultSourceLang
-          //@ts-ignore has
-          ? Zotero.Locale.availableLocales[defaultSourceLang]
+          ? //@ts-ignore has
+            Zotero.Locale.availableLocales[defaultSourceLang]
           : getString("autoDetect"),
         value: defaultSourceLang ? defaultSourceLang : "autoDetect",
       },
@@ -159,12 +159,12 @@ async function buildPrefsPane() {
       if (!value) return;
       showInfo(
         "The " +
-        keyTorecord +
-        " was modified from " +
-        mutation.oldValue +
-        " to " +
-        label +
-        ".",
+          keyTorecord +
+          " was modified from " +
+          mutation.oldValue +
+          " to " +
+          label +
+          ".",
         2000,
       );
       await DB.executeTransaction(async function () {
@@ -253,20 +253,20 @@ function skipLangsHide() {
     if (skipLangs) {
       skipLangs.parentElement
         ? (skipLangs.parentElement.hidden = true)
-        : () => { };
+        : () => {};
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
     placeholder.parentElement
       ? (placeholder.parentElement.hidden = true)
-      : () => { };
+      : () => {};
     return;
   }
   if (skipLangs) {
     skipLangs.parentElement
       ? (skipLangs.parentElement.hidden = false)
-      : () => { };
+      : () => {};
     return;
   }
   const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
@@ -317,8 +317,8 @@ function skipLangsHide() {
     if (tagName && tagName == "checkbox") {
       showInfo(
         (e.target as XUL.Checkbox).label +
-        ": " +
-        (e.target as XUL.Checkbox).checked,
+          ": " +
+          (e.target as XUL.Checkbox).checked,
       );
     }
   });
