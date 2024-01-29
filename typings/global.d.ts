@@ -32,7 +32,16 @@ declare namespace XUL {
   }
 }
 
+declare type SecretKey = {
+  key: string;
+  usable: boolean;
+  charConsum: number;
+  dateMarker?: string;
+};
 
+declare type Services = {
+  [key: string]: typeof TranslateService;
+};
 
 
 

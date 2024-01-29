@@ -1,5 +1,6 @@
 import { config } from "../../package.json";
 import { franc } from 'franc-min';
+import { addonStorageDir } from "./constant";
 
 
 export async function resourceFilesName(url?: string) {
@@ -206,4 +207,51 @@ export function showInfo(info: string, closeTime?: number, window?: Window, clos
     if (closeTime) popupWin.startCloseTimer(closeTime);
 
     return popupWin;
+}
+
+export async function saveJsonToDisk(obj: any, filename: string, dir?: string, ext?: string) {
+    const objJson = JSON.stringify(obj);
+    const tempObj = getPathDir(filename, dir, ext);
+    const path = tempObj.path;
+    dir = tempObj.dir;
+    if (!await OS.File.exists(dir)) {
+        await OS.File.makeDir(dir);
+    }
+    await OS.File.writeAtomic(path, objJson);
+}
+
+/**
+* 
+* @param filename 单独文件名或伴扩展名或绝对路径
+* @param dir 可选参数
+* @param ext 可选参数 伴或不伴点，如 .png 或 png
+* @returns 
+*/
+export const getPathDir = (filename: string, dir?: string, ext?: string) => {
+    filename = fileNameLegal(filename);
+    dir = dir || addonStorageDir;
+    ext = ext || ".json";
+    if (filename.match(/\.[^./\\]+$/m)) {
+        ext = filename.match(/\.[^./\\]+$/m)![0];
+    }
+    if (filename.match(/[/\\]/g)) {
+        //文件名是包括扩展名的完整路径
+        dir = "";
+        ext = '';
+    }
+    if (!ext.startsWith(".")) {
+        ext = "." + ext;
+    }
+    dir = OS.Path.normalize(dir);
+    const path = OS.Path.normalize(dir + filename + ext);
+    return {
+        path: path,
+        dir: dir
+    };
+};
+
+
+export function fileNameLegal(fileName: string) {
+    fileName = fileName.replace(/[/\\?%*:|"<>]/g, '_');
+    return fileName;
 }

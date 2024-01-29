@@ -3,6 +3,7 @@ import { config } from "../../package.json";
 import { getDom, makeId } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
+import { services } from "./translate/services";
 
 
 export function registerPrefs() {
@@ -153,52 +154,54 @@ async function buildPrefsPane() {
 
 
   //多账户管理
+  const childrenArr = Object.values(services).filter(e => !e.forbidden).map((service) => ({
+    tag: "menuitem",
+    id: makeId(`${service.id}`),
+    attributes: {
+      label: getString(`service-${service.id}`),
+      value: service.id,
+    },
+  }));
 
-  /*   ztoolkit.UI.replaceElement(
-      {
-        // 下拉列表
-        tag: "menulist",
-        id: makeId("serviceID"),
-        attributes: {
-          native: "true",
-        },
-        listeners: [
-          {
-            type: "command",
-            listener: (e: Event) => {
-              const serviceID = getElementValue("serviceID")!;
-              serviceManage.syncBaiduSecretKey(serviceID);
-              serviceManage.mergeAndRemoveDuplicates(serviceID);
-              addon.data.prefs!.rows = getRows(serviceID);
-              updatePrefsUI();
-              onPrefsEvents("update-QPS");
-              onPrefsEvents("update-charasPerTime");
-              onPrefsEvents("update-hasSecretKey");
-              onPrefsEvents("update-charasLimit");
-              onPrefsEvents("update-limitMode");
-              onPrefsEvents("update-isMultiParas");
-              onPrefsEvents("update-secretKeyInfo");
-            },
-          },
-        ],
-        children: [
-          {
-            tag: "menupopup",
-            //map出的对象数组赋值给键 children
-            children: Object.values(services).filter(e => !e.forbidden).map((service) => ({
-              tag: "menuitem",
-              id: makeId(`${service.id}`),
-              attributes: {
-                label: getString(`service-${service.id}`),
-                value: service.id,
-              },
-            })),
-          },
-        ],
+
+  ztoolkit.UI.replaceElement(
+    {
+      // 下拉列表
+      tag: "menulist",
+      id: makeId("serviceID"),
+      attributes: {
+        native: "true",
       },
-      // 将要被替换掉的元素
-      doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
-    ); */
+      listeners: [
+        {
+          type: "command",
+          listener: (e: Event) => {
+            /* const serviceID = getElementValue("serviceID")!;
+            serviceManage.syncBaiduSecretKey(serviceID);
+            serviceManage.mergeAndRemoveDuplicates(serviceID);
+            addon.data.prefs!.rows = getRows(serviceID);
+            updatePrefsUI();
+            onPrefsEvents("update-QPS");
+            onPrefsEvents("update-charasPerTime");
+            onPrefsEvents("update-hasSecretKey");
+            onPrefsEvents("update-charasLimit");
+            onPrefsEvents("update-limitMode");
+            onPrefsEvents("update-isMultiParas");
+            onPrefsEvents("update-secretKeyInfo"); */
+          },
+        },
+      ],
+      children: [
+        {
+          tag: "menupopup",
+          //map出的对象数组赋值给键 children
+          children: childrenArr,
+        },
+      ],
+    },
+    // 将要被替换掉的元素
+    doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
+  );
 
 }
 
