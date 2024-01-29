@@ -85,7 +85,10 @@ async function buildPrefsPane() {
       attributes: {
         native: "true",
         //@ts-ignore has
-        label: defaultSourceLang ? Zotero.Locale.availableLocales[defaultSourceLang] : getString("autoDetect"),
+        label: defaultSourceLang
+          //@ts-ignore has
+          ? Zotero.Locale.availableLocales[defaultSourceLang]
+          : getString("autoDetect"),
         value: defaultSourceLang ? defaultSourceLang : "autoDetect",
       },
       children: [
