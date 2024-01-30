@@ -1,0 +1,17 @@
+{
+  "addons": {
+    "translateAnt@sscc.sscc": {
+      "updates": [
+        {
+          "version": "0.1.2-beta.2",
+          "update_link": "  https://github.com/seasideccm/zotero-translate-ant/releases/download/v0.1.2-beta.2/zotero-translate-ant.xpi",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "6.999"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

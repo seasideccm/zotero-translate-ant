@@ -1,6 +1,6 @@
 {
   "name": "zotero-translate-ant",
-  "version": "0.1.2-beta.2",
+  "version": "0.1.0",
   "description": "zotero-translate-ant",
   "config": {
     "addonName": "zoteroTranslateAnt",
@@ -9,7 +9,10 @@
     "addonInstance": "TranslateAnt",
     "prefsPrefix": "extensions.zotero.translateAnt",
     "releasePage": "  https://github.com/seasideccm/zotero-translate-ant/releases",
-    "updateJSON": "https://raw.githubusercontent.com/seasideccm/zotero-translate-ant/main/update.json"
+    "updateJSON": "https://raw.githubusercontent.com/seasideccm/zotero-translate-ant/main/update.json",
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   },
   "main": "src/index.ts",
   "scripts": {
@@ -44,6 +47,7 @@
     "@typescript-eslint/parser": "^6.19.0",
     "chokidar": "^3.5.3",
     "compressing": "^1.10.0",
+    "cz-conventional-changelog": "^3.3.0",
     "esbuild": "^0.19.11",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
