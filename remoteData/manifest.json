@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "zoteroTranslateAnt",
+  "version": "0.1.2-beta.2",
+  "description": "zotero-translate-ant",
+  "homepage_url": "https://github.com/seasideccm/zotero-translate-ant#readme",
+  "author": "sscc",
+  "icons": {
+    "48": "chrome/content/icons/favicon@0.5x.png",
+    "96": "chrome/content/icons/favicon.png"
+  },
+  "applications": {
+    "zotero": {
+      "id": "translateAnt@sscc.sscc",
+      "update_url": "https://raw.githubusercontent.com/seasideccm/zotero-translate-ant/main/update-beta.json",
+      "strict_min_version": "6.999",
+      "strict_max_version": "7.0.*"
+    }
+  }
+}

@@ -131,7 +131,8 @@
     "github": {
       "release": false,
       "assets": [
-        "build/*.xpi"
+        "build/*.xpi",
+        "remoteData/*.json"
       ]
     },
     "hooks": {
