@@ -57,11 +57,11 @@ export function makeTagElementProps(option: ElementProps | TagElementProps) {
 }
 
 export const makeClickButton = (
-  idPostfix: string,
+  id: string,
   menuitemGroupArr: any[][],
   thisButton?: HTMLButtonElement,
 ) => {
-  const menupopup: any = makeMenupopup(idPostfix);
+  const menupopup: any = makeMenupopup(id);
   menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
     menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
     //首个菜单组之后，每组均添加分割条，最后一组之后不添加
@@ -83,11 +83,11 @@ export const menuseparator = (menupopup: any) => {
   );
 };
 
-export const makeMenupopup = (idPostfix: string) => {
+export const makeMenupopup = (id: string) => {
   const menupopup = ztoolkit.UI.appendElement(
     {
       tag: "menupopup",
-      id: config.addonRef + idPostfix,
+      id: id,
       namespace: "xul",
       children: [],
     },
@@ -97,17 +97,17 @@ export const makeMenupopup = (idPostfix: string) => {
 };
 
 export const makeMenuitem = (
-  option: { label: string; func: (...args: any[]) => any | void; args: any[] },
+  option: { label: string; func: (...args: any[]) => any | void; args: any[]; },
   menupopup: any,
 ) => {
-  let label = getString(option.label);
-  label = label.includes("batchTranslate-") ? option.label : label;
+  //let label = getString(option.label);
+  //label = label.includes("batchTranslate-") ? option.label : label;
   const makeMenuitem = ztoolkit.UI.appendElement(
     {
       tag: "menuitem",
       namespace: "xul",
       attributes: {
-        label: label,
+        label: option.label,
       },
     },
     menupopup,
@@ -128,7 +128,7 @@ export const makeMenuitem = (
 };
 
 export const judgeAsync = (fun: any) => {
-  const AsyncFunction = (async () => {}).constructor;
+  const AsyncFunction = (async () => { }).constructor;
   return fun instanceof AsyncFunction;
 };
 

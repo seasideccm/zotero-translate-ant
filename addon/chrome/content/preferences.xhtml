@@ -9,6 +9,32 @@
     <html:h3 data-l10n-id="pref-descript"></html:h3>
   </label>
 </vbox>
+<vbox>
+  <separator class="groove" />
+  <hbox>
+    <label
+      style="font-weight: bold"
+      data-l10n-id="pref-addonMenuLocation"
+    ></label>
+    <radiogroup
+      id="__addonRef__-addonMenuLocation"
+      preference="extensions.zotero.__addonRef__.addonMenuLocation"
+    >
+      <hbox>
+        <radio
+          data-l10n-id="pref-rightMenuLocation"
+          value="right"
+          selected="true"
+        />
+        <radio
+          data-l10n-id="pref-leftMenuLocation"
+          value="left"
+          selected="false"
+        />
+      </hbox>
+    </radiogroup>
+  </hbox>
+</vbox>
 
 <vbox>
   <separator class="groove" />

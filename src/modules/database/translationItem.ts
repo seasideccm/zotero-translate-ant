@@ -137,17 +137,18 @@ export class Translation {
   }
 }
 
-export async function testClass() {
-  const firstTranslation = new Translation({
+export async function test() {
+  /* const firstTranslation = new Translation({
     sourceText: "Franc has been ported to several other programming languages.",
     targetText: "Franc 库已移植到多种编程语言上。",
     originID: 1423,
     originKey: "HHKKLL",
     originLibraryID: 1,
   });
-  ztoolkit.log("firstTranslation", firstTranslation);
-  //const DB = await getDB();
-  //await firstTranslation.save();
+  */
+  const DB = await getDB();
+  const id = await DB.getNextID("language", "langID");
+  ztoolkit.log("getNextID", id);
 }
 
 //Zotero.DB.transactionDateTime 		//let insertValueSQL = "INSERT INTO itemDataValues VALUES (?,?)";

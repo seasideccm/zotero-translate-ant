@@ -4,6 +4,7 @@ import { getDom, makeId } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 import { services } from "./translate/services";
+import { mountMenu } from "./ui/menu";
 
 export function registerPrefs() {
   ztoolkit.PreferencePane.register({
@@ -87,7 +88,7 @@ async function buildPrefsPane() {
         //@ts-ignore has
         label: defaultSourceLang
           ? //@ts-ignore has
-            Zotero.Locale.availableLocales[defaultSourceLang]
+          Zotero.Locale.availableLocales[defaultSourceLang]
           : getString("autoDetect"),
         value: defaultSourceLang ? defaultSourceLang : "autoDetect",
       },
@@ -159,12 +160,12 @@ async function buildPrefsPane() {
       if (!value) return;
       showInfo(
         "The " +
-          keyTorecord +
-          " was modified from " +
-          mutation.oldValue +
-          " to " +
-          label +
-          ".",
+        keyTorecord +
+        " was modified from " +
+        mutation.oldValue +
+        " to " +
+        label +
+        ".",
         2000,
       );
       await DB.executeTransaction(async function () {
@@ -226,17 +227,24 @@ async function buildPrefsPane() {
 }
 
 function bindPrefEvents() {
-  bilingualContrastHide();
+  bilingualContrastHideShow();
   getDom("bilingualContrast")?.addEventListener("command", (e) => {
-    bilingualContrastHide();
+    bilingualContrastHideShow();
   });
 
-  skipLangsHide();
+  skipLangsHideShow();
   getDom("sourceLang")!.addEventListener("command", (e) => {
-    skipLangsHide();
+    skipLangsHideShow();
+  });
+  //@ts-ignore has
+  const mutationObserver = new addon.data.prefs!.window.MutationObserver(mountMenu);
+  mutationObserver.observe(getDom("addonMenuLocation")!, {
+    attributes: true,
+    attributeFilter: ["value"],
   });
 }
-function bilingualContrastHide(e?: Event) {
+
+function bilingualContrastHideShow(e?: Event) {
   const target = getDom("bilingualContrast") as XUL.Checkbox;
   if (!target) return;
   const checked = (target as XUL.Checkbox).checked;
@@ -245,7 +253,7 @@ function bilingualContrastHide(e?: Event) {
   sourceTargetOrder.disabled = !checked;
 }
 
-function skipLangsHide() {
+function skipLangsHideShow() {
   const sourceLangMenulist = getDom("sourceLang")! as XUL.MenuList;
   const value = sourceLangMenulist.value;
   const skipLangs = getDom("skipLangs");
@@ -253,20 +261,20 @@ function skipLangsHide() {
     if (skipLangs) {
       skipLangs.parentElement
         ? (skipLangs.parentElement.hidden = true)
-        : () => {};
+        : () => { };
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
     placeholder.parentElement
       ? (placeholder.parentElement.hidden = true)
-      : () => {};
+      : () => { };
     return;
   }
   if (skipLangs) {
     skipLangs.parentElement
       ? (skipLangs.parentElement.hidden = false)
-      : () => {};
+      : () => { };
     return;
   }
   const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
@@ -317,8 +325,8 @@ function skipLangsHide() {
     if (tagName && tagName == "checkbox") {
       showInfo(
         (e.target as XUL.Checkbox).label +
-          ": " +
-          (e.target as XUL.Checkbox).checked,
+        ": " +
+        (e.target as XUL.Checkbox).checked,
       );
     }
   });
@@ -352,3 +360,4 @@ function skipLangsHide() {
     },
   );
 }
+

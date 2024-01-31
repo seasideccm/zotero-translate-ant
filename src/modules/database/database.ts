@@ -77,10 +77,10 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
           : null;
         ztoolkit.log(
           Zotero.getString("startupError", Zotero.appName) +
-            "\n\n" +
-            Zotero.getString("db.integrityCheck.reportInForums") +
-            "\n\n" +
-            (stack || e),
+          "\n\n" +
+          Zotero.getString("db.integrityCheck.reportInForums") +
+          "\n\n" +
+          (stack || e),
         );
       }
       ztoolkit.log(e);
@@ -173,8 +173,8 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
   async updateDate(
     tableName: string,
-    data: { [columsField: string]: any },
-    record: { [columsField: string]: any },
+    data: { [columsField: string]: any; },
+    record: { [columsField: string]: any; },
   ) {
     const sqlColumns = Object.keys(data);
     const sqlValues = sqlColumns.map((key) => data[key]);
@@ -191,6 +191,12 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     sqlValues.push(...Object.values(record));
     await this.queryAsync(sql, sqlValues);
   }
+
+
+  async getNextID(table: string, field: string) {
+    const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
+    return this.valueQueryAsync(sql);
+  };
 }
 
 /**
@@ -247,7 +253,7 @@ async function makeDBPath(dbName?: string) {
   }
   dir == "."
     ? (dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef))
-    : () => {};
+    : () => { };
   dbName = dbName
     ? fileNameNoExt(dbName) + ".sqlite"
     : `${config.addonRef}DB.sqlite`;
@@ -363,3 +369,4 @@ async function checkSchema() {
         await DB.queryAsync(sql, env.sqlValues);
     }
 } */
+

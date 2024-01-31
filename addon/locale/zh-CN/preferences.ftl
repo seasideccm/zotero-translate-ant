@@ -88,3 +88,8 @@ pref-help = { $name } Build { $version } { $time }
 pref-selectAll = 
     .label= 全选
 
+pref-addonMenuLocation = 插件菜单位于标题栏的位置
+pref-rightMenuLocation= 
+    .label = 最小化按钮之前
+pref-leftMenuLocation= 
+    .label = 帮助菜单之后

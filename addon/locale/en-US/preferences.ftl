@@ -85,4 +85,10 @@ pref-restoreDefultColor = Restore Defult Color
 
 pref-help = { $name } Build { $version } { $time }
 
-pref-selectAll = Select All
+pref-selectAll = 
+    .label=Select All
+pref-addonMenuLocation = Addon Menu Location AT TitleBar
+pref-rightMenuLocation= 
+    .label = Before of Minimize Button
+pref-leftMenuLocation= 
+    .label = Behind of Help Menu
