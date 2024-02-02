@@ -3,11 +3,12 @@ import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj } from "../../utils/tools";
 import { test } from "../database/translationItem";
+import { testsss } from "../translate/services";
 import { openWindow } from "./testOpen";
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
 const keysForButtonMenu = ["label", "func", "args"];
-const paras = ["最新ID号", test, []];
+const paras = ["初次测试翻译引擎保存", testsss, []];
 const paras2 = ["openWindow", openWindow, []];
 
 //const paras3 = ["zotero js 模块", zmodules, []];

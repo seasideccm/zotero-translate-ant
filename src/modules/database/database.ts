@@ -103,6 +103,12 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     return result;
   }
 
+  getFieldID(field: string) {
+    const sql = `SELECT fieldID FROM fields WHERE fieldName = ${field}`;
+    return this.valueQueryAsync(sql);
+
+  }
+
   /**
    * 重新定义表的字段（列）
    * - 创建临时表，新建表，导入数据，删除旧表
@@ -193,7 +199,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
   }
 
 
-  async getNextID(table: string, field: string) {
+  getNextID(table: string, field: string) {
     const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
     return this.valueQueryAsync(sql);
   };
@@ -309,7 +315,6 @@ async function checkSchema() {
   }
   if (await schema.checkAddonVersionChange()) {
     await schema.updateLastAddonVersion;
-    return true;
   }
   if (await schema.integrityCheckRequired()) {
     //失败则中止

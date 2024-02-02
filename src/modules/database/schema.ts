@@ -66,7 +66,7 @@ export class Schema {
     if (compatibility > this._maxCompatibility) {
       const dbAddonVersion = await this.DB.valueQueryAsync(
         "SELECT value FROM settings " +
-          "WHERE setting='addon' AND key='lastCompatibleVersion'",
+        "WHERE setting='addon' AND key='lastCompatibleVersion'",
       );
       const msg =
         "Database is incompatible with this addon " +
@@ -99,12 +99,13 @@ export class Schema {
         return dbSchemaVersion;
       })
       .catch((e: any) => {
-        return this.DB.tableExists("version").then((exists: any) => {
-          if (exists) {
-            throw e;
-          }
-          return false;
-        });
+        return this.DB.tableExists("version")
+          .then((exists: any) => {
+            if (exists) {
+              throw e;
+            }
+            return false;
+          });
       });
   }
 
@@ -421,11 +422,11 @@ export class Schema {
 
     Zotero.debug(
       "Updating" +
-        schema +
-        "data tables from version " +
-        fromVersion +
-        " to " +
-        toVersion,
+      schema +
+      "data tables from version " +
+      fromVersion +
+      " to " +
+      toVersion,
     );
 
     if (options.onBeforeUpdate) {
@@ -808,19 +809,14 @@ export class Schema {
    * @returns
    */
   async updateLastAddonVersion() {
-    await this.integrityCheck();
-    if (!(await this.checkSchemasUpdate())) {
-      throw "Failed  Check Schemas Update";
-    }
-    const result = await this.DB.executeTransaction(
+    await this.DB.executeTransaction(
       async function (this: any) {
         const sql =
           "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
-        const result = await this.DB.queryAsync(sql, addonVersion);
-        return result;
+        await this.DB.queryAsync(sql, addonVersion);
       }.bind(this),
     );
-    return result;
+
   }
 
   //todo reverse update

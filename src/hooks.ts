@@ -1,4 +1,5 @@
 import { config } from "../package.json";
+import { TranslateServices } from "./modules/database/dataObjects";
 import { DB, getDB } from "./modules/database/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefsScripts } from "./modules/preferenceScript";
@@ -52,6 +53,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     closeTime: -1,
   });
   addon.mountPoint.popupWin = popupWin;
+  addon.mountPoint['TranslateServices'] = TranslateServices;
   registerFn();
   popupWin
     .createLine({
@@ -89,7 +91,7 @@ async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
-  extraData: { [key: string]: any },
+  extraData: { [key: string]: any; },
 ) {
   // You can add your code to the corresponding notify type
   ztoolkit.log("notify", event, type, ids, extraData);
@@ -99,7 +101,7 @@ async function onNotify(
     extraData[ids[0]].type == "reader"
   ) {
     //BasicExampleFactory.exampleNotifierCallback();
-    () => {};
+    () => { };
   } else {
     return;
   }
@@ -111,7 +113,7 @@ async function onNotify(
  * @param type event type
  * @param data event data
  */
-async function onPrefsEvent(type: string, data: { [key: string]: any }) {
+async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
       registerPrefsScripts(data.window);
@@ -124,10 +126,10 @@ async function onPrefsEvent(type: string, data: { [key: string]: any }) {
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
-      () => {};
+      () => { };
       break;
     case "smaller":
-      () => {};
+      () => { };
       break;
     default:
       break;

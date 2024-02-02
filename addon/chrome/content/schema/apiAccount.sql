@@ -38,3 +38,10 @@ CREATE TABLE  IF NOT EXISTS serviceLimit(
     UNIQUE(serialNumber, configID),
     FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE
 );
+
+CREATE TABLE  IF NOT EXISTS totalCharConsum(
+    serialNumber INT NOT NULL,
+    totalCharConsum INT NOT NULL,
+    dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE
+);

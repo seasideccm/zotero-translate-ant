@@ -33,3 +33,6 @@ export function openSite() {
   const txfy = "https://fanyi.qq.com/";
   Zotero.Utilities.Internal.exec(chromePath, [txfy]);
 }
+
+
+

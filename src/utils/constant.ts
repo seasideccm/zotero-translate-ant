@@ -28,23 +28,6 @@ export const schemaConfig = {
   },
 };
 
-/* {
-        "addonSystem": {
-                "version": 2,
-        },
-
-        "translation": {
-                "version": 3,
-        },
-        "triggers": {
-                "version": 1,
-        },
-        "apiAccount": {
-                "version": 1,
-        },
-
-
-}; */
 
 //export const schemaConfigTest = __schemaConfig__;
 
@@ -78,8 +61,17 @@ export const svgTest = `<svg width="60.771137" height="97.508408" viewBox="0 0 6
 </svg>
 `;
 
-export const fullTextTranslateService = [
+export const addonTranslateService = [
   "baiduModify",
   "baidufieldModify",
   "tencentTransmart",
 ];
+
+
+export const tablesTranslation = {
+  translateService: ["serialNumber", "serviceID", "hasSecretKey", "forbidden", "supportMultiParas"],
+  account: ["serialNumber", "APPID", "secretKey", "charConsum", "dataMarker", "isAlive"],
+  accessToken: ["serialNumber", "token", "isAlive", "", "",],
+  serviceLimit: ["serialNumber", "QPS", "charasPerTime", "limitMode", "charasLimit", "configID"],
+  totalCharConsum: ["serialNumber", "totalCharConsum", "dateModified"]
+};
