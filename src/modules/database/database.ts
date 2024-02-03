@@ -1,10 +1,11 @@
 import { config } from "../../../package.json";
-import { getDir, fileNameNoExt, showInfo } from "../../utils/tools";
+import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecursive } from "../../utils/tools";
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
+  [key: string]: any;
   accessibility: boolean | null;
   initPromise: Promise<void>;
 
@@ -375,3 +376,40 @@ async function checkSchema() {
     }
 } */
 
+
+//读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
+export async function getSQLFromDB(schema: string) {
+  const sqlsFromDB = [];
+  const sql = "SELECT name,sql FROM sqlite_master WHERE SQL NOT NULL";
+  const DB = await getDB();
+  const rows = await DB.queryAsync(sql);
+  for (const row of rows) {
+    sqlsFromDB.push(row.sql.replace(/ +/g, " "));
+  }
+
+  const sqlsFromResourceFiles = [];
+  /* const path = "F:\\zotero-batch-translate\\addon\\chrome\\content\\schema";
+  const files = await getFilesRecursive(path, "sql"); */
+  const files = await resourceFilesRecursive(undefined, undefined, "sql");
+  for (const file of files) {
+    if (!file.name) {
+      throw "Schema type not provided to this.getSchemaSQL()";
+    }
+    const path = file.path + file.name;
+    const sqlFromFile = await Zotero.File.getResourceAsync(path);
+    const sqls = DB.parseSQLFile(sqlFromFile);
+    //sqlite 表结构中的建表语句没有 " IF NOT EXISTS"
+    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " "));
+    sqlsFromResourceFiles.push(...sqlsTemp);
+  }
+  let diffs;
+  if (sqlsFromDB.length >= sqlsFromResourceFiles.length) {
+    diffs = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
+  } else {
+    diffs = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
+  }
+  diffs = diffs.filter((e: string) => !e.startsWith("DROP "));
+  for (const diff of diffs) {
+    ztoolkit.log(diff);
+  }
+}

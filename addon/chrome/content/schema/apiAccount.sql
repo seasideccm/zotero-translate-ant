@@ -4,6 +4,7 @@
 CREATE TABLE  IF NOT EXISTS translateService(
     serialNumber INT PRIMARY KEY,
     serviceID TEXT NOT NULL UNIQUE,
+    serviceTypeID INT NOT NULL,
     hasSecretKey INT NOT NULL,
     forbidden INT NOT NULL,
     supportMultiParas INT NOT NULL
@@ -25,6 +26,7 @@ CREATE TABLE  IF NOT EXISTS accessToken(
     serialNumber INT NOT NULL,
     token TEXT NOT NULL UNIQUE,
     isAlive INT NOT NULL,
+    UNIQUE(serialNumber, token), 
     FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE
 );
 
@@ -40,8 +42,13 @@ CREATE TABLE  IF NOT EXISTS serviceLimit(
 );
 
 CREATE TABLE  IF NOT EXISTS totalCharConsum(
-    serialNumber INT NOT NULL,
+    serialNumber INT NOT NULL UNIQUE,
     totalCharConsum INT NOT NULL,
     dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE
+);
+
+CREATE TABLE  IF NOT EXISTS serviceType(
+    serviceTypeID INT PRIMARY KEY,
+    serviceType TEXT NOT NULL
 );

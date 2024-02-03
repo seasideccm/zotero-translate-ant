@@ -70,8 +70,8 @@ export class TranslateService {
     this.serialNumber = serialNumber;
     this.editable = true;
     this._objectType = "item";
-    this.itemTypeID = this.getServiceTypeID();
-    this.ObjectsClass = addon.mountPoint['TranslateServices'];
+    this.serviceTypeID = this.getServiceTypeID();
+    //this.ObjectsClass = addon.mountPoint['TranslateServices'];
   }
 
   //个人数据保存至 database，
@@ -83,10 +83,10 @@ export class TranslateService {
     const ocrTranslateServices = ["baiduPictureTranslate"];
     const languageIdentificationServices = [""];
     const serviceCategory = {
-      translateServices: translateServices,
-      ocrServices: ocrServices,
-      ocrTranslateServices: ocrTranslateServices,
-      languageIdentificationServices: languageIdentificationServices,
+      translate: translateServices,
+      ocr: ocrServices,
+      ocrTranslate: ocrTranslateServices,
+      languageIdentification: languageIdentificationServices,
     };
     if (serviceType) return serviceTypes.indexOf(serviceType);
     for (const k in serviceCategory) {
@@ -104,7 +104,7 @@ export class TranslateService {
   }
 
   hasChanged() {
-    var changed = Object.keys(this._changed).filter(dataType => this._changed[dataType])
+    const changed = Object.keys(this._changed).filter(dataType => this._changed[dataType])
       .concat(Object.keys(this._changedData));
     if (changed.length == 1
       && changed[0] == 'primaryData'
@@ -130,7 +130,7 @@ export class TranslateService {
     }
   }
 
-  _setChanged(dataType: string) {
+  async _setChanged(dataType: string) {
     if (!this._changed.itemData) {
       this._changed.itemData = {};
     }
@@ -140,7 +140,7 @@ export class TranslateService {
   }
   //fieldID 字段编号，所有字段统一编号
   //_itemData 以字段序号为键，存储条目字段对应的值
-  setItemData(field: string) {
+  async setItemData(field: string) {
     const DB = await getDB();
     const fieldID = await DB.getFieldID(field);
     this._itemData[fieldID] = this[field as keyof typeof this];
@@ -148,16 +148,12 @@ export class TranslateService {
 
 
   save: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {
-    var env: any = {
+    const env: any = {
       options: Object.assign({}, options),
       transactionOptions: {}
     };
-    const DB = await getDB();
-    if (!env.options.tx && !DB.inTransaction()) {
-      ztoolkit.log("save() called on " + this._ObjectType + " without a wrapping "
-        + "transaction -- use saveTx() instead");
-      env.options.tx = true;
-    }
+
+    const DB = yield getDB();
 
     if (env.options.skipAll) {
       [
@@ -170,7 +166,7 @@ export class TranslateService {
       ].forEach(x => env.options[x] = true);
     }
 
-    var proceed = yield this._initSave(env);
+    const proceed = yield this._initSave(env);
     if (!proceed) return false;
 
     if (env.isNew) {
@@ -191,7 +187,7 @@ export class TranslateService {
         env.notifierData.skipSelect = true;
       }
       // Pass along event-level notifier options, which become top-level extraData properties
-      for (let option of Zotero.Notifier.EVENT_LEVEL_OPTIONS) {
+      for (const option of Zotero.Notifier.EVENT_LEVEL_OPTIONS) {
         if (env.options[option] !== undefined) {
           env.notifierData[option] = env.options[option];
         }
@@ -202,7 +198,7 @@ export class TranslateService {
 
       // Create transaction
       let result;
-      if (env.options.tx) {
+      if (!DB.inTransaction()) {
         result = yield DB.executeTransaction(async function (this: any) {
           this._saveData.call(this, env);
           await this.saveData(env);
@@ -238,12 +234,12 @@ export class TranslateService {
     }
   });
 
-  saveTx(options?: any) {
+  /* saveTx(options?: any) {
     options = options ? options : {};
     options = Object.assign({}, options);
     options.tx = true;
     return this.save(options);
-  }
+  } */
 
 
   _recoverFromSaveError = Zotero.Promise.coroutine(function* (this: any, env: any) {
@@ -255,8 +251,8 @@ export class TranslateService {
     ztoolkit.log("save finished. todo else something.");
   };
 
-  _initSave = Zotero.Promise.coroutine(function* (this: any, env: any) {
-    if (!this.itemTypeID) {
+  async _initSave(this: any, env: any) {
+    if (!this.serviceTypeID) {
       throw new Error("Item type must be set before saving");
     }
     env.isNew = !this.serialNumber;
@@ -289,7 +285,7 @@ export class TranslateService {
 
     return true;
 
-  });
+  };
 
   /*   if(this._changed.itemData) {
       let del = [];
@@ -331,8 +327,8 @@ export class TranslateService {
     }
    */
   _saveData(env: any) {
-    var libraryID = env.libraryID = this.libraryID || Zotero.Libraries.userLibraryID;
-    var key = env.key = this._key = this.key ? this.key : this._generateKey();
+    const libraryID = env.libraryID = this.libraryID || Zotero.Libraries.userLibraryID;
+    const key = env.key = this._key = this.key ? this.key : this._generateKey();
 
     env.sqlColumns = [];
     env.sqlValues = [];
@@ -380,18 +376,14 @@ export class TranslateService {
     const DB: DB = yield getDB();
     DB.requireTransaction();
 
-    let { isNew, skipNotifier, table } = env;
+    const { isNew } = env;
     const options = env.options;
     const sqlValues = [''];
+    const table = "translation";
     const sqlColumns = tablesTranslation[table as keyof typeof tablesTranslation];
     //translateService;
 
 
-
-    if () {
-      env.sqlColumns.push('itemTypeID');
-      env.sqlValues.push({ int: itemTypeID });
-    }
 
     if (isNew || (this._changed.primaryData && this._changed.primaryData.dateAdded)) {
       env.sqlColumns.push('dateAdded');
@@ -428,7 +420,7 @@ export class TranslateService {
       sqlValues.push(serialNumber);
       yield DB.queryAsync(sql, sqlValues);
     }
-    if (!skipNotifier) {
+    if (!options.skipNotifier) {
       //Zotero.Notifier.queue('modify', 'item', itemID, env.notifierData, env.options.notifierQueue);
       const msg = (isNew ? "新增" : "更新") + "翻译引擎：" + serialNumber;
       showInfo(msg);
@@ -438,7 +430,7 @@ export class TranslateService {
 
   }.bind(this));
 
-  _finalizeSave = Zotero.Promise.coroutine(function* (this: any, env: any) {
+  _finalizeSave(this: any, env: any) {
 
     if (env.isNew) {
       if (!env.skipCache) {
@@ -454,7 +446,7 @@ export class TranslateService {
     else if (env.skipCache) {
       ztoolkit.log("skipCache is only for new objects");
     }
-  });
+  };
 
   //数据保存完成之后的操作
   finalizeSave = Zotero.Promise.coroutine(function* (this: any, env: any) {
@@ -475,18 +467,18 @@ export class TranslateService {
     if (this._loaded.primaryData && !reload) return;
     //return;
 
-    var id = this._id;
-    var key = this._key;
+    const id = this._id;
+    const key = this._key;
 
     if (!id && !key) {
       throw new Error('ID or key not set in Zotero.' + this._ObjectType + '.loadPrimaryData()');
     }
 
-    var columns = [], join = [], where: any[] = [];
-    var primaryFields = this.ObjectsClass.primaryFields;
-    var idField = this.ObjectsClass.idColumn;
+    const columns = [], join = [], where: any[] = [];
+    const primaryFields = this.ObjectsClass.primaryFields;
+    const idField = this.ObjectsClass.idColumn;
     for (let i = 0; i < primaryFields.length; i++) {
-      let field = primaryFields[i];
+      const field = primaryFields[i];
       // If field not already set
       if (field == idField || this['_' + field] === null || reload) {
         columns.push(this.ObjectsClass.getPrimaryDataSQLPart(field));
@@ -498,17 +490,18 @@ export class TranslateService {
 
     // This should match Zotero.*.primaryDataSQL, but without
     // necessarily including all columns
-    var sql = "SELECT " + columns.join(", ") + this.ObjectsClass.primaryDataSQLFrom;
+    let sql = "SELECT " + columns.join(", ") + this.ObjectsClass.primaryDataSQLFrom;
+    let params;
     if (id) {
       sql += " AND O." + idField + "=? ";
-      var params = id;
+      params = id;
     }
     else {
       sql += " AND O.key=? AND O.libraryID=? ";
-      const params = [key];
+      params = [key];
     }
     sql += (where.length ? ' AND ' + where.join(' AND ') : '');
-    var row = yield Zotero.DB.rowQueryAsync(sql, params);
+    const row = yield Zotero.DB.rowQueryAsync(sql, params);
 
     if (!row) {
       if (failOnMissing) {
@@ -527,8 +520,8 @@ export class TranslateService {
 
   loadFromRow(row: any, reload: any) {
     // If necessary or reloading, set the type and reinitialize this._itemData
-    if (reload || (!this._itemTypeID && row.itemTypeID)) {
-      this.setType(row.itemTypeID, true);
+    if (reload || (!this._serviceTypeID && row.serviceTypeID)) {
+      this.setType(row.serviceTypeID, true);
     }
 
     this._parseRowData(row);
@@ -542,15 +535,19 @@ export class TranslateService {
 
 
 
-const baidu = new TranslateService(
-  "baidu",
-  5000,
-  10,
-  "month",
-  1000000,
-  false,
-  true,
-);
+export function makebaidu() {
+  const baidu = new TranslateService(
+    "baidu",
+    5000,
+    10,
+    "month",
+    1000000,
+    false,
+    true,
+  );
+  return baidu;
+}
+const baidu = makebaidu();
 const baidufield = new TranslateService(
   "baidufield",
   5000,

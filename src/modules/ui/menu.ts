@@ -1,22 +1,34 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
-import { arrToObj } from "../../utils/tools";
-import { test } from "../database/translationItem";
-import { testsss } from "../translate/services";
-import { openWindow } from "./testOpen";
+import { arrToObj, collectFilesRecursive, getFilesRecursive, resourceFilesName, resourceFilesRecursive } from "../../utils/tools";
+import { getDB, getSQLFromDB } from "../database/database";
+/* import { test } from "../database/translationItem";
+import { makebaidu, testsss } from "../translate/services";
+import { openWindow } from "./testOpen"; */
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
 const keysForButtonMenu = ["label", "func", "args"];
-const paras = ["初次测试翻译引擎保存", testsss, []];
-const paras2 = ["openWindow", openWindow, []];
+/* const paras = ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]];
+const paras2 = ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]];
+const paras3 = ["getSQLFromDB", getSQLFromDB, []];
+const paras4 = ["resourceFilesName", resourceFilesName, []]; */
+
+const paraArrs = [
+  ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+  ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+  ["getSQLFromDB", getSQLFromDB, []],
+  ["resourceFilesRecursive", resourceFilesRecursive, []],
+];
 
 //const paras3 = ["zotero js 模块", zmodules, []];
 function menuitemObj(argsArr: any[]) {
   return arrToObj(keysForButtonMenu, argsArr);
 }
 
-const menuitemGroupArr = [[menuitemObj(paras)], [menuitemObj(paras2)]];
+const menuitemGroupArr = paraArrs.map(e => [menuitemObj(e)]);
+
+//const menuitemGroupArr = [[menuitemObj(paras)], [menuitemObj(paras2)], [menuitemObj(paras3)], [menuitemObj(paras4)]];
 
 export function mountMenu() {
   let menu = document.querySelector(`#${makeId("menu")}`);

@@ -34,6 +34,9 @@ export class Schema {
     this.isCompatible = null;
     this.DB = addon.mountPoint.database;
   }
+
+
+
   async checkInitialized() {
     if (this.initialized) return true;
     const sql =
@@ -471,6 +474,7 @@ export class Schema {
     ));
   }
 
+
   /**
    * 检查表是否缺失，删除无用表，检查外键约束，可选自动修复
    *
@@ -532,9 +536,9 @@ export class Schema {
             statements = statements.concat(sqls);
           }
           for (const statement of statements) {
-            let matches = statement.match(/^CREATE TABLE\s+([^\s]+)/);
+            let matches = statement.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
             if (matches) {
-              const table = matches[1];
+              const table = matches.slice(-1)[0];
               if (!schema.has("table:" + table)) {
                 Zotero.debug(`Table ${table} is missing`, 2);
                 statementsToRun.push(statement);

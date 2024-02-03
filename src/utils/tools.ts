@@ -15,6 +15,8 @@ export async function resourceFilesName(url?: string) {
   return files;
 }
 
+
+
 /**
  * 获取文件夹中的文件名
  * @param dir
@@ -58,9 +60,9 @@ export function arrToObj(keys: string[], values: any[]) {
 
 export function base64ToBytes(imageDataURL: string):
   | {
-      u8arr: Uint8Array;
-      mime: string;
-    }
+    u8arr: Uint8Array;
+    mime: string;
+  }
   | undefined {
   const parts = imageDataURL.split(",");
   if (!parts[0].includes("base64")) return;
@@ -276,4 +278,101 @@ export const getPathDir = (filename: string, dir?: string, ext?: string) => {
 export function fileNameLegal(fileName: string) {
   fileName = fileName.replace(/[/\\?%*:|"<>]/g, "_");
   return fileName;
+}
+
+export async function zipFile(dirOrPath: string, zipPath: string) {
+  return await Zotero.File.zipDirectory(dirOrPath, zipPath, undefined);
+}
+
+export async function getFilesRecursive(dir: string, ext?: string) {
+  let files: any[] = [];
+  const dirs: any[] = [dir];
+  async function onEntry(entry: any) {
+    if (!entry.isDir) {
+      files.push({
+        name: entry.name,
+        path: entry.path,
+      });
+      return;
+    }
+    dirs.push(entry.path);
+    await Zotero.File.iterateDirectory(entry.path, onEntry);
+
+  }
+  try {
+    if (!await OS.File.exists(dir)) {
+      ztoolkit.log(`${dir} does not exist`);
+      return files;
+    }
+    await Zotero.File.iterateDirectory(dir, onEntry);
+    files.sort((a, b) => {
+      return b.lastModified - a.lastModified;
+    });
+  }
+  catch (e: any) {
+    Zotero.logError(e);
+  }
+  for (let i = 0; i < files.length; i++) {
+    const info = await OS.File.stat(files[i].path);
+    files[i].size = info.size;
+    files[i].lastModified = info.lastModificationDate;
+  }
+  files.push({
+    name: "dirs",
+    dirs: dirs
+  });
+  files = ext ? files.filter(e => (e.name as string).endsWith(ext)) : files;
+  ztoolkit.log(files);
+  return files;
+}
+
+
+export async function collectFilesRecursive(dirPath: string, parents = [], files = []) {
+  //@ts-ignore has
+  await Zotero.File.iterateDirectory(dirPath, async ({ isDir, _isSymlink, name, path }) => {
+    if (isDir) {
+      //@ts-ignore has
+      await collectFilesRecursive(path, [...parents, name], files);
+    }
+    // TODO: Also check for hidden file attribute on windows?
+    else if (!name.startsWith('.')) {
+      //@ts-ignore has
+      files.push({ parents, path, name });
+    }
+  });
+  ztoolkit.log(files);
+  return files;
+};
+
+
+export async function resourceFilesRecursive(url: string = `chrome://${config.addonRef}/content/schema/`, files: any[] = [], ext?: string) {
+  const req = await Zotero.File.getResourceAsync(url);
+  const filesInfo = req.split("\n");
+  for (let str of filesInfo) {
+    str = str.trim();
+    if (str.endsWith("DIRECTORY")) {
+      await resourceFilesRecursive(url + str.split(" ")[1] + '/', files, ext);
+    } else if (str.endsWith("FILE")) {
+      files.push({
+        name: str.split(" ")[1],
+        path: url,
+        size: str.split(" ")[2],
+      });
+    }
+  }
+  /* filesInfo.forEach(async (str: string) => {
+    str = str.trim();
+    if (str.endsWith("DIRECTORY")) {
+      url = url + str.split(" ")[1] + '/';
+      await resourceFilesRecursive(url, files, ext);
+    }else if (str.endsWith("FILE")) {
+      files.push({
+        name: str.split(" ")[1],
+        path: url,
+        size: str.split(" ")[2],
+      });
+    }
+  }); */
+  files = ext ? files.filter(e => (e.name as string).endsWith(ext)) : files;
+  return files;
 }
