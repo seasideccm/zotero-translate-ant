@@ -9,7 +9,7 @@ export const { OS } = Components.utils.import(
 );
 
 //@ts-ignore has
-export const schemaConfig = {
+/* export const schemaConfig = {
   addonSystem: {
     path: `chrome://${config.addonRef}/content/schema/addonSystem.sql`,
     version: 1,
@@ -26,7 +26,7 @@ export const schemaConfig = {
     path: `chrome://${config.addonRef}/content/schema/triggers.sql`,
     version: 1,
   },
-};
+}; */
 
 
 //export const schemaConfigTest = __schemaConfig__;

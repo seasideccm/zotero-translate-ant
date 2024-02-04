@@ -2,17 +2,20 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, resourceFilesName, resourceFilesRecursive } from "../../utils/tools";
-import { getDB, compareSQLUpdateDB } from "../database/database";
+import { compareSQLUpdateDB, DB, getDB } from '../database/database';
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
 const keysForButtonMenu = ["label", "func", "args"];
 
+
+
+
 const paraArrs = [
   ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-  ["getSQLFromDB", compareSQLUpdateDB, []],
-  ["resourceFilesRecursive", resourceFilesRecursive, []],
+  ["compareSQLUpdateDB", compareSQLUpdateDB, []],
+
 ];
 
 function menuitemObj(argsArr: any[]) {

@@ -2,13 +2,14 @@
 adapted from Zotero
 */
 
-import { schemaConfig } from '../../utils/constant';
+//import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
-import { fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
-import { DB, getSQLFromResourceFiles } from "./database";
+import { compareObj, fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
+import { DB, compareSQLUpdateDB } from "./database";
 import { OS } from "../../utils/tools";
 
 export class Schema {
+  [key: string]: any;
   initialized: boolean;
   _schemaUpdateDeferred: any;
   schemaUpdatePromise: any;
@@ -17,6 +18,8 @@ export class Schema {
   _maxCompatibility: number;
   _localUpdateInProgress: boolean;
   isCompatible: boolean | null;
+  versionsFromBD: { [key: string]: number; };
+  versionsFromFile: { [key: string]: number; };
   DB: DB;
 
   constructor() {
@@ -33,18 +36,19 @@ export class Schema {
     this._localUpdateInProgress = false;
     this.isCompatible = null;
     this.DB = addon.mountPoint.database;
+    this.versionsFromBD = {};
+    this.versionsFromFile = {};
   }
 
 
 
   async checkInitialized() {
     if (this.initialized) return true;
-    const sql =
-      "SELECT value FROM settings WHERE setting='schema' AND key='initialized'";
     try {
-      const queryResult = await this.DB.valueQueryAsync(sql);
-      if (queryResult) {
+      if (await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='schema' AND key='initialized'")) {
         this.initialized = true;
+      } else {
+        await this.initializeSchema();
       }
     } catch (e: any) {
       ztoolkit.log(e);
@@ -54,7 +58,7 @@ export class Schema {
   }
 
   async checkCompat() {
-    const compatibility = await this.getSchemaVersion("compatibility");
+    const compatibility = await this.getSchemaVersionFromDB("compatibility");
     if (!compatibility) {
       //初始化成功，最后返回兼容性为true
       try {
@@ -87,19 +91,64 @@ export class Schema {
     }
     return (this.isCompatible = true);
   }
+
+
   /**
-   * Fetch the schema version from current version table of database
-   * @param schema
-   * @returns
+   * 读取所有 SQL 文件中 schema 表结构的版本号
+   * @param isExcuteSQL 是否批量执行 SQL 文件
+   * @returns 
    */
-  async getSchemaVersion(schema: string) {
+  async getAllSchemasVersionFromFile(isExcuteSQL: boolean = false) {
+    if (!isExcuteSQL && Object.keys(this.versionsFromFile).length) return this.versionsFromFile;
+    const files = await resourceFilesRecursive(undefined, undefined, "sql");
+    for (const file of files) {
+      const schema = fileNameNoExt(file.name);
+      const sql = await this.getSchemaSQL(schema);
+      if (!sql) continue;
+      const match = sql.match(/^-- ([0-9]+)/);
+      if (!match || !match[1]) continue;
+      this.versionsFromFile[schema] = parseInt(match[1]);
+      if (isExcuteSQL) {
+        await this.DB.execSQLAsync(sql);
+      }
+    }
+    return this.versionsFromFile;
+  }
+
+  /**
+   * 查询数据库中所有表结构的版本号，与 SQL 文件相对应
+   * @returns 
+   */
+  async getAllSchemasVersionFromDB() {
+    if (Object.keys(this.versionsFromBD).length) return this.versionsFromBD;
+    const sql = "SELECT schema,version FROM version WHERE schema <> 'compatibility'";
+    const rows = await this.DB.queryAsync(sql);
+    if (!rows.length) return;
+    rows.forEach((row: any) => {
+      this.versionsFromBD[row.schema] = row.version;
+    });
+    return this.versionsFromBD;
+  }
+
+  /**
+   * 查询数据库中表结构的版本号，与 SQL 文件相对应
+   * @param schema 
+   * @returns 
+   */
+  async getSchemaVersionFromDB(schema: string) {
+    if (this.versionsFromBD[schema]) {
+      return this.versionsFromBD[schema];
+    }
     const sql = "SELECT version FROM version WHERE schema='" + schema + "'";
     return this.DB.valueQueryAsync(sql)
       .then((dbSchemaVersion: any) => {
         if (dbSchemaVersion) {
           dbSchemaVersion = parseInt(dbSchemaVersion);
+          this.versionsFromBD[schema] = dbSchemaVersion;
+          return dbSchemaVersion;
+        } else {
+          return false;
         }
-        return dbSchemaVersion;
       })
       .catch((e: any) => {
         return this.DB.tableExists("version")
@@ -113,33 +162,38 @@ export class Schema {
   }
 
   /**
-   * Fetch the schema version from the first line of the file
+   * 读取 SQL 文件中 schema 表结构的版本号
    * @param schema
    * @returns
    */
-  async getSchemaSQLVersion(schema: string) {
+  async getSchemaVersionFromFile(schema: string) {
+    if (this.versionsFromFile[schema]) {
+      return this.versionsFromFile[schema];
+    }
     const sql = await this.getSchemaSQL(schema);
-    // @ts-ignore has
-    const schemaVersion = parseInt(sql.match(/^-- ([0-9]+)/)[1]);
-    return schemaVersion;
+    if (!sql) return;
+    const match = sql.match(/^-- ([0-9]+)/);
+    if (!match || !match[1]) return;
+    return parseInt(match[1]);
   }
 
   //检查表并更新
   async checkSchemasUpdate() {
-    for (const schema of Object.keys(schemaConfig)) {
-      if (await this.checkUpdate(schema)) {
-        try {
-          if (!(await this.updateSchema(schema))) {
-            throw "fail auto Update Schema ";
-          }
-        } catch (e: any) {
-          ztoolkit.log(e);
-          throw e;
-        }
+    await this.getAllSchemasVersionFromDB();
+    await this.getAllSchemasVersionFromFile();
+    compareObj(this.versionsFromBD, this.versionsFromFile);
+    if (!compareObj(this.versionsFromBD, this.versionsFromFile)) {
+      try {
+        await compareSQLUpdateDB();
+      }
+      catch (e: any) {
+        ztoolkit.log(e);
+        return false;
       }
     }
     return true;
   }
+
 
   /**
    * 比较sql文件与数据库存储的版本信息
@@ -147,19 +201,17 @@ export class Schema {
    * @returns
    */
   async checkUpdate(schema: string) {
-    const dbSchemaVersion = await this.getSchemaVersion(schema);
-    if (!dbSchemaVersion) return true;
-    const schemaVersion =
-      schemaConfig[schema as keyof typeof schemaConfig].version;
-    if (dbSchemaVersion == schemaVersion) {
+    await this.getAllSchemasVersionFromDB();
+    await this.getAllSchemasVersionFromFile();
+    if (this.versionsFromBD[schema] == this.versionsFromFile[schema]) {
       return false;
     }
-    if (dbSchemaVersion > schemaVersion) {
+    if (this.versionsFromBD[schema] > this.versionsFromFile[schema]) {
       const dbAddonVersion = await this.DB.valueQueryAsync(
         "SELECT value FROM settings WHERE setting='addon' AND key='lastCompatibleVersion'",
       );
       throw new Error(
-        `Addon ${schema} DB version (${dbSchemaVersion}) is newer than SQL file (${schemaVersion}). 不兼容：数据库 ${schema} 表的版本大于 SQL 文件的版本号。`,
+        `Addon ${schema} DB version (${this.versionsFromBD[schema]}) is newer than SQL file (${this.versionsFromFile[schema]}). 不兼容：数据库 ${schema} 表的版本大于 SQL 文件的版本号。`,
       );
     }
     return true;
@@ -190,7 +242,7 @@ export class Schema {
         .show();
       throw msg;
     }
-    const schemaVersion = await this.getSchemaVersion(schema);
+    const schemaVersion = await this.getSchemaVersionFromDB(schema);
     if (!schemaVersion) {
       if (await this.isEmptyDB()) {
         //如果数据库为空则初始化
@@ -234,12 +286,12 @@ export class Schema {
     const integrityCheckRequired = await this.integrityCheckRequired();
     // Check whether bundled userdata schema has been updated
     // sql 文件开头的版本号应当和 schemaConfig的常量相同
-    const schemaSqlFileVersion = await this.getSchemaSQLVersion(schema);
+    const schemaSqlFileVersion = await this.getSchemaVersionFromFile(schema);
     options.minor =
       this.minorUpdateFrom && schemaVersion >= this.minorUpdateFrom;
 
     // If non-minor userdata upgrade, make backup of database first
-    if (schemaVersion < schemaSqlFileVersion && !options.minor) {
+    if (schemaSqlFileVersion && schemaVersion < schemaSqlFileVersion && !options.minor) {
       await this.DB.bakeupDB(schema + schemaVersion, true);
     }
     // Automatic backup
@@ -262,7 +314,7 @@ export class Schema {
       // the integrity check is expecting to run on the current data model.
       let integrityCheckDone = false;
       const toVersion = schemaSqlFileVersion;
-      if (integrityCheckRequired && schemaVersion >= toVersion) {
+      if (toVersion && integrityCheckRequired && schemaVersion >= toVersion) {
         await this.integrityCheck(true);
         integrityCheckDone = true;
       }
@@ -417,7 +469,7 @@ export class Schema {
     toVersion: number,
     options: any = {},
   ) {
-    //const toVersion = await this.getSchemaSQLVersion(schema);
+    //const toVersion = await this.getSchemaVersionFromFile(schema);
 
     if (fromVersion >= toVersion) {
       return false;
@@ -457,7 +509,7 @@ export class Schema {
     this.DB.requireTransaction();
     if (!(await this.checkUpdate(schema))) return false;
     const schemaVersion: string = String(
-      await this.getSchemaSQLVersion(schema),
+      await this.getSchemaVersionFromFile(schema),
     );
     const sql = await this.getSchemaSQL(schema);
     await this.DB.executeSQLFile(sql);
@@ -466,12 +518,7 @@ export class Schema {
   }
 
   async integrityCheckRequired() {
-    await this.DB.valueQueryAsync(
-      "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'",
-    );
-    return !!(await this.DB.valueQueryAsync(
-      "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'",
-    ));
+    return !!(await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"));
   }
 
 
@@ -495,7 +542,6 @@ export class Schema {
         // update steps that don't expect tables to exist.
         async function (this: any) {
           const statementsToRun = [];
-
           // Get all existing tables, indexes, and triggers
           const sql =
             "SELECT " +
@@ -529,7 +575,8 @@ export class Schema {
 
           // Check for missing tables and indexes
           let statements: any[] = [];
-          for (const schemaName of Object.keys(schemaConfig)) {
+          await this.getAllSchemasVersionFromFile();
+          for (const schemaName of Object.keys(this.versionsFromFile)) {
             const sqls = await this.DB.parseSQLFile(
               await this.getSchemaSQL(schemaName),
             );
@@ -690,19 +737,23 @@ export class Schema {
           await this.DB.queryAsync("PRAGMA page_size = 4096");
           await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
           await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
-
-          const versions: { schema: string; version: number; }[] = [];
-          const files = await resourceFilesRecursive(undefined, undefined, "sql");
+          //执行sql文件
+          await this.getAllSchemasVersionFromFile(true);
+          /* const files = await resourceFilesRecursive(undefined, undefined, "sql");
           for (const file of files) {
             const schema = fileNameNoExt(file.name);
             const sql = await this.getSchemaSQL(schema);
-            versions.push({
+            if (!sql) continue;
+            const match = sql.match(/^-- ([0-9]+)/);
+            if (!match || !match[1]) continue;
+            this.versionsFromFile.push({
               schema: schema,
-              version: parseInt(sql.match(/^-- ([0-9]+)/)[1])
+              version: parseInt(match[1])
             });
             //所有表都创建完成后才能写入数据
             await this.DB.executeSQLFile(sql);
-          }
+          } */
+
           /* sql = await this.getSchemaSQL("addonSystem");
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("apiAccount");
@@ -711,7 +762,7 @@ export class Schema {
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("triggers");
           await this.DB.executeSQLFile(sql); */
-          for (const version of versions) {
+          for (const version of this.versionsFromFile) {
             await this.updateSchemaVersion(version.schema, version.version);
           }
           /* let version;
@@ -785,6 +836,7 @@ export class Schema {
         }.bind(this)); */
   }
 
+
   /*
    * Update a DB schema version tag in an existing database
    */
@@ -807,11 +859,10 @@ export class Schema {
     await this.updateSchemaVersion("compatibility", version);
   }
 
-  async checkAddonVersionChange() {
+  async checkAddonVersion() {
     const lastVersion = await this.getLastAddonVersion();
-    const currentVersion = addonVersion;
-    if (currentVersion == lastVersion) {
-      return false;
+    if (addonVersion != lastVersion) {
+      await this.updateLastAddonVersion();
     }
     return true;
   }
@@ -823,7 +874,7 @@ export class Schema {
   }
 
   /**
-   * 检查表完整性，检查表更新，更新插件版本号
+   * 更新插件版本号
    * @returns
    */
   async updateLastAddonVersion() {
@@ -831,10 +882,14 @@ export class Schema {
       async function (this: any) {
         const sql =
           "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
-        await this.DB.queryAsync(sql, addonVersion);
-      }.bind(this),
-    );
-
+        try {
+          await this.DB.queryAsync(sql, addonVersion);
+        }
+        catch (e) {
+          ztoolkit.log(e);
+          throw e;
+        }
+      }.bind(this));
   }
 
   //todo reverse update

@@ -305,25 +305,12 @@ function _checkDataDirAccessError(e: any) {
 
 async function checkSchema() {
   const schema = new Schema();
-  await schema.checkInitialized();
-  if (!schema.initialized) {
-    //初始化表结构，无需检查完整性和更新
-    await schema.initializeSchema();
-    if (!schema.initialized) {
-      return false;
-    } else {
-      return true;
-    }
-  }
-  if (await schema.checkAddonVersionChange()) {
-    await schema.updateLastAddonVersion;
-  }
+  if (!await schema.checkInitialized()) return false;
+  if (!await schema.checkAddonVersion()) return false;
   if (await schema.integrityCheckRequired()) {
-    //失败则中止
     if (!(await schema.integrityCheck())) return false;
   }
-  await schema.checkSchemasUpdate();
-  return true;
+  return await schema.checkSchemasUpdate();
 }
 
 /* async function bakeupDatebase(addonDB: any) {
@@ -404,8 +391,6 @@ export async function compareSQLUpdateDB() {
   const cache: string[] = [];
   await DB.executeTransaction(async () => {
     for (const diff of diffs) {
-      //const matches = diff.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
-
       const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
       if (!matches) continue;
       const tableName = matches.slice(-1)[0];
@@ -456,7 +441,7 @@ export async function compareSQLUpdateDB() {
       cache.push(tableName);
     }
   });
-
+  return true;
 }
 function getDefaltValue(col: string, sql: string) {
   const reg = new RegExp(`${col}` + ".+?[,)]", "g");
