@@ -18,12 +18,16 @@ export async function resourceFilesName(url?: string) {
 export function compareObj(obj1: any, obj2: any) {
   const keys1 = Object.keys(obj1);
   const keys2 = Object.keys(obj2);
-  if (keys1.length !== keys2.length) return false;
-  for (const key of keys1) {
+  const allKeys = keys1.concat(keys2);
+  const diffKeys = allKeys.filter(e => !keys1.includes(e) || !keys2.includes(e));
+  const sameKeys = allKeys.filter(e => !diffKeys.includes(e));
+  //const diffKeys=Zotero.Utilities.arrayDiff(keys1, keys2).concat(Zotero.Utilities.arrayDiff(keys2, keys1))
+  for (const key of sameKeys) {
     if (obj1[key] !== obj2[key]) {
-      return false;
+      diffKeys.push(key);
     }
   }
+  if (diffKeys.length) return diffKeys;
   return true;
 }
 

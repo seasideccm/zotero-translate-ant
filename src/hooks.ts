@@ -1,6 +1,6 @@
 import { config } from "../package.json";
 import { TranslateServices } from "./modules/database/dataObjects";
-import { DB, getDB } from "./modules/database/database";
+import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { mountMenu } from "./modules/ui/menu";
@@ -64,6 +64,9 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     .show();
   popupWin.startCloseTimer(5000);
   await getDB();
+  if (addon.data.env == "development") {
+    await compareSQLUpdateDB();
+  }
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

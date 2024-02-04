@@ -238,6 +238,7 @@ export async function getDB(dbName?: string) {
   if (!addonDB.accessibility) {
     await addonDB.init();
   }
+
   return addonDB;
 }
 
@@ -303,6 +304,10 @@ function _checkDataDirAccessError(e: any) {
   return true;
 }
 
+/**
+ * false 为故障，true 为检查通过
+ * @returns 
+ */
 async function checkSchema() {
   const schema = new Schema();
   if (!await schema.checkInitialized()) return false;
@@ -310,7 +315,8 @@ async function checkSchema() {
   if (await schema.integrityCheckRequired()) {
     if (!(await schema.integrityCheck())) return false;
   }
-  return await schema.checkSchemasUpdate();
+  return !(await schema.checkSchemasUpdate());
+
 }
 
 /* async function bakeupDatebase(addonDB: any) {
@@ -370,26 +376,27 @@ export async function compareSQLUpdateDB() {
   const DB = await getDB();
   const sqlsFromDB: string[] = [];
   const tableFromDB: string[] = [];
-  const sql = "SELECT name,sql FROM sqlite_master";
-  const rows = await DB.queryAsync(sql);
+  const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");
   for (const row of rows) {
     tableFromDB.push(row.name);
     if (!row.sql || !row.sql.length || row.sql == " ") continue;
     sqlsFromDB.push(row.sql.replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
   }
 
-  const sqlsFromResourceFiles = await getSQLFromResourceFiles();
-
+  const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB);
+  const allTextSqlsFromFiles = sqlsFromResourceFiles.join(';');
+  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
   //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
   const diffsDB = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
-  const sqlsFiles = sqlsFromResourceFiles.join(';');
-
-  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
   const diffsFiles = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
   const diffs = diffsFiles.concat(diffsDB).filter((e: string) => !e.startsWith("DROP "));
-  if (!diffs.length) return;
-  const cache: string[] = [];
+
+  if (!diffs.length) {
+    ztoolkit.log("schema in database and files no diffs "); return;
+  };
+
   await DB.executeTransaction(async () => {
+    const cache: string[] = [];
     for (const diff of diffs) {
       const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
       if (!matches) continue;
@@ -397,7 +404,7 @@ export async function compareSQLUpdateDB() {
       if (cache.includes(tableName)) continue;
       const tableType = matches[1];
       const reg = new RegExp("CREATE\\s" + tableType + "\\s" + tableName, "i");
-      if (sqlsFiles.match(reg) && tableFromDB.includes(tableName)) {
+      if (allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
         const oldColumns = await DB.getColumns(tableName);
         let sql = `SELECT * FROM ${tableName}`;
         const rowsOld = await DB.queryAsync(sql);
@@ -407,6 +414,7 @@ export async function compareSQLUpdateDB() {
           await DB.queryAsync(sql);
           await DB.queryAsync(diff);
           cache.push(tableName);
+          ztoolkit.log(tableName + " table Created");
           continue;
         }
         //旧表重命名，建新表，导入数据，删除旧表      
@@ -416,25 +424,26 @@ export async function compareSQLUpdateDB() {
         const newColumns = await DB.getColumns(tableName);
         if (!newColumns || newColumns.length === 0) {
           cache.push(tableName);
+          ztoolkit.log(tableName + " table Create Failure");
           continue;
         };
-        const strSelectFromOld: any[] = [];
+        const oldFields: any[] = [];
         for (const col of newColumns) {
           if (!oldColumns.includes(col)) {
-            strSelectFromOld.push(getDefaltValue(col, diff));
+            oldFields.push(getDefaltValue(col, diff));
           } else {
-            strSelectFromOld.push(col);
+            oldFields.push(col);
           }
         }
-        sql = `INSERT INTO ${tableName} SELECT ${strSelectFromOld.join(",")} FROM ${tableName}_tempTable`;
+        sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
         await DB.queryAsync(sql);
         sql = `DROP TABLE ${tableName}_tempTable`;
         await DB.queryAsync(sql);
       }
-      if (sqlsFiles.match(reg) && !tableFromDB.includes(tableName)) {
+      if (allTextSqlsFromFiles.match(reg) && !tableFromDB.includes(tableName)) {
         await DB.queryAsync(diff);
       }
-      if (!sqlsFiles.match(reg) && tableFromDB.includes(tableName)) {
+      if (!allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
         const sql = `DROP ${tableType} ${tableName}`;
         await DB.queryAsync(sql);
       }
@@ -444,26 +453,26 @@ export async function compareSQLUpdateDB() {
   return true;
 }
 function getDefaltValue(col: string, sql: string) {
-  const reg = new RegExp(`${col}` + ".+?[,)]", "g");
+  const reg = new RegExp("\\(\\s?" + `${col}` + ".+?[,)]", "g");
   const match = sql.match(reg);
-  if (match) {
-    const tempArr = match[0].replace(/ +/g, " ").split(" ");
-    let index: number;
-    if ((index = tempArr.indexOf("DEFAULT")) > -1) {
-      return tempArr[index + 1];
-    } else
-      return "NULL";
-    /* if (tempArr.indexOf("TEXT") > -1) {
-      return "";
-    } else {
-      return 0;
-    } */
+  const map = {
 
-
+  };
+  if (!match) return "NULL";
+  const tempArr = match[0].replace(/ +/g, " ").split(" ");
+  const index = tempArr.indexOf("DEFAULT");
+  if (index > -1) {
+    ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
+    return tempArr[index + 1];
+  }
+  if (tempArr.indexOf("INT") > -1) {
+    return 0;
   }
 }
 
-export async function getSQLFromResourceFiles() {
+
+
+export async function getSQLFromResourceFiles(DB: DB) {
   const sqlsFromResourceFiles = [];
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {
@@ -481,7 +490,7 @@ export async function getSQLFromResourceFiles() {
   return sqlsFromResourceFiles;
 }
 
-export async function getSQLFiles() {
+export async function getSQLFilesContent() {
   const sqlsFromResourceFiles = [];
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {
@@ -491,10 +500,7 @@ export async function getSQLFiles() {
     }
     const path = file.path + file.name;
     const sqlFromFile = await Zotero.File.getResourceAsync(path);
-    const sqls = DB.parseSQLFile(sqlFromFile);
-    //sqlite 表结构中的建表语句没有 " IF NOT EXISTS"
-    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
-    sqlsFromResourceFiles.push(...sqlsTemp);
+    sqlsFromResourceFiles.push(sqlFromFile);
   }
   return sqlsFromResourceFiles;
 }

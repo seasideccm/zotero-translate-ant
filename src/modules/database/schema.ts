@@ -7,6 +7,7 @@ import { version as addonVersion, config } from "../../../package.json";
 import { compareObj, fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
 import { DB, compareSQLUpdateDB } from "./database";
 import { OS } from "../../utils/tools";
+import { migrate } from "./migrateSchemas";
 
 export class Schema {
   [key: string]: any;
@@ -177,21 +178,29 @@ export class Schema {
     return parseInt(match[1]);
   }
 
-  //检查表并更新
+  //
+  /**
+   * 检查表并更新，返回 false 无需更新
+   * @returns 
+   */
   async checkSchemasUpdate() {
     await this.getAllSchemasVersionFromDB();
     await this.getAllSchemasVersionFromFile();
-    compareObj(this.versionsFromBD, this.versionsFromFile);
-    if (!compareObj(this.versionsFromBD, this.versionsFromFile)) {
-      try {
-        await compareSQLUpdateDB();
-      }
-      catch (e: any) {
-        ztoolkit.log(e);
-        return false;
-      }
+    const compareResult = compareObj(this.versionsFromBD, this.versionsFromFile);
+    if (compareResult == true) {
+      return false;
     }
-    return true;
+    showInfo("schema has changed");
+    for (const schema of compareResult) {
+      if (!await this.updateSchema(schema)) {
+        const msg = "Failure Update Schema: " + schema;
+        showInfo(msg);
+        throw msg;
+      };
+    }
+    //成功后无需更新
+    return false;
+
   }
 
 
@@ -203,6 +212,7 @@ export class Schema {
   async checkUpdate(schema: string) {
     await this.getAllSchemasVersionFromDB();
     await this.getAllSchemasVersionFromFile();
+    if (!this.versionsFromBD[schema]) return true;
     if (this.versionsFromBD[schema] == this.versionsFromFile[schema]) {
       return false;
     }
@@ -222,10 +232,10 @@ export class Schema {
     );
     return tableNames.length == 0 ? true : false;
   }
+
   async updateSchema(schema: string, options: any = {}) {
-    if (this.isCompatible == null) {
-      await this.checkCompat();
-    }
+
+    if (this.isCompatible == null) await this.checkCompat();
     if (!this.isCompatible) {
       const msg =
         "Database is incompatible with " +
@@ -233,27 +243,17 @@ export class Schema {
         " " +
         addonVersion +
         " version.";
-      Zotero.debug(msg);
-      addon.mountPoint.popupWin
-        .createLine({
-          text: msg,
-          type: "default",
-        })
-        .show();
-      throw msg;
+      ztoolkit.log(msg);
+      showInfo(msg);
+      return false;
     }
     const schemaVersion = await this.getSchemaVersionFromDB(schema);
     if (!schemaVersion) {
       if (await this.isEmptyDB()) {
         //如果数据库为空则初始化
         const msg = "database does not exist any schema -- creating\n";
-        Zotero.debug(msg);
-        addon.mountPoint.popupWin
-          .createLine({
-            text: msg,
-            type: "default",
-          })
-          .show();
+        ztoolkit.log(msg);
+        showInfo(msg);
         try {
           await this.initializeSchema();
         } catch (e) {
@@ -261,13 +261,8 @@ export class Schema {
         }
       } else {
         const msg = schema + " schema does not exist -- creating\n";
-        Zotero.debug(msg);
-        addon.mountPoint.popupWin
-          .createLine({
-            text: msg,
-            type: "default",
-          })
-          .show();
+        ztoolkit.log(msg);
+        showInfo(msg);
         try {
           await this.DB.executeTransaction(
             async function (this: any) {
@@ -305,13 +300,9 @@ export class Schema {
     };
     Zotero.Debug.addListener(listener);
 
-    let updated;
+    let updated: boolean | undefined;
     await this.DB.queryAsync("PRAGMA foreign_keys = false");
     try {
-      // Auto-repair databases flagged for repair or coming from the DB Repair Tool
-      //
-      // If we need to run migration steps, skip the check until after the update, since
-      // the integrity check is expecting to run on the current data model.
       let integrityCheckDone = false;
       const toVersion = schemaSqlFileVersion;
       if (toVersion && integrityCheckRequired && schemaVersion >= toVersion) {
@@ -334,7 +325,7 @@ export class Schema {
             );
           }
           return updated;
-        }.bind(this),
+        }.bind(this)
       );
 
       // If we updated the DB, also do an integrity check for good measure
@@ -343,17 +334,15 @@ export class Schema {
       }
     } catch (e) {
       this._schemaUpdateDeferred.reject(e);
+      return false;
     } finally {
       await this.DB.queryAsync("PRAGMA foreign_keys = true");
       Zotero.Debug.removeListener(listener);
-
-      // If upgrade succeeded or failed (but not if there was nothing to do), save a log file
-      // in logs/upgrade.log in the data directory
+      // 日志
       if (updated || updated === undefined) {
         Zotero.getSystemInfo().then(async function (sysInfo) {
           const logDir = OS.Path.join(Zotero.DataDirectory.dir, "logs");
           Zotero.File.createDirectoryIfMissing(logDir);
-
           await OS.Path;
           const output =
             Zotero.getErrors(true).join("\n\n") +
@@ -394,74 +383,21 @@ export class Schema {
           }
         }
         for (const file of toDelete) {
-          Zotero.debug("Removing previous backup file " + file.leafName);
+          ztoolkit.log("Removing previous backup file " + file.leafName);
           file.remove(false);
         }
       } catch (e) {
-        Zotero.debug(e);
+        ztoolkit.log(e);
       }
     }
 
     // Reset sync queue tries if new version
     await this.checkAddonVersionChange();
     this._schemaUpdateDeferred.resolve(true);
-    return updated;
+    return !!updated;
   }
 
-  migrate: any = {
-    addonSystem: async function (fromVersion: number, toVersion: number) {
-      ztoolkit.log(
-        "is schema, this._maxCompatibility=",
-        this._maxCompatibility,
-        "fromVersion=",
-        fromVersion,
-      );
-      // 表结构和数据按版本逐一升级
-      for (let i = fromVersion + 1; i <= toVersion; i++) {
-        if (i == 2) {
-          //参数是数据库兼容的 zotero 大版本
-          await this.updateCompatibility(7);
-
-          //修改值
-
-          //await this.DB.queryAsync("UPDATE settings SET value=? WHERE setting='account' AND key='userID'", parseInt(userID));
-
-          //await this.DB.queryAsync("DELETE FROM libraries WHERE libraryID != 0 AND libraryID NOT IN (SELECT libraryID FROM groups)");
-
-          //修改表结构，表重名名，新建表，插入数据，保留或删除旧表
-          //await this.DB.queryAsync("ALTER TABLE libraries RENAME TO librariesOld");
-          //await this.DB.queryAsync("CREATE TABLE libraries (\n    libraryID INTEGER PRIMARY KEY,\n    type TEXT NOT NULL,\n    editable INT NOT NULL,\n    filesEditable INT NOT NULL,\n    version INT NOT NULL DEFAULT 0,\n    lastSync INT NOT NULL DEFAULT 0,\n    lastStorageSync INT NOT NULL DEFAULT 0\n)");
-          //await this.DB.queryAsync("INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (1, 'user', 1, 1)");
-          //await this.DB.queryAsync("INSERT INTO libraries SELECT libraryID, libraryType, editable, filesEditable, 0, 0, 0 FROM librariesOld JOIN groups USING (libraryID)");
-
-          //删除触发器
-          //await this.DB.queryAsync("DROP TRIGGER IF EXISTS fki_annotations_itemID_itemAttachments_itemID");
-          //建立索引
-          //await this.DB.queryAsync("CREATE INDEX collections_synced ON collections(synced)");
-          //更新旧表数据，新表导入数据
-          //await this.DB.queryAsync("UPDATE syncedSettingsOld SET libraryID=1 WHERE libraryID=0");
-          //await this.DB.queryAsync("INSERT OR IGNORE INTO syncedSettings SELECT * FROM syncedSettingsOld");
-          //删除索引，重建索引
-          //await this.DB.queryAsync("DROP INDEX IF EXISTS itemData_fieldID");
-          //await this.DB.queryAsync("CREATE INDEX itemData_fieldID ON itemData(fieldID)");
-          //执行函数
-          //await _migrateUserData_80_filePaths();
-          //删除旧表
-          //await this.DB.queryAsync("DROP TABLE annotationsOld");
-        } else if (i == 122) {
-          //替换值
-          //await this.DB.queryAsync("REPLACE INTO fileTypes VALUES(8, 'ebook')");
-          //await this.DB.queryAsync("REPLACE INTO fileTypeMIMETypes VALUES(8, 'application/epub+zip')");
-        }
-      }
-      return true;
-    },
-
-    translation: function (fromVersion: number, toVersion: number) {
-      return true;
-    },
-    //xx: () => {    },
-  };
+  migrate = migrate;
 
   async migrateSchema(
     schema: string,
@@ -472,10 +408,13 @@ export class Schema {
     //const toVersion = await this.getSchemaVersionFromFile(schema);
 
     if (fromVersion >= toVersion) {
+      showInfo("check why version downgrade");
+      const downgrade = () => { showInfo("请完善降级函数"); };
+      downgrade();
       return false;
     }
 
-    Zotero.debug(
+    ztoolkit.log(
       "Updating" +
       schema +
       "data tables from version " +
@@ -491,11 +430,18 @@ export class Schema {
       }
     }
     this.DB.requireTransaction();
-    if (!this.migrate[schema]) {
-      return false;
+    if (this.migrate[schema]) {
+      try {
+        this.migrate[schema].apply(this, [fromVersion, toVersion]);
+        await this.updateSchemaVersion(schema, toVersion);
+      }
+      catch (e) {
+        ztoolkit.log(e);
+        return false;
+      }
+
     }
-    this.migrate[schema].apply(this, [fromVersion, toVersion]);
-    await this.updateSchemaVersion(schema, toVersion);
+
     return true;
   }
 
@@ -532,7 +478,7 @@ export class Schema {
    *     deleted
    */
   async integrityCheck(fix: boolean = true, options: any = {}) {
-    Zotero.debug(`Checking ${config.addonRef} database schema integrity`);
+    ztoolkit.log(`Checking ${config.addonRef} database schema integrity`);
     let checks: any[] = [
       [
         // Create any tables or indexes that are missing and delete any tables or triggers
@@ -587,7 +533,7 @@ export class Schema {
             if (matches) {
               const table = matches.slice(-1)[0];
               if (!schema.has("table:" + table)) {
-                Zotero.debug(`Table ${table} is missing`, 2);
+                ztoolkit.log(`Table ${table} is missing`, 2);
                 statementsToRun.push(statement);
               }
               continue;
@@ -597,7 +543,7 @@ export class Schema {
             if (matches) {
               const index = matches[1];
               if (!schema.has("index:" + index)) {
-                Zotero.debug(`Index ${index} is missing`, 2);
+                ztoolkit.log(`Index ${index} is missing`, 2);
                 statementsToRun.push(statement);
               }
               continue;
@@ -624,7 +570,7 @@ export class Schema {
           if (!rows.length) return false;
           const suffix1 = rows.length == 1 ? "" : "s";
           const suffix2 = rows.length == 1 ? "s" : "";
-          Zotero.debug(
+          ztoolkit.log(
             `Found ${rows.length} row${suffix1} that violate${suffix2} foreign key constraints`,
             1,
           );
@@ -661,7 +607,7 @@ export class Schema {
         continue;
       }
 
-      Zotero.debug("Test failed!", 1);
+      ztoolkit.log("Test failed!", 1);
 
       if (fix) {
         try {

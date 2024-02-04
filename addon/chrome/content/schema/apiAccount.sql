@@ -10,6 +10,8 @@ CREATE TABLE translateService(
     supportMultiParas INT NOT NULL
 );
 
+
+
 CREATE TABLE account(
     serialNumber INT NOT NULL,
     APPID TEXT NOT NULL,
