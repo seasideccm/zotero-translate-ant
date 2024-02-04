@@ -2,10 +2,10 @@
 adapted from Zotero
 */
 
-import { schemaConfig } from "../../utils/constant";
+import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
-import { fileNameNoExt, showInfo } from "../../utils/tools";
-import { DB } from "./database";
+import { fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
+import { DB, getSQLFromResourceFiles } from "./database";
 import { OS } from "../../utils/tools";
 
 export class Schema {
@@ -690,16 +690,31 @@ export class Schema {
           await this.DB.queryAsync("PRAGMA page_size = 4096");
           await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
           await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
-          let sql: string;
-          sql = await this.getSchemaSQL("addonSystem");
+
+          const versions: { schema: string; version: number; }[] = [];
+          const files = await resourceFilesRecursive(undefined, undefined, "sql");
+          for (const file of files) {
+            const schema = fileNameNoExt(file.name);
+            const sql = await this.getSchemaSQL(schema);
+            versions.push({
+              schema: schema,
+              version: parseInt(sql.match(/^-- ([0-9]+)/)[1])
+            });
+            //所有表都创建完成后才能写入数据
+            await this.DB.executeSQLFile(sql);
+          }
+          /* sql = await this.getSchemaSQL("addonSystem");
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("apiAccount");
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("translation");
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("triggers");
-          await this.DB.executeSQLFile(sql);
-          let version;
+          await this.DB.executeSQLFile(sql); */
+          for (const version of versions) {
+            await this.updateSchemaVersion(version.schema, version.version);
+          }
+          /* let version;
           version = schemaConfig["addonSystem"]["version"];
           await this.updateSchemaVersion("addonSystem", version);
           version = schemaConfig["apiAccount"]["version"];
@@ -707,10 +722,9 @@ export class Schema {
           version = schemaConfig["translation"]["version"];
           await this.updateSchemaVersion("translation", version);
           version = schemaConfig["triggers"]["version"];
-          await this.updateSchemaVersion("triggers", version);
+          await this.updateSchemaVersion("triggers", version); */
           //await this.updateLastAddonVersion();
-          sql =
-            "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
+          const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
           await this.DB.queryAsync(sql, addonVersion);
           await this.updateCompatibility(this._maxCompatibility);
           this.isCompatible = true;

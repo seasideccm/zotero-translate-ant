@@ -2,6 +2,7 @@ import { config } from "../../../package.json";
 import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecursive } from "../../utils/tools";
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
+import { langCodeDatabaseArr } from './insertLangCode';
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
@@ -378,38 +379,137 @@ async function checkSchema() {
 
 
 //读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
-export async function getSQLFromDB(schema: string) {
-  const sqlsFromDB = [];
-  const sql = "SELECT name,sql FROM sqlite_master WHERE SQL NOT NULL";
+export async function compareSQLUpdateDB() {
   const DB = await getDB();
+  const sqlsFromDB: string[] = [];
+  const tableFromDB: string[] = [];
+  const sql = "SELECT name,sql FROM sqlite_master";
   const rows = await DB.queryAsync(sql);
   for (const row of rows) {
-    sqlsFromDB.push(row.sql.replace(/ +/g, " "));
+    tableFromDB.push(row.name);
+    if (!row.sql || !row.sql.length || row.sql == " ") continue;
+    sqlsFromDB.push(row.sql.replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
   }
 
+  const sqlsFromResourceFiles = await getSQLFromResourceFiles();
+
+  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
+  const diffsDB = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
+  const sqlsFiles = sqlsFromResourceFiles.join(';');
+
+  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
+  const diffsFiles = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
+  const diffs = diffsFiles.concat(diffsDB).filter((e: string) => !e.startsWith("DROP "));
+  if (!diffs.length) return;
+  const cache: string[] = [];
+  await DB.executeTransaction(async () => {
+    for (const diff of diffs) {
+      //const matches = diff.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
+
+      const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
+      if (!matches) continue;
+      const tableName = matches.slice(-1)[0];
+      if (cache.includes(tableName)) continue;
+      const tableType = matches[1];
+      const reg = new RegExp("CREATE\\s" + tableType + "\\s" + tableName, "i");
+      if (sqlsFiles.match(reg) && tableFromDB.includes(tableName)) {
+        const oldColumns = await DB.getColumns(tableName);
+        let sql = `SELECT * FROM ${tableName}`;
+        const rowsOld = await DB.queryAsync(sql);
+        //如果旧表没有列或没有数据，则删除旧表建新表
+        if (!oldColumns || oldColumns.length === 0 || !rowsOld || rowsOld.length === 0) {
+          const sql = `DROP ${tableType} ${tableName}`;
+          await DB.queryAsync(sql);
+          await DB.queryAsync(diff);
+          cache.push(tableName);
+          continue;
+        }
+        //旧表重命名，建新表，导入数据，删除旧表      
+        sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+        await DB.queryAsync(diff);
+        const newColumns = await DB.getColumns(tableName);
+        if (!newColumns || newColumns.length === 0) {
+          cache.push(tableName);
+          continue;
+        };
+        const strSelectFromOld: any[] = [];
+        for (const col of newColumns) {
+          if (!oldColumns.includes(col)) {
+            strSelectFromOld.push(getDefaltValue(col, diff));
+          } else {
+            strSelectFromOld.push(col);
+          }
+        }
+        sql = `INSERT INTO ${tableName} SELECT ${strSelectFromOld.join(",")} FROM ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+        sql = `DROP TABLE ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+      }
+      if (sqlsFiles.match(reg) && !tableFromDB.includes(tableName)) {
+        await DB.queryAsync(diff);
+      }
+      if (!sqlsFiles.match(reg) && tableFromDB.includes(tableName)) {
+        const sql = `DROP ${tableType} ${tableName}`;
+        await DB.queryAsync(sql);
+      }
+      cache.push(tableName);
+    }
+  });
+
+}
+function getDefaltValue(col: string, sql: string) {
+  const reg = new RegExp(`${col}` + ".+?[,)]", "g");
+  const match = sql.match(reg);
+  if (match) {
+    const tempArr = match[0].replace(/ +/g, " ").split(" ");
+    let index: number;
+    if ((index = tempArr.indexOf("DEFAULT")) > -1) {
+      return tempArr[index + 1];
+    } else
+      return "NULL";
+    /* if (tempArr.indexOf("TEXT") > -1) {
+      return "";
+    } else {
+      return 0;
+    } */
+
+
+  }
+}
+
+export async function getSQLFromResourceFiles() {
   const sqlsFromResourceFiles = [];
-  /* const path = "F:\\zotero-batch-translate\\addon\\chrome\\content\\schema";
-  const files = await getFilesRecursive(path, "sql"); */
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {
     if (!file.name) {
-      throw "Schema type not provided to this.getSchemaSQL()";
+      ztoolkit.log(file + " without name");
+      continue;
     }
     const path = file.path + file.name;
     const sqlFromFile = await Zotero.File.getResourceAsync(path);
     const sqls = DB.parseSQLFile(sqlFromFile);
     //sqlite 表结构中的建表语句没有 " IF NOT EXISTS"
-    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " "));
+    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
     sqlsFromResourceFiles.push(...sqlsTemp);
   }
-  let diffs;
-  if (sqlsFromDB.length >= sqlsFromResourceFiles.length) {
-    diffs = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
-  } else {
-    diffs = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
+  return sqlsFromResourceFiles;
+}
+
+export async function getSQLFiles() {
+  const sqlsFromResourceFiles = [];
+  const files = await resourceFilesRecursive(undefined, undefined, "sql");
+  for (const file of files) {
+    if (!file.name) {
+      ztoolkit.log(file + " without name");
+      continue;
+    }
+    const path = file.path + file.name;
+    const sqlFromFile = await Zotero.File.getResourceAsync(path);
+    const sqls = DB.parseSQLFile(sqlFromFile);
+    //sqlite 表结构中的建表语句没有 " IF NOT EXISTS"
+    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
+    sqlsFromResourceFiles.push(...sqlsTemp);
   }
-  diffs = diffs.filter((e: string) => !e.startsWith("DROP "));
-  for (const diff of diffs) {
-    ztoolkit.log(diff);
-  }
+  return sqlsFromResourceFiles;
 }
