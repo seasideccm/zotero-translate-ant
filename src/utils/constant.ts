@@ -1,5 +1,10 @@
 import { config } from "../../package.json";
 
+
+export const msg = {
+  SCHEMA_NEED_REPAIR: "Addon Database Schema Needs To Be Repaired",
+  SCHEMA_SUCCESS_REPAIRED: "Addon Database Schema Repaired Success"
+};
 export const addonStorageDir = PathUtils.join(
   Zotero.getStorageDirectory().path,
   config.addonName,

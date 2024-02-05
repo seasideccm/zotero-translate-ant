@@ -3,6 +3,7 @@ import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecurs
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 import { langCodeDatabaseArr } from './insertLangCode';
+import { msg } from "../../utils/constant";
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
@@ -28,15 +29,15 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     // 检查数据库完整性
     const integrityDB = await this.integrityCheck();
     if (!integrityDB) {
-      throw "addon database integrityCheck found error";
+      throw "Addon Database Integrity Check Found Error";
     }
     // 检查表结构
     if (!(await checkSchema())) {
-      throw "addon database schema needs to be repaired";
+      throw "Addon Database Schema Needs To Be Repaired";
     }
     //检查数据库读写
     if (!(await this.accessibilityTest())) {
-      throw "addon database can't access";
+      throw "Addon Database Can't Access";
     }
   }
 
@@ -229,12 +230,18 @@ export async function getDB(dbName?: string) {
   }
   try {
     await addonDB.initPromise;
-  } catch (e: any) {
+  }
+  catch (e: any) {
     ztoolkit.log(e);
     showInfo(e);
-    //await checkSchema();
-    throw e;
+    /* if (typeof e == "string" && e == msg.SCHEMA_NEED_REPAIR) {
+      if (!await compareSQLUpdateDB()) {
+        throw e;
+      }
+      showInfo(msg.SCHEMA_SUCCESS_REPAIRED);
+    } */
   }
+
   if (!addonDB.accessibility) {
     await addonDB.init();
   }
@@ -373,7 +380,7 @@ async function checkSchema() {
 
 //读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
 export async function compareSQLUpdateDB() {
-  const DB = await getDB();
+  const DB = addon.mountPoint.database;
   const sqlsFromDB: string[] = [];
   const tableFromDB: string[] = [];
   const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");

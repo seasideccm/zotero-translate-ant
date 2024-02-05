@@ -46,6 +46,7 @@ export class Schema {
   async checkInitialized() {
     if (this.initialized) return true;
     try {
+      if (await this.isEmptyDB()) await this.initializeSchema();
       if (await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='schema' AND key='initialized'")) {
         this.initialized = true;
       } else {
@@ -54,6 +55,7 @@ export class Schema {
     } catch (e: any) {
       ztoolkit.log(e);
       showInfo(e);
+      return false;
     }
     return this.initialized;
   }
@@ -110,7 +112,7 @@ export class Schema {
       if (!match || !match[1]) continue;
       this.versionsFromFile[schema] = parseInt(match[1]);
       if (isExcuteSQL) {
-        await this.DB.execSQLAsync(sql);
+        await this.DB.executeSQLFile(sql);
       }
     }
     return this.versionsFromFile;
@@ -230,7 +232,7 @@ export class Schema {
     const tableNames = await this.DB.queryAsync(
       "SELECT name FROM sqlite_master",
     );
-    return tableNames.length == 0 ? true : false;
+    return !tableNames.length;
   }
 
   async updateSchema(schema: string, options: any = {}) {
@@ -477,6 +479,82 @@ export class Schema {
    *     and indexes that should have been created and drop existing ones that should have been
    *     deleted
    */
+  // Create any tables or indexes that are missing and delete any tables or triggers
+  // that still exist but should have been deleted
+  //
+  // This is skipped for automatic checks, because it can cause problems with schema
+  // update steps that don't expect tables to exist.
+  fun1 = async function (this: any) {
+    const statementsToRun = [];
+    // Get all existing tables, indexes, and triggers
+    const sql =
+      "SELECT " +
+      "CASE type " +
+      "WHEN 'table' THEN 'table:' || tbl_name " +
+      "WHEN 'index' THEN 'index:' || name " +
+      "WHEN 'trigger' THEN 'trigger:' || name " +
+      "END " +
+      "FROM sqlite_master WHERE type IN ('table', 'index', 'trigger')";
+    const schema = new Set(await this.DB.columnQueryAsync(sql));
+
+    // Check for deleted tables and triggers that still exist
+    // 事务相关
+    const deletedTables = [
+      "transactionSets",
+      "transactions",
+      "transactionLog",
+    ];
+    // 操作相关
+    const deletedTriggers = ["insert_date_field", "update_date_field"];
+    for (const table of deletedTables) {
+      if (schema.has("table:" + table)) {
+        statementsToRun.push("DROP TABLE " + table);
+      }
+    }
+    for (const trigger of deletedTriggers) {
+      if (schema.has("trigger:" + trigger)) {
+        statementsToRun.push("DROP TRIGGER " + trigger);
+      }
+    }
+
+    // Check for missing tables and indexes
+    let statements: any[] = [];
+    await this.getAllSchemasVersionFromFile();
+    for (const schemaName of Object.keys(this.versionsFromFile)) {
+      const sqls = await this.DB.parseSQLFile(
+        await this.getSchemaSQL(schemaName),
+      );
+      statements = statements.concat(sqls);
+    }
+    for (const statement of statements) {
+      let matches = statement.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
+      if (matches) {
+        const table = matches.slice(-1)[0];
+        if (!schema.has("table:" + table)) {
+          ztoolkit.log(`Table ${table} is missing`, 2);
+          statementsToRun.push(statement);
+        }
+        continue;
+      }
+
+      matches = statement.match(/^CREATE INDEX\s+([^\s]+)/);
+      if (matches) {
+        const index = matches[1];
+        if (!schema.has("index:" + index)) {
+          ztoolkit.log(`Index ${index} is missing`, 2);
+          statementsToRun.push(statement);
+        }
+        continue;
+      }
+    }
+
+    return statementsToRun.length ? statementsToRun : false;
+  }.bind(this);
+  func2 = async function (this: any, statements: any) {
+    for (const statement of statements) {
+      await this.DB.queryAsync(statement);
+    }
+  }.bind(this);
   async integrityCheck(fix: boolean = true, options: any = {}) {
     ztoolkit.log(`Checking ${config.addonRef} database schema integrity`);
     let checks: any[] = [
@@ -486,77 +564,8 @@ export class Schema {
         //
         // This is skipped for automatic checks, because it can cause problems with schema
         // update steps that don't expect tables to exist.
-        async function (this: any) {
-          const statementsToRun = [];
-          // Get all existing tables, indexes, and triggers
-          const sql =
-            "SELECT " +
-            "CASE type " +
-            "WHEN 'table' THEN 'table:' || tbl_name " +
-            "WHEN 'index' THEN 'index:' || name " +
-            "WHEN 'trigger' THEN 'trigger:' || name " +
-            "END " +
-            "FROM sqlite_master WHERE type IN ('table', 'index', 'trigger')";
-          const schema = new Set(await this.DB.columnQueryAsync(sql));
-
-          // Check for deleted tables and triggers that still exist
-          // 事务相关
-          const deletedTables = [
-            "transactionSets",
-            "transactions",
-            "transactionLog",
-          ];
-          // 操作相关
-          const deletedTriggers = ["insert_date_field", "update_date_field"];
-          for (const table of deletedTables) {
-            if (schema.has("table:" + table)) {
-              statementsToRun.push("DROP TABLE " + table);
-            }
-          }
-          for (const trigger of deletedTriggers) {
-            if (schema.has("trigger:" + trigger)) {
-              statementsToRun.push("DROP TRIGGER " + trigger);
-            }
-          }
-
-          // Check for missing tables and indexes
-          let statements: any[] = [];
-          await this.getAllSchemasVersionFromFile();
-          for (const schemaName of Object.keys(this.versionsFromFile)) {
-            const sqls = await this.DB.parseSQLFile(
-              await this.getSchemaSQL(schemaName),
-            );
-            statements = statements.concat(sqls);
-          }
-          for (const statement of statements) {
-            let matches = statement.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
-            if (matches) {
-              const table = matches.slice(-1)[0];
-              if (!schema.has("table:" + table)) {
-                ztoolkit.log(`Table ${table} is missing`, 2);
-                statementsToRun.push(statement);
-              }
-              continue;
-            }
-
-            matches = statement.match(/^CREATE INDEX\s+([^\s]+)/);
-            if (matches) {
-              const index = matches[1];
-              if (!schema.has("index:" + index)) {
-                ztoolkit.log(`Index ${index} is missing`, 2);
-                statementsToRun.push(statement);
-              }
-              continue;
-            }
-          }
-
-          return statementsToRun.length ? statementsToRun : false;
-        }.bind(this),
-        async function (this: any, statements: any) {
-          for (const statement of statements) {
-            await this.DB.queryAsync(statement);
-          }
-        }.bind(this),
+        this.func1,
+        this.func2,
         {
           //用于指示数据库模式完整性检查函数是否应该执行对数据库模式的调和操作。这意味着在执行完整性检查时，如果设置了 reconcile: true，函数将尝试创建缺失的表或索引，并删除应该被删除的现有表或触发器。这有助于确保数据库模式的一致性和完整性。
           reconcile: true,
@@ -708,8 +717,8 @@ export class Schema {
           await this.DB.executeSQLFile(sql);
           sql = await this.getSchemaSQL("triggers");
           await this.DB.executeSQLFile(sql); */
-          for (const version of this.versionsFromFile) {
-            await this.updateSchemaVersion(version.schema, version.version);
+          for (const schema of Object.keys(this.versionsFromFile)) {
+            await this.updateSchemaVersion(schema, this.versionsFromFile[schema]);
           }
           /* let version;
           version = schemaConfig["addonSystem"]["version"];
