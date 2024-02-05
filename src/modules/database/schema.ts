@@ -232,6 +232,8 @@ export class Schema {
     const tableNames = await this.DB.queryAsync(
       "SELECT name FROM sqlite_master",
     );
+    // 所有表
+    //const table_list = await this.DB.queryAsync("PRAGMA table_list")
     return !tableNames.length;
   }
 
