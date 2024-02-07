@@ -310,7 +310,7 @@ export const getPathDir = (filename: string, dir?: string, ext?: string) => {
     ext = "." + ext;
   }
   dir = OS.Path.normalize(dir);
-  const path = OS.Path.normalize(dir + filename + ext);
+  const path = OS.Path.join(dir, (filename + ext));
   return {
     path: path,
     dir: dir,
