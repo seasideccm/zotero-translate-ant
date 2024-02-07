@@ -284,6 +284,7 @@ export async function saveJsonToDisk(
     await OS.File.makeDir(dir);
   }
   await OS.File.writeAtomic(path, objJson);
+  return path;
 }
 
 /**

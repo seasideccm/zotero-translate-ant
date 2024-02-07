@@ -3,6 +3,7 @@ import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, resourceFilesName, resourceFilesRecursive } from "../../utils/tools";
 import { compareSQLUpdateDB, DB, getDB } from '../database/database';
+import { DBsync } from "../database/sync";
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
@@ -15,7 +16,7 @@ const paraArrs = [
   ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
-
+  ["zipForWebDav", DBsync.zipForWebDav, []],
 ];
 
 function menuitemObj(argsArr: any[]) {
