@@ -74,3 +74,14 @@ CREATE TABLE  IF NOT EXISTS translationOrigin (
     originLibraryID INTEGER NOT NULL DEFAULT 1,
     UNIQUE (translateID, originID, originKey, originLibraryID)
 );
+
+-- 翻译条目是否同步，记录条目是否删除
+CREATE TABLE  sync (
+    translateID INTEGER NOT NULL UNIQUE,
+    synced INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE  deleteLog (
+    translateID INTEGER NOT NULL UNIQUE,
+    synced INTEGER NOT NULL DEFAULT 0
+);

@@ -11,6 +11,7 @@ import {
   registerShortcutsCache,
   setShortcut,
 } from "./utils/shortcut";
+import { getPopupWin } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 
 async function onStartup() {
@@ -48,11 +49,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
   setShortcut();
-  const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
-    closeOnClick: true,
-    closeTime: -1,
-  });
-  addon.mountPoint.popupWin = popupWin;
+  const popupWin = getPopupWin();
   addon.mountPoint['TranslateServices'] = TranslateServices;
   registerFn();
   popupWin

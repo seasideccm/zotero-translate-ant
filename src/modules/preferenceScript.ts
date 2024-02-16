@@ -1,10 +1,14 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, makeId } from "./ui/uiTools";
+import { getDom, getElementValue, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
-import { showInfo } from "../utils/tools";
-import { services } from "./translate/services";
+import { arrToObj, showInfo } from "../utils/tools";
+import { TranslateService, services } from "./translate/services";
 import { mountMenu } from "./ui/menu";
+import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
+import { makeTableProps } from "./ui/tableProps";
+
+
 
 export function registerPrefs() {
   ztoolkit.PreferencePane.register({
@@ -25,6 +29,7 @@ export async function registerPrefsScripts(_window: Window) {
     addon.data.prefs.window = _window;
   }
   await buildPrefsPane();
+  await replaceSecretKeysTable();
   bindPrefEvents();
 }
 
@@ -165,8 +170,7 @@ async function buildPrefsPane() {
         mutation.oldValue +
         " to " +
         label +
-        ".",
-        2000,
+        "."
       );
       await DB.executeTransaction(async function () {
         await DB.queryAsync(sql, [keyTorecord, value]);
@@ -224,7 +228,113 @@ async function buildPrefsPane() {
     // 将要被替换掉的元素
     doc.querySelector(`#${makeId("serviceID-placeholder")}`)!,
   );
+
+  ztoolkit.UI.replaceElement(
+    {
+      tag: "menulist",
+      id: makeId("limitMode"),
+      attributes: {
+        value: '',
+        native: "true",
+      },
+      children: [
+        {
+          tag: "menupopup",
+          children: [
+            {
+              tag: "menuitem",
+              attributes: {
+                label: getString("pref-limitMode-daily"),
+                value: "daily",
+              },
+            },
+            {
+              tag: "menuitem",
+              attributes: {
+                label: getString("pref-limitMode-month"),
+                value: "month",
+              },
+            },
+            {
+              tag: "menuitem",
+              attributes: {
+                label: getString("pref-limitMode-total"),
+                value: "total",
+              },
+            },
+            {
+              tag: "menuitem",
+              attributes: {
+                label: getString("pref-limitMode-noLimit"),
+                value: "noLimit",
+              },
+            },
+            {
+              tag: "menuitem",
+              attributes: {
+                label: getString("pref-limitMode-pay"),
+                value: "pay",
+              },
+            },
+          ]
+        },
+      ],
+    },
+    doc.querySelector(`#${makeId("limitMode-placeholder")}`)!
+  );
+
 }
+
+async function replaceSecretKeysTable() {
+
+  let rows;
+  if (!(rows = addon.mountPoint.rows)) {
+    const serviceID = getElementValue("serviceID");
+    rows = addon.mountPoint.rows = secretKeysTableRowsData(serviceID);
+  }
+
+
+
+  const propsOption = {
+    columnPropKeys: ["dataKey", "label", "staticWidth", "fixedWidth", "flex"],
+    columnPropValues: [
+      ["key", getString("prefs-table-key"), false, false, 2],
+      ["usable", getString("prefs-table-usable"), false, false, 1],
+      ["charConsum", getString("prefs-table-charConsum"), false, false, 1]
+    ],
+    rows,
+    id: "secretKeysTable",
+
+  };
+
+  const containerId = `${config.addonRef}-table-container`;
+
+
+  if (addon.data.prefs?.window == undefined) return;
+  const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
+  const tableHelper = new ztoolkit.VirtualizedTable(addon.data.prefs?.window);
+
+  const tableProps = makeTableProps(propsOption, tableHelper);
+  tableHelper.setContainerId(containerId);
+  tableHelper.setProp(tableProps);
+  tableHelper.render(-1, () => {
+    renderLock.resolve();
+  });
+  await renderLock.promise;
+
+  if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
+  addon.mountPoint.tables[tableProps.id] = tableHelper;
+}
+
+function getTable(tableID?: string) {
+  if (!addon.mountPoint.tables) return;
+  const tables = addon.mountPoint.tables;
+  if (!tableID) return tables;
+  tableID = makeId(tableID);
+  return tables[tableID];
+}
+
+
 
 function bindPrefEvents() {
   bilingualContrastHideShow();
@@ -242,6 +352,19 @@ function bindPrefEvents() {
     attributes: true,
     attributeFilter: ["value"],
   });
+
+  getDom("addSecretKey")!.addEventListener("command", (e) => {
+    const table = getTable("secretKeysTable");
+    const rows = addon.mountPoint.rows;
+    const row = {
+      "key": "空",
+      "usable": "空",
+      "charConsum": "空"
+    };
+    rows.push(row);
+    table.render();
+  });
+
 }
 
 function bilingualContrastHideShow(e?: Event) {
@@ -360,4 +483,81 @@ function skipLangsHideShow() {
     },
   );
 }
+
+
+declare type columnsProp = {
+  dataKey: string,
+  label: string,
+  staticWidth: boolean,
+  fixedWidth: boolean,
+  flex: number;
+};
+
+
+declare type CS = {
+  dataKey: string;
+  label: string;
+  iconLabel?: React.ReactElement;
+  defaultSort?: 1 | -1;
+  flex?: number;
+  width?: number;
+  fixedWidth?: boolean;
+  staticWidth?: boolean;
+  minWidth?: number;
+  ignoreInColumnPicker?: boolean;
+  submenu?: boolean;
+};
+
+declare type columnOption<K extends keyof ColumnOptions> = [K];
+
+declare type CS2 = [dataKey: string,
+  label: string,
+  iconLabel?: React.ReactElement,
+  defaultSort?: 1 | -1,
+  flex?: number,
+  width?: number,
+  fixedWidth?: boolean,
+  staticWidth?: boolean];
+
+
+
+
+
+function keysRowDate(columnPropValues: any[][]) {
+  return columnPropValues.map(e => e[0]);
+}
+
+
+function kvArrsToObjects(keys: string[]) {
+  return function (values?: any | any[]) {
+    if (!values) values = [];
+    if (values && !Array.isArray(values)) values = [values];
+    return arrToObj(keys, keys.map((k, i) => values[i] || k + ' + empty'));
+  };
+}
+
+
+const secretKeysTableRowsData = <T extends keyof TranslateService>(serviceID?: T) => {
+  const serviceSelected: TranslateService | undefined = serviceID ? services[serviceID] : undefined;
+  let rows;
+  const secretKeysTableConfig = {
+    columnPropKeys: ["dataKey", "label", "staticWidth", "fixedWidth", "flex"],
+    columnPropValues: [
+      ["key", getString("prefs-table-key"), false, false, 3],
+      ["usable", getString("prefs-table-usable"), false, false, 1],
+      ["charConsum", getString("prefs-table-charConsum"), false, false, 1]
+    ],
+  };
+  const keys = keysRowDate(secretKeysTableConfig.columnPropValues);
+  const getRowDataValues = kvArrsToObjects(keys);
+  if (serviceSelected?.secretKey?.length) {
+    const secretKey: object[] = serviceSelected.secretKey;
+    rows = secretKey.map((e: any) => getRowDataValues(Object.values(e)));
+  } else {
+    rows = [getRowDataValues()];
+  }
+  return rows;
+};
+
+
 

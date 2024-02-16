@@ -99,6 +99,14 @@ export function arrToObj(keys: string[], values: any[]) {
   return obj;
 }
 
+export function arrsToObjs(keys: string[]) {
+  return function (values: any[]) {
+    if (!Array.isArray(values[0]))
+      return [arrToObj(keys, values)];
+    return values.map((value) => arrToObj(keys, value));
+  };
+}
+
 export function base64ToBytes(imageDataURL: string):
   | {
     u8arr: Uint8Array;
@@ -229,6 +237,33 @@ export function ReadPNG(buf: any) {
   }
 }
 
+
+export function getPopupWin(header: string = config.addonName, option?: OptionsPopupWin) {
+  if (!addon.mountPoint["popupWin"] || option) {
+    addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
+  }
+  return addon.mountPoint["popupWin"];
+}
+export function showInfo(info?: string, option?: OptionsPopupWin, header?: string, optionsCreatLine?: OptionsPopupWinCreateLine) {
+  const noop = () => {
+  };
+  !header ? header = config.addonName : noop;
+  const popupWin = addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
+  if (!option || option.closeTime != -1) {
+    Zotero.ProgressWindowSet.closeAll();
+  }
+  if (!info && (!optionsCreatLine || !optionsCreatLine.text)) {
+    throw "info and optionsCreatLine.text can't all undefinde";
+  }
+  !optionsCreatLine ? optionsCreatLine = {} : noop;
+  !optionsCreatLine.text ? optionsCreatLine.text = info : noop;
+  !optionsCreatLine.type ? optionsCreatLine.type = "default" : noop;
+  popupWin.createLine(optionsCreatLine).show();
+  return popupWin;
+}
+
+
+
 /**
  * 通过进度条显示信息
  * 关闭其他窗口若为true，则关闭最近一次生成的所有进度条
@@ -241,7 +276,7 @@ export function ReadPNG(buf: any) {
  * @param {boolean} closeOtherProgressWindows 默认 true
  * @returns
  */
-export function showInfo(
+/* export function showInfo(
   info: string,
   closeTime?: number,
   window?: Window,
@@ -268,7 +303,7 @@ export function showInfo(
   if (closeTime) popupWin.startCloseTimer(closeTime);
 
   return popupWin;
-}
+} */
 
 export async function saveJsonToDisk(
   obj: any,

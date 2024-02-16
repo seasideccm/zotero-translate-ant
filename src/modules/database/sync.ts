@@ -1,15 +1,29 @@
+import { promises } from "dns";
 import { addonDir } from "../../utils/constant";
 import { saveJsonToDisk, zipFile } from "../../utils/tools";
+import { getDB } from "./database";
 
 class Datasync {
     collectionName: string;
     itemTitle: string;
+    markObjectAsSynced: () => Promise<void>;
+    markObjectAsUnsynced: () => Promise<void>;
     constructor() {
+        this.markObjectAsSynced = Zotero.Promise.method(function (obj: any) {
+            obj.synced = true;
+            return obj.saveTx({ skipAll: true });
+        });
+        this.markObjectAsUnsynced = Zotero.Promise.method(function (obj: any) {
+            obj.synced = false;
+            return obj.saveTx({ skipAll: true });
+        });
         this.collectionName = this.getCollectionName() || "addonDatabase";
         this.itemTitle = this.getItemTitle() || "sqliteDatabase01";
 
     }
-
+    getNextTitleSN() {
+        return "01";
+    }
     async attachJson() {
 
         const itemSync = await this.getSyncItem();
@@ -56,18 +70,30 @@ class Datasync {
         return collection;
     }
     async getSyncItem(itemTitle?: string) {
+        itemTitle = itemTitle || this.itemTitle;
+        if (!itemTitle) return;
         const collection = await this.getCollection();
         const items = collection.getChildItems();
-        const item = items.filter((i: Zotero.Item) => i.getField('title') == this.itemTitle)[0];
+        const item = items.filter((i: Zotero.Item) => i.getField("title").includes(itemTitle!))[0];
         return item;
     }
 
 
-    getUnsyncObj() {
-        const obj = {
-            test: "zip"
+    async getUnsyncObj() {
+        const DB = await getDB();
+        const ids = await DB.columnQueryAsync("SELECT translateID FROM sync WHERE synced=0 AND deleted=0");
+        const objs = Zotero.items.get(ids);
+        const deletedIDs = await DB.columnQueryAsync("SELECT translateID FROM deleteLog WHERE synced=0");
+        return {
+            objs,
+            deletedIDs
         };
-        return obj;
+    }
+
+    async getDeleted() {
+        const DB = await getDB();
+        const sql = "SELECT key FROM syncDeleteLog ";
+        return DB.columnQueryAsync(sql);
     }
 
     async jsonTofile() {

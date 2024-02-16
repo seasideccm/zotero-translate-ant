@@ -1,5 +1,9 @@
 import { config } from "../../package.json";
 
+export const syncConfig = {
+  SYNC_ITEM_TITLE_PREFIX: "sqliteDatabase",
+  SYNC_COLLECTION_NAME: "addonDatabase"
+};
 
 export const addonDir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
 

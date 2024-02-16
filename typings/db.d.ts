@@ -1,11 +1,11 @@
 interface IncompatibleVersionException {
-  new (msg: any, dbClientVersion: any): this;
+  new(msg: any, dbClientVersion: any): this;
 }
 
 declare namespace Zotero {
   interface DBConnection {
     //constructor(dbNameOrPath?: string) { };
-    new (dbNameOrPath?: string): this;
+    new(dbNameOrPath?: string): this;
     MAX_BOUND_PARAMETERS: 999;
     DB_CORRUPTION_STRINGS: ["database disk image is malformed", "2152857611"];
     closed: boolean;
@@ -104,7 +104,7 @@ declare namespace Zotero {
      * @param {Array|String|Integer} [params] SQL parameters to bind
      * @return {Promise<Array>}  A promise for an array of values in the column
      */
-    columnQueryAsync(sql: any, params: any, options: any): Promise<[]>;
+    columnQueryAsync(sql: any, params?: any, options?: any): Promise<[]>;
     logQuery(sql: any, params: [], options: any): void;
     tableExists(table: any, dbName?: string): Promise<boolean>;
     columnExists(table: any, column: any): Promise<boolean>;

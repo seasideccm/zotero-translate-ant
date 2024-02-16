@@ -1,4 +1,15 @@
-export const migrate: any = {
+
+
+export const migrate = { addonSystem, translation };
+async function addonSystem(fromVersion: number, toVersion: number) {
+  return true;
+}
+function translation(fromVersion: number, toVersion: number) {
+  return true;
+}
+
+
+/* export const migrate: any = {
   addonSystem: async function (fromVersion: number, toVersion: number) {
     ztoolkit.log(
       "is schema, this._maxCompatibility=",
@@ -52,4 +63,4 @@ export const migrate: any = {
     return true;
   },
   //xx: () => {    },
-};
+}; */

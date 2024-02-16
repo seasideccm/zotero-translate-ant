@@ -184,6 +184,103 @@
       data-l10n-id="pref-deleteService"
     ></button>
   </hbox>
+   <hbox>
+    <label data-l10n-id="pref-QPS"></label>
+    <html:input
+      size="10"
+      value=""
+      type="text"
+      id="__addonRef__-QPS"
+    ></html:input>
+
+    <label data-l10n-id="pref-charasPerTime"></label>
+    <html:input
+      size="10"
+      type="text"
+      value=""
+      id="__addonRef__-charasPerTime"
+    ></html:input>
+    <checkbox
+      id="__addonRef__-hasSecretKey"
+      native="true"
+      data-l10n-id="pref-hasSecretKey"
+    />
+  </hbox>
+  <hbox>
+    <checkbox
+      id="__addonRef__-isMultiParas"
+      native="true"
+      data-l10n-id="pref-isMultiParas"
+    />
+    <label data-l10n-id="pref-limitMode"></label>
+    <!-- Replace -->
+    <box id="__addonRef__-limitMode-placeholder"></box>
+
+    <label data-l10n-id="pref-charasLimit"></label>
+    <html:input
+      size="10"
+      type="text"
+      id="__addonRef__-charasLimit"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <label data-l10n-id="pref-charasLimitFactor"></label>
+    <html:input
+      size="5"
+      type="text"
+      id="__addonRef__-charasLimitFactor"
+      preference="extensions.zotero.__addonRef__.charasLimitFactor"
+    ></html:input>
+    <button
+      id="__addonRef__-saveLimitParam"
+      data-l10n-id="pref-saveLimitParam"
+    ></button>
+  </hbox>
+  <separator class="groove" />
+  <vbox>
+    <hbox>
+      <label data-l10n-id="pref-secretKey"></label>
+      <html:input
+        size="60"
+        type="text"
+        id="__addonRef__-secretKey"
+      ></html:input>
+    </hbox>
+
+    <hbox>
+      <!-- data-l10n-id="pref-secretKeyUsable"在这里作为label的内容，其ftl格式应当为 -->
+      <!--       pref-secretKeyUsable = 
+                      .label = isUsable -->
+      <label data-l10n-id="pref-secretKey-charConsum"></label>
+      <html:input
+        type="text"
+        id="__addonRef__-secretKey-charConsum"
+      ></html:input>
+      <checkbox
+        id="__addonRef__-secretKeyUsable"
+        native="true"
+        preference="extensions.zotero.__addonRef__.secretKeyUsable"
+        data-l10n-id="pref-secretKeyUsable"
+        class="checkbox-secretKeyUsable"
+      />
+
+      <button
+        id="__addonRef__-addSecretKey"
+        data-l10n-id="pref-addSecretKey"
+      ></button>
+      <button
+        id="__addonRef__-addSecretKeyBulk"
+        data-l10n-id="pref-addSecretKeyBulk"
+      ></button>
+    </hbox>
+  </vbox>
+
+  <separator class="groove" />
+  <html:div id="__addonRef__-table-container" />
+  <separator class="groove" />
+
+  <description data-l10n-id="pref-secretKey-help" />
+  <separator class="groove" />
   <!--当前账户信息-->
   <hbox>
     <label data-l10n-id="pref-underUse"></label>
