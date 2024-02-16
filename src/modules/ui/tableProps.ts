@@ -1,7 +1,9 @@
 import { ColumnOptions, VirtualizedTableHelper } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrsToObjs, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, collectFilesRecursive, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
+import { ContextMenu } from "./contextMenu";
+import { jsonTofileTest } from "../database/sync";
 
 
 export function makeTableProps(options: any, tableHelper: VirtualizedTableHelper) {
@@ -22,7 +24,38 @@ export function makeTableProps(options: any, tableHelper: VirtualizedTableHelper
     });
 
     function handleItemContextMenu(...args: any[]) {
-        tableHelper.props.onContextMenu && tableHelper.props.onContextMenu(...args);
+        showInfo("条目右键菜单", { window: addon.data.prefs?.window });
+        //tableHelper.props.onContextMenu && tableHelper.props.onContextMenu(...args);
+        //const onContextMenu = (...args) => ZoteroPane.onCollectionsContextMenuOpen(...args);
+
+        const onCollectionsContextMenuOpen = async function (event: Event, x: number, y: number) {
+            const contextMenu = buildContextMenu();
+            x = x || event.screenX;
+            y = y || event.screenY;
+            // TEMP: Quick fix for https://forums.zotero.org/discussion/105103/
+            if (Zotero.isWin) {
+                x += 10;
+            }
+            const anchor = event.target;
+            //contextMenu.menupopup.openPopup(anchor, x, y);
+            contextMenu.menupopup.openPopup(anchor, 'after_pointer', 0, 0, true, false, event);
+            contextMenu.menupopup.moveTo(x, y);
+        };
+
+        const buildContextMenu = () => {
+            const keys = ["label", "func", "args"];
+            const menuPropsGroupsArr = [
+                [
+                    ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+                    ["jsonTofile", jsonTofileTest, []],
+                ],
+            ];
+            const idPostfix = "tableContextMenu";
+            const contextMenu = new ContextMenu({ keys, menuPropsGroupsArr, idPostfix });
+            return contextMenu;
+        };
+        const [event, x, y] = args;
+        onCollectionsContextMenuOpen(event, x, y);
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -92,9 +125,11 @@ export function makeTableProps(options: any, tableHelper: VirtualizedTableHelper
         }
 
         /* if (e.key == 'ContextMenu' || (e.key == 'F10' && e.shiftKey)) {
-            let selectedElem = document.querySelector(`#${this._jsWindowID} [aria-selected=true]`);
-            let boundingRect = selectedElem.getBoundingClientRect();
-            this.props.onItemContextMenu(
+            //@ts-ignore has
+            const selectedElem = document.querySelector(`#${tableHelper.treeInstance._jsWindowID} [aria-selected=true]`);
+            if (!selectedElem) return;
+            const boundingRect = selectedElem.getBoundingClientRect();
+            tableHelper.treeInstance.props.onItemContextMenu(
                 e,
                 window.screenX + boundingRect.left + 50,
                 window.screenY + boundingRect.bottom
