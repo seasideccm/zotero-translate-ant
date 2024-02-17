@@ -84,3 +84,113 @@ declare type MenuItemProps = {
   func?: ((...args: any[]) => any) | undefined;
   args?: any[] | undefined;
 };
+
+declare type VTableProps = {
+  id?: string;
+  getRowCount?: () => number;
+  getRowData?: (index: number) => {
+    [dataKey: string]: string;
+  };
+  /**
+   * Use `getRowData` instead. This property is generated automatically.
+   * @param index
+   * @param selection
+   * @param oldElem
+   * @param columns
+   */
+  renderItem?: (index: number, selection: TreeSelection, oldElem: HTMLElement, columns: ColumnOptions[]) => Node;
+  linesPerRow?: number;
+  disableFontSizeScaling?: boolean;
+  alternatingRowColors?: Array<string>;
+  label?: string;
+  role?: string;
+  showHeader?: boolean;
+  columns?: Array<ColumnOptions>;
+  onColumnPickerMenu?: (event: Event) => void;
+  onColumnSort?: (event: Event) => void;
+  getColumnPrefs?: () => {
+    [dataKey: string]: any;
+  };
+  storeColumnPrefs?: (prefs: {
+    [dataKey: string]: any;
+  }) => void;
+  getDefaultColumnOrder?: () => {
+    [dataKey: string]: any;
+  };
+  staticColumns?: boolean;
+  containerWidth?: number;
+  treeboxRef?: (innerWindowedList: WindowedList) => any;
+  hide?: boolean;
+  multiSelect?: boolean;
+  onSelectionChange?: (selection: TreeSelection, shouldDebounce: boolean) => void;
+  isSelectable?: (index: number) => boolean;
+  getParentIndex?: (index: number) => number;
+  isContainer?: (index: number) => boolean;
+  isContainerEmpty?: (index: number) => boolean;
+  isContainerOpen?: (index: number) => boolean;
+  toggleOpenState?: (index: number) => void;
+  getRowString?: (index: number) => string;
+  onKeyDown?: (e: KeyboardEvent) => boolean;
+  onKeyUp?: (e: KeyboardEvent) => boolean;
+  onDragOver?: (e: DragEvent) => boolean;
+  onDrop?: (e: DragEvent) => boolean;
+  onActivate?: ((e: MouseEvent) => boolean) | ((event: Event, indices: number[]) => boolean);
+  onFocus?: (e: FocusEvent) => boolean;
+  onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
+};
+
+
+interface VirtualizedTableProps {
+  id: string;
+  getRowCount: () => number;
+  getRowData?: (index: number) => {
+    [dataKey: string]: string;
+  };
+  /**
+   * Use `getRowData` instead. This property is generated automatically.
+   * @param index
+   * @param selection
+   * @param oldElem
+   * @param columns
+   */
+  renderItem?: (index: number, selection: TreeSelection, oldElem: HTMLElement, columns: ColumnOptions[]) => Node;
+  linesPerRow?: number;
+  disableFontSizeScaling?: boolean;
+  alternatingRowColors?: Array<string>;
+  label?: string;
+  role?: string;
+  showHeader?: boolean;
+  columns?: Array<ColumnOptions>;
+  onColumnPickerMenu?: (event: Event) => void;
+  onColumnSort?: (event: Event) => void;
+  getColumnPrefs?: () => {
+    [dataKey: string]: any;
+  };
+  storeColumnPrefs?: (prefs: {
+    [dataKey: string]: any;
+  }) => void;
+  getDefaultColumnOrder?: () => {
+    [dataKey: string]: any;
+  };
+  staticColumns?: boolean;
+  containerWidth?: number;
+  treeboxRef?: (innerWindowedList: WindowedList) => any;
+  hide?: boolean;
+  multiSelect?: boolean;
+  onSelectionChange?: (selection: TreeSelection, shouldDebounce: boolean) => void;
+  isSelectable?: (index: number) => boolean;
+  getParentIndex?: (index: number) => number;
+  isContainer?: (index: number) => boolean;
+  isContainerEmpty?: (index: number) => boolean;
+  isContainerOpen?: (index: number) => boolean;
+  toggleOpenState?: (index: number) => void;
+  getRowString?: (index: number) => string;
+  onKeyDown?: (e: KeyboardEvent) => boolean;
+  onKeyUp?: (e: KeyboardEvent) => boolean;
+  onDragOver?: (e: DragEvent) => boolean;
+  onDrop?: (e: DragEvent) => boolean;
+  onActivate?: (e: MouseEvent) => boolean;
+  onActivate?: (event: Event, indices: number[]) => boolean;
+  onFocus?: (e: FocusEvent) => boolean;
+  onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
+}

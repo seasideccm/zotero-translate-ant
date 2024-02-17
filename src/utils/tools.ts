@@ -100,7 +100,7 @@ export function arrToObj(keys: string[], values: any[]) {
 }
 
 export function arrsToObjs(keys: string[]) {
-  return function (values: any[]) {
+  return function (values: any[] | any[][]) {
     if (!Array.isArray(values[0]))
       return [arrToObj(keys, values)];
     return values.map((value) => arrToObj(keys, value));

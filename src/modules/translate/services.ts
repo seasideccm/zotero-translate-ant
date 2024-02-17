@@ -8,7 +8,7 @@ import { getDB, DB } from '../database/database';
  * serialNumber对应数据库
  */
 export class TranslateService {
-  [key: string]: any;
+  //[key: string]: any;
   id: string;
   charasPerTime: number;
   QPS: number;
@@ -16,8 +16,9 @@ export class TranslateService {
   charasLimit: number;
   isMultiParas: boolean;
   hasSecretKey: boolean;
-  secretKey?: {
-    key: string;
+  secretKeys?: {
+    appID: string;
+    secretKey: string;
     usable: boolean;
     charConsum: number;
     dateMarker?: string;
@@ -30,16 +31,30 @@ export class TranslateService {
   _dataTypesToReload?: any;
   _itemData?: any;
   _loaded?: any;
+  editable?: boolean;
+  _objectType?: string;
+  serviceTypeID?: number;
+  _serviceTypeID?: number;
+  _synced?: boolean;
+  libraryID?: number;
+  key?: string;
+  _key?: string;
+  version?: number;
+  synced?: boolean;
+
+
   /**
-   *
-   * @param id
-   * @param charasPerTime
-   * @param QPS
-   * @param limitMode
-   * @param charasLimit
-   * @param isMultiParas
-   * @param hasSecretKey
-   * @param secretKey
+   * 
+   * @param id 
+   * @param charasPerTime 
+   * @param QPS 
+   * @param limitMode 
+   * @param charasLimit 
+   * @param isMultiParas 
+   * @param hasSecretKey 
+   * @param secretKey 
+   * @param forbidden 
+   * @param serialNumber 
    */
   constructor(
     id: string,
@@ -49,10 +64,12 @@ export class TranslateService {
     charasLimit: number,
     isMultiParas: boolean,
     hasSecretKey: boolean,
-    secretKey?: {
-      key: string;
+    secretKeys?: {
+      appID: string;
+      secretKey: string;
       usable: boolean;
       charConsum: number;
+      dateMarker?: string;
     }[],
     forbidden?: boolean,
     serialNumber?: number,
@@ -65,7 +82,7 @@ export class TranslateService {
     this.charasLimit = charasLimit;
     this.isMultiParas = isMultiParas;
     this.hasSecretKey = hasSecretKey;
-    this.secretKey = secretKey;
+    this.secretKeys = secretKeys;
     this.forbidden = forbidden;
     this.serialNumber = serialNumber;
     this.editable = true;
@@ -328,7 +345,7 @@ export class TranslateService {
    */
   _saveData(env: any) {
     const libraryID = env.libraryID = this.libraryID || Zotero.Libraries.userLibraryID;
-    const key = env.key = this._key = this.key ? this.key : this._generateKey();
+    const key = env.key = this._key = this.key ? this.key : Zotero.Utilities.generateObjectKey();
 
     env.sqlColumns = [];
     env.sqlValues = [];
@@ -365,9 +382,9 @@ export class TranslateService {
     }
 
     if (!env.options.skipNotifier && this._changedData.deleted !== undefined) {
-      Zotero.Notifier.queue('refresh', 'trash', this.libraryID, { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
+      Zotero.Notifier.queue('refresh', 'trash', [this.libraryID!.toString()], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
       if (!env.isNew && this._changedData.deleted) {
-        Zotero.Notifier.queue('trash', this._objectType, [this.id], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
+        Zotero.Notifier.queue('trash', this._objectType as _ZoteroTypes.Notifier.Type, [this.id], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
       }
     }
   }
@@ -527,7 +544,9 @@ export class TranslateService {
     this._parseRowData(row);
     this._finalizeLoadFromRow(row);
   }
-
+  setType(...args: any[]) { }
+  _parseRowData(...args: any[]) { }
+  _finalizeLoadFromRow(...args: any[]) { }
   //从 github（共享）更新翻译引擎数据，保存到 database
   updateFromService = Zotero.Promise.coroutine(function* (env) { });
 
