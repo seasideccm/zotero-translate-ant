@@ -1,4 +1,3 @@
-import { promises } from "dns";
 import { addonDir } from "../../utils/constant";
 import { saveJsonToDisk, zipFile } from "../../utils/tools";
 import { getDB } from "./database";

@@ -6,7 +6,7 @@ import { arrToObj, showInfo } from "../utils/tools";
 import { TranslateService, services } from "./translate/services";
 import { mountMenu } from "./ui/menu";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { replaceSecretKeysTable } from "./ui/tableProps";
+import { getTableByID, replaceSecretKeysTable } from "./ui/tableProps";
 //import { makeColumnProps, makeTableProps } from "./ui/tableProps";
 
 
@@ -286,77 +286,6 @@ async function buildPrefsPane() {
 
 }
 
-/* async function replaceSecretKeysTable() {
-
-  let rows;
-  if (!(rows = addon.mountPoint.rows)) {
-    const serviceID = getElementValue("serviceID");
-    rows = addon.mountPoint.rows = secretKeysTableRowsData(serviceID);
-  }
-
-
-
-  const propsOption: VTableProps & { columnPropKeys?: string[]; columnPropValues?: any[][]; rows?: any[]; containerId?: string; } = {
-    columnPropKeys: ["dataKey", "label", "staticWidth", "fixedWidth", "flex"],
-    columnPropValues: [
-      ["key", getString("prefs-table-key"), false, false, 2],
-      ["usable", getString("prefs-table-usable"), false, false, 1],
-      ["charConsum", getString("prefs-table-charConsum"), false, false, 1]
-    ],
-    rows,
-    id: `${config.addonRef}-` + "secretKeysTable",
-    containerId: `${config.addonRef}-table-container`,
-
-  };
-
-  // makeColumnProps(propsOption.columnPropKeys!)(propsOption.columnPropValues!)
-
-  const containerId = `${config.addonRef}-table-container`;
-
-
-  if (addon.data.prefs?.window == undefined) return;
-  async function tableFactory(win: Window, propsOption: any) {
-    if (!propsOption.containerId) {
-      throw "Must pass propsOption.containerId which assign table location";
-    }
-    const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
-    const tableHelper = new ztoolkit.VirtualizedTable(win);
-
-    const tableProps = makeTableProps(propsOption, tableHelper);
-    tableHelper.setContainerId(propsOption.containerId);
-    tableHelper.setProp(tableProps);
-    tableHelper.render(-1, () => {
-      renderLock.resolve();
-    });
-    await renderLock.promise;
-    if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-    addon.mountPoint.tables[tableProps.id] = tableHelper;
-    return tableHelper;
-  }
-  const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
-  const tableHelper = new ztoolkit.VirtualizedTable(addon.data.prefs?.window);
-
-  const tableProps = makeTableProps(propsOption, tableHelper);
-  tableHelper.setContainerId(containerId);
-  tableHelper.setProp(tableProps);
-  tableHelper.render(-1, () => {
-    renderLock.resolve();
-  });
-  await renderLock.promise;
-
-  if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-  addon.mountPoint.tables[tableProps.id] = tableHelper;
-} */
-
-function getTable(tableID?: string) {
-  if (!addon.mountPoint.tables) return;
-  const tables = addon.mountPoint.tables;
-  if (!tableID) return tables;
-  return tables[tableID];
-}
-
-
-
 function bindPrefEvents() {
   bilingualContrastHideShow();
   getDom("bilingualContrast")?.addEventListener("command", (e) => {
@@ -375,7 +304,7 @@ function bindPrefEvents() {
   });
 
   getDom("addSecretKey")!.addEventListener("command", (e) => {
-    const table = getTable(`${config.addonRef}-` + "secretKeysTable");
+    const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
     const rows = table.treeInstance.rows;
     const keys = Object.keys(rows[0]);
     const row = arrToObj(keys, keys.map((k) => k + ' + empty'));
@@ -501,70 +430,6 @@ function skipLangsHideShow() {
     },
   );
 }
-
-
-declare type columnsProp = {
-  dataKey: string,
-  label: string,
-  staticWidth: boolean,
-  fixedWidth: boolean,
-  flex: number;
-};
-
-
-declare type CS = {
-  dataKey: string;
-  label: string;
-  iconLabel?: React.ReactElement;
-  defaultSort?: 1 | -1;
-  flex?: number;
-  width?: number;
-  fixedWidth?: boolean;
-  staticWidth?: boolean;
-  minWidth?: number;
-  ignoreInColumnPicker?: boolean;
-  submenu?: boolean;
-};
-
-declare type columnOption<K extends keyof ColumnOptions> = [K];
-
-declare type CS2 = [dataKey: string,
-  label: string,
-  iconLabel?: React.ReactElement,
-  defaultSort?: 1 | -1,
-  flex?: number,
-  width?: number,
-  fixedWidth?: boolean,
-  staticWidth?: boolean];
-
-
-
-
-
-
-
-
-/* const secretKeysTableRowsData = <T extends keyof TranslateService>(serviceID?: T) => {
-  const serviceSelected: TranslateService | undefined = serviceID ? services[serviceID] : undefined;
-  let rows;
-  const secretKeysTableConfig = {
-    columnPropKeys: ["dataKey", "label", "staticWidth", "fixedWidth", "flex"],
-    columnPropValues: [
-      ["key", getString("prefs-table-key"), false, false, 3],
-      ["usable", getString("prefs-table-usable"), false, false, 1],
-      ["charConsum", getString("prefs-table-charConsum"), false, false, 1]
-    ],
-  };
-  const keys = keysRowDate(secretKeysTableConfig.columnPropValues);
-  const getRowDataValues = kvArrsToObjects(keys);
-  if (serviceSelected?.secretKey?.length) {
-    const secretKey: object[] = serviceSelected.secretKey;
-    rows = secretKey.map((e: any) => getRowDataValues(Object.values(e)));
-  } else {
-    rows = [getRowDataValues()];
-  }
-  return rows;
-}; */
 
 
 

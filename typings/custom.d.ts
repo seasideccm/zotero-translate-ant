@@ -9,7 +9,7 @@ declare namespace Zotero {
   }
 }
 
-declare type OptionsZPT = {
+declare type OptionsPDFTranslate = {
   /**
    * The caller identifier.
    * This is for translate service provider to identify the caller.
@@ -194,3 +194,38 @@ interface VirtualizedTableProps {
   onFocus?: (e: FocusEvent) => boolean;
   onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
 }
+
+
+declare type columnsProp = {
+  dataKey: string,
+  label: string,
+  staticWidth: boolean,
+  fixedWidth: boolean,
+  flex: number;
+};
+
+
+declare type CS = {
+  dataKey: string;
+  label: string;
+  iconLabel?: React.ReactElement;
+  defaultSort?: 1 | -1;
+  flex?: number;
+  width?: number;
+  fixedWidth?: boolean;
+  staticWidth?: boolean;
+  minWidth?: number;
+  ignoreInColumnPicker?: boolean;
+  submenu?: boolean;
+};
+
+declare type columnOption<K extends keyof ColumnOptions> = [K];
+
+declare type CS2 = [dataKey: string,
+  label: string,
+  iconLabel?: React.ReactElement,
+  defaultSort?: 1 | -1,
+  flex?: number,
+  width?: number,
+  fixedWidth?: boolean,
+  staticWidth?: boolean];

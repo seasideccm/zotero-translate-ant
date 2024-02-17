@@ -6,13 +6,11 @@ import { ContextMenu } from "./contextMenu";
 import { jsonTofileTest } from "../database/sync";
 import { TranslateService, services } from "../translate/services";
 import { getElementValue } from "./uiTools";
+import { translate } from '../translate/translate';
 
-
-
-const noop = () => { };
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
-async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
+export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
     if (!containerId) {
         throw "Must pass propsOption.containerId which assign table location";
     }
@@ -39,16 +37,9 @@ async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
 
-    //数据 rows 挂载至表格实例上
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
-    /* columnPropValues: [
-        ["appID", "appID", false, false, 3],
-        ["secretKey", "secretKey", false, false, 3],
-        ["usable", getString("prefs-table-usable"), false, false, 1],
-        ["charConsum", getString("prefs-table-charConsum"), false, false, 1]
-    ], */
-
+    //数据 rows 表格创建后挂载至 tableHelper.treeInstance 表格实例上
     let rows = secretKeysTableRowsData(serviceID);
     if (!rows) return;
 
@@ -86,11 +77,28 @@ export async function replaceSecretKeysTable() {
 
 
     function handleItemContextMenu(...args: any[]) {
-        showInfo("条目右键菜单", { window: addon.data.prefs?.window });
-        //tableHelper.props.onContextMenu && tableHelper.props.onContextMenu(...args);
-        //const onContextMenu = (...args) => ZoteroPane.onCollectionsContextMenuOpen(...args);
 
-        const onCollectionsContextMenuOpen = async function (event: Event, x: number, y: number) {
+        const [event, x, y] = args;
+        onCollectionsContextMenuOpen(event, x, y);
+        return false;
+
+        function buildContextMenu() {
+            const keys = ["label", "func", "args"];
+            const menuPropsGroupsArr = [
+                [
+                    ["菜单1", testContextMenu, ["菜单1", "第1位"]],
+                    ["菜单2", testContextMenu, ["菜单2", "第2位"]],
+                ],
+                [
+                    ["菜单4", testContextMenu, ["菜单4", "第3位"]],
+                    ["菜单3", testContextMenu, ["菜单3", "第4位"]],
+                ],
+            ];
+            const idPostfix = "tableContextMenu";
+            const contextMenu = new ContextMenu({ keys, menuPropsGroupsArr, idPostfix });
+            return contextMenu;
+        };
+        async function onCollectionsContextMenuOpen(event: Event, x: number, y: number) {
             const contextMenu = buildContextMenu();
             //@ts-ignore has
             x = x || event.screenX; //@ts-ignore has
@@ -105,30 +113,28 @@ export async function replaceSecretKeysTable() {
             contextMenu.menupopup.moveTo(x, y);
         };
 
-        const buildContextMenu = () => {
-            const keys = ["label", "func", "args"];
-            const menuPropsGroupsArr = [
-                [
-                    ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-                    ["jsonTofile", jsonTofileTest, []],
-                ],
-            ];
-            const idPostfix = "tableContextMenu";
-            const contextMenu = new ContextMenu({ keys, menuPropsGroupsArr, idPostfix });
-            return contextMenu;
-        };
-        const [event, x, y] = args;
-        onCollectionsContextMenuOpen(event, x, y);
-        return false;
+        function testContextMenu(...args: any[]) {
+            const menuPopupEvent = args.pop();
+            const target = args.pop();
+
+            const eventType = menuPopupEvent.type;
+
+            const id = target.id;
+            showInfo(["表格行右键菜单:" + id, `事件类型：${eventType}`],
+                {
+                    window: addon.data.prefs?.window,
+
+                });
+            const arg1 = args[0];
+            const arg2 = args[1];
+            showInfo("原始参数：" + arg1 + "<br><br>" + arg2);
+        }
+
+
+
     }
 
-    function getInstance() {
-        if (tableHelper && tableHelper.treeInstance) return tableHelper.treeInstance;
-        if (!tableHelper) {
-            const tableIDs = Object.keys(addon.mountPoint.tables);
-            addon.mountPoint.tables[props.id];
-        }
-    }
+
     function handleKeyDown(e: KeyboardEvent) {
         // When pressing delete, delete selected line and refresh table.
         // Returning false to prevent default event.
@@ -272,6 +278,7 @@ export async function replaceSecretKeysTable() {
         return false;
 
     }
+
     function commitEditing(oldCell: ChildNode, label: HTMLInputElement, indexs: number[], cellIndex: number) {
         const index = indexs[0];
         //@ts-ignore has
@@ -281,11 +288,10 @@ export async function replaceSecretKeysTable() {
         label.parentNode?.replaceChild(oldCell, label);
         saveTx();
     };
+
     function discardEditing(oldCell: ChildNode, label: HTMLInputElement) {
         label.parentNode?.replaceChild(oldCell, label);
     };
-
-
 
     function getcellIndex(event: Event) {
         //@ts-ignore has
@@ -302,9 +308,11 @@ export async function replaceSecretKeysTable() {
             }
         }
     }
+
     function saveTx() {
         showInfo("fake save to database");
     };
+
     function stopEditing() {
         //@ts-ignore has
         tableHelper.treeInstance.isEditing = null;
@@ -326,6 +334,8 @@ export async function replaceSecretKeysTable() {
         });
         return columnPropValues;
     };
+
+
     function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
         const serviceSelected = serviceID ? services[serviceID] : undefined;
         let rows: any[];
@@ -342,10 +352,6 @@ export async function replaceSecretKeysTable() {
         }
         return rows;
     };
-    function keysRowDate(columnPropValues: any[][]) {
-        return columnPropValues.map(e => e[0]);
-    }
-
 
     function kvArrsToObjects(keys: string[]) {
         return function (values?: any | any[]) {
@@ -354,6 +360,13 @@ export async function replaceSecretKeysTable() {
             return arrToObj(keys, keys.map((k, i) => values[i] || k + ' + empty'));
         };
     }
+}
+
+export function getTableByID(tableID?: string) {
+    if (!addon.mountPoint.tables) return;
+    const tables = addon.mountPoint.tables;
+    if (!tableID) return tables;
+    return tables[tableID];
 }
 
 function makeTableProps(options: VTableProps, rows: any[]) {
@@ -411,8 +424,6 @@ function makeTableProps(options: VTableProps, rows: any[]) {
     });
 
     return Object.assign(defaultVtableProps, options);
-
-
 }
 
 

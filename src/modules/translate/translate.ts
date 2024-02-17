@@ -10,12 +10,12 @@ export class translate {
 
 
 export async function tran(rowText: string) {
-    const optionsZPT: OptionsZPT = {
+    const OptionsPDFTranslate: OptionsPDFTranslate = {
         service: "baidu",
         pluginID: config.addonID,
         langfrom: "en",
         langto: "zh"
     };
-    const result = await Zotero.PDFTranslate.api.translate(rowText, optionsZPT);
+    const result = await Zotero.PDFTranslate.api.translate(rowText, OptionsPDFTranslate);
     showInfo(result.result);
 }

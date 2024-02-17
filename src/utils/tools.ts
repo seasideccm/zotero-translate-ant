@@ -244,21 +244,29 @@ export function getPopupWin(header: string = config.addonName, option?: OptionsP
   }
   return addon.mountPoint["popupWin"];
 }
-export function showInfo(info?: string, option?: OptionsPopupWin, header?: string, optionsCreatLine?: OptionsPopupWinCreateLine) {
+export function showInfo(infos?: string | string[], option?: OptionsPopupWin, header?: string, optionsCreatLine?: OptionsPopupWinCreateLine) {
   const noop = () => {
   };
   !header ? header = config.addonName : noop;
   const popupWin = addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
-  if (!option || option.closeTime != -1) {
-    Zotero.ProgressWindowSet.closeAll();
-  }
-  if (!info && (!optionsCreatLine || !optionsCreatLine.text)) {
+  //if (!option || option.closeTime != -1) {
+  //  Zotero.ProgressWindowSet.closeAll();
+  //}
+  if (!infos && (!optionsCreatLine || !optionsCreatLine.text)) {
     throw "info and optionsCreatLine.text can't all undefinde";
   }
   !optionsCreatLine ? optionsCreatLine = {} : noop;
-  !optionsCreatLine.text ? optionsCreatLine.text = info : noop;
   !optionsCreatLine.type ? optionsCreatLine.type = "default" : noop;
-  popupWin.createLine(optionsCreatLine).show();
+  if (infos) {
+    if (!Array.isArray(infos)) infos = [infos];
+    infos.filter((info: string) => {
+      optionsCreatLine.text = info;
+      popupWin.createLine(optionsCreatLine);
+    });
+  } else (
+    popupWin.createLine(optionsCreatLine)
+  );
+  popupWin.show();
   return popupWin;
 }
 

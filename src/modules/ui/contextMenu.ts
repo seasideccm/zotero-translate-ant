@@ -1,5 +1,5 @@
 import { config } from "../../../package.json";
-import { getString } from "../../utils/locale";
+
 export class ContextMenu {
     menupopup: XUL.MenuPopup;
     methodMap: Map<any, any>;
@@ -15,7 +15,7 @@ export class ContextMenu {
             if (tagName === 'menuitem') {
                 // anchorNode 为操作的目标元素
                 //@ts-ignore has anchorNode
-                await this.handleMenuItem(menupopup.anchorNode, e);
+                await this.handleMenuItem(this.menupopup.anchorNode, e);
             }
         });
     }
@@ -26,14 +26,13 @@ export class ContextMenu {
         const obj = this.methodMap.get(labe);
         if (obj) {
             const fn = obj.fn;
-            const args = [target];
-            if (obj.args) args.push(obj.args);
+            const args = [...obj.args];
+            args.push(target, menuPopupEvent);
             if (this.judgeAsync(fn)) {
                 fn.apply(this, args);
             } else {
                 await fn.apply(this, args);
             }
-
         }
 
         /* switch ((menuPopupEvent.target as any).label) {
