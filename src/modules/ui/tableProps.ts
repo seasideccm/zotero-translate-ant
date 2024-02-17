@@ -323,16 +323,24 @@ export async function replaceSecretKeysTable() {
     }
 
     function makeColumnPropValues(row: any) {
+        // 本地化 ftl 文件中条目的前缀
         const prefTableStringPrefix = "prefs-table-";
-        const columnPropValues = Object.keys(row).map((key: string, i: number) => {
-            switch (i) {
-                case 1:
-                    return [key, getString(`${prefTableStringPrefix}${key}`) || key, false, false, 2];
-                default:
-                    return [key, getString(`${prefTableStringPrefix}${key}`) || key, false, false, 1];
+        const temp = Object.keys(row).map((key: string, i: number) => {
+            // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
+            let label = getString(`${prefTableStringPrefix}${key}`);
+            if (!label || label.startsWith(config.addonRef)) {
+                label = key;
             }
+            const result: any[] = [key, label];
+            result.push(false, false);
+            if (i == 1) {
+                result.push(2);
+                return result;
+            };
+            result.push(1);
+            return result;
         });
-        return columnPropValues;
+        return temp;
     };
 
 
