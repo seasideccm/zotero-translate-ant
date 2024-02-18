@@ -36,7 +36,6 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
-
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableHelper.treeInstance 表格实例上
@@ -80,8 +79,6 @@ export async function replaceSecretKeysTable() {
         if (tableHelper.treeInstance.editIndex) {
             commitEditing();
         }
-
-        showInfo("选择改变");
     }
 
     function handleItemContextMenu(...args: any[]) {
@@ -148,7 +145,7 @@ export async function replaceSecretKeysTable() {
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
         //@ts-ignore has
-        if (tableHelper.treeInstance.isEditing) {
+        if (tableHelper.treeInstance.editIndex) {
             if (e.key == 'Enter' || e.key == 'Escape') {
                 const target = e.target;
                 if (e.key != 'Escape') {
@@ -227,6 +224,11 @@ export async function replaceSecretKeysTable() {
     }
 
     function editCell(event: Event, indices: number[]) {
+        const COLUMN_PADDING = 16;
+        //@ts-ignore has
+        if (tableHelper.treeInstance.editIndex) {
+            commitEditing();
+        }
         if (!event.target) true;
         const div = event.target as HTMLElement;
         const cellIndex = getcellIndex(event);
@@ -239,12 +241,9 @@ export async function replaceSecretKeysTable() {
         label.placeholder = "测试" + cell.textContent;
         label.value = cell.textContent ? cell.textContent : "";
         label.className = 'cell-text';
-        label.dir = 'auto';
-
-        //@ts-ignore has
+        label.dir = 'auto';        //@ts-ignore has
         const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
         label.style.width = width + "px";
-        label.setAttribute("size", '5');
         label.addEventListener('input', e => {
             e.stopImmediatePropagation();
         });
@@ -254,10 +253,8 @@ export async function replaceSecretKeysTable() {
         label.addEventListener('blur', async (e) => {
             //@ts-ignore has
             commitEditing(tableHelper.treeInstance.oldCell, label, indices, cellIndex);
-            //saveTx();
-            stopEditing();
             //@ts-ignore has
-            //event.view?.removeEventListener("click", todo);
+            event.view?.removeEventListener("click", todo);
         });
         //@ts-ignore has
         event.view?.addEventListener("click", todo);
@@ -273,19 +270,47 @@ export async function replaceSecretKeysTable() {
         setTimeout(() => {
             label.focus();
             label.select();
+
         });
+
         //@ts-ignore has
         tableHelper.treeInstance.oldCell = cell;//@ts-ignore has
         tableHelper.treeInstance.label = label;//@ts-ignore has
         tableHelper.treeInstance.editIndex = indices[0];
         div.replaceChild(label, cell);
-        //@ts-ignore has
-        tableHelper.treeInstance.isEditing = true;
-        //@ts-ignore has
-        //tableHelper.treeInstance._columns.onResize();
         //禁用默认操作
         return false;
 
+    }
+
+    function resizeColumnWidth(index: number) {
+        const onResizeData: any = {};
+        const column = getColumn(index);
+        onResizeData[column.dataKey] = column.width + 10;//@ts-ignore has
+        tableHelper.treeInstance._columns.onResize(onResizeData);
+    }
+    function resize() {
+        //@ts-ignore has
+        const columns = tableHelper.treeInstance._getVisibleColumns();//@ts-ignore has
+        //@ts-ignore has
+        tableHelper.treeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
+    }
+
+    function getColumn(index: number) {
+        //@ts-ignore has
+        const columns = tableHelper.treeInstance._getVisibleColumns();//@ts-ignore has
+        return columns[index];
+    }
+
+    function getColumnWidth(index: number) {
+        const COLUMN_PADDING = 16;
+        //@ts-ignore has
+        const columns = tableHelper.treeInstance._getVisibleColumns();
+        const proportion = columns[index].width / columns.map((c: any) => c.width).reduce((sum: number, number: number) => sum + number, 0);
+
+        //@ts-ignore has
+        const tableWidth = tableHelper.treeInstance._topDiv.getBoundingClientRect().width;
+        return Math.round(proportion * tableWidth * window.devicePixelRatio);
     }
 
     function commitEditing() {
@@ -295,10 +320,15 @@ export async function replaceSecretKeysTable() {
         const index = tableHelper.treeInstance.editIndex;
         //@ts-ignore has
         const key = oldCell.classList[1];
+        if (oldCell.textContent == label.value) {
+            stopEditing();
+            return;
+        }
         rows[index][key] = label.value;
         oldCell.textContent = label.value;
         label.parentNode?.replaceChild(oldCell, label);
         saveTx();
+        stopEditing();
     };
 
     function discardEditing(oldCell: ChildNode, label: HTMLInputElement) {
@@ -327,7 +357,7 @@ export async function replaceSecretKeysTable() {
 
     function stopEditing() {
         //@ts-ignore has
-        tableHelper.treeInstance.isEditing = null;
+        tableHelper.treeInstance.editIndex = null;
         // Returning focus to the tree container
         //Rerender items within the scrollbox. Call sparingly        
         tableHelper.treeInstance.invalidate();
