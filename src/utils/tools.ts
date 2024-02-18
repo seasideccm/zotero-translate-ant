@@ -248,7 +248,8 @@ export function showInfo(infos?: string | string[], option?: OptionsPopupWin, he
   const noop = () => {
   };
   !header ? header = config.addonName : noop;
-  const popupWin = addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
+  //const popupWin = addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
+  const popupWin = new ztoolkit.ProgressWindow(header, option);
   //if (!option || option.closeTime != -1) {
   //  Zotero.ProgressWindowSet.closeAll();
   //}
@@ -260,8 +261,8 @@ export function showInfo(infos?: string | string[], option?: OptionsPopupWin, he
   if (infos) {
     if (!Array.isArray(infos)) infos = [infos];
     infos.filter((info: string) => {
-      optionsCreatLine.text = info;
-      popupWin.createLine(optionsCreatLine);
+      optionsCreatLine!.text = info;
+      popupWin.createLine(optionsCreatLine!);
     });
   } else (
     popupWin.createLine(optionsCreatLine)

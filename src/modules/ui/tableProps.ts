@@ -60,6 +60,7 @@ export async function replaceSecretKeysTable() {
         getRowData: (index: number) => rows[index],
         getRowString: ((index: number) => rows[index].key || ""),
         onKeyDown: handleKeyDown,
+        onSelectionChange: handleSelectionChange,
         //@ts-ignore has
         onActivate: editCell,
         onItemContextMenu: handleItemContextMenu,
@@ -74,7 +75,14 @@ export async function replaceSecretKeysTable() {
     const tableHelper = await tableFactory(options);
     //@ts-ignore has
     tableHelper.treeInstance.rows = rows;
+    function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
+        const { selected } = selection;//@ts-ignore has
+        if (tableHelper.treeInstance.editIndex) {
+            commitEditing();
+        }
 
+        showInfo("选择改变");
+    }
 
     function handleItemContextMenu(...args: any[]) {
 
@@ -249,21 +257,8 @@ export async function replaceSecretKeysTable() {
             //saveTx();
             stopEditing();
             //@ts-ignore has
-            event.view?.removeEventListener("click", todo);
+            //event.view?.removeEventListener("click", todo);
         });
-
-        // Feels like a bit of a hack, but it gets the job done
-        setTimeout(() => {
-            label.focus();
-            label.select();
-        });
-        //@ts-ignore has
-        tableHelper.treeInstance.oldCell = cell;
-        div.replaceChild(label, cell);
-        //@ts-ignore has
-        tableHelper.treeInstance.isEditing = true;
-        //@ts-ignore has
-        tableHelper.treeInstance._columns.onResize({ key: width });
         //@ts-ignore has
         event.view?.addEventListener("click", todo);
         function todo(e: Event) {
@@ -274,13 +269,30 @@ export async function replaceSecretKeysTable() {
             }
         }
 
+        // Feels like a bit of a hack, but it gets the job done
+        setTimeout(() => {
+            label.focus();
+            label.select();
+        });
+        //@ts-ignore has
+        tableHelper.treeInstance.oldCell = cell;//@ts-ignore has
+        tableHelper.treeInstance.label = label;//@ts-ignore has
+        tableHelper.treeInstance.editIndex = indices[0];
+        div.replaceChild(label, cell);
+        //@ts-ignore has
+        tableHelper.treeInstance.isEditing = true;
+        //@ts-ignore has
+        //tableHelper.treeInstance._columns.onResize();
         //禁用默认操作
         return false;
 
     }
 
-    function commitEditing(oldCell: ChildNode, label: HTMLInputElement, indexs: number[], cellIndex: number) {
-        const index = indexs[0];
+    function commitEditing() {
+        //@ts-ignore has
+        const oldCell = tableHelper.treeInstance.oldCell;//@ts-ignore has
+        const label = tableHelper.treeInstance.label;//@ts-ignore has
+        const index = tableHelper.treeInstance.editIndex;
         //@ts-ignore has
         const key = oldCell.classList[1];
         rows[index][key] = label.value;

@@ -229,3 +229,53 @@ declare type CS2 = [dataKey: string,
   width?: number,
   fixedWidth?: boolean,
   staticWidth?: boolean];
+
+interface TreeSelection {
+  _tree: VirtualizedTable;
+  pivot: number;
+  focused: number;
+  selected: Set<number>;
+  _selectEventsSuppressed: boolean;
+  /**
+   * @param tree {VirtualizedTable} The tree where selection occurs. Will be used to issue
+   * updates.
+   */
+  new(tree: VirtualizedTable): this;
+  /**
+   * Returns whether the given index is selected.
+   * @param index {Number} The index is 0-clamped.
+   * @returns {boolean}
+   */
+  isSelected(index: number): boolean;
+  /**
+   * Toggles an item's selection state, updates focused item to index.
+   * @param index {Number} The index is 0-clamped.
+   * @param shouldDebounce {Boolean} Whether the update to the tree should be debounced
+   */
+  toggleSelect(index: number, shouldDebounce?: boolean): void;
+  clearSelection(): void;
+  /**
+   * Selects an item, updates focused item to index.
+   * @param index {Number} The index is 0-clamped.
+   * @param shouldDebounce {Boolean} Whether the update to the tree should be debounced
+   * @returns {boolean} False if nothing to select and select handlers won't be called
+   */
+  select(index: number, shouldDebounce?: boolean): boolean;
+  rangedSelect(from: number, to: number, augment: boolean, isSelectAll: boolean): void;
+  /**
+   * Performs a shift-select from current pivot to provided index. Updates focused item to index.
+   * @param index {Number} The index is 0-clamped.
+   * @param augment {Boolean} Adds to existing selection if true
+   * @param shouldDebounce {Boolean} Whether the update to the tree should be debounced
+   */
+  shiftSelect(index: number, augment: boolean, shouldDebounce?: boolean): void;
+  /**
+   * Calls the onSelectionChange prop on the tree
+   * @param shouldDebounce {Boolean} Whether the update to the tree should be debounced
+   * @private
+   */
+  _updateTree(shouldDebounce?: boolean): void;
+  get count(): number;
+  get selectEventsSuppressed(): boolean;
+  set selectEventsSuppressed(val: boolean);
+}
