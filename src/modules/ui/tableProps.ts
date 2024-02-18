@@ -353,6 +353,7 @@ export async function replaceSecretKeysTable() {
 
     function saveTx() {
         showInfo("fake save to database");
+
     };
 
     function stopEditing() {
