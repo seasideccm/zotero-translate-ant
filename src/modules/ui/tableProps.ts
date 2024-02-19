@@ -4,7 +4,7 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { jsonTofileTest } from "../database/sync";
-import { TranslateService, services } from "../translate/services";
+import { TranslateService, services } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
 import { translate } from '../translate/translate';
 
@@ -352,6 +352,8 @@ export async function replaceSecretKeysTable() {
     }
 
     function saveTx() {
+        showInfo("fake save to database");
+        return;
         const appid = "appid";
         const secretKey = "secretKey";
         const usable = "usable";
@@ -365,7 +367,7 @@ export async function replaceSecretKeysTable() {
 
         };
         const item = getItem(itemID);
-        Zotero. (item, obj);
+        Zotero.Utilities.Internal.assignProps(item, obj);
         showInfo("fake save to database");
 
     };

@@ -9,7 +9,7 @@ import { getDB, DB } from '../database/database';
  */
 export class TranslateService {
   //[key: string]: any;
-  id: string;
+  serviceID: string;
   charasPerTime: number;
   QPS: number;
   limitMode: string;
@@ -34,7 +34,7 @@ export class TranslateService {
   editable?: boolean;
   _objectType?: string;
   serviceTypeID?: number;
-  _serviceTypeID?: number;
+
   _synced?: boolean;
   libraryID?: number;
   key?: string;
@@ -57,7 +57,7 @@ export class TranslateService {
    * @param serialNumber 
    */
   constructor(
-    id: string,
+    serviceID: string,
     charasPerTime: number,
     QPS: number,
     limitMode: string,
@@ -75,7 +75,7 @@ export class TranslateService {
     serialNumber?: number,
 
   ) {
-    this.id = id;
+    this.serviceID = serviceID;
     this.charasPerTime = charasPerTime;
     this.QPS = QPS;
     this.limitMode = limitMode;
@@ -107,7 +107,7 @@ export class TranslateService {
     };
     if (serviceType) return serviceTypes.indexOf(serviceType);
     for (const k in serviceCategory) {
-      if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.id) > -1) return serviceTypes.indexOf(k);
+      if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.serviceID) > -1) return serviceTypes.indexOf(k);
     }
   }
   _requireData(dataType: string) {
@@ -116,7 +116,7 @@ export class TranslateService {
     }
 
     if (!this._loaded[dataType]) {
-      throw new Error(`${dataType} not loaded for TranslateService ${this.id}`);
+      throw new Error(`${dataType} not loaded for TranslateService ${this.serviceID}`);
     }
   }
 
@@ -384,7 +384,7 @@ export class TranslateService {
     if (!env.options.skipNotifier && this._changedData.deleted !== undefined) {
       Zotero.Notifier.queue('refresh', 'trash', [this.libraryID!.toString()], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
       if (!env.isNew && this._changedData.deleted) {
-        Zotero.Notifier.queue('trash', this._objectType as _ZoteroTypes.Notifier.Type, [this.id], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
+        Zotero.Notifier.queue('trash', this._objectType as _ZoteroTypes.Notifier.Type, [this.serviceID], { autoSyncDelay: {}, skipAutoSync: {} }, env.options.notifierQueue);
       }
     }
   }
@@ -537,7 +537,7 @@ export class TranslateService {
 
   loadFromRow(row: any, reload: any) {
     // If necessary or reloading, set the type and reinitialize this._itemData
-    if (reload || (!this._serviceTypeID && row.serviceTypeID)) {
+    if (reload || (!this.serviceTypeID && row.serviceTypeID)) {
       this.setType(row.serviceTypeID, true);
     }
 
