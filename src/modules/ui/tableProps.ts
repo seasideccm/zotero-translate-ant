@@ -352,9 +352,28 @@ export async function replaceSecretKeysTable() {
     }
 
     function saveTx() {
+        const appid = "appid";
+        const secretKey = "secretKey";
+        const usable = "usable";
+        const charConsum = "charConsum";
+        const itemID = 1;
+        const obj = {
+            appid: appid,
+            secretKey: secretKey,
+            usable: usable,
+            charConsum: charConsum,
+
+        };
+        const item = getItem(itemID);
+        Zotero. (item, obj);
         showInfo("fake save to database");
 
     };
+
+    function getItem(itemID: number) {
+        const translateService = {};
+        return translateService;
+    }
 
     function stopEditing() {
         //@ts-ignore has
