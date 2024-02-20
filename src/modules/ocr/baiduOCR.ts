@@ -40,9 +40,9 @@ async function baiduOcr(
 
 async function baiduOauth(secretKey: string) {
   const params = secretKey.split("#");
-  const appid = params[0];
+  const appID = params[0];
   const key = params[1];
-  const token_url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${appid}&client_secret=${key}`;
+  const token_url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${appID}&client_secret=${key}`;
   const headersToken = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -112,7 +112,7 @@ function baiduPictureTranslate(secretKey: string) {
     targetLang,
   }: BaiduOcrPictureTr) {
     const params = secretKey.split("#");
-    const appid = params[0];
+    const appID = params[0];
     const key = params[1];
     const salt = new Date().getTime();
     const cuid = "APICUID";
@@ -149,9 +149,9 @@ function baiduPictureTranslate(secretKey: string) {
     // 需要在 node 环境下计算文件的 md5 值
     const fileMD5 = await Zotero.Utilities.Internal.md5Async(imgPath);
     const sign = Zotero.Utilities.Internal.md5(
-      `${appid}${fileMD5}${salt}${cuid}${mac}${key}`,
+      `${appID}${fileMD5}${salt}${cuid}${mac}${key}`,
     );
-    const urlTail = `?from=${from}&to=${to}&appid=${appid}&salt=${salt}&sign=${sign}&cuid=${cuid}&mac=${mac}&version=3`;
+    const urlTail = `?from=${from}&to=${to}&appID=${appID}&salt=${salt}&sign=${sign}&cuid=${cuid}&mac=${mac}&version=3`;
     let url = "https://fanyi-api.baidu.com/api/trans/sdk/picture";
     url = url + urlTail;
     const body = new window.FormData();

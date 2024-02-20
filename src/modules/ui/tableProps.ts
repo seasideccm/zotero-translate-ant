@@ -8,6 +8,8 @@ import { TranslateService } from "../translate/translateService";
 import { services } from "../translate/translateServices";
 import { getElementValue } from "./uiTools";
 import { translate } from '../translate/translate';
+import { getDB } from "../database/database";
+import { listenImageCallback } from '../ocr/trigerOcr';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -39,7 +41,7 @@ export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
-    //数据 rows 表格创建后挂载至 tableHelper.treeInstance 表格实例上
+    //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     let rows = secretKeysTableRowsData(serviceID);
     if (!rows) return;
 
@@ -73,11 +75,11 @@ export async function replaceSecretKeysTable() {
     };
 
     const tableHelper = await tableFactory(options);
-    //@ts-ignore has
-    tableHelper.treeInstance.rows = rows;
+    const tableTreeInstance = tableHelper.treeInstance as VTable;
+    tableTreeInstance.rows = rows;
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         const { selected } = selection;//@ts-ignore has
-        if (tableHelper.treeInstance.editIndex) {
+        if (tableTreeInstance.editIndex) {
             commitEditing();
         }
     }
@@ -146,16 +148,16 @@ export async function replaceSecretKeysTable() {
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
         //@ts-ignore has
-        if (tableHelper.treeInstance.editIndex) {
+        if (tableTreeInstance.editIndex) {
             if (e.key == 'Enter' || e.key == 'Escape') {
                 const target = e.target;
                 if (e.key != 'Escape') {
                     //@ts-ignore has
-                    commitEditing(tableHelper.treeInstance.oldCell, target);
-                    saveTx();
+                    commitEditing(tableTreeInstance.oldCell, target);
+
                 } else {
                     //@ts-ignore has
-                    discardEditing(tableHelper.treeInstance.oldCell, target);
+                    discardEditing(tableTreeInstance.oldCell, target);
                 }
                 stopEditing();
             }
@@ -165,7 +167,7 @@ export async function replaceSecretKeysTable() {
             //获取要删除的行数据，获得秘钥，和services中的秘钥比较,然后删除秘钥
             const rowsDataDelete = rows.filter(
                 //@ts-ignore has
-                (v: any, i: number) => tableHelper.treeInstance.selection.isSelected(i)
+                (v: any, i: number) => tableTreeInstance.selection.isSelected(i)
             );
             //确认删除，点击cancel则取消
             const confirm = addon.data.prefs!.window.confirm(getString("info-delete-secretKey") + '\n'
@@ -174,9 +176,9 @@ export async function replaceSecretKeysTable() {
 
             //过滤掉选中行的数据，保留未选中的数据为数组，赋值给rows
             //@ts-ignore has
-            const selectedIndexs = Array.from(tableHelper.treeInstance.selection.selected);
+            const selectedIndices = Array.from(tableTreeInstance.selection.selected);
             //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-            rows = rows.filter((v: any, i: number) => !selectedIndexs.includes(i)) || [];
+            rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
             tableHelper.render();
             //上面先更新表格，刷新后再删除services中的秘钥
             /* const serviceID = getElementValue("serviceID");
@@ -211,10 +213,10 @@ export async function replaceSecretKeysTable() {
 
         /* if (e.key == 'ContextMenu' || (e.key == 'F10' && e.shiftKey)) {
             //@ts-ignore has
-            const selectedElem = document.querySelector(`#${tableHelper.treeInstance._jsWindowID} [aria-selected=true]`);
+            const selectedElem = document.querySelector(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
             if (!selectedElem) return;
             const boundingRect = selectedElem.getBoundingClientRect();
-            tableHelper.treeInstance.props.onItemContextMenu(
+            tableTreeInstance.props.onItemContextMenu(
                 e,
                 window.screenX + boundingRect.left + 50,
                 window.screenY + boundingRect.bottom
@@ -227,7 +229,7 @@ export async function replaceSecretKeysTable() {
     function editCell(event: Event, indices: number[]) {
         const COLUMN_PADDING = 16;
         //@ts-ignore has
-        if (tableHelper.treeInstance.editIndex) {
+        if (tableTreeInstance.editIndex) {
             commitEditing();
         }
         if (!event.target) true;
@@ -253,7 +255,7 @@ export async function replaceSecretKeysTable() {
         label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
         label.addEventListener('blur', async (e) => {
             //@ts-ignore has
-            commitEditing(tableHelper.treeInstance.oldCell, label, indices, cellIndex);
+            commitEditing(tableTreeInstance.oldCell, label, indices, cellIndex);
             //@ts-ignore has
             event.view?.removeEventListener("click", todo);
         });
@@ -275,9 +277,9 @@ export async function replaceSecretKeysTable() {
         });
 
         //@ts-ignore has
-        tableHelper.treeInstance.oldCell = cell;//@ts-ignore has
-        tableHelper.treeInstance.label = label;//@ts-ignore has
-        tableHelper.treeInstance.editIndex = indices[0];
+        tableTreeInstance.oldCell = cell;//@ts-ignore has
+        tableTreeInstance.label = label;//@ts-ignore has
+        tableTreeInstance.editIndex = indices[0];
         div.replaceChild(label, cell);
         //禁用默认操作
         return false;
@@ -288,49 +290,186 @@ export async function replaceSecretKeysTable() {
         const onResizeData: any = {};
         const column = getColumn(index);
         onResizeData[column.dataKey] = column.width + 10;//@ts-ignore has
-        tableHelper.treeInstance._columns.onResize(onResizeData);
+        tableTreeInstance._columns.onResize(onResizeData);
     }
     function resize() {
         //@ts-ignore has
-        const columns = tableHelper.treeInstance._getVisibleColumns();//@ts-ignore has
+        const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
         //@ts-ignore has
-        tableHelper.treeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
+        tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
     }
 
     function getColumn(index: number) {
         //@ts-ignore has
-        const columns = tableHelper.treeInstance._getVisibleColumns();//@ts-ignore has
+        const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
         return columns[index];
     }
 
     function getColumnWidth(index: number) {
         const COLUMN_PADDING = 16;
         //@ts-ignore has
-        const columns = tableHelper.treeInstance._getVisibleColumns();
+        const columns = tableTreeInstance._getVisibleColumns();
         const proportion = columns[index].width / columns.map((c: any) => c.width).reduce((sum: number, number: number) => sum + number, 0);
 
         //@ts-ignore has
-        const tableWidth = tableHelper.treeInstance._topDiv.getBoundingClientRect().width;
+        const tableWidth = tableTreeInstance._topDiv.getBoundingClientRect().width;
         return Math.round(proportion * tableWidth * window.devicePixelRatio);
     }
 
     function commitEditing() {
         //@ts-ignore has
-        const oldCell = tableHelper.treeInstance.oldCell;//@ts-ignore has
-        const label = tableHelper.treeInstance.label;//@ts-ignore has
-        const index = tableHelper.treeInstance.editIndex;
+        const oldCell = tableTreeInstance.oldCell;//@ts-ignore has
+        const label = tableTreeInstance.label;//@ts-ignore has
+        const index = tableTreeInstance.editIndex;
+        if (index == void 0) return;
         //@ts-ignore has
-        const key = oldCell.classList[1];
+        const key: string = oldCell.classList[1];
         if (oldCell.textContent == label.value) {
             stopEditing();
             return;
         }
+        if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
+        const tempObj: any = {};
+        tempObj[key] = {
+            previous: rows[index][key],
+            current: label.value
+        };
+        tableTreeInstance.dataChangedCache[index] = tempObj;
         rows[index][key] = label.value;
         oldCell.textContent = label.value;
         label.parentNode?.replaceChild(oldCell, label);
         saveTx();
         stopEditing();
     };
+    function getSelectedTranlateServiceItems() {
+        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+        //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
+        return rows.filter((v: any, i: number) => selectedIndices.includes(i));
+    }
+
+    async function saveTx() {
+        //todo 防抖节流
+        showInfo("fake save to database");
+        let dataChangedCache = (tableTreeInstance as VTable).dataChangedCache;
+        if (!dataChangedCache) return;
+        const serviceID = getElementValue("serviceID");
+
+        let tableNames: string[] = [];
+        for (const index of Object.keys(dataChangedCache)) {
+            const row = rows[Number(index)];
+            let serialNumber = await getSerialNumber(serviceID, row);
+            const DB = await getDB();
+            if (!serialNumber) {
+                await DB.executeTransaction(async () => {
+                    serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
+                    let sql = "INSERT INTO translateServiceSN (serialNumber, serviceID";
+                    if (row.appID) {
+                        sql += ", appID" + ") VALUES ('" + serialNumber + "','" + serviceID + "','" + row.appID + "')";
+                    } else {
+                        sql += ") VALUES ('" + serviceID + "','" + serialNumber + "')";
+                    }
+                    await DB.queryAsync(sql);
+
+                    const keys = Object.keys(row);
+                    if (keys.includes("token")) {
+                        const tableName = "accessTokens";
+                        const sqlColumns = ["serialNumber", "serviceID", "appID", "token"];
+                        const sqlValues = [serialNumber, serviceID, row.appID, row.token];
+                        //sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "                            + "VALUES (" + sqlValues.join(", ") + ")";
+                        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+                        await DB.queryAsync(sql, sqlValues);
+                    } else {
+                        const tableName = "accounts";
+                        const sqlColumns = ["serialNumber", "serviceID", "appID", "secretKey"];
+                        const sqlValues = [serialNumber, serviceID, row.appID, row.secretKey];
+                        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+                        await DB.queryAsync(sql, sqlValues);
+                    }
+                    let tableName = "charConsum";
+                    sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
+                    await DB.queryAsync(sql);
+                    tableName = "totalCharConsum";
+                    sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
+                    await DB.queryAsync(sql);
+
+                });
+            } else {
+
+                const tempObj = dataChangedCache[index];
+                const sqls: string[] = [];
+                for (const key of Object.keys(tempObj)) {
+                    switch (key) {
+                        case "secretKey":
+                            tableNames = ['accounts'];
+                            break;
+                        case "token":
+                            tableNames = ['accessTokens'];
+                            break;
+                        case "charConsum":
+                            tableNames = ['charConsum'];
+                            break;
+                        case "appID":
+                            tableNames = ['translateServiceSN', 'accounts', 'accessTokens'];
+                            break;
+                        case "usable":
+                            tableNames = ['translateServiceSN'];
+                            break;
+                    }
+                    tableNames.forEach(tableName => {
+                        const sql = `UPDATE ${tableName} SET ${key} ='${tempObj[key].current}' WHERE serialNumber = ${serialNumber}`;
+                        sqls.push(sql);
+                    });
+
+                }
+                await DB.executeTransaction(async () => {
+                    for (const sql of sqls) {
+                        await DB.queryAsync(sql);
+                    }
+                });
+            }
+        }
+
+
+
+
+
+        const index = tableTreeInstance.editIndex;
+
+        const appID = "appID";
+        const secretKey = "secretKey";
+        const usable = "usable";
+        const charConsum = "charConsum";
+        const itemID = 1;
+        const obj = {
+            appID: appID,
+            secretKey: secretKey,
+            usable: usable,
+            charConsum: charConsum,
+
+        };
+        const item = getItem(itemID);
+        Zotero.Utilities.Internal.assignProps(item, obj);
+        showInfo("fake save to database");
+        dataChangedCache = null;
+
+    };
+
+    function getServiceByServiceID(serviceID: string) {
+        return {
+            "serviceID": serviceID,
+            serviceTypeID: 1
+        };
+    }
+    async function isNewServiceItem(serviceID: string, row?: any) {
+        return !(await getSerialNumber(serviceID, row));
+    }
+
+    async function getSerialNumber(serviceID: string, row?: any) {
+        let sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}'`;
+        if (row) sql += `AND appID = '${row.appID}'`;
+        const DB = await getDB();
+        return await DB.valueQueryAsync(sql);
+    }
 
     function discardEditing(oldCell: ChildNode, label: HTMLInputElement) {
         label.parentNode?.replaceChild(oldCell, label);
@@ -352,26 +491,7 @@ export async function replaceSecretKeysTable() {
         }
     }
 
-    function saveTx() {
-        showInfo("fake save to database");
-        return;
-        const appid = "appid";
-        const secretKey = "secretKey";
-        const usable = "usable";
-        const charConsum = "charConsum";
-        const itemID = 1;
-        const obj = {
-            appid: appid,
-            secretKey: secretKey,
-            usable: usable,
-            charConsum: charConsum,
 
-        };
-        const item = getItem(itemID);
-        Zotero.Utilities.Internal.assignProps(item, obj);
-        showInfo("fake save to database");
-
-    };
 
     function getItem(itemID: number) {
         const translateService = {};
@@ -380,11 +500,11 @@ export async function replaceSecretKeysTable() {
 
     function stopEditing() {
         //@ts-ignore has
-        tableHelper.treeInstance.editIndex = null;
+        tableTreeInstance.editIndex = null;
         // Returning focus to the tree container
         //Rerender items within the scrollbox. Call sparingly        
-        tableHelper.treeInstance.invalidate();
-        //tableHelper.treeInstance.;
+        tableTreeInstance.invalidate();
+        //tableTreeInstance.;
     }
 
     function makeColumnPropValues(row: any) {
@@ -410,6 +530,91 @@ export async function replaceSecretKeysTable() {
 
 
     function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
+
+
+        async function loadServiceFromDB(serviceID: string) {
+            const DB = await getDB();
+
+            const options: any = {};
+            options[serviceID] = serviceID;
+            const limit = await getLimit(serviceID);
+            options["limit"] = limit;
+            const commonProperty = await getCommonProperty(serviceID);
+            Zotero.Utilities.Internal.assignProps(options, commonProperty);
+            if (options.hasSecretKey) {
+                const secretKeys = await getSecretKeys(serviceID);
+                options.secretKeys = secretKeys;
+            }
+            if (options.hasToken) {
+                const accessTokens = await getAccessTokens(serviceID);
+                options.secretKeys = accessTokens;
+            }
+            if (!options.hasToken && !options.hasSecretKey) {
+                options.serialNumber = "No secret keys";
+            }
+            const service = new TranslateService(options);
+            return service;
+        }
+        async function getLimit(serviceID: string) {
+            const DB = await getDB();
+            const sql = `SELECT QPS, charasPerTime, limitMode, charasLimit, configID, FROM serviceLimits WHERE serviceID = '${serviceID}'`;
+            const result = await DB.queryAsync(sql);
+            const limit = {
+                QPS: result.QPS,
+                charasPerTime: result.charasPerTime,
+                limitMode: result.limitMode,
+                charasLimit: result.charasLimit,
+                configID: result.configID
+            };
+            return limit;
+        }
+
+
+        async function getCommonProperty(serviceID: string) {
+            const DB = await getDB();
+            const sqlColumns = ["serviceTypeID", "hasSecretKey", "hasToken", "supportMultiParas"];
+            const tableName = "translateServices";
+            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} WHERE serviceID = '${serviceID}'`;
+            const rows = await DB.queryAsync(sql);
+            const rowqq = await DB.rowQueryAsync(sql);
+            const tempObj2 = arrsToObjs(sqlColumns)(rowqq);
+            const tempObj = {};
+
+            const serviceTypeID = rows.serviceTypeID;
+            const hasSecretKey = rows.hasSecretKey;
+            const hasToken = rows.hasToken;
+            const supportMultiParas = rows.supportMultiParas;
+            return {
+                serviceTypeID,
+                hasSecretKey,
+                hasToken,
+                supportMultiParas,
+            };
+
+        }
+        async function getSecretKeys(serviceID: string) {
+            const DB = await getDB();
+            const sqlColumns = ["serialNumber", "appID", "secretKey", "isAlive", "charConsum", "dateMarker"];
+            const tableName = "accounts";
+            const tableName2 = "translateServiceSN";
+            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
+            const rows = await DB.rowQueryAsync(sql);
+            sqlColumns[3] = "usable";
+            return arrsToObjs(sqlColumns)(rows);
+
+        }
+        async function getAccessTokens(serviceID: string) {
+            const DB = await getDB();
+            const sqlColumns = ["serialNumber", "appID", "token", "isAlive", "charConsum", "dateMarker"];
+            const tableName = "accessTokens";
+            const tableName2 = "translateServiceSN";
+            const tableName3 = "charConsum";
+            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN ${tableName3} USING (serialNumber) WHERE serviceID = '${serviceID}'`;
+            const rows = await DB.rowQueryAsync(sql);
+            sqlColumns[3] = "usable";
+            return arrsToObjs(sqlColumns)(rows);
+
+        }
         const serviceSelected = serviceID ? services[serviceID] : undefined;
         let rows: any[];
         //const keys = columnPropValues.map(e => e[0]) as string[];

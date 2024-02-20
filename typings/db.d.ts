@@ -98,7 +98,7 @@ declare namespace Zotero {
      * @param {Array|String|Integer} [params] SQL parameters to bind
      * @return {Promise<Object>}  A promise for a proxied storage row
      */
-    rowQueryAsync(sql: any, params: any): Promise<any>;
+    rowQueryAsync(sql: any, params?: any): Promise<any>;
     /**
      * @param {String} sql SQL statement to run
      * @param {Array|String|Integer} [params] SQL parameters to bind

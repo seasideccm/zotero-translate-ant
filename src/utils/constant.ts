@@ -81,7 +81,7 @@ export const addonTranslateService = [
 
 export const tablesTranslation = {
   translateService: ["serialNumber", "serviceID", "hasSecretKey", "forbidden", "supportMultiParas"],
-  account: ["serialNumber", "APPID", "secretKey", "charConsum", "dataMarker", "isAlive"],
+  account: ["serialNumber", "appID", "secretKey", "charConsum", "dataMarker", "isAlive"],
   accessToken: ["serialNumber", "token", "isAlive", "", "",],
   serviceLimit: ["serialNumber", "QPS", "charasPerTime", "limitMode", "charasLimit", "configID"],
   totalCharConsum: ["serialNumber", "totalCharConsum", "dateModified"]

@@ -1,5 +1,5 @@
 import { saveJsonToDisk, showInfo } from "../../utils/tools";
-import { TranslateService } from "./translateService";
+import { TranslateService, TranslateServiceAccount } from "./translateService";
 import { services } from "./translateServices";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
@@ -140,9 +140,9 @@ export class serviceManage {
     ) {
       return;
     }
-    const singleSecretKey: SecretKeys = services[serviceID].secretKeys?.filter(
+    const singleSecretKey: SecretKey = services[serviceID].secretKeys?.filter(
       (e: any) => e.key == key_singleSecretKey,
-    )[0] as SecretKeys;
+    )[0] as SecretKey;
     return singleSecretKey;
   }
 
@@ -206,7 +206,7 @@ export class serviceManage {
         .length
     ) {
       let secretKeyArr = services[serviceIDUnderUsed].secretKeys?.map(
-        (e: SecretKeys) => {
+        (e: SecretKey) => {
           if (e.usable && e.secretKey != serviceKeyUnderUsed) {
             return e.secretKey;
           }
@@ -288,7 +288,7 @@ export class serviceManage {
     const secretKey = (
       useArr[0].secretKeys?.filter(
         (e: any) => e.usable && e.key != serviceKeyUnderUsed,
-      )[0] as SecretKeys
+      )[0] as SecretKey
     )?.secretKey;
     if (secretKey != "" && secretKey !== undefined && secretKey != null) {
       this.switchServiceKey(secretKey, plugin, serviceID);
@@ -398,19 +398,29 @@ export class serviceManage {
           QPS: number,
           limitMode: string,
           charasLimit: number,
-          isMultiParas: boolean,
+          supportMultiParas: boolean,
           hasSecretKey: boolean,
-          secretKeys?: SecretKeys[],
+          hasToken: boolean,
+          secretKeys?: SecretKey[],
+          accessTokens?: AccessToken[],
+          account?: TranslateServiceAccount,
         ) => {
           services[serviceID] = new TranslateService(
-            serviceID,
-            charasPerTime,
-            QPS,
-            limitMode,
-            charasLimit,
-            isMultiParas,
-            hasSecretKey,
-            secretKeys,
+            {
+              serviceID,
+              limit: {
+                charasPerTime,
+                QPS,
+                limitMode,
+                charasLimit,
+              },
+              supportMultiParas,
+              hasSecretKey,
+              hasToken,
+              secretKeys,
+              accessTokens,
+              account
+            }
           );
           return;
         };
@@ -435,7 +445,7 @@ export class serviceManage {
           if (service === undefined) return;
           return (property: keyof TranslateService): Services => {
             return <T extends keyof TranslateService>(
-              value: TranslateService[T] | SecretKeys | SecretKeys[],
+              value: TranslateService[T] | SecretKey | SecretKey[],
             ) => {
               //<T extends keyof TranslateService>(value: TranslateService[T]|TranslateService[T][])
               //如果秘钥为空则将秘钥的值以数组形式赋值
@@ -443,14 +453,14 @@ export class serviceManage {
               if (property == "secretKeys") {
                 //value: secretKey | secretKey[]
                 if (!(value instanceof Array)) {
-                  value = [value as SecretKeys];
+                  value = [value as SecretKey];
                 }
 
                 if (
                   !service["secretKeys"]?.length ||
                   service[property as keyof typeof service] === undefined
                 ) {
-                  service["secretKeys"] = value as SecretKeys[];
+                  service["secretKeys"] = value as SecretKey[];
                 } else {
                   //判断原有的多个key是否有传入的多个key
                   /* service[property]?.map((e: any) => e.key as string)
@@ -462,12 +472,12 @@ export class serviceManage {
                   );
                   const newKeys = value.map((e) => e.secretKey);
                   const isHas = oldSecretKeys?.some((e) => newKeys.includes(e));
-                  const secretKeys: SecretKeys[] = service["secretKeys"];
+                  const secretKeys: SecretKey[] = service["secretKeys"];
                   if (isHas) {
-                    const temp: SecretKeys[] = [];
+                    const temp: SecretKey[] = [];
                     // 如果输入的秘钥和原有秘钥一致，则将输入的秘钥复制给原秘钥
                     secretKeys.filter((e) => {
-                      (value as SecretKeys[]).map((e2) => {
+                      (value as SecretKey[]).map((e2) => {
                         if (e.secretKey == e2.secretKey) {
                           if (e2.charConsum != undefined) {
                             e.charConsum = e2.charConsum;
@@ -495,7 +505,7 @@ export class serviceManage {
                                         secretKey = secretKey.concat(value as secretKey[]);
                                         service["secretKey"] = secretKey; */
                   } else {
-                    secretKeys.push(...(value as SecretKeys[]));
+                    secretKeys.push(...(value as SecretKey[]));
                   }
                 }
                 //同步百度秘钥
@@ -545,7 +555,7 @@ export class serviceManage {
    * @param serviceID
    */
   static mergeAndRemoveDuplicates(serviceID: string) {
-    const secretkeys: SecretKeys[] = [];
+    const secretkeys: SecretKey[] = [];
     const s1 = services[serviceID].secretKeys;
     if (s1?.length) {
       //数组倒置，得以保留新秘钥
@@ -570,7 +580,7 @@ export class serviceManage {
         total.push(next);
       }
       return total;
-    }, [] as SecretKeys[]);
+    }, [] as SecretKey[]);
     services[serviceID]["secretKeys"] = secretkeysingle.reverse();
   }
 }
@@ -629,12 +639,12 @@ export function getSingleServiceUnderUse() {
   if (["baiduModify", "baidufieldModify", "tencentTransmart"].includes(singleServiceUnderUse.serviceID)) {
     return singleServiceUnderUse;
   } else {
-    return { serviceID: serviceID, key: key };//appid#XXX
+    return { serviceID: serviceID, key: key };//appID#XXX
   }
 }
 
 export function updateSingleSecretKey(
-  secretKey: SecretKeys,
+  secretKey: SecretKey,
   serviceID?: string,
 ) {
   if (!serviceID) {

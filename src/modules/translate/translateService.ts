@@ -1,20 +1,118 @@
 import { tablesTranslation } from '../../utils/constant';
 import { showInfo } from '../../utils/tools';
+import { DataObject } from '../database/dataObject';
 import { DataObjects } from '../database/dataObjects';
 import { getDB, DB } from '../database/database';
 
-/**
- * 翻译引擎
- * serialNumber对应数据库
- */
+
+export class TranslateServiceAccount {
+  serialNumber: number;
+  serviceID: string;
+  secretKey?: SecretKey;
+  accessToken?: AccessToken;
+  forbidden?: boolean; //用户是否禁用  
+  changed?: any;
+  previousData?: any;
+  changedData?: any;
+  loaded?: any;
+  synced?: boolean;
+  version?: number;
+
+  constructor(option: any) {
+    this.serialNumber = option.serialNumber;
+    this.serviceID = option.serviceID;
+    this.secretKey = option.secretKey;
+    Zotero.Utilities.Internal.assignProps(this, option, ['forbidden', 'token']);
+  }
+
+}
+//Zotero.extendClass(DataObject, TranslateServiceItem);
+
 export class TranslateService {
-  //[key: string]: any;
   serviceID: string;
   charasPerTime: number;
   QPS: number;
   limitMode: string;
   charasLimit: number;
-  isMultiParas: boolean;
+  supportMultiParas: boolean;
+  hasSecretKey: boolean;
+  secretKeys?: SecretKey[];
+  hasToken: boolean;
+  accessTokens?: AccessToken[];
+  account?: TranslateServiceAccount;
+  forbidden?: boolean;
+  serialNumber?: number;
+  changed?: any;
+  previousData?: any;
+  changedData?: any;
+  loaded?: any;
+  objectType?: string;
+  serviceTypeID?: number;
+  synced?: boolean;
+  version?: number;
+
+  constructor(options: {
+    serviceID: string,
+    limit: LimitService,
+    supportMultiParas: boolean,
+    hasSecretKey: boolean,
+    hasToken: boolean,
+    secretKeys?: SecretKey[],
+    accessTokens?: AccessToken[],
+    account?: TranslateServiceAccount,
+    forbidden?: boolean,
+    serialNumber?: number,
+  }
+
+  ) {
+    this.serviceID = options.serviceID;
+    this.charasPerTime = options.limit.charasPerTime;
+    this.QPS = options.limit.QPS;
+    this.limitMode = options.limit.limitMode;
+    this.charasLimit = options.limit.charasLimit;
+    this.supportMultiParas = options.supportMultiParas;
+    this.hasSecretKey = options.hasSecretKey;
+    this.hasToken = options.hasToken;
+    this.secretKeys = options.secretKeys;
+    this.accessTokens = options.accessTokens;
+    this.account = options.account;
+    this.forbidden = options.forbidden;
+    this.serialNumber = options.serialNumber;
+    this.objectType = "item";
+    this.serviceTypeID = this.getServiceTypeID();
+    //this.ObjectsClass = addon.mountPoint['TranslateServices'];
+  }
+  getServiceTypeID(serviceType?: string) {
+    const objectType = ["item", "collection", "dataObject", "search", "feedItem"];
+    const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
+    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao",];
+    const ocrServices = ["baiduOCR"];
+    const ocrTranslateServices = ["baiduPictureTranslate"];
+    const languageIdentificationServices = [""];
+    const serviceCategory = {
+      translate: translateServices,
+      ocr: ocrServices,
+      ocrTranslate: ocrTranslateServices,
+      languageIdentification: languageIdentificationServices,
+    };
+    if (serviceType) return serviceTypes.indexOf(serviceType);
+    for (const k in serviceCategory) {
+      if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.serviceID) > -1) return serviceTypes.indexOf(k);
+    }
+  }
+}
+
+/**
+ * 翻译引擎
+ * serialNumber对应数据库
+ */
+export class TranslateServiceOld {
+  serviceID: string;
+  charasPerTime: number;
+  QPS: number;
+  limitMode: string;
+  charasLimit: number;
+  supportMultiParas: boolean;
   hasSecretKey: boolean;
   secretKeys?: {
     appID: string;
@@ -45,7 +143,7 @@ export class TranslateService {
    * @param QPS 
    * @param limitMode 
    * @param charasLimit 
-   * @param isMultiParas 
+   * @param supportMultiParas 
    * @param hasSecretKey 
    * @param secretKey 
    * @param forbidden 
@@ -57,7 +155,7 @@ export class TranslateService {
     QPS: number,
     limitMode: string,
     charasLimit: number,
-    isMultiParas: boolean,
+    supportMultiParas: boolean,
     hasSecretKey: boolean,
     secretKeys?: {
       appID: string;
@@ -75,7 +173,7 @@ export class TranslateService {
     this.QPS = QPS;
     this.limitMode = limitMode;
     this.charasLimit = charasLimit;
-    this.isMultiParas = isMultiParas;
+    this.supportMultiParas = supportMultiParas;
     this.hasSecretKey = hasSecretKey;
     this.secretKeys = secretKeys;
     this.forbidden = forbidden;
@@ -191,6 +289,8 @@ export class TranslateService {
     }
   });
 }
+
+
 
 
 

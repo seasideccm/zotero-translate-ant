@@ -42,13 +42,7 @@ declare namespace XUL {
 
 
 
-declare type SecretKeys = {
-  appID: string;
-  secretKey: string;
-  usable: boolean;
-  charConsum: number;
-  dateMarker?: string;
-};
+
 
 
 

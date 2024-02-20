@@ -210,9 +210,9 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
   }
 
 
-  getNextID(table: string, field: string) {
+  async getNextID(table: string, field: string) {
     const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
-    return this.valueQueryAsync(sql);
+    return await this.valueQueryAsync(sql);
   };
 }
 
@@ -334,34 +334,6 @@ async function checkSchema() {
 
 }
 
-/* async function bakeupDatebase(addonDB: any) {
-    addonDB._externalDB = false;
-    return addonDB.backupDatabase();
-} */
-
-/**
- * 创建临时表，新建表，导入数据，删除旧表
- * @param tableName
- * @param allColumnsDefine
- */
-/* export async function modifyColumn(tableName: string, allColumnsDefine: string) {
-    const DB = await getDB();
-    await DB.executeTransaction(async function () {
-        const oldColumns = await DB.getColumns(tableName);
-        let sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
-        await DB.queryAsync(sql);
-        sql = `CREATE TABLE ${tableName} (${allColumnsDefine})`;
-        await DB.queryAsync(sql);
-        const newColumns = await DB.getColumns(tableName);
-        if (oldColumns && newColumns && oldColumns.length === newColumns.length) {
-            sql = `INSERT INTO ${tableName} SELECT * FROM ${tableName}_tempTable`;
-            await DB.queryAsync(sql);
-        }
-        sql = `DROP TABLE ${tableName}_tempTable`;
-        await DB.queryAsync(sql);
-    });
-
-} */
 
 /* async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
     const DB = await getDB();

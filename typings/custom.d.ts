@@ -195,6 +195,13 @@ interface VirtualizedTableProps {
   onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
 }
 
+interface VTable extends React.Component<VirtualizedTableProps, any> {
+  selection: TreeSelection;
+  invalidate: () => void;
+  dataChangedCache?: any;
+  rows?: any[];
+  editIndex?: number;
+}
 
 declare type columnsProp = {
   dataKey: string,
@@ -279,3 +286,30 @@ interface TreeSelection {
   get selectEventsSuppressed(): boolean;
   set selectEventsSuppressed(val: boolean);
 }
+
+declare type SecretKey = {
+  serialNumber: number;
+  appID: string;
+  secretKey: string;
+  usable: boolean;//isAlive
+  charConsum: number;
+  dateMarker?: string;
+};
+
+
+declare type AccessToken = {
+  serialNumber: number;
+  appID?: string;
+  token: string;
+  usable: boolean;//isAlive
+  charConsum: number;
+  dateMarker?: string;
+};
+
+declare type LimitService = {
+  charasPerTime: number;
+  QPS: number;
+  limitMode: string;
+  charasLimit: number;
+}
+

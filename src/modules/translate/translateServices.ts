@@ -187,5 +187,10 @@ const servicesDefault: ServiceMap = {
     youdao,
 };
 
+function getServicesFromDB() {
+    //todo
+    return services;
+}
+
 const services = servicesDefault;
 export { services };
