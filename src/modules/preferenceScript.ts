@@ -3,10 +3,11 @@ import { config } from "../../package.json";
 import { getDom, getElementValue, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { arrToObj, showInfo } from "../utils/tools";
-import { TranslateService, services } from "./translate/services";
+
 import { mountMenu } from "./ui/menu";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { getTableByID, replaceSecretKeysTable } from "./ui/tableProps";
+import { services } from "./translate/translateServices";
 //import { makeColumnProps, makeTableProps } from "./ui/tableProps";
 
 
@@ -184,10 +185,10 @@ async function buildPrefsPane() {
     .filter((e) => !e.forbidden)
     .map((service) => ({
       tag: "menuitem",
-      id: makeId(`${service.id}`),
+      id: makeId(`${service.serviceID}`),
       attributes: {
-        label: getString(`service-${service.id}`),
-        value: service.id,
+        label: getString(`service-${service.serviceID}`),
+        value: service.serviceID,
       },
     }));
 

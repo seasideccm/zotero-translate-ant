@@ -1,0 +1,191 @@
+import { TranslateService } from "./translateService";
+
+/* function getTranslateServiceFromDB() {
+    const sql = "SELECT collectionID, itemID FROM collections "
+        + "LEFT JOIN collectionItems USING (collectionID) "
+        + "WHERE libraryID=?" + idSQL;;
+} */
+
+export function makebaidu() {
+    const baidu = new TranslateService(
+        "baidu",
+        5000,
+        10,
+        "month",
+        1000000,
+        false,
+        true,
+    );
+    return baidu;
+}
+const baidu = makebaidu();
+const baidufield = new TranslateService(
+    "baidufield",
+    5000,
+    10,
+    "month",
+    500000,
+    false,
+    true,
+);
+const tencent = new TranslateService(
+    "tencent",
+    5000,
+    5,
+    "month",
+    5000000,
+    true,
+    true,
+);
+const niutranspro = new TranslateService(
+    "niutranspro",
+    5000,
+    50,
+    "daily",
+    200000,
+    true,
+    true,
+);
+const caiyun = new TranslateService(
+    "caiyun",
+    5000,
+    50,
+    "month",
+    1000000,
+    false,
+    true,
+);
+const youdaozhiyun = new TranslateService(
+    "youdaozhiyun",
+    5000,
+    200,
+    "total",
+    500000,
+    false,
+    true,
+);
+const cnki = new TranslateService("cnki", 1000, 5, "noLimit", 0, false, false);
+const googleapi = new TranslateService(
+    "googleapi",
+    5000,
+    5,
+    "noLimit",
+    0,
+    true,
+    false,
+);
+const google = new TranslateService(
+    "google",
+    5000,
+    5,
+    "noLimit",
+    0,
+    true,
+    false,
+);
+const deeplfree = new TranslateService(
+    "deeplfree",
+    3000,
+    3,
+    "month",
+    500000,
+    true,
+    true,
+);
+const deeplx = new TranslateService(
+    "deeplx",
+    3000,
+    3,
+    "month",
+    500000,
+    true,
+    false,
+);
+const microsoft = new TranslateService(
+    "microsoft",
+    50000,
+    10,
+    "month",
+    2000000,
+    false,
+    true,
+);
+const gpt = new TranslateService("gpt", 800, 2, "money", 0, false, true);
+const baiduModify = new TranslateService(
+    "baiduModify",
+    5000,
+    10,
+    "month",
+    1000000,
+    true,
+    true,
+);
+const baidufieldModify = new TranslateService(
+    "baidufieldModify",
+    5000,
+    10,
+    "month",
+    500000,
+    true,
+    true,
+);
+const tencentTransmart = new TranslateService(
+    "tencentTransmart",
+    5000,
+    20,
+    "noLimit",
+    0,
+    false,
+    false,
+);
+const haici = new TranslateService(
+    "haici",
+    600,
+    10,
+    "noLimit",
+    0,
+    false,
+    false,
+);
+const youdao = new TranslateService(
+    "youdao",
+    2000,
+    5,
+    "noLimit",
+    0,
+    false,
+    false,
+);
+
+
+export function testsss() {
+    baidu.save();
+}
+
+export interface ServiceMap {
+    [serviceID: string]: TranslateService;
+}
+
+const servicesDefault: ServiceMap = {
+    baidu,
+    baidufield,
+    tencent,
+    niutranspro,
+    caiyun,
+    youdaozhiyun,
+    cnki,
+    googleapi,
+    google,
+    deeplfree,
+    deeplx,
+    microsoft,
+    gpt,
+    baiduModify,
+    baidufieldModify,
+    tencentTransmart,
+    haici,
+    youdao,
+};
+
+const services = servicesDefault;
+export { services };

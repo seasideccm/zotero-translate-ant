@@ -4,7 +4,8 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { jsonTofileTest } from "../database/sync";
-import { TranslateService, services } from "../translate/translateService";
+import { TranslateService } from "../translate/translateService";
+import { services } from "../translate/translateServices";
 import { getElementValue } from "./uiTools";
 import { translate } from '../translate/translate';
 
@@ -179,7 +180,7 @@ export async function replaceSecretKeysTable() {
             tableHelper.render();
             //上面先更新表格，刷新后再删除services中的秘钥
             /* const serviceID = getElementValue("serviceID");
-            let secretKeyObj: SecretKey[] | undefined = [];
+            let secretKeyObj: SecretKeys[] | undefined = [];
             if (rowsDataDelete && serviceID && serviceID != '') {
                 for (const rowData of rowsDataDelete) {
                     const secretkey = rowData.key;

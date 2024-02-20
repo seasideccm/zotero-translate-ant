@@ -112,6 +112,14 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
   }
 
+  async renameTable(tableName: string, tableNameNew: string) {
+    await this.executeTransaction(async () => {
+      //let sqlOld = this.valueQueryAsync(`SELECT sql FROM sqlite_master WHERE name = 'itemTypes'`)
+      const sql = `ALTER TABLE ${tableName} RENAME TO ${tableNameNew}`;
+      await this.queryAsync(sql);
+    });
+  }
+
   /**
    * 重新定义表的字段（列）
    * - 创建临时表，新建表，导入数据，删除旧表

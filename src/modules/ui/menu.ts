@@ -9,15 +9,24 @@ import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
 const keysForButtonMenu = ["label", "func", "args"];
 
-
+async function renameTable() {
+  const olds = ["account", "accessToken", "alive"];
+  const news = [];
+  const old = "translateService";
+  const newTable = "translateServices";
+  const DB = await getDB();
+  await DB.renameTable(old, newTable);
+}
 
 
 const paraArrs = [
   ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
-  ["jsonTofile", jsonTofileTest, []],
+  ["renameTable", renameTable, []],
 ];
+
+
 
 function menuitemObj(argsArr: any[]) {
   return arrToObj(keysForButtonMenu, argsArr);

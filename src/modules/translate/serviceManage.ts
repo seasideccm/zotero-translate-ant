@@ -1,5 +1,6 @@
 import { saveJsonToDisk, showInfo } from "../../utils/tools";
-import { TranslateService, services } from "./services";
+import { TranslateService } from "./translateService";
+import { services } from "./translateServices";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import {
@@ -8,7 +9,6 @@ import {
   setPluginsPref,
   setPref,
 } from "../../utils/prefs";
-import { fullTextTranslateService } from "../../utils/constant";
 
 export const servicesFilename = config.addonName + "_" + "services";
 const plugin = "ZoteroPDFTranslate";
@@ -113,9 +113,9 @@ export class serviceManage {
     Object.values(services)
       .filter((e: TranslateService) => e.hasSecretKey)
       .map((t: TranslateService) => {
-        if (t.secretKey?.length) {
-          for (const singleSecretKey of t.secretKey!) {
-            this.singleSecretKeyUsableCheck(t.id, singleSecretKey.key);
+        if (t.secretKeys?.length) {
+          for (const singleSecretKey of t.secretKeys!) {
+            this.singleSecretKeyUsableCheck(t.serviceID, singleSecretKey.secretKey);
           }
         }
       });
@@ -140,9 +140,9 @@ export class serviceManage {
     ) {
       return;
     }
-    const singleSecretKey: SecretKey = services[serviceID].secretKey?.filter(
+    const singleSecretKey: SecretKeys = services[serviceID].secretKeys?.filter(
       (e: any) => e.key == key_singleSecretKey,
-    )[0] as SecretKey;
+    )[0] as SecretKeys;
     return singleSecretKey;
   }
 
@@ -172,7 +172,7 @@ export class serviceManage {
         (element) =>
           element.hasSecretKey &&
           !element.forbidden &&
-          element.secretKey?.filter(
+          element.secretKeys?.filter(
             (e: any) =>
               e.usable &&
               e.key != serviceKeyUnderUsed &&
@@ -186,29 +186,29 @@ export class serviceManage {
         !element.hasSecretKey &&
         //除外上轮已经切换过的无秘钥翻译引擎
         //目的主要是避免死循环
-        !serviceIDHasSwitched?.includes(element.id),
+        !serviceIDHasSwitched?.includes(element.serviceID),
     );
     if (getPref("isPriority") && servicePriorityWithKey.length) {
       servicesHasKeyUsable = servicePriorityWithKey.map(
-        (e) => servicesHasKeyUsable.filter((e2) => e2.id == e)[0],
+        (e) => servicesHasKeyUsable.filter((e2) => e2.serviceID == e)[0],
       );
     }
     if (getPref("isPriority") && servicePriorityWithoutKey.length) {
       servicesNoKeyUsable = servicePriorityWithoutKey.map(
-        (e) => servicesNoKeyUsable.filter((e2) => e2.id == e)[0],
+        (e) => servicesNoKeyUsable.filter((e2) => e2.serviceID == e)[0],
       );
     }
     const servicesPriorityArr: string[] = [];
     //优先更换同一翻译引擎的不同秘钥
     if (
       isPreferredSameService &&
-      servicesHasKeyUsable.filter((e) => e.id.includes(serviceIDUnderUsed))
+      servicesHasKeyUsable.filter((e) => e.serviceID.includes(serviceIDUnderUsed))
         .length
     ) {
-      let secretKeyArr = services[serviceIDUnderUsed].secretKey?.map(
-        (e: SecretKey) => {
-          if (e.usable && e.key != serviceKeyUnderUsed) {
-            return e.key;
+      let secretKeyArr = services[serviceIDUnderUsed].secretKeys?.map(
+        (e: SecretKeys) => {
+          if (e.usable && e.secretKey != serviceKeyUnderUsed) {
+            return e.secretKey;
           }
         },
       );
@@ -219,12 +219,12 @@ export class serviceManage {
         secretKey = secretKeyArr[0];
       }
 
-      const secretkeyArr2 = services[serviceIDUnderUsed].secretKey?.filter(
-        (e) => e.usable && e.key != serviceKeyUnderUsed,
+      const secretkeyArr2 = services[serviceIDUnderUsed].secretKeys?.filter(
+        (e) => e.usable && e.secretKey != serviceKeyUnderUsed,
       );
       let secretKey2;
       if (secretkeyArr2?.length) {
-        secretKey2 = secretkeyArr2[0].key;
+        secretKey2 = secretkeyArr2[0].secretKey;
       }
 
       if (secretKey != "" && secretKey !== undefined && secretKey != null) {
@@ -253,12 +253,12 @@ export class serviceManage {
     if (!useArr.length) {
       return false;
     }
-    useArr = useArr.filter((e) => e.id != serviceIDUnderUsed);
+    useArr = useArr.filter((e) => e.serviceID != serviceIDUnderUsed);
     let serviceID = "";
     if (servicesPriorityArr.length) {
       for (const item of servicesPriorityArr) {
         Object.values(useArr).map((e) => {
-          if (e.id == item) {
+          if (e.serviceID == item) {
             serviceID = item;
           }
         });
@@ -270,11 +270,11 @@ export class serviceManage {
     } else {
       //优选修改版引擎
       let serviceID;
-      const modifyServiceIDArr = useArr.filter((e) => e.id.includes("Modify"));
+      const modifyServiceIDArr = useArr.filter((e) => e.serviceID.includes("Modify"));
       if (modifyServiceIDArr.length) {
         serviceID = modifyServiceIDArr[0];
       } else {
-        serviceID = useArr[0].id;
+        serviceID = useArr[0].serviceID;
       }
     }
     if (serviceID != "" && serviceID !== undefined && serviceID != null) {
@@ -286,10 +286,10 @@ export class serviceManage {
 
     // 如果有秘钥，予以更换
     const secretKey = (
-      useArr[0].secretKey?.filter(
+      useArr[0].secretKeys?.filter(
         (e: any) => e.usable && e.key != serviceKeyUnderUsed,
-      )[0] as SecretKey
-    )?.key;
+      )[0] as SecretKeys
+    )?.secretKey;
     if (secretKey != "" && secretKey !== undefined && secretKey != null) {
       this.switchServiceKey(secretKey, plugin, serviceID);
       if (
@@ -323,7 +323,6 @@ export class serviceManage {
     }
     showInfo(
       getString("info-switchServiceID") + getSingleServiceUnderUse().serviceID,
-      3000,
     );
   }
 
@@ -363,7 +362,7 @@ export class serviceManage {
     );
     secrets[serviceID] = secretKey;
     setPluginsPref(plugin, "secretObj", JSON.stringify(secrets));
-    showInfo(getString("info-switchServiceKey") + ": " + serviceID, 3000);
+    showInfo(getString("info-switchServiceKey") + ": " + serviceID);
   }
   /*   static ServiceValidator(){
     
@@ -401,11 +400,7 @@ export class serviceManage {
           charasLimit: number,
           isMultiParas: boolean,
           hasSecretKey: boolean,
-          secretKey?: {
-            key: string;
-            usable: boolean;
-            charConsum: number;
-          }[],
+          secretKeys?: SecretKeys[],
         ) => {
           services[serviceID] = new TranslateService(
             serviceID,
@@ -415,7 +410,7 @@ export class serviceManage {
             charasLimit,
             isMultiParas,
             hasSecretKey,
-            secretKey,
+            secretKeys,
           );
           return;
         };
@@ -440,40 +435,40 @@ export class serviceManage {
           if (service === undefined) return;
           return (property: keyof TranslateService): Services => {
             return <T extends keyof TranslateService>(
-              value: TranslateService[T] | SecretKey | SecretKey[],
+              value: TranslateService[T] | SecretKeys | SecretKeys[],
             ) => {
               //<T extends keyof TranslateService>(value: TranslateService[T]|TranslateService[T][])
               //如果秘钥为空则将秘钥的值以数组形式赋值
               //如果已有秘钥，则push新秘钥到原有数组
-              if (property == "secretKey") {
+              if (property == "secretKeys") {
                 //value: secretKey | secretKey[]
                 if (!(value instanceof Array)) {
-                  value = [value as SecretKey];
+                  value = [value as SecretKeys];
                 }
 
                 if (
-                  !service["secretKey"]?.length ||
+                  !service["secretKeys"]?.length ||
                   service[property as keyof typeof service] === undefined
                 ) {
-                  service["secretKey"] = value as SecretKey[];
+                  service["secretKeys"] = value as SecretKeys[];
                 } else {
                   //判断原有的多个key是否有传入的多个key
                   /* service[property]?.map((e: any) => e.key as string)
                                       .some(key => (value as secretKey[]).map((secretKey: secretKey) => secretKey.key
                                       ).includes(key)) */
 
-                  const oldKeys = service[property]?.map(
+                  const oldSecretKeys = service[property]?.map(
                     (e: any) => e.key as string,
                   );
-                  const newKeys = value.map((e) => e.key);
-                  const isHas = oldKeys?.some((e) => newKeys.includes(e));
-                  const secretKey: SecretKey[] = service["secretKey"];
+                  const newKeys = value.map((e) => e.secretKey);
+                  const isHas = oldSecretKeys?.some((e) => newKeys.includes(e));
+                  const secretKeys: SecretKeys[] = service["secretKeys"];
                   if (isHas) {
-                    const temp: SecretKey[] = [];
+                    const temp: SecretKeys[] = [];
                     // 如果输入的秘钥和原有秘钥一致，则将输入的秘钥复制给原秘钥
-                    secretKey.filter((e) => {
-                      (value as SecretKey[]).map((e2) => {
-                        if (e.key == e2.key) {
+                    secretKeys.filter((e) => {
+                      (value as SecretKeys[]).map((e2) => {
+                        if (e.secretKey == e2.secretKey) {
                           if (e2.charConsum != undefined) {
                             e.charConsum = e2.charConsum;
                           }
@@ -484,14 +479,14 @@ export class serviceManage {
                             e.usable = e2.usable;
                           }
                         } else {
-                          if (!oldKeys?.includes(e2.key)) {
+                          if (!oldSecretKeys?.includes(e2.secretKey)) {
                             temp.push(e2);
                           }
                         }
                       });
                     });
                     if (temp.length) {
-                      secretKey.push(...temp);
+                      secretKeys.push(...temp);
                     }
                     //秘钥是引用类型，无需再赋值
                     //service["secretKey"] = secretKey;
@@ -500,7 +495,7 @@ export class serviceManage {
                                         secretKey = secretKey.concat(value as secretKey[]);
                                         service["secretKey"] = secretKey; */
                   } else {
-                    secretKey.push(...(value as SecretKey[]));
+                    secretKeys.push(...(value as SecretKeys[]));
                   }
                 }
                 //同步百度秘钥
@@ -541,7 +536,7 @@ export class serviceManage {
       }
       // eslint-disable-next-line no-prototype-builtins
       if (services.hasOwnProperty(serviceID2)) {
-        services[serviceID2].secretKey = services[serviceID].secretKey;
+        services[serviceID2].secretKeys = services[serviceID].secretKeys;
       }
     }
   }
@@ -550,8 +545,8 @@ export class serviceManage {
    * @param serviceID
    */
   static mergeAndRemoveDuplicates(serviceID: string) {
-    const secretkeys: SecretKey[] = [];
-    const s1 = services[serviceID].secretKey;
+    const secretkeys: SecretKeys[] = [];
+    const s1 = services[serviceID].secretKeys;
     if (s1?.length) {
       //数组倒置，得以保留新秘钥
       s1.reverse();
@@ -570,13 +565,13 @@ export class serviceManage {
       */
     const obj = {} as any;
     const secretkeysingle = secretkeys.reduce((total, next) => {
-      if (!obj[next.key]) {
-        obj[next.key] = true;
+      if (!obj[next.secretKey]) {
+        obj[next.secretKey] = true;
         total.push(next);
       }
       return total;
-    }, [] as SecretKey[]);
-    services[serviceID]["secretKey"] = secretkeysingle.reverse();
+    }, [] as SecretKeys[]);
+    services[serviceID]["secretKeys"] = secretkeysingle.reverse();
   }
 }
 
@@ -618,7 +613,6 @@ export function getServicesInfo() {
  */
 export function getSingleServiceUnderUse() {
   const json: string = getPref("singleServiceUnderUse") as string;
-
   const secrets: object = JSON.parse(
     (getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}",
   );
@@ -630,17 +624,17 @@ export function getSingleServiceUnderUse() {
   if (!json) {
     return { serviceID: serviceID, key: key };
   }
-  const singleServiceUnderUse: { serviceID: string; key?: string } =
+  const singleServiceUnderUse: { serviceID: string; key?: string; } =
     JSON.parse(json);
-  if (fullTextTranslateService.includes(singleServiceUnderUse.serviceID)) {
+  if (["baiduModify", "baidufieldModify", "tencentTransmart"].includes(singleServiceUnderUse.serviceID)) {
     return singleServiceUnderUse;
   } else {
-    return { serviceID: serviceID, key: key };
+    return { serviceID: serviceID, key: key };//appid#XXX
   }
 }
 
 export function updateSingleSecretKey(
-  secretKey: SecretKey,
+  secretKey: SecretKeys,
   serviceID?: string,
 ) {
   if (!serviceID) {
