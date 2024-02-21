@@ -1,5 +1,28 @@
 import { config } from "../../package.json";
 
+export const keysTranslateService = ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"];
+export const parasArrTranslateService = [
+  ["baidu", 5000, 10, "month", 1000000, false, true, false,],
+  ["baidufield", 5000, 10, "month", 500000, false, true, false,],
+  ["niutranspro", 5000, 50, "daily", 200000, true, true, false,],
+  ["caiyun", 5000, 50, "month", 1000000, false, true, false,],
+  ["youdaozhiyun", 5000, 200, "total", 500000, false, true, false,],
+  ["cnki", 1000, 5, "noLimit", 0, false, false, false,],
+  ["googleapi", 5000, 5, "noLimit", 0, true, false, false,],
+  ["google", 5000, 5, "noLimit", 0, true, false, false,],
+  ["deeplfree", 3000, 3, "month", 500000, true, true, false,],
+  ["deeplx", 3000, 3, "month", 500000, true, false, false,],
+  ["microsoft", 50000, 10, "month", 2000000, false, true, false,],
+  ["baiduModify", 5000, 10, "month", 1000000, true, true, false,],
+  ["baidufieldModify", 5000, 10, "month", 500000, true, true, false,],
+  ["tencentTransmart", 5000, 20, "noLimit", 0, false, false, false,],
+  ["haici", 600, 10, "noLimit", 0, false, false, false,],
+  ["youdao", 2000, 5, "noLimit", 0, false, false, false,],
+
+];
+
+export const parasArrTranslateServiceAdd = [];
+
 export const syncConfig = {
   SYNC_ITEM_TITLE_PREFIX: "sqliteDatabase",
   SYNC_COLLECTION_NAME: "addonDatabase"

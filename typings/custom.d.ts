@@ -311,5 +311,6 @@ declare type LimitService = {
   QPS: number;
   limitMode: string;
   charasLimit: number;
+  configID?: number;
 }
 

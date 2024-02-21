@@ -3,6 +3,7 @@ import { TranslateServices } from "./modules/database/dataObjects";
 import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefsScripts } from "./modules/preferenceScript";
+import { initTranslateServices } from "./modules/translate/translateServices";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
@@ -64,6 +65,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   if (addon.data.env == "development") {
     await compareSQLUpdateDB();
   }
+  await initTranslateServices();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
@@ -116,7 +118,7 @@ async function onNotify(
 async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
-      registerPrefsScripts(data.window);
+      await registerPrefsScripts(data.window);
       break;
     default:
       return;

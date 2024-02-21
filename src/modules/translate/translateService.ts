@@ -39,6 +39,7 @@ export class TranslateService {
   account?: TranslateServiceAccount;
   forbidden?: boolean;
   serialNumber?: number;
+  configID?: number | undefined;
   changed?: any;
   previousData?: any;
   changedData?: any;
@@ -50,7 +51,10 @@ export class TranslateService {
 
   constructor(options: {
     serviceID: string,
-    limit: LimitService,
+    charasPerTime: number,
+    QPS: number,
+    limitMode: string,
+    charasLimit: number,
     supportMultiParas: boolean,
     hasSecretKey: boolean,
     hasToken: boolean,
@@ -59,14 +63,16 @@ export class TranslateService {
     account?: TranslateServiceAccount,
     forbidden?: boolean,
     serialNumber?: number,
+    configID?: number | undefined,
   }
 
   ) {
     this.serviceID = options.serviceID;
-    this.charasPerTime = options.limit.charasPerTime;
-    this.QPS = options.limit.QPS;
-    this.limitMode = options.limit.limitMode;
-    this.charasLimit = options.limit.charasLimit;
+
+    this.charasPerTime = options.charasPerTime;
+    this.QPS = options.QPS;
+    this.limitMode = options.limitMode;
+    this.charasLimit = options.charasLimit;
     this.supportMultiParas = options.supportMultiParas;
     this.hasSecretKey = options.hasSecretKey;
     this.hasToken = options.hasToken;
@@ -75,6 +81,7 @@ export class TranslateService {
     this.account = options.account;
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
+    this.configID = options.configID;
     this.objectType = "item";
     this.serviceTypeID = this.getServiceTypeID();
     //this.ObjectsClass = addon.mountPoint['TranslateServices'];
@@ -97,6 +104,143 @@ export class TranslateService {
       if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.serviceID) > -1) return serviceTypes.indexOf(k);
     }
   }
+  async getSerialNumber(serviceID: string, row?: any) {
+    let sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}'`;
+    if (row) sql += `AND appID = '${row.appID}'`;
+    const DB = await getDB();
+    return await DB.valueQueryAsync(sql);
+  }
+
+  async save() {
+    const DB = await getDB();
+    let serialNumber = await this.getSerialNumber(this.serviceID);
+    if (serialNumber) {
+      //update
+      return;
+    }
+    const todo = async () => {
+      serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
+      let sql = "INSERT INTO translateServiceSN (serialNumber, serviceID";
+      if (row.appID) {
+        sql += ", appID" + ") VALUES ('" + serialNumber + "','" + this.serviceID + "','" + row.appID + "')";
+      } else {
+        sql += ") VALUES ('" + serviceID + "','" + serialNumber + "')";
+      }
+      await DB.queryAsync(sql);
+
+      const keys = Object.keys(row);
+      if (keys.includes("token")) {
+        const tableName = "accessTokens";
+        const sqlColumns = ["serialNumber", "serviceID", "appID", "token"];
+        const sqlValues = [serialNumber, serviceID, row.appID, row.token];
+        //sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "                            + "VALUES (" + sqlValues.join(", ") + ")";
+        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+        await DB.queryAsync(sql, sqlValues);
+      } else {
+        const tableName = "accounts";
+        const sqlColumns = ["serialNumber", "serviceID", "appID", "secretKey"];
+        const sqlValues = [serialNumber, serviceID, row.appID, row.secretKey];
+        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
+        await DB.queryAsync(sql, sqlValues);
+      }
+      let tableName = "charConsum";
+      sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
+      await DB.queryAsync(sql);
+      tableName = "totalCharConsum";
+      sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
+      await DB.queryAsync(sql);
+
+    };
+
+    await DB.executeTransaction();
+
+  }
+  saveold: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {
+    const env: any = {
+      options: Object.assign({}, options),
+      transactionOptions: {}
+    };
+
+    const DB = yield getDB();
+
+    if (env.options.skipAll) {
+      [
+        'skipDateModifiedUpdate',
+        'skipClientDateModifiedUpdate',
+        'skipSyncedUpdate',
+        'skipEditCheck',
+        'skipNotifier',
+        'skipSelect'
+      ].forEach(x => env.options[x] = true);
+    }
+
+    const proceed = yield this._initSave(env);
+    if (!proceed) return false;
+
+    if (env.isNew) {
+      ztoolkit.log('Saving data for new ' + this._objectType + ' to database');
+    }
+    else {
+      ztoolkit.log('Updating database with new ' + this._objectType + ' data');
+    }
+
+    try {
+
+      env.notifierData = {};
+      // Pass along any 'notifierData' values, which become 'extraData' in notifier events
+      if (env.options.notifierData) {
+        Object.assign(env.notifierData, env.options.notifierData);
+      }
+      if (env.options.skipSelect) {
+        env.notifierData.skipSelect = true;
+      }
+      // Pass along event-level notifier options, which become top-level extraData properties
+      for (const option of Zotero.Notifier.EVENT_LEVEL_OPTIONS) {
+        if (env.options[option] !== undefined) {
+          env.notifierData[option] = env.options[option];
+        }
+      }
+      if (!env.isNew) {
+        env.changed = this._previousData;
+      }
+
+      // Create transaction
+      let result;
+      if (!DB.inTransaction()) {
+        result = yield DB.executeTransaction(async function (this: any) {
+          this._saveData.call(this, env);
+          await this.saveData(env);
+          await this._finalizeSave.call(this, env);
+          return this.finalizeSave(env);
+        }.bind(this), env.transactionOptions);
+      }
+      // Use existing transaction
+      else {
+        DB.requireTransaction();
+        this._saveData.call(this, env);
+        yield this._saveData(env);
+        yield this._finalizeSave.call(this, env);
+        result = this._finalizeSave(env);
+      }
+      this._postSave(env);
+      return result;
+    }
+    catch (e) {
+      return this._recoverFromSaveError(env, e)
+        .catch(function (e2: any) {
+          ztoolkit.log(e2, 1);
+        })
+        .then(function () {
+          if (env.options.errorHandler) {
+            env.options.errorHandler(e);
+          }
+          else {
+            ztoolkit.log(e);
+          }
+          throw e;
+        });
+    }
+  });
 }
 
 /**

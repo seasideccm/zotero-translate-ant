@@ -546,96 +546,9 @@ export async function replaceSecretKeysTable() {
     async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
 
 
-        async function loadServiceFromDB(serviceID: string) {
-            const DB = await getDB();
-
-            const options: any = {};
-            options[serviceID] = serviceID;
-            const limit = await getLimit(serviceID);
-            options["limit"] = limit;
-            const commonProperty = await getCommonProperty(serviceID);
-            Zotero.Utilities.Internal.assignProps(options, commonProperty);
-            if (options.hasSecretKey) {
-                const secretKeys = await getSecretKeys(serviceID);
-                options.secretKeys = secretKeys;
-            }
-            if (options.hasToken) {
-                const accessTokens = await getAccessTokens(serviceID);
-                options.secretKeys = accessTokens;
-            }
-            if (!options.hasToken && !options.hasSecretKey) {
-                options.serialNumber = await DB.valueQueryAsync(`SELECT serialNumber FROM freeLoginServices WHERE serviceID = '${serviceID}'`);
-            }
-            options.forbidden == await DB.valueQueryAsync(`SELECT forbidden FROM translateServiceSN WHERE serviceID = '${serviceID}' AND serialNumber = ${options.serialNumber}`);
-            const service = new TranslateService(options);
-            return service;
-        }
-        async function getLimit(serviceID: string) {
-            const DB = await getDB();
-            const sql = `SELECT QPS, charasPerTime, limitMode, charasLimit, configID, FROM serviceLimits WHERE serviceID = '${serviceID}'`;
-            const result = await DB.queryAsync(sql);
-            const limit = {
-                QPS: result.QPS,
-                charasPerTime: result.charasPerTime,
-                limitMode: result.limitMode,
-                charasLimit: result.charasLimit,
-                configID: result.configID
-            };
-            return limit;
-        }
-
-
-        async function getCommonProperty(serviceID: string) {
-            const DB = await getDB();
-            const sqlColumns = ["serviceTypeID", "hasSecretKey", "hasToken", "supportMultiParas"];
-            const tableName = "translateServices";
-            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} WHERE serviceID = '${serviceID}'`;
-            const rows = await DB.queryAsync(sql);
-            const rowqq = await DB.rowQueryAsync(sql);
-            const tempObj2 = arrsToObjs(sqlColumns)(rowqq);
-            const tempObj = {};
-
-            const serviceTypeID = rows.serviceTypeID;
-            const hasSecretKey = rows.hasSecretKey;
-            const hasToken = rows.hasToken;
-            const supportMultiParas = rows.supportMultiParas;
-            return {
-                serviceTypeID,
-                hasSecretKey,
-                hasToken,
-                supportMultiParas,
-            };
-
-        }
-        async function getSecretKeys(serviceID: string) {
-            const DB = await getDB();
-            const sqlColumns = ["serialNumber", "appID", "secretKey", "isAlive", "charConsum", "dateMarker"];
-            const tableName = "accounts";
-            const tableName2 = "translateServiceSN";
-            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
-            const rows = await DB.rowQueryAsync(sql);
-            sqlColumns[3] = "usable";
-            return arrsToObjs(sqlColumns)(rows);
-
-        }
-        async function getAccessTokens(serviceID: string) {
-            const DB = await getDB();
-            const sqlColumns = ["serialNumber", "appID", "token", "isAlive", "charConsum", "dateMarker"];
-            const tableName = "accessTokens";
-            const tableName2 = "translateServiceSN";
-            const tableName3 = "charConsum";
-            const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN ${tableName3} USING (serialNumber) WHERE serviceID = '${serviceID}'`;
-            const rows = await DB.rowQueryAsync(sql);
-            sqlColumns[3] = "usable";
-            return arrsToObjs(sqlColumns)(rows);
-
-        }
         const serviceSelected = serviceID ? services[serviceID] : undefined;
         let rows: any[];
-        if (serviceID) {
-            const svTest = await loadServiceFromDB(serviceID!);
-            const test = svTest;
-        }
+
         //const keys = columnPropValues.map(e => e[0]) as string[];
         ;
         if (serviceSelected?.secretKeys?.length) {

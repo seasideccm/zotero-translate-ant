@@ -7,7 +7,7 @@ import { arrToObj, showInfo } from "../utils/tools";
 import { mountMenu } from "./ui/menu";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { getTableByID, replaceSecretKeysTable } from "./ui/tableProps";
-import { services } from "./translate/translateServices";
+import { getServicesFromDB, services } from "./translate/translateServices";
 //import { makeColumnProps, makeTableProps } from "./ui/tableProps";
 
 
@@ -181,6 +181,9 @@ async function buildPrefsPane() {
   }
 
   //多账户管理
+
+  const servicesBD = await getServicesFromDB();
+
   const childrenArr = Object.values(services)
     .filter((e) => !e.forbidden)
     .map((service) => ({
