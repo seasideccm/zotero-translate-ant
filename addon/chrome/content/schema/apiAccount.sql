@@ -23,7 +23,8 @@ CREATE TABLE accounts(
     appID TEXT NOT NULL,
     secretKey TEXT NOT NULL,
     UNIQUE(serviceID, appID), -- 联合唯一，防止重复注册
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
 );
 
 CREATE TABLE accessTokens(
@@ -32,13 +33,15 @@ CREATE TABLE accessTokens(
     appID TEXT NOT NULL DEFAULT "no",
     token TEXT NOT NULL UNIQUE,
     UNIQUE(serviceID, appID), 
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
 );
 
 CREATE TABLE freeLoginServices (
     serialNumber INT NOT NULL PRIMARY KEY,
     serviceID TEXT NOT NULL UNIQUE,
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
 );
 
 CREATE TABLE charConsum(

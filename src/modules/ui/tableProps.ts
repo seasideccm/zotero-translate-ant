@@ -1,15 +1,12 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, collectFilesRecursive, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
-import { jsonTofileTest } from "../database/sync";
 import { TranslateService } from "../translate/translateService";
 import { services } from "../translate/translateServices";
 import { getElementValue } from "./uiTools";
-import { translate } from '../translate/translate';
 import { getDB } from "../database/database";
-import { listenImageCallback } from '../ocr/trigerOcr';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -42,7 +39,7 @@ export async function replaceSecretKeysTable() {
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
-    let rows = secretKeysTableRowsData(serviceID);
+    let rows = await secretKeysTableRowsData(serviceID);
     if (!rows) return;
 
     const containerId = `${config.addonRef}-table-container`;
@@ -164,7 +161,7 @@ export async function replaceSecretKeysTable() {
             return false;
         }
         if (e.key == "Delete" || e.key == "Backspace" || (Zotero.isMac && e.key == "Backspace")) {
-            //获取要删除的行数据，获得秘钥，和services中的秘钥比较,然后删除秘钥
+            //获取要删除的单行数据，获得秘钥，和services中的秘钥比较,然后删除秘钥
             const rowsDataDelete = rows.filter(
                 //@ts-ignore has
                 (v: any, i: number) => tableTreeInstance.selection.isSelected(i)
@@ -177,9 +174,20 @@ export async function replaceSecretKeysTable() {
             //过滤掉选中行的数据，保留未选中的数据为数组，赋值给rows
             //@ts-ignore has
             const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+            const rowsDelete = rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
+
             //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
             rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
             tableHelper.render();
+
+            //删除数据库数据
+            for (const row of rowsDelete) {
+                getSerialNumber(serviceID, row).then(async (serialNumber: any) => {
+                    await deleteAcount(Number(serialNumber));
+                });
+            }
+
+
             //上面先更新表格，刷新后再删除services中的秘钥
             /* const serviceID = getElementValue("serviceID");
             let secretKeyObj: SecretKeys[] | undefined = [];
@@ -454,6 +462,12 @@ export async function replaceSecretKeysTable() {
 
     };
 
+    async function deleteAcount(serialNumber: number) {
+
+        const DB = await getDB();
+        await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
+    }
+
     function getServiceByServiceID(serviceID: string) {
         return {
             "serviceID": serviceID,
@@ -529,7 +543,7 @@ export async function replaceSecretKeysTable() {
     };
 
 
-    function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
+    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
 
 
         async function loadServiceFromDB(serviceID: string) {
@@ -550,8 +564,9 @@ export async function replaceSecretKeysTable() {
                 options.secretKeys = accessTokens;
             }
             if (!options.hasToken && !options.hasSecretKey) {
-                options.serialNumber = "No secret keys";
+                options.serialNumber = await DB.valueQueryAsync(`SELECT serialNumber FROM freeLoginServices WHERE serviceID = '${serviceID}'`);
             }
+            options.forbidden == await DB.valueQueryAsync(`SELECT forbidden FROM translateServiceSN WHERE serviceID = '${serviceID}' AND serialNumber = ${options.serialNumber}`);
             const service = new TranslateService(options);
             return service;
         }
@@ -617,6 +632,10 @@ export async function replaceSecretKeysTable() {
         }
         const serviceSelected = serviceID ? services[serviceID] : undefined;
         let rows: any[];
+        if (serviceID) {
+            const svTest = await loadServiceFromDB(serviceID!);
+            const test = svTest;
+        }
         //const keys = columnPropValues.map(e => e[0]) as string[];
         ;
         if (serviceSelected?.secretKeys?.length) {

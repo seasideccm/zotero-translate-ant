@@ -1,8 +1,5 @@
-import { tablesTranslation } from '../../utils/constant';
-import { showInfo } from '../../utils/tools';
-import { DataObject } from '../database/dataObject';
-import { DataObjects } from '../database/dataObjects';
-import { getDB, DB } from '../database/database';
+
+import { getDB } from '../database/database';
 
 
 export class TranslateServiceAccount {
