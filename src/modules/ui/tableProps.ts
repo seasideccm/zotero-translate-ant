@@ -4,9 +4,9 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService } from "../translate/translateService";
-import { services } from "../translate/translateServices";
 import { getElementValue } from "./uiTools";
 import { getDB } from "../database/database";
+import { getServicesFromDB } from "../translate/translateServices";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -544,13 +544,9 @@ export async function replaceSecretKeysTable() {
 
 
     async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
-
-
+        const services = await getServicesFromDB();
         const serviceSelected = serviceID ? services[serviceID] : undefined;
         let rows: any[];
-
-        //const keys = columnPropValues.map(e => e[0]) as string[];
-        ;
         if (serviceSelected?.secretKeys?.length) {
             const secretKeys: object[] = serviceSelected.secretKeys;
             const keys = Object.keys(secretKeys[0]);

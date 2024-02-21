@@ -1,10 +1,10 @@
 
 
-export const migrate = { addonSystem, translation };
-async function addonSystem(fromVersion: number, toVersion: number) {
+
+export async function migrateAddonSystem(fromVersion: number, toVersion: number) {
   return true;
 }
-function translation(fromVersion: number, toVersion: number) {
+export async function migrateTranslation(fromVersion: number, toVersion: number) {
   return true;
 }
 

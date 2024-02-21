@@ -7,7 +7,7 @@ import { version as addonVersion, config } from "../../../package.json";
 import { compareObj, fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
 import { DB, compareSQLUpdateDB } from "./database";
 import { OS } from "../../utils/tools";
-import { migrate } from "./migrateSchemas";
+import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
 
 export class Schema {
   [key: string]: any;
@@ -39,8 +39,9 @@ export class Schema {
     this.DB = addon.mountPoint.database;
     this.versionsFromBD = {};
     this.versionsFromFile = {};
-  }
 
+
+  }
 
 
   async checkInitialized() {
@@ -401,7 +402,7 @@ export class Schema {
     return !!updated;
   }
 
-  migrate = migrate;
+
 
   async migrateSchema(
     schema: string,
@@ -434,9 +435,21 @@ export class Schema {
       }
     }
     this.DB.requireTransaction();
-    if (this.migrate[schema]) {
+    if (schema == "addonSystem") {
       try {
-        this.migrate[schema].apply(this, [fromVersion, toVersion]);
+        await migrateAddonSystem(fromVersion, toVersion);
+        await this.updateSchemaVersion(schema, toVersion);
+      }
+      catch (e) {
+        ztoolkit.log(e);
+        return false;
+      }
+
+    }
+
+    if (schema == "translation") {
+      try {
+        await migrateTranslation(fromVersion, toVersion);
         await this.updateSchemaVersion(schema, toVersion);
       }
       catch (e) {
@@ -864,3 +877,5 @@ function reportError(e: any) {
     Zotero.getString("startupError", Zotero.appName),
   );
 }
+
+

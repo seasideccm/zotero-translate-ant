@@ -5,7 +5,7 @@ CREATE TABLE translateServiceSN(
     serialNumber INT NOT NULL PRIMARY KEY,
     serviceID TEXT NOT NULL,
     appID TEXT NOT NULL DEFAULT "no",
-    isAlive INT NOT NULL DEFAULT 1,
+    usable INT NOT NULL DEFAULT 1,
     forbidden INT NOT NULL DEFAULT 0
 );
 
@@ -14,7 +14,7 @@ CREATE TABLE translateServices(
     serviceTypeID INT NOT NULL,
     hasSecretKey INT NOT NULL DEFAULT 0,
     hasToken INT NOT NULL DEFAULT 0,
-    supportMultiParas INT NOT NULL
+    supportMultiParas INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE accounts(

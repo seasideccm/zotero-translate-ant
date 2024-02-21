@@ -440,13 +440,11 @@ export async function compareSQLUpdateDB() {
   return true;
 }
 function getDefaltValue(col: string, sql: string) {
-  const reg = new RegExp("\\(\\s?" + `${col}` + ".+?[,)]", "g");
+  const reg = new RegExp("\\(.*?" + `(${col}` + ".+?)[,)]");
   const match = sql.match(reg);
-  const map = {
 
-  };
   if (!match) return "NULL";
-  const tempArr = match[0].replace(/ +/g, " ").split(" ");
+  const tempArr = match[1].split(/ +/);
   const index = tempArr.indexOf("DEFAULT");
   if (index > -1) {
     ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
@@ -490,4 +488,16 @@ export async function getSQLFilesContent() {
     sqlsFromResourceFiles.push(sqlFromFile);
   }
   return sqlsFromResourceFiles;
+}
+
+export async function fillServiceTypes() {
+  const DB = await getDB();
+  const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
+  const tableName = "serviceTypes";
+  await DB.executeTransaction(async () => {
+    for (const serviceType of serviceTypes) {
+      const sql = `INSERT INTO ${tableName} (serviceType) VALUES ('${serviceType}')`;
+      await DB.queryAsync(sql);
+    }
+  });
 }

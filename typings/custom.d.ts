@@ -291,7 +291,7 @@ declare type SecretKey = {
   serialNumber: number;
   appID: string;
   secretKey: string;
-  usable: boolean;//isAlive
+  usable: boolean;
   charConsum: number;
   dateMarker?: string;
 };
@@ -301,7 +301,7 @@ declare type AccessToken = {
   serialNumber: number;
   appID?: string;
   token: string;
-  usable: boolean;//isAlive
+  usable: boolean;
   charConsum: number;
   dateMarker?: string;
 };

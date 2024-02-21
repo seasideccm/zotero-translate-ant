@@ -5,8 +5,12 @@ import { getDB } from '../database/database';
 export class TranslateServiceAccount {
   serialNumber: number;
   serviceID: string;
-  secretKey?: SecretKey;
-  accessToken?: AccessToken;
+  usable: boolean;
+  charConsum: number;
+  appID?: string;
+  secretKey?: string;;
+  token?: string;
+  dateMarker?: string | undefined;
   forbidden?: boolean; //用户是否禁用  
   changed?: any;
   previousData?: any;
@@ -18,8 +22,13 @@ export class TranslateServiceAccount {
   constructor(option: any) {
     this.serialNumber = option.serialNumber;
     this.serviceID = option.serviceID;
+    this.usable = option.usable || true;
+    this.charConsum = option.charConsum || 0;
+    this.appID = option.appID || "no";
     this.secretKey = option.secretKey;
-    Zotero.Utilities.Internal.assignProps(this, option, ['forbidden', 'token']);
+    this.token = option.token;
+    this.dateMarker = option.dateMarker;
+    this.forbidden = option.forbidden;
   }
 
 }
@@ -36,7 +45,7 @@ export class TranslateService {
   secretKeys?: SecretKey[];
   hasToken: boolean;
   accessTokens?: AccessToken[];
-  account?: TranslateServiceAccount;
+  accounts?: TranslateServiceAccount[];
   forbidden?: boolean;
   serialNumber?: number;
   configID?: number | undefined;
@@ -60,7 +69,7 @@ export class TranslateService {
     hasToken: boolean,
     secretKeys?: SecretKey[],
     accessTokens?: AccessToken[],
-    account?: TranslateServiceAccount,
+    accounts?: TranslateServiceAccount[],
     forbidden?: boolean,
     serialNumber?: number,
     configID?: number | undefined,
@@ -68,21 +77,17 @@ export class TranslateService {
 
   ) {
     this.serviceID = options.serviceID;
-
     this.charasPerTime = options.charasPerTime;
     this.QPS = options.QPS;
     this.limitMode = options.limitMode;
     this.charasLimit = options.charasLimit;
-    this.supportMultiParas = options.supportMultiParas;
+    this.supportMultiParas = options.supportMultiParas || false;
     this.hasSecretKey = options.hasSecretKey;
     this.hasToken = options.hasToken;
-    this.secretKeys = options.secretKeys;
-    this.accessTokens = options.accessTokens;
-    this.account = options.account;
+    this.accounts = options.accounts;
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
-    this.configID = options.configID;
-    this.objectType = "item";
+    this.configID = options.configID || 0;
     this.serviceTypeID = this.getServiceTypeID();
     //this.ObjectsClass = addon.mountPoint['TranslateServices'];
   }
@@ -110,49 +115,76 @@ export class TranslateService {
     const DB = await getDB();
     return await DB.valueQueryAsync(sql);
   }
-
+  sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
+    return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
+  }
   async save() {
+
     const DB = await getDB();
-    let serialNumber = await this.getSerialNumber(this.serviceID);
+    const serialNumber = await this.getSerialNumber(this.serviceID);
     if (serialNumber) {
       //update
       return;
     }
-    const todo = async () => {
-      serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
-      let sql = "INSERT INTO translateServiceSN (serialNumber, serviceID";
-      if (row.appID) {
-        sql += ", appID" + ") VALUES ('" + serialNumber + "','" + this.serviceID + "','" + row.appID + "')";
-      } else {
-        sql += ") VALUES ('" + serviceID + "','" + serialNumber + "')";
-      }
-      await DB.queryAsync(sql);
+    const doSave = async () => {
+      const DB = await getDB();
+      const serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
 
-      const keys = Object.keys(row);
-      if (keys.includes("token")) {
-        const tableName = "accessTokens";
-        const sqlColumns = ["serialNumber", "serviceID", "appID", "token"];
-        const sqlValues = [serialNumber, serviceID, row.appID, row.token];
-        //sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "                            + "VALUES (" + sqlValues.join(", ") + ")";
-        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
-        await DB.queryAsync(sql, sqlValues);
-      } else {
-        const tableName = "accounts";
-        const sqlColumns = ["serialNumber", "serviceID", "appID", "secretKey"];
-        const sqlValues = [serialNumber, serviceID, row.appID, row.secretKey];
-        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
-        await DB.queryAsync(sql, sqlValues);
-      }
-      let tableName = "charConsum";
-      sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
-      await DB.queryAsync(sql);
-      tableName = "totalCharConsum";
-      sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
-      await DB.queryAsync(sql);
+      let tableName = "translateServices";
+      let sqlColumns = ["serviceID", "serviceTypeID", "hasSecretKey", "hasToken", "supportMultiParas"];
+      let sqlValues = [this.serviceID, this.serviceTypeID, Number(this.hasSecretKey), Number(this.hasToken), Number(this.supportMultiParas)];
+      await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
 
+      tableName = "serviceLimits";
+      sqlColumns = ["serviceID", "QPS", "charasPerTime", "limitMode", "charasLimit", "configID"];
+      sqlValues = [this.serviceID, this.QPS, this.charasPerTime, this.limitMode, this.charasLimit, this.configID];
+      await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+
+      if (this.accounts && this.accounts.length) {
+        for (const account of this.accounts) {
+          sqlColumns = ["serialNumber", "serviceID", "appID", "usable", "forbidden"];
+          sqlValues = [serialNumber, this.serviceID, account.appID, account.usable, account.forbidden];
+          tableName = 'translateServiceSN';
+          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          sqlColumns = ["serialNumber", "serviceID", "appID"];
+          sqlValues = [serialNumber, this.serviceID, account.appID];
+          if (account.secretKey) {
+            sqlColumns.push("secretKey");
+            sqlValues.push(account.secretKey);
+            tableName = "accounts";
+            await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          }
+          if (account.token) {
+            sqlColumns.push("token");
+            sqlValues.push(account.token);
+            tableName = "accessTokens";
+            await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          }
+          tableName = "charConsum";
+          sqlColumns = ["serialNumber", "charConsum"];
+          sqlValues = [serialNumber, account.charConsum];
+          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          tableName = "totalCharConsum";
+          sqlColumns = ["serialNumber"];
+          sqlValues = [serialNumber];
+          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        }
+      }
+      if (!this.accounts) {
+        tableName = 'translateServiceSN';
+        sqlColumns = ["serialNumber", "serviceID"];
+        sqlValues = [serialNumber, this.serviceID];
+        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        if (!this.hasSecretKey && !this.hasToken) {
+          tableName = "freeLoginServices";
+          sqlColumns = ["serialNumber", "serviceID"];
+          sqlValues = [serialNumber, this.serviceID];
+        }
+      }
     };
 
-    await DB.executeTransaction();
+    await DB.executeTransaction(doSave.bind(this));
+
 
   }
   saveold: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {

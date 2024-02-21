@@ -481,10 +481,10 @@ const arrs = [
   "CREATE TABLE account(serialNumber INT NOT NULL, appID TEXT NOT NULL, secretKey TEXT NOT NULL, UNIQUE(serialNumber, appID), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE charConsum(serialNumber INT NOT NULL PRIMARY KEY, charConsum INT NOT NULL, dataMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE accessToken(serialNumber INT NOT NULL, token TEXT NOT NULL UNIQUE, UNIQUE(serialNumber, token), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
-  "CREATE TABLE alive(serialNumber INT NOT NULL PRIMARY KEY, isAlive INT NOT NULL, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
+  "CREATE TABLE alive(serialNumber INT NOT NULL PRIMARY KEY, usable INT NOT NULL, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE totalCharConsum(serialNumber INT PRIMARY KEY, totalCharConsum INT NOT NULL DEFAULT 0, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "DROP TRIGGER IF EXISTS translation_targetTextID_targetText_targetTextID",
-  "CREATE TABLE account(serialNumber INT NOT NULL, appID TEXT NOT NULL, secretKey TEXT NOT NULL, charConsum INT NOT NULL, dataMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, isAlive INT NOT NULL, UNIQUE(serialNumber, appID), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
-  "CREATE TABLE accessToken(serialNumber INT NOT NULL, token TEXT NOT NULL UNIQUE, isAlive INT NOT NULL, UNIQUE(serialNumber, token), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
+  "CREATE TABLE account(serialNumber INT NOT NULL, appID TEXT NOT NULL, secretKey TEXT NOT NULL, charConsum INT NOT NULL, dataMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, usable INT NOT NULL, UNIQUE(serialNumber, appID), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
+  "CREATE TABLE accessToken(serialNumber INT NOT NULL, token TEXT NOT NULL UNIQUE, usable INT NOT NULL, UNIQUE(serialNumber, token), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE totalCharConsum(serialNumber INT NOT NULL UNIQUE, totalCharConsum INT NOT NULL, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)"
 ];
