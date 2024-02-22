@@ -273,8 +273,9 @@ export async function replaceSecretKeysTable() {
             event.view?.removeEventListener("click", todo);
         });
         //@ts-ignore has
-        event.view?.addEventListener("blur", function () {
+        event.view?.addEventListener("blur", function (e) {
             showInfo("失焦：" + event.view.location.href);
+            e.stopImmediatePropagation();
         },
             { once: true });
         window.addEventListener("blur", function () {
