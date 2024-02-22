@@ -138,7 +138,7 @@ declare namespace Zotero {
                 - Missing or surplus index entries
                 - UNIQUE, CHECK, and NOT NULL constraint errors
                 - Integrity of the freelist
-                - Sections of the database that are used more than once, or not at all
+                - Sections of the database that are used more than 88, or not at all
          */
     integrityCheck(): Promise<boolean>;
     isCorruptionError(e: any): boolean;

@@ -31,7 +31,7 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
     const serviceID = getElementValue("serviceID");
-    const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
+    const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex", "type"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     let rows = await secretKeysTableRowsData(serviceID);
     if (!rows) return;
@@ -229,17 +229,77 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleActivate(event: Event, indices: number[]) {
-        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
-        const test = Zotero.Utilities.arrayDiff(selectedIndices, indices);
-        const test2 = Zotero.Utilities.arrayDiff(indices, selectedIndices);
-        const rowElement = getRowElement(indices[0]);
+        const cellIndex = getcellIndex(event);
+        const rowElement = getRowElement(indices[0])[0];
+        tableTreeInstance.editingRow = {
+            oldCells: [],
+            currentCells: []
+        };
+        for (const cell of rowElement.children) {
+            const input = cellChangeToInput(cell);
+            tableTreeInstance.editingRow.oldCells.push(cell);
+            tableTreeInstance.editingRow.currentCells.push(input);
+            cell.parentElement.replaceChild(input, cell);
+            // Feels like a bit of a hack, but it gets the job done
+            if (rowElement[cellIndex] == cell)
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                });
+        }
+        rowElement.children;
+        tableTreeInstance.editIndex = indices[0];
+        rowElement.addEventListener('blur', async (e: Event) => {
+            const isFocus = window.document.hasFocus();//@ts-ignore has
+            const win = rowElement.ownerGlobal;
+            const doc = rowElement.ownerDocument;
+            const isFocuswin = win.document.hasFocus();//@ts-ignore has
+            commitEditingRow();
+            stopEditing(); //@ts-ignore has
+            event.view?.removeEventListener("click", todo);
+        });
 
-        editCell(event, indices);
+        function todo(e: Event) {
+            if (e.target != rowElement) {
+                rowElement.blur();                //@ts-ignore has
+                event.view?.removeEventListener("click", todo);
+            }
+        }        //@ts-ignore has
+        event.view?.addEventListener("click", todo);
+        //@ts-ignore has
+        event.view?.addEventListener("blur",
+            function (e: Event) {                //@ts-ignore has
+                showInfo("失焦：" + event.view.location.href);
+                e.stopImmediatePropagation();
+            },
+            { once: true });
+
+
+
+        // editCell(event, indices);
     }
+
+    function cellChangeToInput(cell: HTMLElement) {
+        const label = document.createElement('input');
+        label.placeholder = "测试" + cell.textContent;
+        label.value = cell.textContent ? cell.textContent : "";
+        label.className = 'cell-text';
+        label.dir = 'auto';        //@ts-ignore has
+        //const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
+        //label.style.width = width + "px";
+        label.addEventListener('input', e => {
+            e.stopImmediatePropagation();
+        });
+        label.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
+        label.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
+        label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
+        return label;
+    }
+
 
     function getRowElement(index?: number) {
         if (!index) index = Array.from(tableTreeInstance.selection.selected)[0];//@ts-ignore has
-        const selectedElem = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
+        return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
 
     }
 
@@ -248,7 +308,8 @@ export async function replaceSecretKeysTable() {
         //处理前一个单元格的编辑状态
         //@ts-ignore has
         if (tableTreeInstance.editIndex) {
-            commitEditing();
+            tableTreeInstance.editingRow["currentCells"] ? commitEditingRow : commitEditing();
+            stopEditing();
         }
         if (!event.target) return true;
         const div = event.target as HTMLElement;
@@ -272,18 +333,16 @@ export async function replaceSecretKeysTable() {
         label.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
         label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
         label.addEventListener('blur', async (e) => {
-            const isFocus = window.document.hasFocus();
+            const isFocus = window.document.hasFocus();//@ts-ignore has
             const win = div.ownerGlobal;
             const doc = div.ownerDocument;
-            const isFocuswin = win.document.hasFocus();
-
-            //@ts-ignore has
-            commitEditing(tableTreeInstance.oldCell, label, indices, cellIndex);
-            //@ts-ignore has
+            const isFocuswin = win.document.hasFocus();//@ts-ignore has
+            commitEditing();
+            stopEditing();           //@ts-ignore has
             event.view?.removeEventListener("click", todo);
-        });
-        //@ts-ignore has
+        });        //@ts-ignore has
         event.view?.addEventListener("blur", function (e) {
+            //@ts-ignore has
             showInfo("失焦：" + event.view.location.href);
             e.stopImmediatePropagation();
         },
@@ -299,6 +358,7 @@ export async function replaceSecretKeysTable() {
                 event.view?.removeEventListener("click", todo);
             }
         }
+        //@ts-ignore has
         event.view?.addEventListener("click", todo);
         // Feels like a bit of a hack, but it gets the job done
         setTimeout(() => {
@@ -347,16 +407,23 @@ export async function replaceSecretKeysTable() {
         return Math.round(proportion * tableWidth * window.devicePixelRatio);
     }
 
-    function commitEditing() {
+    function commitEditingRow() {
+        const oldCells = tableTreeInstance.editingRow["oldCells"];
+        const currentCells = tableTreeInstance.editingRow["currentCells"];
+        for (let i = 0; i < currentCells.length; i++) {
+            commitEditing(currentCells[i], oldCells[i]);
+        }
+    }
+
+    function commitEditing(newCell?: HTMLElement, oldCell?: HTMLElement) {
         //@ts-ignore has
-        const oldCell = tableTreeInstance.oldCell;//@ts-ignore has
-        const label = tableTreeInstance.label;//@ts-ignore has
+        if (!oldCell) oldCell = tableTreeInstance.oldCell;//@ts-ignore has
+        const label = newCell ? newCell : tableTreeInstance.label;//@ts-ignore has
         const index = tableTreeInstance.editIndex;
         if (index == void 0) return;
         //@ts-ignore has
         const key: string = oldCell.classList[1];
-        if (oldCell.textContent == label.value) {
-            stopEditing();
+        if (oldCell!.textContent == label.value) {
             return;
         }
         if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
@@ -367,11 +434,19 @@ export async function replaceSecretKeysTable() {
         };
         tableTreeInstance.dataChangedCache[index] = tempObj;
         rows[index][key] = label.value;
-        oldCell.textContent = label.value;
+        oldCell!.textContent = label.value;
         label.parentNode?.replaceChild(oldCell, label);
         saveThrottle();
-        stopEditing();
     };
+    function stopEditing() {
+        //@ts-ignore has
+        tableTreeInstance.editIndex = null;
+        // Returning focus to the tree container
+        //Rerender items within the scrollbox. Call sparingly        
+        tableTreeInstance.invalidate();
+        //tableTreeInstance.;
+    }
+
     function getSelectedTranlateServiceItems() {
         const selectedIndices = Array.from(tableTreeInstance.selection.selected);
         //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
@@ -543,19 +618,13 @@ export async function replaceSecretKeysTable() {
         return translateService;
     }
 
-    function stopEditing() {
-        //@ts-ignore has
-        tableTreeInstance.editIndex = null;
-        // Returning focus to the tree container
-        //Rerender items within the scrollbox. Call sparingly        
-        tableTreeInstance.invalidate();
-        //tableTreeInstance.;
-    }
 
     function makeColumnPropValues(row: any) {
         // 本地化 ftl 文件中条目的前缀
         const prefTableStringPrefix = "prefs-table-";
+
         const temp = Object.keys(row).map((key: string, i: number) => {
+            let type = '';
             // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
             let label = getString(`${prefTableStringPrefix}${key}`);
             if (!label || label.startsWith(config.addonRef)) {
@@ -565,9 +634,13 @@ export async function replaceSecretKeysTable() {
             result.push(false, false);
             if (i == 1) {
                 result.push(2);
-                return result;
-            };
-            result.push(1);
+            } else {
+                result.push(1);
+            }
+            if (key == "usable") {
+                type = 'checkbox';
+            }
+            result.push(type);
             return result;
         });
         return temp;

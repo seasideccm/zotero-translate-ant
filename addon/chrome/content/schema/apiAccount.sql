@@ -2,7 +2,7 @@
 -- 翻译引擎账号
 
 CREATE TABLE translateServiceSN(
-    serialNumber INT NOT NULL PRIMARY KEY,
+    serialNumber INTEGER PRIMARY KEY,
     serviceID TEXT NOT NULL,
     appID TEXT NOT NULL DEFAULT "no",
     usable INT NOT NULL DEFAULT 1,
@@ -68,7 +68,8 @@ CREATE TABLE serviceLimits(
 );
 
 --创建不能为NULL的主键时,应该使用 PRIMARY KEY NOT NULL
+--解决 NOT NULL 约束报错 使用 INTEGER PRIMARY KEY 实现整数递增
 CREATE TABLE serviceTypes(
-    serviceTypeID INT NOT NULL PRIMARY KEY,
+    serviceTypeID INTEGER PRIMARY KEY,
     serviceType TEXT NOT NULL --serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"]
 );

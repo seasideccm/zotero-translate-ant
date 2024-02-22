@@ -393,10 +393,10 @@ export async function compareSQLUpdateDB() {
       const reg = new RegExp("CREATE\\s" + tableType + "\\s" + tableName, "i");
       if (allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
         const oldColumns = await DB.getColumns(tableName);
-        let sql = `SELECT * FROM ${tableName}`;
-        const rowsOld = await DB.queryAsync(sql);
+        let sql = `SELECT COUNT(*) FROM ${tableName}`;
+        const rowsNumberOld = await DB.queryAsync(sql);
         //如果旧表没有列或没有数据，则删除旧表建新表
-        if (!oldColumns || oldColumns.length === 0 || !rowsOld || rowsOld.length === 0) {
+        if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
           const sql = `DROP ${tableType} ${tableName}`;
           await DB.queryAsync(sql);
           await DB.queryAsync(diff);
@@ -422,7 +422,14 @@ export async function compareSQLUpdateDB() {
             oldFields.push(col);
           }
         }
-        sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
+
+        if (tableName == "serviceTypes") {
+          sql = `INSERT INTO ${tableName} (serviceType) SELECT serviceType FROM ${tableName}_tempTable`;
+        } else {
+          sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
+        }
+
+
         await DB.queryAsync(sql);
         sql = `DROP TABLE ${tableName}_tempTable`;
         await DB.queryAsync(sql);
