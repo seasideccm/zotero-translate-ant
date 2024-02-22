@@ -10,7 +10,7 @@ export async function initTranslateServices() {
     const serviceNumber = await DB.valueQueryAsync("SELECT COUNT(*) FROM translateServices");
     if (!serviceNumber) await fillServiceTypes();
     let parasArr = [];
-    !serviceNumber ? parasArr = parasArrTranslateService : parasArr = parasArrTranslateServiceAdd;
+    serviceNumber ? parasArr = parasArrTranslateServiceAdd : parasArr = parasArrTranslateService;
     if (parasArr.length) {
         await servicesToDB(keys, parasArr);
     }
@@ -21,16 +21,6 @@ export async function servicesToDB(keys: string[], parasArr: any[]) {
 
     const getOptions = arrsToObjs(keys);
     const services: ServiceMap = {};
-    /* const options = {
-        serviceID: "baidu",
-        charasPerTime: 5000,
-        QPS: 10,
-        limitMode: "month",
-        charasLimit: 1000000,
-        supportMultiParas: false,
-        hasSecretKey: true,
-        hasToken: false,
-    }; */
     for (const paras of parasArr) {
         const serviceID = paras[0] as string;
         if (await hasService(serviceID)) continue;
@@ -92,16 +82,16 @@ export async function loadServiceFromDB(serviceID: string) {
     Zotero.Utilities.Internal.assignProps(options, commonProperty);
     if (options.hasSecretKey) {
         const secretKeys = await getSecretKeys(serviceID);
-        options.secretKeys = secretKeys;
+        if (secretKeys) options.secretKeys = secretKeys;
     }
     if (options.hasToken) {
         const accessTokens = await getAccessTokens(serviceID);
-        options.secretKeys = accessTokens;
+        if (accessTokens) options.accessTokens = accessTokens;
     }
     if (!options.hasToken && !options.hasSecretKey) {
         options.serialNumber = await DB.valueQueryAsync(`SELECT serialNumber FROM freeLoginServices WHERE serviceID = '${serviceID}'`);
+        options.forbidden == await DB.valueQueryAsync(`SELECT forbidden FROM translateServiceSN WHERE serviceID = '${serviceID}' AND serialNumber = ${options.serialNumber}`);
     }
-    options.forbidden == await DB.valueQueryAsync(`SELECT forbidden FROM translateServiceSN WHERE serviceID = '${serviceID}' AND serialNumber = ${options.serialNumber}`);
     const service = new TranslateService(options);
     return service;
 }
@@ -138,25 +128,28 @@ async function getSecretKeys(serviceID: string) {
     const tableName2 = "translateServiceSN";
     const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);
-    sqlColumns[0] = 'serialNumber';
-    sqlColumns[1] = "appID";
-    const valuesArr = rows.map((row: any) => sqlColumns.map((column) => row[column]));
-    //const values = sqlColumns.map((column) => row[column]);
-    //sqlColumns[3] = "usable";
-    return arrsToObjs(sqlColumns)(valuesArr);
+    return dbRowsToObjs(rows, sqlColumns);
 
 }
 async function getAccessTokens(serviceID: string) {
     const DB = await getDB();
-    const sqlColumns = ["serialNumber", "appID", "token", "usable", "charConsum", "dateMarker"];
+    const sqlColumns = ["accessTokens.serialNumber", "accessTokens.appID", "token", "usable", "charConsum", "dateMarker"];
     const tableName = "accessTokens";
     const tableName2 = "translateServiceSN";
     const tableName3 = "charConsum";
     const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN ${tableName3} USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);
-    const valuesArr = rows.map((row: any) => sqlColumns.map((column) => row[column]));
-    return arrsToObjs(sqlColumns)(valuesArr);
+    return dbRowsToObjs(rows, sqlColumns);
+    /* const keys = sqlColumns.map((colum) => colum.split(".").pop()) as string[];
+    const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
+    return arrsToObjs(keys)(valuesArr); */
+}
 
+function dbRowsToObjs(rows: any[], sqlColumns: string[]) {
+    if (!rows.length) return;
+    const keys = sqlColumns.map((colum) => colum.split(".").pop()) as string[];
+    const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
+    return arrsToObjs(keys)(valuesArr);
 }
 
 

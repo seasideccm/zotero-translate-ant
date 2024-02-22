@@ -76,6 +76,8 @@ export class TranslateService {
   }
 
   ) {
+
+    // ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"]
     this.serviceID = options.serviceID;
     this.charasPerTime = options.charasPerTime;
     this.QPS = options.QPS;
@@ -84,6 +86,7 @@ export class TranslateService {
     this.supportMultiParas = options.supportMultiParas || false;
     this.hasSecretKey = options.hasSecretKey;
     this.hasToken = options.hasToken;
+
     this.accounts = options.accounts;
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
@@ -121,8 +124,10 @@ export class TranslateService {
   async save() {
 
     const DB = await getDB();
-    const serialNumber = await this.getSerialNumber(this.serviceID);
-    if (serialNumber) {
+    //const serialNumber = await this.getSerialNumber(this.serviceID);
+    if (this.serialNumber) {
+      const doSave = async () => { };
+      await DB.executeTransaction(doSave.bind(this));
       //update
       return;
     }
@@ -139,13 +144,31 @@ export class TranslateService {
       sqlColumns = ["serviceID", "QPS", "charasPerTime", "limitMode", "charasLimit", "configID"];
       sqlValues = [this.serviceID, this.QPS, this.charasPerTime, this.limitMode, this.charasLimit, this.configID];
       await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+      //freeLoginServices
+      if (!this.hasSecretKey && !this.hasToken) {
+        tableName = 'translateServiceSN';
+        sqlColumns = ["serialNumber", "serviceID"];
+        sqlValues = [serialNumber, this.serviceID];
+        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
 
-      if (this.accounts && this.accounts.length) {
+        tableName = "freeLoginServices";
+        sqlColumns = ["serialNumber", "serviceID"];
+        sqlValues = [serialNumber, this.serviceID];
+        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        return;
+      }
+      //without account info 
+      if (!this.accounts || !this.accounts.length) {
+        return;
+      }
+
+      if (this.accounts.length) {
         for (const account of this.accounts) {
           sqlColumns = ["serialNumber", "serviceID", "appID", "usable", "forbidden"];
           sqlValues = [serialNumber, this.serviceID, account.appID, account.usable, account.forbidden];
           tableName = 'translateServiceSN';
           await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+
           sqlColumns = ["serialNumber", "serviceID", "appID"];
           sqlValues = [serialNumber, this.serviceID, account.appID];
           if (account.secretKey) {
@@ -169,23 +192,10 @@ export class TranslateService {
           sqlValues = [serialNumber];
           await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
         }
-      }
-      if (!this.accounts) {
-        tableName = 'translateServiceSN';
-        sqlColumns = ["serialNumber", "serviceID"];
-        sqlValues = [serialNumber, this.serviceID];
-        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
-        if (!this.hasSecretKey && !this.hasToken) {
-          tableName = "freeLoginServices";
-          sqlColumns = ["serialNumber", "serviceID"];
-          sqlValues = [serialNumber, this.serviceID];
-        }
+        return;
       }
     };
-
     await DB.executeTransaction(doSave.bind(this));
-
-
   }
   saveold: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {
     const env: any = {

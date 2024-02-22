@@ -2,7 +2,7 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, resourceFilesName, resourceFilesRecursive } from "../../utils/tools";
-import { compareSQLUpdateDB, DB, getDB } from '../database/database';
+import { compareSQLUpdateDB, DB, getDB, getSQLFromResourceFiles, getTableNamesFromSqlFile } from '../database/database';
 import { DBsync, jsonTofileTest } from "../database/sync";
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
@@ -18,12 +18,22 @@ async function renameTable() {
   await DB.renameTable(old, newTable);
 }
 
+async function clearTable(tableNames: string[]) {
+  const DB = await getDB();
+  for (const tableName of tableNames) {
+    const sql = `DELETE FROM ${tableName}`;
+    await DB.queryAsync(sql);
+  }
+}
+
+const tableNames = (async () => { return await getTableNamesFromSqlFile("apiAccount"); })();
+const tableNames2 = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
 
 const paraArrs = [
   ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
-  ["renameTable", renameTable, []],
+  ["clearTable", clearTable, [tableNames2]],
 ];
 
 

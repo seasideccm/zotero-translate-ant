@@ -262,13 +262,25 @@ export async function replaceSecretKeysTable() {
         label.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
         label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
         label.addEventListener('blur', async (e) => {
+            const isFocus = window.document.hasFocus();
+            const win = div.ownerGlobal;
+            const doc = div.ownerDocument;
+            const isFocuswin = win.document.hasFocus();
+
             //@ts-ignore has
             commitEditing(tableTreeInstance.oldCell, label, indices, cellIndex);
             //@ts-ignore has
             event.view?.removeEventListener("click", todo);
         });
         //@ts-ignore has
-        event.view?.addEventListener("click", todo);
+        event.view?.addEventListener("blur", function () {
+            showInfo("失焦：" + event.view.location.href);
+        },
+            { once: true });
+        window.addEventListener("blur", function () {
+            showInfo("失焦：" + window.location.href);
+        },
+            { once: true });
         function todo(e: Event) {
             if (e.target != label) {
                 label.blur();
@@ -276,7 +288,7 @@ export async function replaceSecretKeysTable() {
                 event.view?.removeEventListener("click", todo);
             }
         }
-
+        event.view?.addEventListener("click", todo);
         // Feels like a bit of a hack, but it gets the job done
         setTimeout(() => {
             label.focus();
@@ -346,7 +358,7 @@ export async function replaceSecretKeysTable() {
         rows[index][key] = label.value;
         oldCell.textContent = label.value;
         label.parentNode?.replaceChild(oldCell, label);
-        saveTx();
+        saveThrottle();
         stopEditing();
     };
     function getSelectedTranlateServiceItems() {
@@ -354,7 +366,14 @@ export async function replaceSecretKeysTable() {
         //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
         return rows.filter((v: any, i: number) => selectedIndices.includes(i));
     }
-
+    const saveThrottle = Zotero.Utilities.throttle(
+        saveTx,
+        3000,
+        {
+            leading: false,
+            trailing: true
+        }
+    );
     async function saveTx() {
         //todo 防抖节流
         showInfo("fake save to database");
@@ -365,6 +384,7 @@ export async function replaceSecretKeysTable() {
         let tableNames: string[] = [];
         for (const index of Object.keys(dataChangedCache)) {
             const row = rows[Number(index)];
+
             let serialNumber = await getSerialNumber(serviceID, row);
             const DB = await getDB();
             if (!serialNumber) {

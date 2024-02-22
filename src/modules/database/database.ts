@@ -457,12 +457,15 @@ function getDefaltValue(col: string, sql: string) {
 
 
 
-export async function getSQLFromResourceFiles(DB: DB) {
+export async function getSQLFromResourceFiles(DB: DB, filterFilename?: string) {
   const sqlsFromResourceFiles = [];
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {
     if (!file.name) {
       ztoolkit.log(file + " without name");
+      continue;
+    }
+    if (filterFilename && file.name != filterFilename) {
       continue;
     }
     const path = file.path + file.name;
@@ -496,8 +499,25 @@ export async function fillServiceTypes() {
   const tableName = "serviceTypes";
   await DB.executeTransaction(async () => {
     for (const serviceType of serviceTypes) {
-      const sql = `INSERT INTO ${tableName} (serviceType) VALUES ('${serviceType}')`;
+      const index = serviceTypes.indexOf(serviceType);
+      const sql = `INSERT INTO ${tableName} (serviceTypeID,serviceType) VALUES (${index},'${serviceType}')`;
       await DB.queryAsync(sql);
     }
   });
+}
+
+
+
+export async function getTableNamesFromSqlFile(fileName: string) {
+  const DB = await getDB();
+  const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB, fileName);
+  const diffs = sqlsFromResourceFiles.join(';');
+  const tableNames = [];
+  for (const diff of diffs) {
+    const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
+    if (!matches) continue;
+    const tableName = matches.slice(-1)[0];
+    tableNames.push(tableName);
+  }
+  return tableNames;
 }

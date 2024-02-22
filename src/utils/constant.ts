@@ -21,6 +21,10 @@ export const parasArrTranslateService = [
 
 ];
 
+/* parasArrTranslateService.filter(e=>{if(e.length != keysTranslateService.length){
+  console.log(e[0],e.length)
+}}) */
+
 export const parasArrTranslateServiceAdd = [];
 
 export const syncConfig = {

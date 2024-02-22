@@ -67,8 +67,8 @@ CREATE TABLE serviceLimits(
     FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE
 );
 
-
+--创建不能为NULL的主键时,应该使用 PRIMARY KEY NOT NULL
 CREATE TABLE serviceTypes(
-    serviceTypeID INT PRIMARY KEY,
+    serviceTypeID INT NOT NULL PRIMARY KEY,
     serviceType TEXT NOT NULL --serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"]
 );
