@@ -99,6 +99,11 @@ export function arrToObj(keys: string[], values: any[]) {
   return obj;
 }
 
+/**
+ * get single object or object array
+ * @param keys 
+ * @returns 
+ */
 export function arrsToObjs(keys: string[]) {
   return function (values: any[] | any[][]) {
     if (!Array.isArray(values[0]))
@@ -106,6 +111,8 @@ export function arrsToObjs(keys: string[]) {
     return values.map((value) => arrToObj(keys, value));
   };
 }
+
+
 
 export function base64ToBytes(imageDataURL: string):
   | {
@@ -248,8 +255,7 @@ export function showInfo(infos?: string | string[], option?: OptionsPopupWin, he
   const noop = () => {
   };
   !header ? header = config.addonName : noop;
-  //const popupWin = addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
-  const popupWin = new ztoolkit.ProgressWindow(header, option);
+  const popupWin = new ztoolkit.ProgressWindow(header, option);// 默认 options = {closeOnClick: true,closeTime: 5000,}
   //if (!option || option.closeTime != -1) {
   //  Zotero.ProgressWindowSet.closeAll();
   //}
@@ -268,6 +274,7 @@ export function showInfo(infos?: string | string[], option?: OptionsPopupWin, he
     popupWin.createLine(optionsCreatLine)
   );
   popupWin.show();
+  addon.mountPoint["popupWins"] ? addon.mountPoint["popupWins"].push(popupWin) : addon.mountPoint["popupWins"] = [popupWin];
   return popupWin;
 }
 

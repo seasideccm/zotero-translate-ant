@@ -31,7 +31,7 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
     const serviceID = getElementValue("serviceID");
-    const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex", "type"];
+    const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     let rows = await secretKeysTableRowsData(serviceID);
     if (!rows) return;
@@ -53,7 +53,7 @@ export async function replaceSecretKeysTable() {
         getRowData: (index: number) => rows[index],
         getRowString: ((index: number) => rows[index].key || ""),
         onKeyDown: handleKeyDown,
-        onSelectionChange: handleSelectionChange,
+        //onSelectionChange: handleSelectionChange,
         //@ts-ignore has
         onActivate: handleActivate,
         onItemContextMenu: handleItemContextMenu,
@@ -68,6 +68,7 @@ export async function replaceSecretKeysTable() {
     const tableHelper = await tableFactory(options);
     const tableTreeInstance = tableHelper.treeInstance as VTable;
     tableTreeInstance.rows = rows;
+
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         const { selected } = selection;//@ts-ignore has
         if (tableTreeInstance.editIndex) {
@@ -139,18 +140,27 @@ export async function replaceSecretKeysTable() {
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
         //@ts-ignore has
+
+
+        //获取键码
+        //获取字符编码
+
+        getCharCode(e);
         if (tableTreeInstance.editIndex) {
             if (e.key == 'Enter' || e.key == 'Escape') {
                 const target = e.target;
                 if (e.key != 'Escape') {
                     //@ts-ignore has
-                    commitEditing(tableTreeInstance.oldCell, target);
+                    commitEditing();
 
                 } else {
                     //@ts-ignore has
-                    discardEditing(tableTreeInstance.oldCell, target);
+                    discardEditing();
                 }
                 stopEditing();
+            }
+            if (e.key == ' ') {
+                e.preventDefault(); //不支持 e.stopImmediatePropagation()
             }
             return false;
         }
@@ -213,6 +223,7 @@ export async function replaceSecretKeysTable() {
             return false;
         }
 
+
         /* if (e.key == 'ContextMenu' || (e.key == 'F10' && e.shiftKey)) {
             //@ts-ignore has
             const selectedElem = document.querySelector(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
@@ -228,6 +239,22 @@ export async function replaceSecretKeysTable() {
         return true;
     }
 
+    const getCharCode = function (event: KeyboardEvent) {
+        if (event.key) {
+            showInfo("event.key: " + "'" + event.key + "'");
+            return event.key;
+        }
+        const charcode = event.charCode;
+        if (typeof charcode == "number" && charcode != 0) {
+            showInfo("charcode: " + charcode + " || " + "'" + String.fromCharCode(charcode) + "'");
+            return charcode;
+        } else {
+            //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
+            showInfo("keyCode: " + event.keyCode + " || " + "'" + String.fromCharCode(event.keyCode) + "'");
+            return event.keyCode;
+        }
+    };
+
     function handleActivate(event: Event, indices: number[]) {
         const cellIndex = getcellIndex(event);
         const rowElement = getRowElement(indices[0])[0];
@@ -239,15 +266,12 @@ export async function replaceSecretKeysTable() {
             const input = cellChangeToInput(cell);
             tableTreeInstance.editingRow.oldCells.push(cell);
             tableTreeInstance.editingRow.currentCells.push(input);
-            cell.parentElement.replaceChild(input, cell);
-            // Feels like a bit of a hack, but it gets the job done
-            if (rowElement[cellIndex] == cell)
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                });
         }
-        rowElement.children;
+        // Feels like a bit of a hack, but it gets the job done
+        setTimeout(() => {
+            rowElement.children[cellIndex].focus();
+            rowElement.children[cellIndex].select();
+        });
         tableTreeInstance.editIndex = indices[0];
         rowElement.addEventListener('blur', async (e: Event) => {
             const isFocus = window.document.hasFocus();//@ts-ignore has
@@ -256,11 +280,16 @@ export async function replaceSecretKeysTable() {
             const isFocuswin = win.document.hasFocus();//@ts-ignore has
             commitEditingRow();
             stopEditing(); //@ts-ignore has
-            event.view?.removeEventListener("click", todo);
+            //event.view?.removeEventListener("click", todo);
         });
 
         function todo(e: Event) {
             if (e.target != rowElement) {
+                //单行表格导致失焦失败？
+                if (tableTreeInstance.rows && tableTreeInstance.rows.length <= 1) {
+                    commitEditingRow();
+                    stopEditing();
+                }
                 rowElement.blur();                //@ts-ignore has
                 event.view?.removeEventListener("click", todo);
             }
@@ -279,21 +308,23 @@ export async function replaceSecretKeysTable() {
         // editCell(event, indices);
     }
 
-    function cellChangeToInput(cell: HTMLElement) {
-        const label = document.createElement('input');
-        label.placeholder = "测试" + cell.textContent;
-        label.value = cell.textContent ? cell.textContent : "";
-        label.className = 'cell-text';
-        label.dir = 'auto';        //@ts-ignore has
+    function cellChangeToInput(cell: HTMLElement | ChildNode) {
+        const inputCell = document.createElement('input');
+        inputCell.placeholder = cell.textContent || "";
+        inputCell.value = cell.textContent ? cell.textContent : "";
+        inputCell.className = 'cell-text';
+        inputCell.dir = 'auto';        //@ts-ignore has
         //const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
-        //label.style.width = width + "px";
-        label.addEventListener('input', e => {
+        //inputCell.style.width = width + "px";
+        inputCell.addEventListener('input', e => {
+            showInfo(e.key);
             e.stopImmediatePropagation();
         });
-        label.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
-        label.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
-        label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
-        return label;
+        inputCell.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
+        inputCell.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
+        inputCell.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
+        if (cell.parentElement) cell.parentElement.replaceChild(inputCell, cell);
+        return inputCell;
     }
 
 
@@ -304,7 +335,6 @@ export async function replaceSecretKeysTable() {
     }
 
     function editCell(event: Event, indices: number[]) {
-        const COLUMN_PADDING = 16;
         //处理前一个单元格的编辑状态
         //@ts-ignore has
         if (tableTreeInstance.editIndex) {
@@ -319,19 +349,12 @@ export async function replaceSecretKeysTable() {
         const cellNext = div.childNodes[cellIndex + 1];
         if (!cell) return true;
 
-        const label = document.createElement('input');
-        label.placeholder = "测试" + cell.textContent;
-        label.value = cell.textContent ? cell.textContent : "";
-        label.className = 'cell-text';
-        label.dir = 'auto';        //@ts-ignore has
+        const label = cellChangeToInput(cell);
+
+
+        //@ts-ignore has
         const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
         label.style.width = width + "px";
-        label.addEventListener('input', e => {
-            e.stopImmediatePropagation();
-        });
-        label.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
-        label.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
-        label.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
         label.addEventListener('blur', async (e) => {
             const isFocus = window.document.hasFocus();//@ts-ignore has
             const win = div.ownerGlobal;
@@ -410,6 +433,7 @@ export async function replaceSecretKeysTable() {
     function commitEditingRow() {
         const oldCells = tableTreeInstance.editingRow["oldCells"];
         const currentCells = tableTreeInstance.editingRow["currentCells"];
+        if (!oldCells || !currentCells) return;
         for (let i = 0; i < currentCells.length; i++) {
             commitEditing(currentCells[i], oldCells[i]);
         }
@@ -418,7 +442,9 @@ export async function replaceSecretKeysTable() {
     function commitEditing(newCell?: HTMLElement, oldCell?: HTMLElement) {
         //@ts-ignore has
         if (!oldCell) oldCell = tableTreeInstance.oldCell;//@ts-ignore has
+        if (!oldCell) commitEditingRow();
         const label = newCell ? newCell : tableTreeInstance.label;//@ts-ignore has
+        if (!label) return;
         const index = tableTreeInstance.editIndex;
         if (index == void 0) return;
         //@ts-ignore has
@@ -624,7 +650,7 @@ export async function replaceSecretKeysTable() {
         const prefTableStringPrefix = "prefs-table-";
 
         const temp = Object.keys(row).map((key: string, i: number) => {
-            let type = '';
+            //let type = '';
             // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
             let label = getString(`${prefTableStringPrefix}${key}`);
             if (!label || label.startsWith(config.addonRef)) {
@@ -637,10 +663,10 @@ export async function replaceSecretKeysTable() {
             } else {
                 result.push(1);
             }
-            if (key == "usable") {
+            /* if (key == "usable") {
                 type = 'checkbox';
             }
-            result.push(type);
+            result.push(type); */
             return result;
         });
         return temp;
@@ -663,11 +689,16 @@ export async function replaceSecretKeysTable() {
         return rows;
     };
 
+    /**
+     * Auto fill with " key + ': No Data' " when no values
+     * @param keys 
+     * @returns 
+     */
     function kvArrsToObjects(keys: string[]) {
         return function (values?: any | any[]) {
             if (!values) values = [];
             if (!Array.isArray(values)) values = [values];
-            return arrToObj(keys, keys.map((k, i) => values[i] || k + ' + empty'));
+            return arrToObj(keys, keys.map((k, i) => values[i] || k + ': No Data'));
         };
     }
 }

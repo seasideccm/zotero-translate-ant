@@ -310,7 +310,7 @@ function bindPrefEvents() {
     const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
     const rows = table.treeInstance.rows;
     const keys = Object.keys(rows[0]);
-    const row = arrToObj(keys, keys.map((k) => k + ' + empty'));
+    const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
     rows.push(row);
     table.render();
   });
