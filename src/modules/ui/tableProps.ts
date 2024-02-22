@@ -17,12 +17,6 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
     const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
     const tableHelper = new ztoolkit.VirtualizedTable(win);
     if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-    //const tempID = `vtableTemp-${new Date().getTime()}`;
-    //const tableID = props.id || tempID;
-    //addon.mountPoint.tables[tableID] = tableHelper;
-
-
-    //const tableProps = makeTableProps(props, tableHelper);
     tableHelper.setContainerId(containerId);
     tableHelper.setProp(props);
     tableHelper.render(-1, () => {
@@ -61,7 +55,7 @@ export async function replaceSecretKeysTable() {
         onKeyDown: handleKeyDown,
         onSelectionChange: handleSelectionChange,
         //@ts-ignore has
-        onActivate: editCell,
+        onActivate: handleActivate,
         onItemContextMenu: handleItemContextMenu,
     };
 
@@ -234,13 +228,29 @@ export async function replaceSecretKeysTable() {
         return true;
     }
 
+    function handleActivate(event: Event, indices: number[]) {
+        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+        const test = Zotero.Utilities.arrayDiff(selectedIndices, indices);
+        const test2 = Zotero.Utilities.arrayDiff(indices, selectedIndices);
+        const rowElement = getRowElement(indices[0]);
+
+        editCell(event, indices);
+    }
+
+    function getRowElement(index?: number) {
+        if (!index) index = Array.from(tableTreeInstance.selection.selected)[0];//@ts-ignore has
+        const selectedElem = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
+
+    }
+
     function editCell(event: Event, indices: number[]) {
         const COLUMN_PADDING = 16;
+        //处理前一个单元格的编辑状态
         //@ts-ignore has
         if (tableTreeInstance.editIndex) {
             commitEditing();
         }
-        if (!event.target) true;
+        if (!event.target) return true;
         const div = event.target as HTMLElement;
         const cellIndex = getcellIndex(event);
         if (cellIndex == void 0) return true;
