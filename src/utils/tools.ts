@@ -497,10 +497,33 @@ const arrs = [
 ];
 
 
-export function batchAddEventListener(args: [element: Element | HTMLInputElement, [eventName: string, callBack: any][]][]) {
+export function batchAddEventListener(...args: [element: Node, eventType: string[], callBack: ((...args: any[]) => void)[]][]) {
   for (const arg of args) {
-    for (const paras of arg[1]) {
-      arg[0].addEventListener(paras[0], paras[1]);
+    if (!arg[2]) throw 'At least give one callback';
+    if (Array.isArray(arg[2]) && !arg[2].length) throw 'At least give one callback';
+    let func;
+    if (typeof arg[2] == 'function') func = arg[2];
+    for (let i = 0; i < arg[1].length; i++) {
+      const event = arg[1][i];
+      func = arg[2][i] ? arg[2][i] : func;
+      arg[0].addEventListener(event, func!);
+    }
+  }
+}
+
+
+
+
+export function batchAddEventListener2(optins: {
+  element: Node;
+  events: {
+    eventType: string;
+    callBack: (...args: any[]) => void;
+  }[];
+}[]) {
+  for (const option of optins) {
+    for (const event of option.events) {
+      option.element.addEventListener(event.eventType, event.callBack);
     }
   }
 }

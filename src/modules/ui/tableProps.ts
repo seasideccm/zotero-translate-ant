@@ -316,16 +316,15 @@ export async function replaceSecretKeysTable() {
         inputCell.dir = 'auto';        //@ts-ignore has
         //const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
         //inputCell.style.width = width + "px";
-        inputCell.addEventListener('input', e => {
+        /* inputCell.addEventListener('input', e => {
             e.stopImmediatePropagation();
         });
         inputCell.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
         inputCell.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
-        inputCell.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
+        inputCell.addEventListener('dblclick', (e) => e.stopImmediatePropagation()); */
         const stopEvent = (e: Event) => e.stopImmediatePropagation();
 
-
-        //batchAddEventListener([inputCell, ['mousedown', stopEvent] ]);
+        batchAddEventListener([inputCell, ['input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
         if (cell.parentElement) cell.parentElement.replaceChild(inputCell, cell);
         return inputCell;
     }
