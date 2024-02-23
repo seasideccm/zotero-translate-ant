@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -145,8 +145,8 @@ export async function replaceSecretKeysTable() {
         //获取键码
         //获取字符编码
 
-        getCharCode(e);
-        if (tableTreeInstance.editIndex) {
+        //getCharCode(e);
+        if (tableTreeInstance.editIndex != void 0) {
             if (e.key == 'Enter' || e.key == 'Escape') {
                 const target = e.target;
                 if (e.key != 'Escape') {
@@ -160,7 +160,7 @@ export async function replaceSecretKeysTable() {
                 stopEditing();
             }
             if (e.key == ' ') {
-                e.preventDefault(); //不支持 e.stopImmediatePropagation()
+                return false;
             }
             return false;
         }
@@ -317,12 +317,15 @@ export async function replaceSecretKeysTable() {
         //const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
         //inputCell.style.width = width + "px";
         inputCell.addEventListener('input', e => {
-            showInfo(e.key);
             e.stopImmediatePropagation();
         });
         inputCell.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
         inputCell.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
         inputCell.addEventListener('dblclick', (e) => e.stopImmediatePropagation());
+        const stopEvent = (e: Event) => e.stopImmediatePropagation();
+
+
+        //batchAddEventListener([inputCell, ['mousedown', stopEvent] ]);
         if (cell.parentElement) cell.parentElement.replaceChild(inputCell, cell);
         return inputCell;
     }

@@ -495,3 +495,12 @@ const arrs = [
   "CREATE TABLE accessToken(serialNumber INT NOT NULL, token TEXT NOT NULL UNIQUE, usable INT NOT NULL, UNIQUE(serialNumber, token), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE totalCharConsum(serialNumber INT NOT NULL UNIQUE, totalCharConsum INT NOT NULL, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)"
 ];
+
+
+export function batchAddEventListener(args: [element: Element | HTMLInputElement, [eventName: string, callBack: any][]][]) {
+  for (const arg of args) {
+    for (const paras of arg[1]) {
+      arg[0].addEventListener(paras[0], paras[1]);
+    }
+  }
+}
