@@ -1,4 +1,5 @@
 
+import { doTryCatch, showInfo } from '../../utils/tools';
 import { getDB } from '../database/database';
 
 
@@ -7,7 +8,7 @@ export class TranslateServiceAccount {
   serviceID: string;
   usable: boolean;
   charConsum: number;
-  appID?: string;
+  appID: string;
   secretKey?: string;;
   token?: string;
   dateMarker?: string | undefined;
@@ -17,19 +18,93 @@ export class TranslateServiceAccount {
   changedData?: any;
   loaded?: any;
   synced?: boolean;
+  saved?: boolean;
   version?: number;
 
   constructor(option: any) {
-    this.serialNumber = option.serialNumber;
+    this.serialNumber = Number(option.serialNumber);
     this.serviceID = option.serviceID;
     this.usable = option.usable || true;
     this.charConsum = option.charConsum || 0;
-    this.appID = option.appID || "no";
+    this.appID = option.appID || Zotero.utilities.randomString(8);
     this.secretKey = option.secretKey;
     this.token = option.token;
     this.dateMarker = option.dateMarker;
     this.forbidden = option.forbidden;
+    this.saved = false;
   }
+  sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
+    return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
+  }
+  async save() {
+    if (this.saved) return;
+    if (!this.secretKey && !this.token) return;
+
+    const DB = await getDB();
+    if (!this.changedData) {
+      await DB.executeTransaction(async () => {
+        let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
+        doTryCatch(DB.queryAsync)(sql);
+        let tableName = this.secretKey ? "accounts" : "accessTokens";
+        const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
+        const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+        const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
+        const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
+        this.sqlInsertRow(tableName, sqlColumns, sqlValues);
+        doTryCatch(DB.queryAsync)(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        tableName = "charConsum";
+        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+        await DB.queryAsync(sql);
+        tableName = "totalCharConsum";
+        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+        await DB.queryAsync(sql);
+        this.saved = true;
+        return;
+      });
+    }
+
+    const sqls: string[] = [];
+    for (const key of Object.keys(this.changedData)) {
+      let tableNames: string[] = [];
+      switch (key) {
+        case "secretKey":
+          tableNames = ['accounts'];
+          break;
+        case "token":
+          tableNames = ['accessTokens'];
+          break;
+        case "charConsum":
+          tableNames = ['charConsum'];
+          break;
+        case "appID":
+          tableNames = ['translateServiceSN', 'accounts', 'accessTokens'];
+          break;
+        case "usable":
+          tableNames = ['translateServiceSN'];
+          break;
+      }
+      tableNames.forEach(tableName => {
+        const sql = `UPDATE ${tableName} SET ${key} ='${this.serialNumber}'`;
+        sqls.push(sql);
+      });
+
+    }
+
+    await DB.executeTransaction(async () => {
+      for (const sql of sqls) {
+        try {
+          await DB.queryAsync(sql);
+        }
+        catch (e) {
+          showInfo('Execute failed: ' + sql);
+          throw e;
+        }
+      }
+    });
+    this.saved = true;
+    this.changedData = null;
+  }
+
 
 }
 //Zotero.extendClass(DataObject, TranslateServiceItem);
@@ -42,9 +117,9 @@ export class TranslateService {
   charasLimit: number;
   supportMultiParas: boolean;
   hasSecretKey: boolean;
-  secretKeys?: SecretKey[];
+  //secretKeys?: SecretKey[];
   hasToken: boolean;
-  accessTokens?: AccessToken[];
+  //accessTokens?: AccessToken[];
   accounts?: TranslateServiceAccount[];
   forbidden?: boolean;
   serialNumber?: number;
@@ -67,12 +142,13 @@ export class TranslateService {
     supportMultiParas: boolean,
     hasSecretKey: boolean,
     hasToken: boolean,
-    secretKeys?: SecretKey[],
-    accessTokens?: AccessToken[],
+    //secretKeys?: SecretKey[],
+    //accessTokens?: AccessToken[],
     accounts?: TranslateServiceAccount[],
     forbidden?: boolean,
     serialNumber?: number,
     configID?: number | undefined,
+
   }
 
   ) {
@@ -92,6 +168,8 @@ export class TranslateService {
     this.serialNumber = options.serialNumber;
     this.configID = options.configID || 0;
     this.serviceTypeID = this.getServiceTypeID();
+
+
     //this.ObjectsClass = addon.mountPoint['TranslateServices'];
   }
   getServiceTypeID(serviceType?: string) {
@@ -283,6 +361,10 @@ export class TranslateService {
         });
     }
   });
+  getServiceAccount(serialNumber: number) {
+    if (!this.accounts) return;
+    return this.accounts.filter((account: TranslateServiceAccount) => account.serialNumber == serialNumber)[0];
+  }
 }
 
 /**

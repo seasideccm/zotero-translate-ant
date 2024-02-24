@@ -1,7 +1,7 @@
 import { keysTranslateService, parasArrTranslateService, parasArrTranslateServiceAdd } from "../../utils/constant";
 import { arrToObj, arrsToObjs } from "../../utils/tools";
 import { fillServiceTypes, getDB } from "../database/database";
-import { TranslateService } from "./translateService";
+import { TranslateService, TranslateServiceAccount } from "./translateService";
 
 
 export async function initTranslateServices() {
@@ -32,6 +32,26 @@ export async function servicesToDB(keys: string[], parasArr: any[]) {
     return services;
 }
 
+const vstring = (value: string) => {
+    if (typeof value != "string") return false;
+    const reg = /^\s+$/m;
+    if (value.match(reg)) return false;
+    return true;
+};
+const vboolean = (value: string) => {
+    return ["0", '1', "true", "false"].includes(value.toLocaleLowerCase());
+};
+const vNumber = (value: string) => {
+    return !isNaN(Number(value));
+};
+export const validata = {
+    "appID": vstring,
+    "secretKey": vstring,
+    "usable": vboolean,
+    "charConsum": vNumber,
+};
+
+
 
 
 
@@ -49,6 +69,19 @@ export async function getServices() {
     if (!services) throw "Database Initial Error";
     addon.mountPoint.services = services;
     return services;
+}
+
+export async function getTranslateService(serviceID: string) {
+    const services = await getServices();
+    if (services) return services[serviceID];
+
+}
+
+export async function getServiceAccount(serviceID: string, serialNumber: number) {
+    const service = await getTranslateService(serviceID);
+    if (!service) return;
+    return service.getServiceAccount(serialNumber);
+
 }
 
 
@@ -80,14 +113,18 @@ export async function loadServiceFromDB(serviceID: string) {
     const commonProperty = await getCommonProperty(serviceID);
     if (!commonProperty) return;
     Zotero.Utilities.Internal.assignProps(options, commonProperty);
+    let accountTableName;
     if (options.hasSecretKey) {
-        const secretKeys = await getSecretKeys(serviceID);
-        if (secretKeys) options.secretKeys = secretKeys;
+        accountTableName = "accounts";
     }
     if (options.hasToken) {
-        const accessTokens = await getAccessTokens(serviceID);
-        if (accessTokens) options.accessTokens = accessTokens;
+        accountTableName = "accessTokens";
     }
+    if (accountTableName) {
+        const accounts = await getAccounts(serviceID, accountTableName);
+        options.accounts = accounts;
+    }
+
     if (!options.hasToken && !options.hasSecretKey) {
         options.serialNumber = await DB.valueQueryAsync(`SELECT serialNumber FROM freeLoginServices WHERE serviceID = '${serviceID}'`);
         options.forbidden == await DB.valueQueryAsync(`SELECT forbidden FROM translateServiceSN WHERE serviceID = '${serviceID}' AND serialNumber = ${options.serialNumber}`);
@@ -121,16 +158,25 @@ async function getCommonProperty(serviceID: string) {
     const tempObj = arrToObj(sqlColumns, values);
     return tempObj;
 }
-async function getSecretKeys(serviceID: string) {
+async function getAccounts(serviceID: string, tableName: string) {
     const DB = await getDB();
-    const sqlColumns = ["accounts.serialNumber", "accounts.appID", "secretKey", "usable", "charConsum", "dataMarker"];
-    const tableName = "accounts";
+    const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];
+    tableName == "accounts" ? sqlColumns.push("secretKey") : sqlColumns.push("token");
+    sqlColumns.push("usable", "charConsum", "dataMarker", "forbidden");
+
     const tableName2 = "translateServiceSN";
     const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);
-    return dbRowsToObjs(rows, sqlColumns);
+    const accuntOptionsArr = dbRowsToObjs(rows, sqlColumns);
+    const accounts = accuntOptionsArr?.map((accuntOptions: any) => {
+        accuntOptions.serviceID = serviceID;
+        return new TranslateServiceAccount(accuntOptions);
+    });
+    return accounts;
 
 }
+
+
 async function getAccessTokens(serviceID: string) {
     const DB = await getDB();
     const sqlColumns = ["accessTokens.serialNumber", "accessTokens.appID", "token", "usable", "charConsum", "dateMarker"];

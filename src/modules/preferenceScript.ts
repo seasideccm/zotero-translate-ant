@@ -308,6 +308,9 @@ function bindPrefEvents() {
 
   getDom("addSecretKey")!.addEventListener("command", (e) => {
     const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+    if (table.treeInstance.editIndex != void 0) {
+      table.treeInstance.commitEditing();
+    }
     const rows = table.treeInstance.rows;
     const keys = Object.keys(rows[0]);
     const row = arrToObj(keys, keys.map((k) => k + ': No Data'));

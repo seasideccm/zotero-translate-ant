@@ -3,10 +3,11 @@ import { arrToObj, arrsToObjs, batchAddEventListener, showInfo } from "../../uti
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
-import { TranslateService } from "../translate/translateService";
+import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
 import { getDB } from "../database/database";
-import { getServicesFromDB } from "../translate/translateServices";
+import { getServiceAccount, getServices, getTranslateService, validata } from "../translate/translateServices";
+import { openWindow } from './testOpen';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -33,8 +34,8 @@ export async function replaceSecretKeysTable() {
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
-    let rows = await secretKeysTableRowsData(serviceID);
-    if (!rows) return;
+    let rows: any[] = await secretKeysTableRowsData(serviceID) || [];
+    if (!rows || rows.length == 0) return;
 
     const containerId = `${config.addonRef}-table-container`;
 
@@ -69,10 +70,25 @@ export async function replaceSecretKeysTable() {
     const tableTreeInstance = tableHelper.treeInstance as VTable;
     tableTreeInstance.rows = rows;
 
+    window.addEventListener("beforeunload", beforeUnload);
+    function beforeUnload(e: Event) {
+        showInfo('数据将保存');
+        ztoolkit.log("beforeunload");
+        e.preventDefault();
+        //await Zotero.Promise.delay(10000);
+        //event.returnValue = "你确定离开吗？";
+        //await stopRowEditing();
+    }
+
+    addon.data.prefs.window.addEventListener("blur", beforeUnload);
+
+
+
+
+
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        const { selected } = selection;//@ts-ignore has
         if (tableTreeInstance.editIndex) {
-            commitEditing();
+            commitEditingRow;
         }
     }
 
@@ -135,29 +151,20 @@ export async function replaceSecretKeysTable() {
     }
 
 
-    function handleKeyDown(e: KeyboardEvent) {
+    async function handleKeyDown(e: KeyboardEvent) {
         // When pressing delete, delete selected line and refresh table.
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
-        //@ts-ignore has
-
-
-        //获取键码
-        //获取字符编码
-
+        //获取键码        //获取字符编码
         //getCharCode(e);
         if (tableTreeInstance.editIndex != void 0) {
             if (e.key == 'Enter' || e.key == 'Escape') {
-                const target = e.target;
                 if (e.key != 'Escape') {
-                    //@ts-ignore has
-                    commitEditing();
-
+                    commitEditingRow();
                 } else {
-                    //@ts-ignore has
                     discardEditing();
                 }
-                stopEditing();
+                await stopRowEditing();
             }
             if (e.key == ' ') {
                 return false;
@@ -239,73 +246,64 @@ export async function replaceSecretKeysTable() {
         return true;
     }
 
-    const getCharCode = function (event: KeyboardEvent) {
-        if (event.key) {
-            showInfo("event.key: " + "'" + event.key + "'");
-            return event.key;
-        }
-        const charcode = event.charCode;
-        if (typeof charcode == "number" && charcode != 0) {
-            showInfo("charcode: " + charcode + " || " + "'" + String.fromCharCode(charcode) + "'");
-            return charcode;
-        } else {
-            //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
-            showInfo("keyCode: " + event.keyCode + " || " + "'" + String.fromCharCode(event.keyCode) + "'");
-            return event.keyCode;
-        }
-    };
-
-    function handleActivate(event: Event, indices: number[]) {
+    async function handleActivate(event: Event, indices: number[]) {
         const cellIndex = getcellIndex(event);
         const rowElement = getRowElement(indices[0])[0];
+        if (tableTreeInstance.editingRow) {
+            commitEditingRow();
+            await stopRowEditing();
+        }
         tableTreeInstance.editingRow = {
             oldCells: [],
             currentCells: []
         };
+
         for (const cell of rowElement.children) {
             const input = cellChangeToInput(cell);
             tableTreeInstance.editingRow.oldCells.push(cell);
             tableTreeInstance.editingRow.currentCells.push(input);
         }
-        // Feels like a bit of a hack, but it gets the job done
         setTimeout(() => {
             rowElement.children[cellIndex].focus();
             rowElement.children[cellIndex].select();
         });
         tableTreeInstance.editIndex = indices[0];
         rowElement.addEventListener('blur', async (e: Event) => {
-            const isFocus = window.document.hasFocus();//@ts-ignore has
-            const win = rowElement.ownerGlobal;
-            const doc = rowElement.ownerDocument;
-            const isFocuswin = win.document.hasFocus();//@ts-ignore has
             commitEditingRow();
-            stopEditing(); //@ts-ignore has
-            //event.view?.removeEventListener("click", todo);
+            await stopRowEditing();
+            //编辑中的行失焦后移除选项窗口的 click 事件和当前行 click 事件（阻止事件传递）
+            //@ts-ignore has
+            event.view?.removeEventListener("click", blurEditingRow);
+            rowElement.removeEventListener("click", stopEvent);
         });
-
-        function todo(e: Event) {
-            if (e.target != rowElement) {
-                //单行表格导致失焦失败？
-                if (tableTreeInstance.rows && tableTreeInstance.rows.length <= 1) {
-                    commitEditingRow();
-                    stopEditing();
-                }
-                rowElement.blur();                //@ts-ignore has
-                event.view?.removeEventListener("click", todo);
+        // 单击当前编辑的行阻止事件传递，防止触发prefs窗口单击触发当前编辑行失焦
+        // 表格行鼠标事件定义在行元素上
+        //chrome\content\zotero\components\virtualized-table.jsx
+        //node.addEventListener('mouseup', e => this._handleMouseUp(e, index), { passive: true });
+        rowElement.addEventListener('click', stopEvent);
+        //单击表格以外触发编辑中的行失焦,失败，改为提交修改
+        async function blurEditingRow(e: Event) {
+            if ((e.target != rowElement) && rows.length == 1) {
+                commitEditingRow();
+                await stopRowEditing();
+                return;
             }
+            rowElement.blur();
         }        //@ts-ignore has
-        event.view?.addEventListener("click", todo);
+        event.view?.addEventListener("click", blurEditingRow);
+        //event.view?.addEventListener("click", saveDebounce);
+
         //@ts-ignore has
-        event.view?.addEventListener("blur",
+        /* event.view?.addEventListener("blur",
             function (e: Event) {                //@ts-ignore has
                 showInfo("失焦：" + event.view.location.href);
                 e.stopImmediatePropagation();
             },
-            { once: true });
-
-
-
-        // editCell(event, indices);
+            { once: true }); */
+        //const isFocus = window.document.hasFocus();//@ts-ignore has
+        //const win = rowElement.ownerGlobal;
+        //const doc = rowElement.ownerDocument;
+        //const isFocuswin = win.document.hasFocus();//@ts-ignore has
     }
 
     function cellChangeToInput(cell: HTMLElement | ChildNode) {
@@ -313,22 +311,12 @@ export async function replaceSecretKeysTable() {
         inputCell.placeholder = cell.textContent || "";
         inputCell.value = cell.textContent ? cell.textContent : "";
         inputCell.className = 'cell-text';
-        inputCell.dir = 'auto';        //@ts-ignore has
-        //const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
-        //inputCell.style.width = width + "px";
-        /* inputCell.addEventListener('input', e => {
-            e.stopImmediatePropagation();
-        });
-        inputCell.addEventListener('mousedown', (e) => e.stopImmediatePropagation());
-        inputCell.addEventListener('mouseup', (e) => e.stopImmediatePropagation());
-        inputCell.addEventListener('dblclick', (e) => e.stopImmediatePropagation()); */
-        const stopEvent = (e: Event) => e.stopImmediatePropagation();
-
+        inputCell.dir = 'auto';
         batchAddEventListener([inputCell, ['input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
         if (cell.parentElement) cell.parentElement.replaceChild(inputCell, cell);
         return inputCell;
     }
-
+    function stopEvent(e: Event) { e.stopImmediatePropagation(); };
 
     function getRowElement(index?: number) {
         if (!index) index = Array.from(tableTreeInstance.selection.selected)[0];//@ts-ignore has
@@ -336,13 +324,9 @@ export async function replaceSecretKeysTable() {
 
     }
 
-    function editCell(event: Event, indices: number[]) {
+    async function editCell(event: Event, indices: number[]) {
         //处理前一个单元格的编辑状态
-        //@ts-ignore has
-        if (tableTreeInstance.editIndex) {
-            tableTreeInstance.editingRow["currentCells"] ? commitEditingRow : commitEditing();
-            stopEditing();
-        }
+        if (tableTreeInstance.editIndex) commitEditingRow();
         if (!event.target) return true;
         const div = event.target as HTMLElement;
         const cellIndex = getcellIndex(event);
@@ -351,20 +335,20 @@ export async function replaceSecretKeysTable() {
         const cellNext = div.childNodes[cellIndex + 1];
         if (!cell) return true;
 
-        const label = cellChangeToInput(cell);
+        const inputCell = cellChangeToInput(cell);
 
 
         //@ts-ignore has
         const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
-        label.style.width = width + "px";
-        label.addEventListener('blur', async (e) => {
+        inputCell.style.width = width + "px";
+        inputCell.addEventListener('blur', async (e) => {
             const isFocus = window.document.hasFocus();//@ts-ignore has
             const win = div.ownerGlobal;
             const doc = div.ownerDocument;
             const isFocuswin = win.document.hasFocus();//@ts-ignore has
             commitEditing();
-            stopEditing();           //@ts-ignore has
-            event.view?.removeEventListener("click", todo);
+            await stopRowEditing();           //@ts-ignore has
+            event.view?.removeEventListener("click", blurEditingRow);
         });        //@ts-ignore has
         event.view?.addEventListener("blur", function (e) {
             //@ts-ignore has
@@ -376,49 +360,160 @@ export async function replaceSecretKeysTable() {
             showInfo("失焦：" + window.location.href);
         },
             { once: true });
-        function todo(e: Event) {
-            if (e.target != label) {
-                label.blur();
+        function blurEditingRow(e: Event) {
+            if (e.target != div) {
+                div.blur();
                 //@ts-ignore has
-                event.view?.removeEventListener("click", todo);
+                event.view?.removeEventListener("click", blurEditingRow);
             }
         }
         //@ts-ignore has
-        event.view?.addEventListener("click", todo);
+        event.view?.addEventListener("click", blurEditingRow);
         // Feels like a bit of a hack, but it gets the job done
         setTimeout(() => {
-            label.focus();
-            label.select();
+            inputCell.focus();
+            inputCell.select();
 
         });
 
-        //@ts-ignore has
-        tableTreeInstance.oldCell = cell;//@ts-ignore has
-        tableTreeInstance.label = label;//@ts-ignore has
+
+        if (tableTreeInstance.editingRow) {
+            commitEditingRow();
+            await stopRowEditing();
+        }
+        tableTreeInstance.editingRow = {
+            oldCells: [],
+            currentCells: []
+        };
+
+        //tableTreeInstance.oldCell = cell;//@ts-ignore has
+        tableTreeInstance.editingRow.oldCells.push(cell);
+        //tableTreeInstance.inputCell = inputCell;//@ts-ignore has
+        tableTreeInstance.editingRow.currentCells.push(inputCell);
         tableTreeInstance.editIndex = indices[0];
-        div.replaceChild(label, cell);
+        div.replaceChild(inputCell, cell);
         //禁用默认操作
         return false;
 
-    }
-
-    function resizeColumnWidth(index: number) {
-        const onResizeData: any = {};
-        const column = getColumn(index);
-        onResizeData[column.dataKey] = column.width + 10;//@ts-ignore has
-        tableTreeInstance._columns.onResize(onResizeData);
-    }
-    function resize() {
-        //@ts-ignore has
-        const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
-        //@ts-ignore has
-        tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
     }
 
     function getColumn(index: number) {
         //@ts-ignore has
         const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
         return columns[index];
+    }
+
+    function commitEditingRow() {
+        if (!tableTreeInstance.editingRow) return;
+        const oldCells = tableTreeInstance.editingRow["oldCells"];
+        const currentCells = tableTreeInstance.editingRow["currentCells"];
+        if (!oldCells || !currentCells) return;
+        for (let i = 0; i < currentCells.length; i++) {
+            commitEditing(currentCells[i], oldCells[i]);
+        }
+    }
+    function discardEditing() {
+        //是否需要恢复行数据？
+        const oldCells = tableTreeInstance.editingRow["oldCells"];
+        const currentCells = tableTreeInstance.editingRow["currentCells"];
+        if (!oldCells || !currentCells) return;
+        for (let i = 0; i < currentCells.length; i++) {
+            currentCells[i].parentNode?.replaceChild(oldCells[i], currentCells[i],);
+        }
+        tableTreeInstance.dataChangedCache = null;
+        tableTreeInstance.editIndex = null;
+        if (tableTreeInstance.editingRow) {
+            tableTreeInstance.editingRow = null;
+        }
+        tableTreeInstance.invalidate();
+
+    }
+    //单元格从编辑状态复原
+    function commitEditing(newCell?: HTMLElement, oldCell?: HTMLElement) {
+        //@ts-ignore has
+        if (!oldCell) oldCell = tableTreeInstance.oldCell;//@ts-ignore has
+        if (!oldCell) return;//@ts-ignore has
+        const inputCell = newCell ? newCell : tableTreeInstance.inputCell;//@ts-ignore has
+        if (!inputCell) return;
+        const index = tableTreeInstance.editIndex;
+        if (index == void 0) return;
+        //@ts-ignore has
+        const key: string = oldCell.classList[1];
+        if (oldCell!.textContent == inputCell.value) {
+            //默认空值不会保存
+            inputCell.parentNode?.replaceChild(oldCell, inputCell);
+            return;
+        }
+        if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
+        //todo 删除行也要处理缓存的修改数据
+        if (!tableTreeInstance.dataChangedCache[index]) tableTreeInstance.dataChangedCache[index] = {};
+        const rowDataCache = tableTreeInstance.dataChangedCache[index];
+        rowDataCache[key] = rows[index][key];
+        //修改表格单元格数据
+        rows[index][key] = inputCell.value;
+        oldCell!.textContent = inputCell.value;
+        inputCell.parentNode?.replaceChild(oldCell, inputCell);
+    };
+
+
+
+
+    //@ts-ignore has
+    tableTreeInstance.commitEditing = commitEditing;
+    //更新翻译引擎账号，清除编辑标志，重新渲染表格
+    async function stopRowEditing() {
+        const dataChangedCache = tableTreeInstance.dataChangedCache;
+        if (!dataChangedCache) return;
+        for (const index of Object.keys(dataChangedCache)) {
+            if (index == void 0) return;
+            const changedKeys = Object.keys(dataChangedCache[index]);
+            const rowData = rows[Number(index)];
+            let serialNumber = await getSerialNumber(serviceID, rows[Number(index)]);
+            if (serialNumber != void 0) {
+                //更新账号
+                const serviceAccount = await getServiceAccount(serviceID, serialNumber);
+                if (!serviceAccount) continue;
+                changedKeys.filter((key) => {
+                    if (rowData[key] != serviceAccount[key as keyof TranslateServiceAccount]) {
+                        if (!serviceAccount.changedData) serviceAccount.changedData = {};
+                        serviceAccount.changedData[key] = rowData[key];
+                        if (!serviceAccount.previousData) serviceAccount.previousData = {};
+                        serviceAccount.previousData[key] = serviceAccount[key as keyof TranslateServiceAccount];
+                        //@ts-ignore has
+                        serviceAccount[key] = rowData[key];
+                    }
+                });
+                if (!serviceAccount.changedData) continue;
+                await serviceAccount.save();
+
+            }
+            else {
+                //新建账号
+                const DB = await getDB();
+                serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
+                const accuntOptions: any = {};
+                accuntOptions.serviceID = serviceID;
+                accuntOptions.serialNumber = serialNumber;
+                Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
+                accuntOptions.forbidden = false;
+                const account = new TranslateServiceAccount(accuntOptions);
+                await account.save();
+                const service = await getTranslateService(serviceID);
+                service?.accounts?.push(account);
+            }
+        }
+        tableTreeInstance.dataChangedCache = null;
+        tableTreeInstance.editIndex = null;
+        if (tableTreeInstance.editingRow) {
+            tableTreeInstance.editingRow = null;
+        }
+        tableTreeInstance.invalidate();
+    }
+
+    function getSelectedTranlateServiceItems() {
+        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+        //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
+        return rows.filter((v: any, i: number) => selectedIndices.includes(i));
     }
 
     function getColumnWidth(index: number) {
@@ -432,169 +527,17 @@ export async function replaceSecretKeysTable() {
         return Math.round(proportion * tableWidth * window.devicePixelRatio);
     }
 
-    function commitEditingRow() {
-        const oldCells = tableTreeInstance.editingRow["oldCells"];
-        const currentCells = tableTreeInstance.editingRow["currentCells"];
-        if (!oldCells || !currentCells) return;
-        for (let i = 0; i < currentCells.length; i++) {
-            commitEditing(currentCells[i], oldCells[i]);
-        }
-    }
 
-    function commitEditing(newCell?: HTMLElement, oldCell?: HTMLElement) {
-        //@ts-ignore has
-        if (!oldCell) oldCell = tableTreeInstance.oldCell;//@ts-ignore has
-        if (!oldCell) commitEditingRow();
-        const label = newCell ? newCell : tableTreeInstance.label;//@ts-ignore has
-        if (!label) return;
-        const index = tableTreeInstance.editIndex;
-        if (index == void 0) return;
-        //@ts-ignore has
-        const key: string = oldCell.classList[1];
-        if (oldCell!.textContent == label.value) {
-            return;
-        }
-        if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
-        const tempObj: any = {};
-        tempObj[key] = {
-            previous: rows[index][key],
-            current: label.value
-        };
-        tableTreeInstance.dataChangedCache[index] = tempObj;
-        rows[index][key] = label.value;
-        oldCell!.textContent = label.value;
-        label.parentNode?.replaceChild(oldCell, label);
-        saveThrottle();
-    };
-    function stopEditing() {
-        //@ts-ignore has
-        tableTreeInstance.editIndex = null;
-        // Returning focus to the tree container
-        //Rerender items within the scrollbox. Call sparingly        
-        tableTreeInstance.invalidate();
-        //tableTreeInstance.;
-    }
+    /*   const saveDebounce = Zotero.Utilities.debounce(saveTx, 10000);
+      const saveThrottle = Zotero.Utilities.throttle(
+          saveTx,
+          10000,
+          {
+              leading: false,
+              trailing: true
+          }
+      ); */
 
-    function getSelectedTranlateServiceItems() {
-        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
-        //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-        return rows.filter((v: any, i: number) => selectedIndices.includes(i));
-    }
-    const saveThrottle = Zotero.Utilities.throttle(
-        saveTx,
-        3000,
-        {
-            leading: false,
-            trailing: true
-        }
-    );
-    async function saveTx() {
-        //todo 防抖节流
-        showInfo("fake save to database");
-        let dataChangedCache = (tableTreeInstance as VTable).dataChangedCache;
-        if (!dataChangedCache) return;
-        const serviceID = getElementValue("serviceID");
-
-        let tableNames: string[] = [];
-        for (const index of Object.keys(dataChangedCache)) {
-            const row = rows[Number(index)];
-
-            let serialNumber = await getSerialNumber(serviceID, row);
-            const DB = await getDB();
-            if (!serialNumber) {
-                await DB.executeTransaction(async () => {
-                    serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
-                    let sql = "INSERT INTO translateServiceSN (serialNumber, serviceID";
-                    if (row.appID) {
-                        sql += ", appID" + ") VALUES ('" + serialNumber + "','" + serviceID + "','" + row.appID + "')";
-                    } else {
-                        sql += ") VALUES ('" + serviceID + "','" + serialNumber + "')";
-                    }
-                    await DB.queryAsync(sql);
-
-                    const keys = Object.keys(row);
-                    if (keys.includes("token")) {
-                        const tableName = "accessTokens";
-                        const sqlColumns = ["serialNumber", "serviceID", "appID", "token"];
-                        const sqlValues = [serialNumber, serviceID, row.appID, row.token];
-                        //sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") "                            + "VALUES (" + sqlValues.join(", ") + ")";
-                        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
-                        await DB.queryAsync(sql, sqlValues);
-                    } else {
-                        const tableName = "accounts";
-                        const sqlColumns = ["serialNumber", "serviceID", "appID", "secretKey"];
-                        const sqlValues = [serialNumber, serviceID, row.appID, row.secretKey];
-                        sql = "INSERT INTO " + tableName + " (" + sqlColumns.join(", ") + ") " + "VALUES (" + sqlValues.map(() => "?").join() + ")";
-                        await DB.queryAsync(sql, sqlValues);
-                    }
-                    let tableName = "charConsum";
-                    sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
-                    await DB.queryAsync(sql);
-                    tableName = "totalCharConsum";
-                    sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${serialNumber})`;
-                    await DB.queryAsync(sql);
-
-                });
-            } else {
-
-                const tempObj = dataChangedCache[index];
-                const sqls: string[] = [];
-                for (const key of Object.keys(tempObj)) {
-                    switch (key) {
-                        case "secretKey":
-                            tableNames = ['accounts'];
-                            break;
-                        case "token":
-                            tableNames = ['accessTokens'];
-                            break;
-                        case "charConsum":
-                            tableNames = ['charConsum'];
-                            break;
-                        case "appID":
-                            tableNames = ['translateServiceSN', 'accounts', 'accessTokens'];
-                            break;
-                        case "usable":
-                            tableNames = ['translateServiceSN'];
-                            break;
-                    }
-                    tableNames.forEach(tableName => {
-                        const sql = `UPDATE ${tableName} SET ${key} ='${tempObj[key].current}' WHERE serialNumber = ${serialNumber}`;
-                        sqls.push(sql);
-                    });
-
-                }
-                await DB.executeTransaction(async () => {
-                    for (const sql of sqls) {
-                        await DB.queryAsync(sql);
-                    }
-                });
-            }
-        }
-
-
-
-
-
-        const index = tableTreeInstance.editIndex;
-
-        const appID = "appID";
-        const secretKey = "secretKey";
-        const usable = "usable";
-        const charConsum = "charConsum";
-        const itemID = 1;
-        const obj = {
-            appID: appID,
-            secretKey: secretKey,
-            usable: usable,
-            charConsum: charConsum,
-
-        };
-        const item = getItem(itemID);
-        Zotero.Utilities.Internal.assignProps(item, obj);
-        showInfo("fake save to database");
-        dataChangedCache = null;
-
-    };
 
     async function deleteAcount(serialNumber: number) {
 
@@ -602,12 +545,7 @@ export async function replaceSecretKeysTable() {
         await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
     }
 
-    function getServiceByServiceID(serviceID: string) {
-        return {
-            "serviceID": serviceID,
-            serviceTypeID: 1
-        };
-    }
+
     async function isNewServiceItem(serviceID: string, row?: any) {
         return !(await getSerialNumber(serviceID, row));
     }
@@ -619,9 +557,7 @@ export async function replaceSecretKeysTable() {
         return await DB.valueQueryAsync(sql);
     }
 
-    function discardEditing(oldCell: ChildNode, label: HTMLInputElement) {
-        label.parentNode?.replaceChild(oldCell, label);
-    };
+
 
     function getcellIndex(event: Event) {
         //@ts-ignore has
@@ -639,12 +575,6 @@ export async function replaceSecretKeysTable() {
         }
     }
 
-
-
-    function getItem(itemID: number) {
-        const translateService = {};
-        return translateService;
-    }
 
 
     function makeColumnPropValues(row: any) {
@@ -675,19 +605,24 @@ export async function replaceSecretKeysTable() {
     };
 
 
-    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID?: T) {
-        const services = await getServicesFromDB();
-        const serviceSelected = serviceID ? services[serviceID] : undefined;
+    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID: T) {
+        const services = await getServices();
+        const serviceSelected = services[serviceID];
         let rows: any[];
-        if (serviceSelected?.secretKeys?.length) {
-            const secretKeys: object[] = serviceSelected.secretKeys;
-            const keys = Object.keys(secretKeys[0]);
-            const getRowDataValues = kvArrsToObjects(keys);
-            rows = secretKeys.map((e: any) => getRowDataValues(Object.values(e)));
-        } else {
-            // 空数据
-            rows = [kvArrsToObjects(["appID", "secretKey", "usable", "charConsum",])()];
+        if (!serviceSelected) return;
+        if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
+        const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
+        const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
+        if (!serviceSelected.accounts) {
+            // 返回空数据
+            return rows = [kvArrsToObjects(keys)()];
         }
+        const getRowDataValues = kvArrsToObjects(keys);
+        rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
+            getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
+        //const keys = Object.keys(secretKeys[0]);
+        //const getRowDataValues = kvArrsToObjects(keys);
+        //rows = secretKeys.map((e: any) => getRowDataValues(Object.values(e)));
         return rows;
     };
 
@@ -700,10 +635,25 @@ export async function replaceSecretKeysTable() {
         return function (values?: any | any[]) {
             if (!values) values = [];
             if (!Array.isArray(values)) values = [values];
-            return arrToObj(keys, keys.map((k, i) => values[i] || k + ': No Data'));
+            return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? values[i] : k + ': No Data'));
         };
     }
+    function resizeColumnWidth(index: number) {
+        const onResizeData: any = {};
+        const column = getColumn(index);
+        onResizeData[column.dataKey] = column.width + 10;//@ts-ignore has
+        tableTreeInstance._columns.onResize(onResizeData);
+    }
+    function resize() {
+        //@ts-ignore has
+        const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
+        //@ts-ignore has
+        tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
+    }
+
 }
+
+
 
 export function getTableByID(tableID?: string) {
     if (!addon.mountPoint.tables) return;
@@ -771,131 +721,32 @@ function makeTableProps(options: VTableProps, rows: any[]) {
 
 
 
+/**
+ * 有无效数据则返回false
+ * @param row 
+ * @returns 
+ */
+function validateRowData(row: any) {
+    const keys = Object.keys(row);
+    //数据无效时返回key值
+    const res = keys.find((key) => {
+        const fn = validata[key as keyof typeof validata];
+        if (typeof fn != "function") return true;
+        return !fn(row[key]);
+    });
+    if (res) {
+        showInfo(res + " invalid value: " + row[res]);
+    }
+    //有无效数据则返回false
+    return !!res;
+}
+/* export function testtest() {
+    const res = validateRowData(row);
+} */
 
 
 
 
 
 
-/* const collectionTreeProps = {
-    getRowCount: () => this._rows.length,
-    id: this.id,
-    ref: ref => this.tree = ref,
-    treeboxRef: ref => this._treebox = ref,
-    renderItem: this.renderItem,
-    alternatingRowColors: null,
 
-    onSelectionChange: this._handleSelectionChange,
-    isSelectable: this.isSelectable,
-    getParentIndex: this.getParentIndex,
-    isContainer: this.isContainer,
-    isContainerEmpty: this.isContainerEmpty,
-    isContainerOpen: this.isContainerOpen,
-    toggleOpenState: this.toggleOpenState,
-    getRowString: this.getRowString.bind(this),
-
-    onItemContextMenu: (...args) => this.props.onContextMenu && this.props.onContextMenu(...args),
-
-    onKeyDown: this.handleKeyDown,
-    onActivate: this.handleActivate,
-
-    role: 'tree',
-    label: Zotero.getString('pane.collections.title')
-};
-
-const defaultProps = {
-    label: '',
-    role: 'grid',
-    linesPerRow: 1,
-    showHeader: false,
-    // Array of column objects like the ones in itemTreeColumns.js
-    columns: [],
-    onColumnSort: noop,
-    onColumnPickerMenu: noop,
-    getColumnPrefs: () => ({}),
-    storeColumnPrefs: noop,
-    staticColumns: false,
-    alternatingRowColors: Zotero.isMac ? ['-moz-OddTreeRow', '-moz-EvenTreeRow'] : null,
-
-    // Render with display: none
-    hide: false,
-
-    multiSelect: false,
-
-    onSelectionChange: noop,
-
-    // The below are for arrow-key navigation
-    isSelectable: () => true,
-    getParentIndex: noop,
-    isContainer: noop,
-    isContainerEmpty: noop,
-    isContainerOpen: noop,
-    toggleOpenState: noop,
-
-    // If you want to perform custom key handling it should be in this function
-    // if it returns false then virtualized-table's own key handler won't run
-    onKeyDown: () => true,
-    onKeyUp: noop,
-
-    onDragOver: noop,
-    onDrop: noop,
-
-    // Enter, double-clicking
-    onActivate: noop(),
-
-    onItemContextMenu: noop(),
-};
-
-const defaultVtablePropsBackup: VTableProps = {
-    id: `${config.addonRef}-prefs-table-${Zotero.Utilities.randomString(5)}`,
-    getRowCount: () => rows.length || "empty",
-    getRowData: ((index: number) => rows[index]),
-    renderItem: undefined,
-    linesPerRow: undefined,
-    disableFontSizeScaling: undefined,
-    alternatingRowColors: undefined,
-    label: undefined,
-    role: undefined,
-    showHeader: true,
-    columns: undefined,
-    onColumnPickerMenu: undefined,
-    onColumnSort: undefined,
-    getColumnPrefs: undefined,
-    storeColumnPrefs: noop,
-    getDefaultColumnOrder: undefined,
-    containerWidth: undefined,
-    treeboxRef: noop,
-    hide: undefined,
-    multiSelect: true,
-    onSelectionChange: noop,
-    isSelectable: undefined,
-    getParentIndex: undefined,
-    isContainer: undefined,
-    isContainerEmpty: undefined,
-    isContainerOpen: undefined,
-    toggleOpenState: noop,
-    getRowString: ((index: number) => rows[index].key || ""),
-    onKeyDown: undefined,
-    onKeyUp: undefined,
-    onDragOver: undefined,
-    onDrop: undefined,
-    onActivate: undefined,
-    onFocus: undefined,
-    onItemContextMenu: undefined,
-};
-
-const temp = {
-    id: `${config.addonRef}-` + (options.id || `prefs-table-${Zotero.Utilities.randomString(5)}`),
-    columns: columnsProp,
-    showHeader: options.showHeader || true,
-    multiSelect: options.multiSelect || true,
-    staticColumns: options.staticColumns || false,
-    getRowCount: () => rows.length || "empty",
-    getRowData: options.getRowData || ((index: number) => rows[index]),
-    getRowString: options.getRowString || ((index: number) => rows[index].key || ""),
-    onActivate: options.onActivate || editCell,
-    onKeyDown: options.onKeyDown || handleKeyDown,
-    onItemContextMenu: options.onItemContextMenu || handleItemContextMenu,
-}; 
-
-*/

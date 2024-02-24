@@ -4,6 +4,7 @@ import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, resourceFilesName, resourceFilesRecursive } from "../../utils/tools";
 import { compareSQLUpdateDB, DB, getDB, getSQLFromResourceFiles, getTableNamesFromSqlFile } from '../database/database';
 import { DBsync, jsonTofileTest } from "../database/sync";
+import { testtest } from "./tableProps";
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
@@ -34,6 +35,7 @@ const paraArrs = [
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
   ["clearTable", clearTable, [tableNames2]],
+
 ];
 
 

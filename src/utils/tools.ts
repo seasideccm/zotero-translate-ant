@@ -511,8 +511,42 @@ export function batchAddEventListener(...args: [element: Node, eventType: string
   }
 }
 
+export function doTryCatch(fn: (...args: any[]) => any) {
+  return function (...args: any[]) {
+    return function () {
+      try {
+        const result = fn(...args);
+        if (result.then) {
+          return async function () {
+            return await result;
+          };
+        }
+        return result;
+      }
+      catch (e) {
+        showInfo('Execute failed: ' + args[0]);
+        throw e;
+      }
+    };
+  };
+}
 
 
+const getCharCode = function (event: KeyboardEvent) {
+  if (event.key) {
+    showInfo("event.key: " + "'" + event.key + "'");
+    return event.key;
+  }
+  const charcode = event.charCode;
+  if (typeof charcode == "number" && charcode != 0) {
+    showInfo("charcode: " + charcode + " || " + "'" + String.fromCharCode(charcode) + "'");
+    return charcode;
+  } else {
+    //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
+    showInfo("keyCode: " + event.keyCode + " || " + "'" + String.fromCharCode(event.keyCode) + "'");
+    return event.keyCode;
+  }
+};
 
 export function batchAddEventListener2(optins: {
   element: Node;
