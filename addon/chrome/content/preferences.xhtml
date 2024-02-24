@@ -1,6 +1,7 @@
 <linkset>
   <html:link rel="localization" href="__addonRef__-preferences.ftl" />
 </linkset>
+
 <vbox
   id="zotero-prefpane-__addonRef__"
   onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', {window})"
@@ -9,13 +10,13 @@
     <html:h3 data-l10n-id="pref-descript"></html:h3>
   </label>
 </vbox>
+
 <vbox>
-  <separator class="groove" />
-  <hbox>
-    <label
-      style="font-weight: bold"
-      data-l10n-id="pref-addonMenuLocation"
-    ></label>
+  <groupbox>
+    <label>
+      <html:h3 data-l10n-id="pref-addonMenuLocation"></html:h3>
+    </label>
+
     <radiogroup
       id="__addonRef__-addonMenuLocation"
       preference="extensions.zotero.__addonRef__.addonMenuLocation"
@@ -33,84 +34,93 @@
         />
       </hbox>
     </radiogroup>
-  </hbox>
+  </groupbox>
 </vbox>
 
+<separator class="groove" />
 <vbox>
-  <separator class="groove" />
-  <label>
-    <html:h3
-      style="text-align: center"
-      data-l10n-id="pref-translateSetting"
-    ></html:h3>
-  </label>
-  <!-- 原文和目标语言设置 -->
-  <hbox>
-    <label data-l10n-id="pref-sourceLang"></label>
-    <box id="__addonRef__-sourceLang-placeholder"></box>
+  <groupbox>
+    <label>
+      <!-- style="text-align: center" -->
+      <html:h3 data-l10n-id="pref-translateSetting"></html:h3>
+    </label>
 
-    <splitter />
-
-    <label data-l10n-id="pref-targetLang"></label>
-    <box id="__addonRef__-targetLang-placeholder"></box>
-  </hbox>
-
-  <!-- 屏蔽翻译 -->
-  <vbox>
-    <separator />
+    <!-- 原文和目标语言设置 -->
     <hbox>
-      <label
-        style="font-weight: bold"
-        data-l10n-id="pref-untranslatedLanguage"
-      ></label>
+      <label data-l10n-id="pref-sourceLang"></label>
+      <box id="__addonRef__-sourceLang-placeholder"></box>
 
-      <checkbox id="__addonRef__-selectAll" data-l10n-id="pref-selectAll" />
-      <checkbox
-        id="__addonRef__-isSkipLocal"
-        checked="true"
-        data-l10n-id="pref-isSkipLocal"
-      />
+      <splitter />
+
+      <label data-l10n-id="pref-targetLang"></label>
+      <box id="__addonRef__-targetLang-placeholder"></box>
     </hbox>
-
-    <box id="__addonRef__-skipLanguages-placeholder"></box>
-    <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
-  </vbox>
-
-  <separator />
-  <!-- 双语设置 -->
-  <hbox>
-    <caption style="font-weight: bold" data-l10n-id="pref-bilingualSetting" />
-    <splitter />
-    <checkbox
-      id="__addonRef__-bilingualContrast"
-      preference="extensions.zotero.__addonRef__.bilingualContrast"
-      data-l10n-id="pref-bilingualContrast"
-    />
-    <splitter />
-    <radiogroup
-      id="__addonRef__-sourceTargetOrder"
-      preference="extensions.zotero.__addonRef__.sourceTargetOrder"
-    >
+  </groupbox>
+  <!-- 屏蔽翻译 -->
+  <groupbox>
+    <vbox>
       <hbox>
-        <radio
-          id="__addonRef__-isSourceFirst"
-          data-l10n-id="pref-isSourceFirst"
-        />
-        <radio
-          id="__addonRef__-isTargetFirst"
-          data-l10n-id="pref-isTargetFirst"
+        <label
+          style="font-weight: bold"
+          data-l10n-id="pref-untranslatedLanguage"
+        ></label>
+
+        <checkbox id="__addonRef__-selectAll" data-l10n-id="pref-selectAll" />
+        <checkbox
+          id="__addonRef__-isSkipLocal"
+          checked="true"
+          data-l10n-id="pref-isSkipLocal"
         />
       </hbox>
-    </radiogroup>
-  </hbox>
 
-  <separator />
+      <box id="__addonRef__-skipLanguages-placeholder"></box>
+      <spacer width="20px" height="20px" />
+      <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
+    </vbox>
+  </groupbox>
+
+  <!-- 双语设置 -->
+  <groupbox>
+    <spacer width="20px" height="20px" />
+    <hbox>
+      <!-- <caption style="font-weight: bold" data-l10n-id="pref-bilingualSetting" /> -->
+      <label data-l10n-id="pref-bilingualSetting"></label>
+      <splitter />
+      <checkbox
+        id="__addonRef__-bilingualContrast"
+        preference="extensions.zotero.__addonRef__.bilingualContrast"
+        data-l10n-id="pref-bilingualContrast"
+      />
+      <splitter />
+      <radiogroup
+        id="__addonRef__-sourceTargetOrder"
+        preference="extensions.zotero.__addonRef__.sourceTargetOrder"
+      >
+        <hbox>
+          <radio
+            id="__addonRef__-isSourceFirst"
+            data-l10n-id="pref-isSourceFirst"
+          />
+          <radio
+            id="__addonRef__-isTargetFirst"
+            data-l10n-id="pref-isTargetFirst"
+          />
+        </hbox>
+      </radiogroup>
+    </hbox>
+  </groupbox>
+
   <!-- 标题前内容处理方式 -->
   <groupbox>
-    <caption
+    <spacer width="20px" height="20px" />
+    <!-- <caption
       style="font-weight: bold"
       data-l10n-id="pref-handleContentBeforeTitle"
-    />
+    /> -->
+    <label
+      style="font-weight: bold"
+      data-l10n-id="pref-handleContentBeforeTitle"
+    ></label>
     <radiogroup
       id="__addonRef__-handleContentBeforeTitle"
       preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
@@ -141,32 +151,38 @@
     </radiogroup>
   </groupbox>
 
-  <separator />
   <!-- 翻译引擎选择方式 -->
-  <checkbox
-    id="__addonRef__-isPay"
-    preference="extensions.zotero.__addonRef__.isPay"
-    data-l10n-id="pref-isPay"
-  />
-  <checkbox
-    id="__addonRef__-isPreferredSameService"
-    preference="extensions.zotero.__addonRef__.isPreferredSameService"
-    data-l10n-id="pref-isPreferredSameService"
-  />
-  <checkbox
-    id="__addonRef__-isPreferredHasSecretKey"
-    preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
-    data-l10n-id="pref-isPreferredHasSecretKey"
-  />
-  <checkbox
-    id="__addonRef__-isPriority"
-    preference="extensions.zotero.__addonRef__.isPriority"
-    data-l10n-id="pref-isPriority"
-  />
+  <groupbox>
+    <spacer width="20px" height="20px" />
+    <label
+      style="font-weight: bold"
+      data-l10n-id="pref-serviceSelectMode"
+    ></label>
+    <checkbox
+      id="__addonRef__-isPay"
+      preference="extensions.zotero.__addonRef__.isPay"
+      data-l10n-id="pref-isPay"
+    />
+    <checkbox
+      id="__addonRef__-isPreferredSameService"
+      preference="extensions.zotero.__addonRef__.isPreferredSameService"
+      data-l10n-id="pref-isPreferredSameService"
+    />
+    <checkbox
+      id="__addonRef__-isPreferredHasSecretKey"
+      preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
+      data-l10n-id="pref-isPreferredHasSecretKey"
+    />
+    <checkbox
+      id="__addonRef__-isPriority"
+      preference="extensions.zotero.__addonRef__.isPriority"
+      data-l10n-id="pref-isPriority"
+    />
+  </groupbox>
 </vbox>
 
-<!--腾讯交互，百度修改-->
 <!--多账户管理-->
+<separator class="groove" />
 <vbox>
   <label>
     <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
@@ -184,7 +200,8 @@
       data-l10n-id="pref-deleteService"
     ></button>
   </hbox>
-   <hbox>
+  <hbox>
+    <spacer width="20px" height="20px" />
     <label data-l10n-id="pref-QPS"></label>
     <html:input
       size="10"
@@ -236,34 +253,10 @@
       data-l10n-id="pref-saveLimitParam"
     ></button>
   </hbox>
-  <separator class="groove" />
+
   <vbox>
+    <spacer width="20px" height="20px" />
     <hbox>
-      <label data-l10n-id="pref-secretKey"></label>
-      <html:input
-        size="60"
-        type="text"
-        id="__addonRef__-secretKey"
-      ></html:input>
-    </hbox>
-
-    <hbox>
-      <!-- data-l10n-id="pref-secretKeyUsable"在这里作为label的内容，其ftl格式应当为 -->
-      <!--       pref-secretKeyUsable = 
-                      .label = isUsable -->
-      <label data-l10n-id="pref-secretKey-charConsum"></label>
-      <html:input
-        type="text"
-        id="__addonRef__-secretKey-charConsum"
-      ></html:input>
-      <checkbox
-        id="__addonRef__-secretKeyUsable"
-        native="true"
-        preference="extensions.zotero.__addonRef__.secretKeyUsable"
-        data-l10n-id="pref-secretKeyUsable"
-        class="checkbox-secretKeyUsable"
-      />
-
       <button
         id="__addonRef__-addSecretKey"
         data-l10n-id="pref-addSecretKey"
@@ -274,82 +267,76 @@
       ></button>
     </hbox>
   </vbox>
-
-  <separator class="groove" />
+  <!-- 秘钥表格 -->
   <html:div id="__addonRef__-table-container" />
-  <separator class="groove" />
 
+  <spacer width="20px" height="20px" />
   <description data-l10n-id="pref-secretKey-help" />
-  <separator class="groove" />
-  <!--当前账户信息-->
-  <hbox>
-    <label data-l10n-id="pref-underUse"></label>
-    <spacer width="10px" />
-    <textbox id="__addonRef__-serviceIDUnderUse" readonly="true" />
-    <spacer width="10px" />
-    <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
-  </hbox>
-  <separator class="groove" />
 </vbox>
 
-<separator class="groove" />
 <!--看图-->
-<label>
-  <html:h4 data-l10n-id="pref-imageViewer"></html:h4>
-</label>
-<groupbox>
-  <caption data-l10n-id="pref-thumbnailSize" />
-  <radiogroup
-    id="__addonRef__-thumbnailSize"
-    preference="extensions.zotero.__addonRef__.thumbnailSize"
-  >
-    <hbox>
-      <radio
-        data-l10n-id="pref-thumbnailSizeSmall"
-        value="small"
-        selected="true"
-      />
-      <radio
-        data-l10n-id="pref-thumbnailSizeMedium"
-        value="medium"
-        selected="false"
-      />
-      <radio
-        data-l10n-id="pref-thumbnailSizeLarge"
-        value="large"
-        selected="false"
-      />
-    </hbox>
-  </radiogroup>
-  <caption data-l10n-id="pref-windowSizeOnViewImage" />
-  <radiogroup
-    id="__addonRef__-screenSizeViewer"
-    preference="extensions.zotero.__addonRef__.windowSizeOnViewImage"
-  >
-    <hbox>
-      <radio data-l10n-id="pref-maxScreen" value="max" selected="false" />
-      <radio data-l10n-id="pref-fullScreen" value="full" selected="true" />
-      <radio data-l10n-id="pref-originScreen" value="origin" selected="false" />
-    </hbox>
-  </radiogroup>
-  <hbox width="100px">
-    <caption data-l10n-id="pref-backgroundColorDialogImgViewer" />
-    <html:input
-      type="color"
-      id="__addonRef__-backgroundColorViewer"
-      preference="extensions.zotero.__addonRef__.backgroundColorDialogImgViewer"
-      width="20px"
-      value="#b90f0f"
+<vbox>
+  <separator class="groove" />
+  <label>
+    <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
+  </label>
+  <groupbox>
+    <caption data-l10n-id="pref-thumbnailSize" />
+    <radiogroup
+      id="__addonRef__-thumbnailSize"
+      preference="extensions.zotero.__addonRef__.thumbnailSize"
     >
-    </html:input>
-    <button
-      data-l10n-id="pref-restoreDefultColor"
-      oncommand='const color=document.getElementById("__addonRef__-backgroundColorViewer");
+      <hbox>
+        <radio
+          data-l10n-id="pref-thumbnailSizeSmall"
+          value="small"
+          selected="true"
+        />
+        <radio
+          data-l10n-id="pref-thumbnailSizeMedium"
+          value="medium"
+          selected="false"
+        />
+        <radio
+          data-l10n-id="pref-thumbnailSizeLarge"
+          value="large"
+          selected="false"
+        />
+      </hbox>
+    </radiogroup>
+    <caption data-l10n-id="pref-windowSizeOnViewImage" />
+    <radiogroup
+      id="__addonRef__-screenSizeViewer"
+      preference="extensions.zotero.__addonRef__.windowSizeOnViewImage"
+    >
+      <hbox>
+        <radio data-l10n-id="pref-maxScreen" value="max" selected="false" />
+        <radio data-l10n-id="pref-fullScreen" value="full" selected="true" />
+        <radio
+          data-l10n-id="pref-originScreen"
+          value="origin"
+          selected="false"
+        />
+      </hbox>
+    </radiogroup>
+    <hbox width="100px">
+      <caption data-l10n-id="pref-backgroundColorDialogImgViewer" />
+      <html:input
+        type="color"
+        id="__addonRef__-backgroundColorViewer"
+        preference="extensions.zotero.__addonRef__.backgroundColorDialogImgViewer"
+        width="20px"
+        value="#b90f0f"
+      >
+      </html:input>
+      <button
+        data-l10n-id="pref-restoreDefultColor"
+        oncommand='const color=document.getElementById("__addonRef__-backgroundColorViewer");
       color.value="#b90f0f";'
-    ></button>
-  </hbox>
-</groupbox>
-
+      ></button>
+    </hbox>
+  </groupbox>
+</vbox>
 <separator class="groove" />
 
 <!--关于-->

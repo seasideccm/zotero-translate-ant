@@ -1,6 +1,6 @@
 import { keysTranslateService, parasArrTranslateService, parasArrTranslateServiceAdd } from "../../utils/constant";
 import { arrToObj, arrsToObjs } from "../../utils/tools";
-import { fillServiceTypes, getDB } from "../database/database";
+import { fillServiceTypes, getDB, getDBSync } from "../database/database";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 
 
@@ -81,6 +81,14 @@ export function getSerialNumberSync(serviceID: string, appID: string) {
     const service = addon.mountPoint.services[serviceID];
     if (!service) return;
     return service.accounts.filter((account: TranslateServiceAccount) => account.appID = appID)[0].serialNumber;
+}
+
+export function deleteAcount(serialNumber: number) {
+    const DB = getDBSync();
+    if (!DB) return;
+    DB.executeTransaction(async () => {
+        await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
+    });
 }
 
 export async function getServiceAccount(serviceID: string, serialNumber: number) {

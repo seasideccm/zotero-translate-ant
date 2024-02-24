@@ -6,7 +6,7 @@ import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
 import { getDB } from "../database/database";
-import { getSerialNumberSync, getServiceAccount, getServices, getTranslateService, validata } from "../translate/translateServices";
+import { deleteAcount, getSerialNumberSync, getServiceAccount, getServices, getTranslateService, validata } from "../translate/translateServices";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -26,6 +26,7 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
     addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
     //delete addon.mountPoint.tables[tableID];
     return tableHelper;
+
 }
 
 export async function replaceSecretKeysTable() {
@@ -53,7 +54,7 @@ export async function replaceSecretKeysTable() {
         getRowData: (index: number) => rows[index],
         getRowString: ((index: number) => rows[index].key || ""),
         onKeyDown: handleKeyDown,
-        //onSelectionChange: handleSelectionChange,
+        onSelectionChange: handleSelectionChange,
         //@ts-ignore has
         onActivate: handleActivate,
         onItemContextMenu: handleItemContextMenu,
@@ -80,7 +81,8 @@ export async function replaceSecretKeysTable() {
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         if (tableTreeInstance.editIndex) {
-            commitEditingRow;
+            commitEditingRow();
+            stopRowEditing();
         }
     }
 
@@ -188,7 +190,7 @@ export async function replaceSecretKeysTable() {
 
             const appIDsDelete = rowsDelete.map(row => row.appID);
             const accountsDelete = service.accounts.filter((account: TranslateServiceAccount) => appIDsDelete.includes(account.appID));
-            if (!accountsDelete || !accountsDelete.length) return;
+            if (!accountsDelete || !accountsDelete.length) return false;
 
             service.accountsDelete = accountsDelete;
 
@@ -200,10 +202,8 @@ export async function replaceSecretKeysTable() {
             //移到回收站？添加删除标志?
             for (const row of rowsDelete) {
                 const sn = getSerialNumberSync(serviceID, row.appID);
-
-                await deleteAcount(Number(sn));
+                deleteAcount(Number(sn));
             }
-
 
             tableTreeInstance.invalidate();
             return false;
@@ -230,7 +230,7 @@ export async function replaceSecretKeysTable() {
     }
 
     async function handleActivate(event: Event, indices: number[]) {
-        const cellIndex = getcellIndex(event);
+        let cellIndex = getcellIndex(event);
         const rowElement = getRowElement(indices[0])[0];
         if (tableTreeInstance.editingRow) {
             commitEditingRow();
@@ -247,6 +247,9 @@ export async function replaceSecretKeysTable() {
             tableTreeInstance.editingRow.currentCells.push(input);
         }
         setTimeout(() => {
+            if (cellIndex == void 0) {
+                cellIndex = 0;
+            }
             rowElement.children[cellIndex].focus();
             rowElement.children[cellIndex].select();
         });
@@ -446,7 +449,14 @@ export async function replaceSecretKeysTable() {
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
     async function stopRowEditing() {
         const dataChangedCache = tableTreeInstance.dataChangedCache;
-        if (!dataChangedCache) return;
+        if (!dataChangedCache) {
+            tableTreeInstance.dataChangedCache = null;
+            tableTreeInstance.editIndex = null;
+            if (tableTreeInstance.editingRow) {
+                tableTreeInstance.editingRow = null;
+            }
+            return;
+        }
         for (const index of Object.keys(dataChangedCache)) {
             if (index == void 0) return;
             const changedKeys = Object.keys(dataChangedCache[index]);
@@ -522,10 +532,7 @@ export async function replaceSecretKeysTable() {
       ); */
 
 
-    async function deleteAcount(serialNumber: number) {
-        const DB = await getDB();
-        await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
-    }
+
 
 
     async function isNewServiceItem(serviceID: string, row?: any) {
@@ -544,9 +551,10 @@ export async function replaceSecretKeysTable() {
 
     function getcellIndex(event: Event) {
         //@ts-ignore has
+        //如果代码触发双击，则返回 0
         const x = event.x;
-        if (!x) return;
-        if (!event.target) return;
+        if (!x) return 0;
+        if (!event.target) return 0;
         const parent = event.target as HTMLElement;
         function left(el: HTMLElement) { return el.getBoundingClientRect().x; }
         function right(el: HTMLElement) { return el.getBoundingClientRect().x + el.getBoundingClientRect().width; }

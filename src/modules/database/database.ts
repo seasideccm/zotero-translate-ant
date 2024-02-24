@@ -257,6 +257,10 @@ export async function getDB(dbName?: string) {
   return addonDB;
 }
 
+export function getDBSync() {
+  return addon.mountPoint.database as DB;
+};
+
 async function makeDBPath(dbName?: string) {
   //dir.replace(/\/|\\$/gm, '')
   let dir = dbName

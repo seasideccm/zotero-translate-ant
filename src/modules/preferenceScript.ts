@@ -316,6 +316,13 @@ function bindPrefEvents() {
     const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
     rows.push(row);
     table.render();
+    table.treeInstance.selection.select(rows.length - 1);
+    const seletedRow = table.treeInstance._topDiv.querySelectorAll(`#${table.treeInstance._jsWindowID} [aria-selected=true]`)[0];
+    const dblClickEvent = new window.MouseEvent('dblclick', {
+      bubbles: true,
+      cancelable: true,
+    });
+    seletedRow.dispatchEvent(dblClickEvent);
   });
 
 }
