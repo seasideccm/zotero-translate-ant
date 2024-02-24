@@ -31,6 +31,10 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
+    const id = `${config.addonRef}-` + "secretKeysTable";
+
+
+
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
@@ -42,7 +46,6 @@ export async function replaceSecretKeysTable() {
     //props
     const columnPropValues = makeColumnPropValues(rows[0]);
     const columnsProp = arrsToObjs(columnPropKeys)(columnPropValues) as ColumnOptions[];
-    const id = `${config.addonRef}-` + "secretKeysTable";
 
     const props: VirtualizedTableProps = {
         id: id,
@@ -269,14 +272,14 @@ export async function replaceSecretKeysTable() {
         rowElement.addEventListener('click', stopEvent);
         //单击表格以外触发编辑中的行失焦,失败，改为提交修改
         async function blurEditingRow(e: Event) {
-            if ((e.target != rowElement) && rows.length == 1) {
+            if (e.target != rowElement) {
                 commitEditingRow();
-                await stopRowEditing();
-                return;
+                await stopRowEditing();//@ts-ignore has
+                event.view.removeEventListener("click", blurEditingRow);
             }
-            rowElement.blur();
+            //rowElement.blur();
         }        //@ts-ignore has
-        event.view?.addEventListener("click", blurEditingRow);
+        event.view.addEventListener("click", blurEditingRow);
         //event.view?.addEventListener("click", saveDebounce);
 
         //@ts-ignore has
@@ -448,13 +451,17 @@ export async function replaceSecretKeysTable() {
     tableTreeInstance.commitEditing = commitEditing;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
     async function stopRowEditing() {
+        //注意0
+        if (tableTreeInstance.editIndex == void 0) {
+            tableTreeInstance.dataChangedCache = null;
+            tableTreeInstance.editingRow = null;
+            return;
+        }
         const dataChangedCache = tableTreeInstance.dataChangedCache;
+        tableTreeInstance.editIndex = null;
         if (!dataChangedCache) {
             tableTreeInstance.dataChangedCache = null;
-            tableTreeInstance.editIndex = null;
-            if (tableTreeInstance.editingRow) {
-                tableTreeInstance.editingRow = null;
-            }
+            tableTreeInstance.editingRow = null;
             return;
         }
         for (const index of Object.keys(dataChangedCache)) {
@@ -462,7 +469,8 @@ export async function replaceSecretKeysTable() {
             const changedKeys = Object.keys(dataChangedCache[index]);
             const rowData = rows[Number(index)];
             let serialNumber = await getSerialNumber(serviceID, rows[Number(index)]);
-            if (serialNumber != void 0) {
+            //false==0结果为true
+            if (typeof serialNumber != "boolean") {
                 //更新账号
                 const serviceAccount = await getServiceAccount(serviceID, serialNumber);
                 if (!serviceAccount) continue;

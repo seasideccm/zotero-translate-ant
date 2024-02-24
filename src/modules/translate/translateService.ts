@@ -41,30 +41,32 @@ export class TranslateServiceAccount {
     if (!this.secretKey && !this.token) return;
 
     const DB = await getDB();
+    //new 创建实例 没有 changedData
     if (!this.changedData) {
       await DB.executeTransaction(async () => {
         let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
-        doTryCatch(DB.queryAsync)(sql);
+        await DB.queryAsync(sql);
         let tableName = this.secretKey ? "accounts" : "accessTokens";
         const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
         const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
         const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
         const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
-        this.sqlInsertRow(tableName, sqlColumns, sqlValues);
-        doTryCatch(DB.queryAsync)(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
         tableName = "charConsum";
         sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
         await DB.queryAsync(sql);
         tableName = "totalCharConsum";
         sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
         await DB.queryAsync(sql);
-        this.saved = true;
-        return;
+
       });
+      this.saved = true;
+      return;
     }
 
     const sqls: string[] = [];
-    for (const key of Object.keys(this.changedData)) {
+    const keys = Object.keys(this.changedData);
+    for (const key of keys) {
       let tableNames: string[] = [];
       switch (key) {
         case "secretKey":

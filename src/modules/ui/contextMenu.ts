@@ -28,7 +28,7 @@ export class ContextMenu {
             const fn = obj.fn;
             const args = [...obj.args];
             args.push(target, menuPopupEvent);
-            if (this.judgeAsync(fn)) {
+            if (judgeAsync(fn)) {
                 fn.apply(this, args);
             } else {
                 await fn.apply(this, args);
@@ -126,8 +126,10 @@ export class ContextMenu {
         }, menupopup);
     };
 
-    judgeAsync(fun: any) {
-        const AsyncFunction = (async () => { }).constructor;
-        return fun instanceof AsyncFunction;
-    };
+
 }
+
+export function judgeAsync(fun: any) {
+    const AsyncFunction = (async () => { }).constructor;
+    return fun instanceof AsyncFunction;
+};

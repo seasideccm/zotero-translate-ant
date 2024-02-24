@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { franc } from "franc-min";
 import { addonStorageDir } from "./constant";
+import { judgeAsync } from "../modules/ui/uiTools";
 
 export async function resourceFilesName(url?: string) {
   url = url || `chrome://${config.addonRef}/content/schema/`;
@@ -511,17 +512,22 @@ export function batchAddEventListener(...args: [element: Node, eventType: string
   }
 }
 
-export function doTryCatch(fn: (...args: any[]) => any) {
+export function doTryCatch(func: (...args: any[]) => any) {
   return function (...args: any[]) {
-    return function () {
+    return async function () {
       try {
-        const result = fn(...args);
-        if (result.then) {
-          return async function () {
-            return await result;
-          };
+        if (judgeAsync(func)) {
+          return await func(...args);
+        } else {
+          return func(...args);
         }
-        return result;
+        /*  const result = fn(...args);
+         if (result.then) {
+           return async function () {
+             return await result;
+           };
+         }
+         return result; */
       }
       catch (e) {
         showInfo('Execute failed: ' + args[0]);
