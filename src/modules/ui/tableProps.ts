@@ -6,8 +6,7 @@ import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
 import { getDB } from "../database/database";
-import { getServiceAccount, getServices, getTranslateService, validata } from "../translate/translateServices";
-import { openWindow } from './testOpen';
+import { getSerialNumberSync, getServiceAccount, getServices, getTranslateService, validata } from "../translate/translateServices";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -70,17 +69,10 @@ export async function replaceSecretKeysTable() {
     const tableTreeInstance = tableHelper.treeInstance as VTable;
     tableTreeInstance.rows = rows;
 
-    window.addEventListener("beforeunload", beforeUnload);
-    function beforeUnload(e: Event) {
-        showInfo('数据将保存');
-        ztoolkit.log("beforeunload");
-        e.preventDefault();
-        //await Zotero.Promise.delay(10000);
-        //event.returnValue = "你确定离开吗？";
-        //await stopRowEditing();
-    }
 
-    addon.data.prefs.window.addEventListener("blur", beforeUnload);
+    // addon.data.prefs.window.addEventListener("blur");
+    // ("beforeunload");
+
 
 
 
@@ -151,7 +143,7 @@ export async function replaceSecretKeysTable() {
     }
 
 
-    async function handleKeyDown(e: KeyboardEvent) {
+    function handleKeyDown(e: KeyboardEvent) {
         // When pressing delete, delete selected line and refresh table.
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
@@ -164,7 +156,7 @@ export async function replaceSecretKeysTable() {
                 } else {
                     discardEditing();
                 }
-                await stopRowEditing();
+                stopRowEditing();
             }
             if (e.key == ' ') {
                 return false;
@@ -191,38 +183,29 @@ export async function replaceSecretKeysTable() {
             rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
             tableHelper.render();
 
+            //从services中删除
+            const service = addon.mountPoint.services[serviceID];
+
+            const appIDsDelete = rowsDelete.map(row => row.appID);
+            const accountsDelete = service.accounts.filter((account: TranslateServiceAccount) => appIDsDelete.includes(account.appID));
+            if (!accountsDelete || !accountsDelete.length) return;
+
+            service.accountsDelete = accountsDelete;
+
+            const accounts = service?.accounts?.filter((account: TranslateServiceAccount) => !appIDsDelete.includes(account.appID));
+            service.accounts = accounts;
+
+
             //删除数据库数据
+            //移到回收站？添加删除标志?
             for (const row of rowsDelete) {
-                getSerialNumber(serviceID, row).then(async (serialNumber: any) => {
-                    await deleteAcount(Number(serialNumber));
-                });
+                const sn = getSerialNumberSync(serviceID, row.appID);
+
+                await deleteAcount(Number(sn));
             }
 
 
-            //上面先更新表格，刷新后再删除services中的秘钥
-            /* const serviceID = getElementValue("serviceID");
-            let secretKeyObj: SecretKeys[] | undefined = [];
-            if (rowsDataDelete && serviceID && serviceID != '') {
-                for (const rowData of rowsDataDelete) {
-                    const secretkey = rowData.key;
-                    secretKeyObj = services[serviceID].secretKey
-                        ?.filter((e: any) => e.key != secretkey);
-                    if (secretKeyObj) {
-                        services[serviceID].secretKey = secretKeyObj;
-                    }
-                }
-
-                if (serviceID.includes("baidu")) {
-                    let serviceID2 = "";
-                    if (serviceID.includes("Modify")) {
-                        serviceID2 = serviceID.replace("Modify", "");
-                    } else {
-                        serviceID2 = serviceID + "Modify";
-                    }
-                    services[serviceID2].secretKey = services[serviceID].secretKey;
-                }
-            } */
-
+            tableTreeInstance.invalidate();
             return false;
         }
         if ((e.ctrlKey || e.metaKey) && e.key == "z") {
@@ -540,7 +523,6 @@ export async function replaceSecretKeysTable() {
 
 
     async function deleteAcount(serialNumber: number) {
-
         const DB = await getDB();
         await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
     }
@@ -556,6 +538,7 @@ export async function replaceSecretKeysTable() {
         const DB = await getDB();
         return await DB.valueQueryAsync(sql);
     }
+
 
 
 

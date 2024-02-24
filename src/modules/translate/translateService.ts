@@ -121,6 +121,7 @@ export class TranslateService {
   hasToken: boolean;
   //accessTokens?: AccessToken[];
   accounts?: TranslateServiceAccount[];
+  accountsDelete?: TranslateServiceAccount[];
   forbidden?: boolean;
   serialNumber?: number;
   configID?: number | undefined;

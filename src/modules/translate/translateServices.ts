@@ -77,6 +77,12 @@ export async function getTranslateService(serviceID: string) {
 
 }
 
+export function getSerialNumberSync(serviceID: string, appID: string) {
+    const service = addon.mountPoint.services[serviceID];
+    if (!service) return;
+    return service.accounts.filter((account: TranslateServiceAccount) => account.appID = appID)[0].serialNumber;
+}
+
 export async function getServiceAccount(serviceID: string, serialNumber: number) {
     const service = await getTranslateService(serviceID);
     if (!service) return;
@@ -165,7 +171,7 @@ async function getAccounts(serviceID: string, tableName: string) {
     sqlColumns.push("usable", "charConsum", "dataMarker", "forbidden");
 
     const tableName2 = "translateServiceSN";
-    const sql = `SELECT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
+    const sql = `SELECT DISTINCT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);
     const accuntOptionsArr = dbRowsToObjs(rows, sqlColumns);
     const accounts = accuntOptionsArr?.map((accuntOptions: any) => {
