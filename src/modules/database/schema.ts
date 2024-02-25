@@ -68,6 +68,7 @@ export class Schema {
       try {
         await this.initializeSchema();
       } catch (e) {
+        ztoolkit.log(e);
         return (this.isCompatible = false);
       }
     }
@@ -262,6 +263,7 @@ export class Schema {
         try {
           await this.initializeSchema();
         } catch (e) {
+          ztoolkit.log(e);
           return false;
         }
       } else {
@@ -275,6 +277,7 @@ export class Schema {
             }.bind(this),
           );
         } catch (e) {
+          ztoolkit.log(e);
           return false;
         }
       }
@@ -338,6 +341,7 @@ export class Schema {
         await this.integrityCheck(true);
       }
     } catch (e) {
+      ztoolkit.log(e);
       this._schemaUpdateDeferred.reject(e);
       return false;
     } finally {
@@ -655,6 +659,7 @@ export class Schema {
           //成功
           continue;
         } catch (e) {
+          ztoolkit.log(e);
           Zotero.logError(e as any);
           // Clear flag on failure, to avoid showing an error on every startup if someone
           // doesn't know how to deal with it

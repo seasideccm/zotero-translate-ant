@@ -1,3 +1,5 @@
+import { requireModule } from "../../utils/tools";
+
 //测试通过
 export function testReact() {
     const win = ztoolkit.getGlobal("window");
@@ -17,4 +19,9 @@ export function testReact() {
     }
     containerParent?.appendChild(container);
     ReactDOM.render(button, container);
+}
+
+
+export function testRequireModule() {
+    return requireModule("react");
 }

@@ -1,6 +1,7 @@
 import { config } from "../package.json";
 import { TranslateServices } from "./modules/database/dataObjects";
 import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
+import { registerNotifier } from "./modules/notify";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { initTranslateServices } from "./modules/translate/translateServices";
@@ -27,6 +28,7 @@ async function onStartup() {
     ztoolkit.log(loadDevToolWhen);
   } */
   initLocale();
+  registerNotifier();
 
   ztoolkit.PreferencePane.register({
     pluginID: config.addonID,
@@ -85,29 +87,6 @@ async function onShutdown(): Promise<void> {
   delete Zotero[config.addonInstance];
 }
 
-/**
- * This function is just an example of dispatcher for Notify events.
- * Any operations should be placed in a function to keep this funcion clear.
- */
-async function onNotify(
-  event: string,
-  type: string,
-  ids: Array<string | number>,
-  extraData: { [key: string]: any; },
-) {
-  // You can add your code to the corresponding notify type
-  ztoolkit.log("notify", event, type, ids, extraData);
-  if (
-    event == "select" &&
-    type == "tab" &&
-    extraData[ids[0]].type == "reader"
-  ) {
-    //BasicExampleFactory.exampleNotifierCallback();
-    () => { };
-  } else {
-    return;
-  }
-}
 
 /**
  * This function is just an example of dispatcher for Preference UI events.
@@ -154,7 +133,6 @@ export default {
   onShutdown,
   onMainWindowLoad,
   onMainWindowUnload,
-  onNotify,
   onPrefsEvent,
   onShortcuts,
   onDialogEvents,

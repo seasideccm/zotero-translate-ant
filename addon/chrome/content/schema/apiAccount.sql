@@ -6,7 +6,8 @@ CREATE TABLE translateServiceSN(
     serviceID TEXT NOT NULL,
     appID TEXT NOT NULL DEFAULT "no",
     usable INT NOT NULL DEFAULT 1,
-    forbidden INT NOT NULL DEFAULT 0
+    forbidden INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (serviceID) REFERENCES translateServiceSN (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE translateServices(
@@ -23,8 +24,8 @@ CREATE TABLE accounts(
     appID TEXT NOT NULL,
     secretKey TEXT NOT NULL,
     UNIQUE(serviceID, appID), -- 联合唯一，防止重复注册
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
-    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE accessTokens(
@@ -33,28 +34,30 @@ CREATE TABLE accessTokens(
     appID TEXT NOT NULL DEFAULT "no",
     token TEXT NOT NULL UNIQUE,
     UNIQUE(serviceID, appID), 
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
-    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE freeLoginServices (
     serialNumber INT NOT NULL PRIMARY KEY,
     serviceID TEXT NOT NULL UNIQUE,
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE,
-    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE charConsum(
     serialNumber INT NOT NULL PRIMARY KEY,
     charConsum INT NOT NULL DEFAULT 0,
     dataMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 根据限额模式，用于恢复额度
-    dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE totalCharConsum(
     serialNumber INT NOT NULL PRIMARY KEY,
     totalCharConsum INT NOT NULL DEFAULT 0,
-    dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE serviceLimits(
@@ -64,7 +67,7 @@ CREATE TABLE serviceLimits(
     limitMode TEXT NOT NULL,
     charasLimit INT NOT NULL,
     configID INT NOT NULL DEFAULT 0, -- 允许每个翻译引擎多个配置适应不同环境
-    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 --创建不能为NULL的主键时,应该使用 PRIMARY KEY NOT NULL

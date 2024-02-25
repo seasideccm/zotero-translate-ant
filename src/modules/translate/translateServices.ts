@@ -1,5 +1,5 @@
 import { keysTranslateService, parasArrTranslateService, parasArrTranslateServiceAdd } from "../../utils/constant";
-import { arrToObj, arrsToObjs } from "../../utils/tools";
+import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { fillServiceTypes, getDB, getDBSync } from "../database/database";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 
@@ -192,10 +192,25 @@ async function getAccounts(serviceID: string, tableName: string) {
     const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];
     tableName == "accounts" ? sqlColumns.push("secretKey") : sqlColumns.push("token");
     sqlColumns.push("usable", "charConsum", "dataMarker", "forbidden");
-
     const tableName2 = "translateServiceSN";
     const sql = `SELECT DISTINCT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);
+    if (rows.length == 0) {
+        //showInfo("There are no " + serviceID + " accounts in the database.");
+        const sql2 = `SELECT serialNumber FROM ${tableName}  WHERE serviceID = '${serviceID}'`;
+        const rowsMisMatch = await DB.queryAsync(sql2);
+        if (rowsMisMatch.length) {
+            showInfo(`There are least one serialNumber in the ${tableName} table. We will delete it in ${tableName}, charConsum and totalCharConsum.`);
+        }
+        // 清理 account 或 accessTokens
+        const sql3 = `DELETE FROM ${tableName}  WHERE serviceID = '${serviceID}'`;
+        await DB.queryAsync(sql3);
+        // 清理 charConsum totalCharConsum
+        const sql4 = `DELETE FROM charConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
+        await DB.queryAsync(sql4);
+        const sql5 = `DELETE FROM totalCharConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
+        await DB.queryAsync(sql5);
+    }
     const accuntOptionsArr = dbRowsToObjs(rows, sqlColumns);
     const accounts = accuntOptionsArr?.map((accuntOptions: any) => {
         accuntOptions.serviceID = serviceID;

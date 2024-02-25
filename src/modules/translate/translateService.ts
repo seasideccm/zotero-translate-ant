@@ -63,6 +63,8 @@ export class TranslateServiceAccount {
         }
         catch (e) {
           this.saveDeferred!.reject();
+          ztoolkit.log(e);
+          showInfo(e);
         }
 
       });

@@ -3,6 +3,13 @@ import { franc } from "franc-min";
 import { addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 
+export function requireModule(moduleName: string) {
+  const win = ztoolkit.getGlobal("window");
+  const _require = (win as any).require;
+  const module = _require(moduleName);
+  return module;
+}
+
 export async function resourceFilesName(url?: string) {
   url = url || `chrome://${config.addonRef}/content/schema/`;
   //@ts-ignore has
@@ -530,6 +537,7 @@ export function doTryCatch(func: (...args: any[]) => any) {
          return result; */
       }
       catch (e) {
+        ztoolkit.log(e);
         showInfo('Execute failed: ' + args[0]);
         throw e;
       }

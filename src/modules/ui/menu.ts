@@ -27,7 +27,7 @@ async function clearTable(tableNames: string[]) {
   }
 }
 
-const tableNames = (async () => { return await getTableNamesFromSqlFile("apiAccount"); })();
+//const tableNames = (async () => { return await getTableNamesFromSqlFile("apiAccount"); })();
 const tableNames2 = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
 
 const paraArrs = [

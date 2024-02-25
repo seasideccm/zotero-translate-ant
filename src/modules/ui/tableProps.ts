@@ -6,7 +6,7 @@ import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
 import { getDB, getDBSync } from "../database/database";
-import { deleteAcount, getSerialNumberSync, getServiceAccount, getServiceAccountSync, getServices, getTranslateService, validata } from "../translate/translateServices";
+import { deleteAcount, getSerialNumberSync, getServiceAccount, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue } from "../../utils/constant";
 import { serviceManage } from '../translate/serviceManage';
 
@@ -34,15 +34,11 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 export async function replaceSecretKeysTable() {
     if (addon.data.prefs?.window == undefined) return;
     const id = `${config.addonRef}-` + "secretKeysTable";
-
-
-
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     let rows: any[] = await secretKeysTableRowsData(serviceID) || [];
     if (!rows || rows.length == 0) return;
-
     const containerId = `${config.addonRef}-table-container`;
 
     //props
@@ -85,9 +81,9 @@ export async function replaceSecretKeysTable() {
 
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        if (tableTreeInstance.editIndex) {
+        if (tableTreeInstance.editIndex != void 0) {
             commitEditingRow();
-
+            return true;
         }
     }
 
@@ -96,7 +92,6 @@ export async function replaceSecretKeysTable() {
         const [event, x, y] = args;
         onCollectionsContextMenuOpen(event, x, y);
         return false;
-
         function buildContextMenu() {
             const keys = ["label", "func", "args"];
             const menuPropsGroupsArr = [
@@ -464,6 +459,7 @@ export async function replaceSecretKeysTable() {
             return;
         }
         const indices = Object.keys(dataChangedCache);
+
         for (const index of indices) {
             if (index == void 0) return;
             const changedKeys = Object.keys(dataChangedCache[index]);
@@ -484,8 +480,8 @@ export async function replaceSecretKeysTable() {
                         serviceAccount[key] = rowData[key];
                     }
                 });
-                serviceAccount.save();
-
+                //serviceAccount.save()
+                notifyAccountSave(serviceAccount);
             } else {
                 //新建账号
                 const DB = getDBSync();
@@ -497,14 +493,80 @@ export async function replaceSecretKeysTable() {
                         Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
                         accuntOptions.forbidden = false;
                         const account = new TranslateServiceAccount(accuntOptions);
-                        await account.save();
+                        //await account.save();
                         const service = await getTranslateService(serviceID);
-                        service?.accounts?.push(account);
+                        if (!service) throw new Error("service not found");
+                        if (!service.accounts) service.accounts = [];
+                        service.accounts.push(account);
+                        notifyAccountSave(account);
                     });
             }
         }
         clearEditing();
         tableTreeInstance.invalidate();
+    }
+
+    function notifyAccountSave(obj: any) {
+        Zotero.Notifier.trigger('add', 'item', [999999999999], obj, true);
+        //event, type, ids, extraData, force
+        /**
+    * Trigger a notification to the appropriate observers
+    *
+    * Possible values:
+    *
+    * 	event: 'add', 'modify', 'delete', 'move' ('c', for changing parent),
+    *		'remove' (ci, it), 'refresh', 'redraw', 'trash', 'unreadCountUpdated', 'index'
+    * 	type - 'collection', 'search', 'item', 'collection-item', 'item-tag', 'tag',
+    *		'group', 'relation', 'feed', 'feedItem'
+    * 	ids - single id or array of ids
+    *
+    * Notes:
+    *
+    * - If event queuing is on, events will not fire until commit() is called
+    * unless _force_ is true.
+    *
+    * - New events and types should be added to the order arrays in commit()
+    **/
+
+        //var _types = [		'collection', 'search', 'share', 'share-items', 'item', 'file',		'collection-item', 'item-tag', 'tag', 'setting', 'group', 'trash',		'bucket', 'relation', 'feed', 'feedItem', 'sync', 'api-key', 'tab',		'itemtree'	]
+
+
+        /* 
+        
+        Zotero.Notifier.trigger('add', 'tab', [id], { [id]: data }, true);
+    ('close', 'tab', [closedIDs], true);
+    ('select', 'tab', [tab.id], { [tab.id]: { type: tab.type } }, true);
+    ('open', 'file', item.id);
+    ('redraw', 'item', []);
+    ('open', 'file', attachment.id);
+    () on an undo or redo
+    (eventParts[0], eventParts[1], data['id']);
+    ('delete', 'collection', 'document');
+    ('add', 'collection', 'document');
+    ('modify', 'item', [item.id]);
+    ('refresh', 'item', [itemID]);
+    ('refresh', 'item', itemIDs);
+    ('redraw', 'item', item.id, { column: "hasAttachment" });
+    ('redraw', 'item', parentItem.id, { column: "hasAttachment" });
+    (event, 'setting', [id], extraData);
+    ('delete', 'setting', [id], extraData);
+    ('statusChanged', 'feed', this.id);
+    ('unreadCountUpdated', 'feed', this.id);
+    ('modify', 'item', ids, {});
+    ('refresh', 'item', this.id);
+    ('removeDuplicatesMaster', 'item', item.id, null, true);
+    ('refresh', 'trash', libraryID);
+    ('refresh', 'item', idsToRefresh);
+    ('redraw', 'item', affectedItems, { column: 'title' });
+    ('download', 'file', item.id);
+    ('delete', 'api-key', []);
+    ('modify', 'api-key', []);
+    ('start', 'sync', []);
+    ('finish', 'sync', librariesToSync || []);
+    ('redraw', 'collection', []);
+        
+        */
+
     }
 
     function clearEditing() {
@@ -581,17 +643,22 @@ export async function replaceSecretKeysTable() {
 
 
     async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID: T) {
-        const services = await getServices();
-        const serviceSelected = services[serviceID];
+        let services = await getServices();
+        let serviceSelected = services[serviceID];
+        if (!serviceSelected || !serviceSelected.accounts || !serviceSelected.accounts.length) {
+            services = await getServicesFromDB();
+            serviceSelected = services[serviceID];
+        }
         let rows: any[];
         if (!serviceSelected) return;
         if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
         const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
         const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
-        if (!serviceSelected.accounts) {
+        if (!serviceSelected.accounts || !serviceSelected.accounts.length) {
             // 返回空数据
             return rows = [kvArrsToObjects(keys)()];
         }
+
         const getRowDataValues = kvArrsToObjects(keys);
         rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
             getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));

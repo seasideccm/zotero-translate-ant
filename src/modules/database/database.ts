@@ -137,16 +137,11 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
       if (oldColumns && newColumns && oldColumns.length === newColumns.length) {
         sql = `INSERT INTO ${tableName} SELECT * FROM ${tableName}_tempTable`;
         await this.queryAsync(sql);
-        /* try{
-                    await this.queryAsync(sql);
-                }
-                catch(e:any){
-                    ztoolkit.log(e)
-                    throw e
-                } */
       }
+      await this.DB.queryAsync("PRAGMA foreign_keys = false");
       sql = `DROP TABLE ${tableName}_tempTable`;
       await this.queryAsync(sql);
+      await this.DB.queryAsync("PRAGMA foreign_keys = true");
     });
   }
 
@@ -231,11 +226,19 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
  * 6. 留空则连接默认数据库（可在插件选项中指定）
  */
 export async function getDB(dbName?: string) {
+  let n = 0;
+  while (addon == void 0) {
+    Zotero.Promise.delay(50);
+    ztoolkit.log("waiting for addon: " + n);
+    n++;
+  }
   let addonDB: DB | undefined = addon.mountPoint.database;
+  // 若 addonDB 尚未定义则创建实例然后初始化
   if (!addonDB) {
     const DBPath = await makeDBPath();
     addonDB = new DB(DBPath);
   }
+  // 若 addonDB 存在则检查
   try {
     await addonDB.initPromise;
   }
@@ -401,8 +404,11 @@ export async function compareSQLUpdateDB() {
         const rowsNumberOld = await DB.queryAsync(sql);
         //如果旧表没有列或没有数据，则删除旧表建新表
         if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
+
           const sql = `DROP ${tableType} ${tableName}`;
+          await DB.queryAsync("PRAGMA foreign_keys = false");
           await DB.queryAsync(sql);
+          await DB.queryAsync("PRAGMA foreign_keys = true");
           await DB.queryAsync(diff);
           cache.push(tableName);
           ztoolkit.log(tableName + " table Created");
