@@ -219,6 +219,11 @@ export async function replaceSecretKeysTable() {
             return false;
         }
 
+        if ((e.ctrlKey || e.metaKey) && e.key == "v") {
+            showInfo("粘贴，添加秘钥");
+            return false;
+        }
+
 
         /* if (e.key == 'ContextMenu' || (e.key == 'F10' && e.shiftKey)) {
             //@ts-ignore has
@@ -266,29 +271,7 @@ export async function replaceSecretKeysTable() {
             win.removeEventListener("click", blurEditingRow);
             rowElement.removeEventListener("click", stopEvent);
         });
-        // 单击当前编辑的行阻止事件传递，防止触发prefs窗口单击触发当前编辑行失焦
-        // 表格行鼠标事件定义在行元素上
-        //chrome\content\zotero\components\virtualized-table.jsx
-        //node.addEventListener('mouseup', e => this._handleMouseUp(e, index), { passive: true });
-        rowElement.addEventListener('click', stopEvent);
-        //单击表格以外触发编辑中的行失焦,失败，改为提交修改
-        async function blurEditingRow(e: Event) {
-            if (e.target != rowElement) {
-                commitEditingRow();//@ts-ignore has
-                win.removeEventListener("click", blurEditingRow);
-            }
-            //rowElement.blur();
-        }        //@ts-ignore has
-        const win = addon.data.prefs?.window;
-        if (win) win.addEventListener("click", blurEditingRow);
-
-
-        //e.stopImmediatePropagation();
-        //{ once: true })
-        //const isFocus = window.document.hasFocus();//@ts-ignore has
-        //const win = rowElement.ownerGlobal;
-        //const doc = rowElement.ownerDocument;
-        //const isFocuswin = win.document.hasFocus();//@ts-ignore has
+        listentRow();
     }
 
     function cellChangeToInput(cell: HTMLElement | ChildNode) {
@@ -412,19 +395,44 @@ export async function replaceSecretKeysTable() {
         oldCell!.textContent = inputCell.value;
         inputCell.parentNode?.replaceChild(oldCell, inputCell);
     };
+
+
+
+    function listentRow() {
+        const index = tableTreeInstance.editIndex;
+        if (index == void 0) return;
+        const rowElement = getRowElement(index)[0];
+        async function blurEditingRow(e: Event) {
+            if (e.target != rowElement) {
+                commitEditingRow();//@ts-ignore has
+                win.removeEventListener("click", blurEditingRow);
+            }
+        }
+        const win = addon.data.prefs?.window;
+        if (win) win.addEventListener("click", blurEditingRow);
+    }
     function commitEditingRow() {
         if (!tableTreeInstance.editingRow) return;
         const oldCells = tableTreeInstance.editingRow["oldCells"];
         const currentCells = tableTreeInstance.editingRow["currentCells"];
         if (!oldCells || !currentCells) return;
+        const keys = Object.keys(rows[0]);
         const changeCellIndices = [];
         for (let i = 0; i < currentCells.length; i++) {
             if (oldCells[i].textContent != currentCells[i].value) {
+
                 changeCellIndices.push(i);
+            }
+            if (currentCells[i].value.includes(EmptyValue) && [keys[0], keys[1]].includes(keys[i])) {
+                showInfo(keys[0] + " or " + keys[1] + " cannot be the default EmptyValue");
+                listentRow();
+                //@ts-ignore has
+
+                return;
             }
         }
         if (!changeCellIndices.length) return;
-        const keys = Object.keys(rows[0]);
+
         for (let i = 0; i < currentCells.length; i++) {
             if (currentCells[i].value.includes(EmptyValue)) {
                 currentCells[i].value = DEFAULT_VALUE[keys[i] as keyof typeof DEFAULT_VALUE];

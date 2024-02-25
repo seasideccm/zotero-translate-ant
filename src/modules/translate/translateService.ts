@@ -42,7 +42,7 @@ export class TranslateServiceAccount {
     this.saveDeferred = Zotero.Promise.defer();
     this.savePromise = this.saveDeferred.promise;
     const DB = await getDB();
-    //new 创建实例 没有 changedData
+    //新建账号没有 changedData
     if (!this.changedData) {
       await DB.executeTransaction(async () => {
         try {
@@ -69,9 +69,10 @@ export class TranslateServiceAccount {
 
       });
       this.saveDeferred.resolve();
+
       return;
     }
-
+    //更新账号
     const sqls: string[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
@@ -86,18 +87,30 @@ export class TranslateServiceAccount {
         case "charConsum":
           tableNames = ['charConsum'];
           break;
+        case "totalCharConsum":
+          tableNames = ['totalCharConsum'];
+          break;
         case "appID":
-          tableNames = ['translateServiceSN', 'accounts', 'accessTokens'];
+          if (this.secretKey) {
+
+            tableNames = ['translateServiceSN', 'accounts'];
+          }
+          if (this.token) {
+            tableNames = ['translateServiceSN', 'accessTokens'];
+          }
           break;
         case "usable":
           tableNames = ['translateServiceSN'];
           break;
+        case "serialNumber":
+          //tableNames = ['translateServiceSN'];
+          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`);
+          break;
       }
       tableNames.forEach(tableName => {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}'`;
+        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
         sqls.push(sql);
       });
-
     }
 
     await DB.executeTransaction(async () => {
@@ -106,6 +119,8 @@ export class TranslateServiceAccount {
           await DB.queryAsync(sql);
         }
         catch (e) {
+          this.recoverPrevious();
+          this.saveDeferred!.reject();
           showInfo('Execute failed: ' + sql);
           throw e;
         }
@@ -113,6 +128,15 @@ export class TranslateServiceAccount {
     });
     this.saveDeferred.resolve();
     this.changedData = null;
+  }
+  recoverPrevious() {
+    try {
+      Zotero.Utilities.Internal.assignProps(this, this.previousData);
+    } catch (e) {
+      showInfo(e);
+      ztoolkit.log(e);
+    }
+
   }
 
 

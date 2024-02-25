@@ -80,7 +80,7 @@ export async function getTranslateService(serviceID: string) {
 export function getSerialNumberSync(serviceID: string, appID: string) {
     const service = addon.mountPoint.services[serviceID];
     if (!service || !service.accounts) return;
-    const account = service.accounts.filter((account: TranslateServiceAccount) => account.appID = appID)[0];
+    const account = service.accounts.filter((account: TranslateServiceAccount) => account.appID == appID)[0];
     if (!account) return;
     return account.serialNumber;
 }
