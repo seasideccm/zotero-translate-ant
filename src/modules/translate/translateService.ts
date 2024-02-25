@@ -18,8 +18,9 @@ export class TranslateServiceAccount {
   changedData?: any;
   loaded?: any;
   synced?: boolean;
-  saved?: boolean;
   version?: number;
+  saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
+  savePromise?: Promise<any>;
 
   constructor(option: any) {
     this.serialNumber = Number(option.serialNumber);
@@ -31,36 +32,41 @@ export class TranslateServiceAccount {
     this.token = option.token;
     this.dateMarker = option.dateMarker;
     this.forbidden = option.forbidden;
-    this.saved = false;
+
   }
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }
   async save() {
-    if (this.saved) return;
     if (!this.secretKey && !this.token) return;
-
+    this.saveDeferred = Zotero.Promise.defer();
+    this.savePromise = this.saveDeferred.promise;
     const DB = await getDB();
     //new 创建实例 没有 changedData
     if (!this.changedData) {
       await DB.executeTransaction(async () => {
-        let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
-        await DB.queryAsync(sql);
-        let tableName = this.secretKey ? "accounts" : "accessTokens";
-        const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
-        const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
-        const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
-        const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
-        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
-        tableName = "charConsum";
-        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
-        await DB.queryAsync(sql);
-        tableName = "totalCharConsum";
-        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
-        await DB.queryAsync(sql);
+        try {
+          let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
+          await DB.queryAsync(sql);
+          let tableName = this.secretKey ? "accounts" : "accessTokens";
+          const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
+          const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+          const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
+          const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
+          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          tableName = "charConsum";
+          sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+          await DB.queryAsync(sql);
+          tableName = "totalCharConsum";
+          sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+          await DB.queryAsync(sql);
+        }
+        catch (e) {
+          this.saveDeferred!.reject();
+        }
 
       });
-      this.saved = true;
+      this.saveDeferred.resolve();
       return;
     }
 
@@ -86,7 +92,7 @@ export class TranslateServiceAccount {
           break;
       }
       tableNames.forEach(tableName => {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.serialNumber}'`;
+        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}'`;
         sqls.push(sql);
       });
 
@@ -103,7 +109,7 @@ export class TranslateServiceAccount {
         }
       }
     });
-    this.saved = true;
+    this.saveDeferred.resolve();
     this.changedData = null;
   }
 
@@ -364,6 +370,7 @@ export class TranslateService {
         });
     }
   });
+
   getServiceAccount(serialNumber: number) {
     if (!this.accounts) return;
     return this.accounts.filter((account: TranslateServiceAccount) => account.serialNumber == serialNumber)[0];

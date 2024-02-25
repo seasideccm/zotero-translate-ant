@@ -1,5 +1,14 @@
 import { config } from "../../package.json";
 
+export const EmptyValue = "No Data";
+//该值用于替换输入框内容，故应为 string
+export const DEFAULT_VALUE = {
+  usable: '1',
+  charConsum: '0',
+  forbidden: '0',
+  secretKey: 'secretKey',
+
+};
 export const keysTranslateService = ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"];
 export const parasArrTranslateService = [
   ["baidu", 5000, 10, "month", 1000000, false, true, false,],
