@@ -39,26 +39,105 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
-export function differObj(obj1: any, obj2: any) {
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
+//对象比较
+/**
+ * 对象属性不同返回 true，
+ * @param obj1 
+ * @param obj2 
+ * @returns 
+ */
+
+export function differObject(obj1: any, obj2: any) {
+  const cache1 = new WeakMap();
+  const cache2 = new WeakMap();
+  function _differObject(obj1: any, obj2: any) {
+    if (!compareType(obj1, obj2)) {
+      return true;
+    }
+
+    if (obj1 === null || typeof obj1 !== "object") {
+      if (obj1 != obj2) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    if (cache1.has(obj1) && cache2.has(obj2)) {
+      const cond1 = cache1.get(obj1).parent == cache1.get(obj1).child;
+      const cond2 = cache2.get(obj2).parent == cache2.get(obj2).child;
+      const cond3 = Object.keys(obj1).length == Object.keys(obj2).length;
+      if (cond1 && cond2 && cond3) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+    if ((cache1.has(obj1) && !cache2.has(obj2)) || (!cache1.has(obj1) && cache2.has(obj2))) {
+      return true;
+    }
+    //缓存保存自身循环引用，即obj1=obj1[key]
+    /*  let resultObj1: any = Array.isArray(obj1) ? [] : {};
+     cache1.set(obj1, resultObj1);
+     let resultObj2: any = Array.isArray(obj2) ? [] : {};
+     cache2.set(obj2, resultObj2); */
+
+    for (const key in obj1) {
+      const cond1 = Object.prototype.hasOwnProperty.call(obj1, key);
+      const cond2 = Object.prototype.hasOwnProperty.call(obj2, key);
+      if (cond1 && !cond2) return true;
+      if (!cond1 && cond2) return true;
+      if (cond1 && cond2) {
+        const resultObj1 = { parent: obj1, child: obj1[key] };
+        cache1.set(obj1, resultObj1);
+        const resultObj2 = { parent: obj2, child: obj2[key] };
+        cache2.set(obj2, resultObj2);
+        if (_differObject(obj1[key], obj2[key])) {
+          return true;
+        };
+      }
+    }
+    return false;
+  }
+  return _differObject(obj1, obj2);
+}
+function compareType(a: any, b: any) {
+  return Object.prototype.toString.call(a) === Object.prototype.toString.call(b);
+}
+export function test1() {
+  const obj1: any = { 1: 1, 2: 2, 3: { 4: 5 } };
+  obj1[4] = obj1;
+  const obj2: any = { 1: 1, 2: 2, 3: { 4: 5 } };
+  obj2[4] = obj2;
+  const res = obj1 == obj2;
+  showInfo("obj1==obj2: " + res);
+  const res2 = differObject(obj1, obj2);
+  showInfo("obj1==obj2: " + res);
+}
+/* const obj1: any = { 1: 1, 2: 2, 3: { 4: 5 } };
+const obj2: any = { 1: 1, 2: 2, 3: { 4: 5 } };
+
+console.log("obj1==obj2: ", obj1 == obj2);
+console.log("obj1==obj2: ", differObject(obj1, obj2)); */
+
+//数组不含对象、集合、字典，函数
+/**
+ * 不同返回 true
+ * @param keys1 
+ * @param keys2 
+ * @returns 
+ */
+function arrayDiffer(keys1: any[], keys2: any[]) {
   if (keys1.length != keys2.length) return true;
   let allKeys = keys1.concat(keys2);
-  allKeys = arrayRemoveDuplicate(allKeys);
-  const diffKeys = allKeys.filter(e => !keys1.includes(e) || !keys2.includes(e));
+  allKeys = [...new Set(allKeys)];
+  const diffKeys = allKeys.filter((e: any) => !keys1.includes(e) || !keys2.includes(e));
   if (diffKeys.length) return true;
   const sameKeys = allKeys.filter(e => !diffKeys.includes(e));
-  //const diffKeys=Zotero.Utilities.arrayDiff(keys1, keys2).concat(Zotero.Utilities.arrayDiff(keys2, keys1))
-  for (const key of sameKeys) {
-    if (obj1[key] !== obj2[key]) {
-      diffKeys.push(key);
-    }
-  }
-  if (diffKeys.length) return true;
   return false;
 }
 
 function arrayRemoveDuplicate(arr: any[]) {
+  arr = [...new Set(arr)];
   const obj = {} as any;
   const arrNoDuplicate = arr.reduce((total, next) => {
     if (!obj[next]) {

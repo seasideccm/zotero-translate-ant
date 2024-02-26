@@ -1,14 +1,13 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, compareObj, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getElementValue } from "./uiTools";
-import { getDB, getDBSync } from "../database/database";
+import { getDBSync } from "../database/database";
 import { deleteAcount, getSerialNumberSync, getServiceAccount, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue } from "../../utils/constant";
-import { serviceManage } from '../translate/serviceManage';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -605,35 +604,47 @@ export async function replaceSecretKeysTable() {
     }
 
     function pasteAccount() {
-        const text = '20201001000577901#jQMdyV80ouaYBnjHXNKs';
-        const textArr = text.split(/\r?\n/).filter(e => e);
-        const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
-        const keys = Object.keys(rows[0]);
-        const pasteRows = valuesArr.map((values: string[]) => {
-            const row: any = kvArrsToObject(keys)(values);
-            Object.keys(row).filter((key: string, i: number) => {
-                if ((row[key] as string).includes(EmptyValue)) {
-                    row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-                }
+
+        window.navigator.clipboard
+            .readText()
+            .then((v) => {
+                const text: string = v;
+                const textArr = text.split(/\r?\n/).filter(e => e);
+                const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
+                const keys = Object.keys(rows[0]);
+                const pasteRows = valuesArr.map((values: string[]) => {
+                    const row: any = kvArrsToObject(keys)(values);
+                    Object.keys(row).filter((key: string, i: number) => {
+                        if ((row[key] as string).includes(EmptyValue)) {
+                            row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+                        }
+                    });
+                    return row;
+                });
+
+                const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row)));
+                const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
+
+
+                /* const values = text.split(/[#\s,;@]/).filter(e => e)
+                const row: any = kvArrsToObject(keys)(values);
+                Object.keys(row).filter((key: string, i: number) => {
+                    if ((row[key] as string).includes(EmptyValue)) {
+                        row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+                    }
+                }); */
+
+
+                rows.push(...newRows);
+                tableHelper.render();
+            })
+            .catch((v) => {
+                console.log("获取剪贴板失败: ", v);
             });
-            return row;
-        });
-
-        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => compareObj(pasteRow, row)));
-        const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => row != pasteRow));
 
 
-        /* const values = text.split(/[#\s,;@]/).filter(e => e)
-        const row: any = kvArrsToObject(keys)(values);
-        Object.keys(row).filter((key: string, i: number) => {
-            if ((row[key] as string).includes(EmptyValue)) {
-                row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-            }
-        }); */
+        // const text = '20201001000577901#jQMdyV80ouaYBnjHXNKs';
 
-
-        rows.push(...newRows);
-        tableHelper.render();
     }
 
     function clearEditing() {
