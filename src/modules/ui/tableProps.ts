@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, compareObj, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -37,7 +37,7 @@ export async function replaceSecretKeysTable() {
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
-    let rows: any[] = await secretKeysTableRowsData(serviceID) || [];
+    const rows: any[] = await secretKeysTableRowsData(serviceID) || [];
     if (!rows || rows.length == 0) return;
     const containerId = `${config.addonRef}-table-container`;
 
@@ -168,7 +168,16 @@ export async function replaceSecretKeysTable() {
             const rowsDelete = rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
 
             //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-            rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
+            //rows,tableTreeInstance.rows指向原数组，给rows重新赋值，则rows指向新数组，导致数据不一致
+            //操作数组元素不改变指向
+            const rowsBackup = [...rows];
+            selectedIndices.sort((a, b) => a - b);
+            selectedIndices.filter((indexValue: number, subIndex: number) => {
+                const deleteIndex = indexValue - subIndex;
+                rows.splice(deleteIndex, 1);
+            });
+
+            //rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
             tableHelper.render();
 
             //从services中删除
@@ -220,6 +229,7 @@ export async function replaceSecretKeysTable() {
         }
 
         if ((e.ctrlKey || e.metaKey) && e.key == "v") {
+            pasteAccount();
             showInfo("粘贴，添加秘钥");
             return false;
         }
@@ -267,8 +277,6 @@ export async function replaceSecretKeysTable() {
         rowElement.addEventListener('blur', async (e: Event) => {
             commitEditingRow();
             //编辑中的行失焦后移除选项窗口的 click 事件和当前行 click 事件（阻止事件传递）
-            //@ts-ignore has
-            win.removeEventListener("click", blurEditingRow);
             rowElement.removeEventListener("click", stopEvent);
         });
         listentRow();
@@ -400,16 +408,23 @@ export async function replaceSecretKeysTable() {
 
     function listentRow() {
         const index = tableTreeInstance.editIndex;
+        const win = addon.data.prefs?.window;
         if (index == void 0) return;
         const rowElement = getRowElement(index)[0];
-        async function blurEditingRow(e: Event) {
-            if (e.target != rowElement) {
-                commitEditingRow();//@ts-ignore has
-                win.removeEventListener("click", blurEditingRow);
+        function commit(e: Event) {
+            if (e.target != rowElement.parentElement) {
+                commitEditingRow();
+                if (win) {
+                    win.removeEventListener("click", commit);
+                    //win.removeEventListener("click", stopEvent);
+                }
             }
         }
-        const win = addon.data.prefs?.window;
-        if (win) win.addEventListener("click", blurEditingRow);
+
+        if (win) {
+            win.addEventListener("click", commit);
+            //win.addEventListener("click", stopEvent);
+        }
     }
     function commitEditingRow() {
         if (!tableTreeInstance.editingRow) return;
@@ -418,6 +433,19 @@ export async function replaceSecretKeysTable() {
         if (!oldCells || !currentCells) return;
         const keys = Object.keys(rows[0]);
         const changeCellIndices = [];
+        if (tableTreeInstance.editIndex != void 0) {
+            const rowElement = getRowElement(tableTreeInstance.editIndex)[0];
+            if (rowElement.children[0].tagName == "span") {
+                clearEditing();
+                return;
+            }
+
+
+        }
+        /* const selectedIndex = Array.from(tableTreeInstance.selection.selected)[0];
+        if (selectedIndex != tableTreeInstance.editIndex){
+
+        } */
         for (let i = 0; i < currentCells.length; i++) {
             if (oldCells[i].textContent != currentCells[i].value) {
 
@@ -425,7 +453,6 @@ export async function replaceSecretKeysTable() {
             }
             if (currentCells[i].value.includes(EmptyValue) && [keys[0], keys[1]].includes(keys[i])) {
                 showInfo(keys[0] + " or " + keys[1] + " cannot be the default EmptyValue");
-                listentRow();
                 //@ts-ignore has
 
                 return;
@@ -577,6 +604,38 @@ export async function replaceSecretKeysTable() {
 
     }
 
+    function pasteAccount() {
+        const text = '20201001000577901#jQMdyV80ouaYBnjHXNKs';
+        const textArr = text.split(/\r?\n/).filter(e => e);
+        const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
+        const keys = Object.keys(rows[0]);
+        const pasteRows = valuesArr.map((values: string[]) => {
+            const row: any = kvArrsToObject(keys)(values);
+            Object.keys(row).filter((key: string, i: number) => {
+                if ((row[key] as string).includes(EmptyValue)) {
+                    row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+                }
+            });
+            return row;
+        });
+
+        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => compareObj(pasteRow, row)));
+        const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => row != pasteRow));
+
+
+        /* const values = text.split(/[#\s,;@]/).filter(e => e)
+        const row: any = kvArrsToObject(keys)(values);
+        Object.keys(row).filter((key: string, i: number) => {
+            if ((row[key] as string).includes(EmptyValue)) {
+                row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+            }
+        }); */
+
+
+        rows.push(...newRows);
+        tableHelper.render();
+    }
+
     function clearEditing() {
         tableTreeInstance.dataChangedCache = null;
         tableTreeInstance.editIndex = null;
@@ -664,14 +723,14 @@ export async function replaceSecretKeysTable() {
         const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
         if (!serviceSelected.accounts || !serviceSelected.accounts.length) {
             // 返回空数据
-            return rows = [kvArrsToObjects(keys)()];
+            return rows = [kvArrsToObject(keys)()];
         }
 
-        const getRowDataValues = kvArrsToObjects(keys);
+        const getRowDataValues = kvArrsToObject(keys);
         rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
             getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
         //const keys = Object.keys(secretKeys[0]);
-        //const getRowDataValues = kvArrsToObjects(keys);
+        //const getRowDataValues = kvArrsToObject(keys);
         //rows = secretKeys.map((e: any) => getRowDataValues(Object.values(e)));
         return rows;
     };
@@ -681,7 +740,7 @@ export async function replaceSecretKeysTable() {
      * @param keys 
      * @returns 
      */
-    function kvArrsToObjects(keys: string[]) {
+    function kvArrsToObject(keys: string[]) {
         return function (values?: any | any[]) {
             if (!values) values = [];
             if (!Array.isArray(values)) values = [values];

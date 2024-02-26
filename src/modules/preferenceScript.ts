@@ -318,6 +318,11 @@ function bindPrefEvents() {
     table.render();
     table.treeInstance.selection.select(rows.length - 1);
     const seletedRow = table.treeInstance._topDiv.querySelectorAll(`#${table.treeInstance._jsWindowID} [aria-selected=true]`)[0];
+
+    if (!seletedRow) {
+      showInfo("No seletedRow");
+      return;
+    }
     const dblClickEvent = new window.MouseEvent('dblclick', {
       bubbles: true,
       cancelable: true,

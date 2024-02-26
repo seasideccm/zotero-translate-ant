@@ -39,6 +39,47 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
+export function differObj(obj1: any, obj2: any) {
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  if (keys1.length != keys2.length) return true;
+  let allKeys = keys1.concat(keys2);
+  allKeys = arrayRemoveDuplicate(allKeys);
+  const diffKeys = allKeys.filter(e => !keys1.includes(e) || !keys2.includes(e));
+  if (diffKeys.length) return true;
+  const sameKeys = allKeys.filter(e => !diffKeys.includes(e));
+  //const diffKeys=Zotero.Utilities.arrayDiff(keys1, keys2).concat(Zotero.Utilities.arrayDiff(keys2, keys1))
+  for (const key of sameKeys) {
+    if (obj1[key] !== obj2[key]) {
+      diffKeys.push(key);
+    }
+  }
+  if (diffKeys.length) return true;
+  return false;
+}
+
+function arrayRemoveDuplicate(arr: any[]) {
+  const obj = {} as any;
+  const arrNoDuplicate = arr.reduce((total, next) => {
+    if (!obj[next]) {
+      obj[next] = true;
+      total.push(next);
+    }
+    return total;
+  }, []);
+  return arrNoDuplicate;
+
+  /* 对象数组
+  const secretkeysingle = arr.reduce((total, next) => {
+    if (!obj[next.key]) {
+      obj[next.key] = true;
+      total.push(next);
+    }
+    return total;
+  }, [] as SecretKey[]
+  ); */
+}
+
 export function deepEqual(object1: any, object2: any) {
   const keys1 = Object.keys(object1);
   const keys2 = Object.keys(object2);
