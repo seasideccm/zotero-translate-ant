@@ -450,4 +450,25 @@ function skipLangsHideShow() {
 }
 
 
+export async function openAddonPrefPane() {
+  let win;
+  if (addon.data.prefs?.window) {
+    win = addon.data.prefs?.window;
+  }
+  else {
+    //@ts-ignore has
+    win = await Zotero.Utilities.Internal.openPreferences();
+  }
+  if (!win) return;
+  //@ts-ignore has
+  const prefs = win.Zotero_Preferences;//@ts-ignore has
+  const panes = win.Zotero_Preferences.panes;
+  for (const [id, pane] of panes) {
+    if (id.includes(config.addonID)) {
+      prefs._showPane(id);
+    }
+  }
+}
+
+
 

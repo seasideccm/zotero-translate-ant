@@ -3,6 +3,7 @@ import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, test1 } from "../../utils/tools";
 import { compareSQLUpdateDB, getDB } from '../database/database';
+import { openAddonPrefPane } from "../preferenceScript";
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
@@ -31,7 +32,7 @@ const paraArrs = [
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
   ["clearTable", clearTable, [tableNames2]],
-  ["test1", test1, []],
+  ["openAddonPrefPane", openAddonPrefPane, []],
 ];
 
 

@@ -52,7 +52,7 @@ export async function replaceSecretKeysTable() {
         multiSelect: true,
         getRowCount: () => rows.length,
         getRowData: (index: number) => rows[index],
-        getRowString: ((index: number) => rows[index].key || ""),
+        getRowString: handleGetRowString,
         onKeyDown: handleKeyDown,
         onSelectionChange: handleSelectionChange,
         //@ts-ignore has
@@ -74,7 +74,17 @@ export async function replaceSecretKeysTable() {
     // addon.data.prefs.window.addEventListener("blur");
     // ("beforeunload");
 
-
+    function handleGetRowString(index: number) {
+        const rowCellsString = Object.values(rows[index]).filter(e => typeof e === "string") as string[];
+        if (rowCellsString.length === 0) return "";//@ts-ignore has
+        const typingString = tableTreeInstance._typingString as string;
+        const matchCells = rowCellsString.filter((str: string) => str.toLowerCase().includes(typingString));
+        if (matchCells.length > 0) {
+            return matchCells[0];
+        } else {
+            return "";
+        }
+    }
 
 
 
@@ -250,6 +260,8 @@ export async function replaceSecretKeysTable() {
     }
 
     async function handleActivate(event: Event, indices: number[]) {
+        //@ts-ignore has
+        const rrr = tableTreeInstance._renderedRows.get(indices[0]);
         let cellIndex = getcellIndex(event);
         const rowElement = getRowElement(indices[0])[0];
         if (tableTreeInstance.editingRow) {
