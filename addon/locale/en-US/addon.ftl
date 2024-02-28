@@ -134,8 +134,7 @@ info-baiduOcrPositon = The position of the recognized text are in order:
 test = star test
 autoDetect = Auto Detect
 menu-label = TranslateAnt
-
-
+menuAddon-openAddonPrefPane = Setting
 
 
 

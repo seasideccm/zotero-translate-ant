@@ -451,23 +451,33 @@ function skipLangsHideShow() {
 
 
 export async function openAddonPrefPane() {
-  let win;
-  if (addon.data.prefs?.window) {
-    win = addon.data.prefs?.window;
+  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.id?.includes(config.addonID))[0];
+  if (addonPrefPane.id) {
+    Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
   }
-  else {
-    //@ts-ignore has
-    win = await Zotero.Utilities.Internal.openPreferences();
-  }
-  if (!win) return;
-  //@ts-ignore has
-  const prefs = win.Zotero_Preferences;//@ts-ignore has
-  const panes = win.Zotero_Preferences.panes;
-  for (const [id, pane] of panes) {
-    if (id.includes(config.addonID)) {
-      prefs._showPane(id);
+  /* 
+    if (addon.data.prefs?.window) {
+      //@ts-ignore has
+      Zotero.Utilities.Internal.openPreferences();
+  
+  
     }
-  }
+    let win;
+    const time = new Date().getMilliseconds();
+    while (!(win = addon.data.prefs?.window)) {
+      const currentTime = new Date().getMilliseconds();
+      if ((currentTime - time) > 5000) {
+        return;
+      }
+    }
+    //@ts-ignore has
+    const prefs = win.Zotero_Preferences;//@ts-ignore has
+    const panes = win.Zotero_Preferences.panes;
+    for (const [id, pane] of panes) {
+      if (id.includes(config.addonID)) {
+        prefs._showPane(id);
+      }
+    } */
 }
 
 

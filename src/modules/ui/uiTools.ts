@@ -100,14 +100,14 @@ export const makeMenuitem = (
   option: { label: string; func: (...args: any[]) => any | void; args: any[]; },
   menupopup: any,
 ) => {
-  //let label = getString(option.label);
-  //label = label.includes("batchTranslate-") ? option.label : label;
+  let label = getString(option.label);
+  label = label.startsWith(config.addonRef) || label == void 0 || label == "" ? option.label : label;
   const makeMenuitem = ztoolkit.UI.appendElement(
     {
       tag: "menuitem",
       namespace: "xul",
       attributes: {
-        label: option.label,
+        label: label,
       },
     },
     menupopup,

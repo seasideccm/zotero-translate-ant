@@ -32,7 +32,7 @@ const paraArrs = [
   ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
   ["clearTable", clearTable, [tableNames2]],
-  ["openAddonPrefPane", openAddonPrefPane, []],
+  ["menuAddon-openAddonPrefPane", openAddonPrefPane, []],
 ];
 
 
