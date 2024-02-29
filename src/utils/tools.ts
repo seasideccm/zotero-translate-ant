@@ -113,11 +113,7 @@ export function test1() {
   const res2 = differObject(obj1, obj2);
   showInfo("obj1==obj2: " + res);
 }
-/* const obj1: any = { 1: 1, 2: 2, 3: { 4: 5 } };
-const obj2: any = { 1: 1, 2: 2, 3: { 4: 5 } };
 
-console.log("obj1==obj2: ", obj1 == obj2);
-console.log("obj1==obj2: ", differObject(obj1, obj2)); */
 
 //数组不含对象、集合、字典，函数
 /**

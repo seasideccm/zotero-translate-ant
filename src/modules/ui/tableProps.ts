@@ -58,6 +58,8 @@ export async function replaceSecretKeysTable() {
         //@ts-ignore has
         onActivate: handleActivate,
         onItemContextMenu: handleItemContextMenu,
+        onDrop: handleDrop,
+        onDragOver: handleDragOver,
     };
 
     const options: TableFactoryOptions = {
@@ -70,6 +72,76 @@ export async function replaceSecretKeysTable() {
     const tableTreeInstance = tableHelper.treeInstance as VTable;
     tableTreeInstance.rows = rows;
 
+    function handleDragOver(e: DragEvent) {
+        if (!e.dataTransfer) return false;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.contains("application/x-moz-file")) {
+
+            if (!Zotero.isMac) {
+                if (e.shiftKey) {
+                    if (e.ctrlKey) {
+                        e.dataTransfer.dropEffect = "link";
+                    }
+                    else {
+                        e.dataTransfer.dropEffect = "move";
+                    }
+                }
+                else {
+                    e.dataTransfer.dropEffect = "copy";
+                }
+            }
+        }
+        return false;
+    }
+
+    async function handleDrop(e: DragEvent) {
+        if (!e.dataTransfer) return false;
+        /* showInfo("drop haah!");
+        for (const item of e.dataTransfer.items) {
+            if (item.kind === "file" && item.type.startsWith("text/")) {
+                const text = item.getAsString((str: string) => {
+                    showInfo("callback: " + str);
+                });
+                showInfo("drop file content: " + text);
+            }
+            else {
+                showInfo("drop item.kind: " + item.kind);
+                showInfo("drop file type: " + item.type);
+            }
+
+        } */
+
+
+
+
+        const dragData = Zotero.DragDrop.getDataFromDataTransfer(e.dataTransfer);
+        if (!dragData) {
+            Zotero.debug("No drag data");
+            return false;
+        }
+
+        const data = dragData.data;
+        for (let i = 0; i < data.length; i++) {
+            const file = data[i];
+            const extension = Zotero.File.getExtension(file);
+            const text = Zotero.File.getContentsAsync(file);
+            if (typeof text == "string") {
+                showInfo("文件内容:" + text);
+                batchAddAccount(text);
+            } else if (!(text instanceof Uint8Array)) {
+                if (text.then) text.then((str) => {
+                    showInfo("文件内容:" + str);
+                    if (typeof str == "string") batchAddAccount(str);
+                });
+            }
+            showInfo("drop file extension:" + extension);
+        }
+
+
+
+        return false;
+    }
 
     // addon.data.prefs.window.addEventListener("blur");
     // ("beforeunload");
@@ -120,13 +192,13 @@ export async function replaceSecretKeysTable() {
         async function onCollectionsContextMenuOpen(event: Event, x: number, y: number) {
             const contextMenu = buildContextMenu();
             //@ts-ignore has
-            x = x || event.screenX; //@ts-ignore has
-            y = y || event.screenY;
+            x = x || e.screenX; //@ts-ignore has
+            y = y || e.screenY;
             // TEMP: Quick fix for https://forums.zotero.org/discussion/105103/
             if (Zotero.isWin) {
                 x += 10;
             }
-            const anchor = event.target;
+            const anchor = e.target;
             //contextMenu.menupopup.openPopup(anchor, x, y);
             contextMenu.menupopup.openPopup(anchor, 'after_pointer', 0, 0, true, false, event);
             contextMenu.menupopup.moveTo(x, y);
@@ -311,11 +383,11 @@ export async function replaceSecretKeysTable() {
 
     }
 
-    async function editCell(event: Event, indices: number[]) {
+    async function editCell(e: Event, indices: number[]) {
         //处理前一个单元格的编辑状态
         if (tableTreeInstance.editIndex) commitEditingRow();
-        if (!event.target) return true;
-        const div = event.target as HTMLElement;
+        if (!e.target) return true;
+        const div = e.target as HTMLElement;
         const cellIndex = getcellIndex(event);
         if (cellIndex == void 0) return true;
         const cell = div.childNodes[cellIndex];
@@ -659,6 +731,26 @@ export async function replaceSecretKeysTable() {
 
     }
 
+    function batchAddAccount(text: string) {
+        const textArr = text.split(/\r?\n/).filter(e => e);
+        const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
+        const keys = Object.keys(rows[0]);
+        const pasteRows = valuesArr.map((values: string[]) => {
+            const row: any = kvArrsToObject(keys)(values);
+            Object.keys(row).filter((key: string, i: number) => {
+                if ((row[key] as string).includes(EmptyValue)) {
+                    row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+                }
+            });
+            return row;
+        });
+
+        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row)));
+        const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
+        rows.push(...newRows);
+        tableHelper.render();
+    }
+
     function clearEditing() {
         tableTreeInstance.dataChangedCache = null;
         tableTreeInstance.editIndex = null;
@@ -685,18 +777,18 @@ export async function replaceSecretKeysTable() {
 
     // const saveDebounce = Zotero.Utilities.debounce(saveTx, 10000);
 
-    function getcellIndex(event: Event) {
+    function getcellIndex(e: Event) {
         //@ts-ignore has
         //如果代码触发双击，则返回 0
-        const x = event.x;
+        const x = e.x;
         if (!x) return 0;
-        if (!event.target) return 0;
-        const parent = event.target as HTMLElement;
+        if (!e.target) return 0;
+        const parent = e.target as HTMLElement;
         function left(el: HTMLElement) { return el.getBoundingClientRect().x; }
         function right(el: HTMLElement) { return el.getBoundingClientRect().x + el.getBoundingClientRect().width; }
         for (let i = 0; i < parent.childNodes.length; i++) {
             //@ts-ignore has
-            if (event.x >= left(parent.childNodes[i]) && event.x <= right(parent.childNodes[i])) {
+            if (e.x >= left(parent.childNodes[i]) && e.x <= right(parent.childNodes[i])) {
                 return i;
             }
         }
@@ -745,16 +837,13 @@ export async function replaceSecretKeysTable() {
         const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
         const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
         if (!serviceSelected.accounts || !serviceSelected.accounts.length) {
-            // 返回空数据
+            // 返回空数据            
             return rows = [kvArrsToObject(keys)()];
         }
-
+        //const keys = Object.keys(serviceSelected.accounts[0]);// feild much more
         const getRowDataValues = kvArrsToObject(keys);
         rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
             getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
-        //const keys = Object.keys(secretKeys[0]);
-        //const getRowDataValues = kvArrsToObject(keys);
-        //rows = secretKeys.map((e: any) => getRowDataValues(Object.values(e)));
         return rows;
     };
 
@@ -767,7 +856,7 @@ export async function replaceSecretKeysTable() {
         return function (values?: any | any[]) {
             if (!values) values = [];
             if (!Array.isArray(values)) values = [values];
-            return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? values[i] : k + ': ' + EmptyValue));
+            return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
         };
     }
     function resizeColumnWidth(index: number) {
