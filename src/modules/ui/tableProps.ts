@@ -166,6 +166,7 @@ export async function replaceSecretKeysTable() {
             commitEditingRow();
             return true;
         }
+        resizeColumnWidth(0, 200);
     }
 
     function handleItemContextMenu(...args: any[]) {
@@ -333,7 +334,8 @@ export async function replaceSecretKeysTable() {
 
     async function handleActivate(event: Event, indices: number[]) {
         //@ts-ignore has
-        const rrr = tableTreeInstance._renderedRows.get(indices[0]);
+        // const rrr = tableTreeInstance._renderedRows.get(indices[0]);
+        const rrr = tableTreeInstance._jsWindow._renderedRows.get(indices[0]);
         let cellIndex = getcellIndex(event);
         const rowElement = getRowElement(indices[0])[0];
         if (tableTreeInstance.editingRow) {
@@ -373,8 +375,29 @@ export async function replaceSecretKeysTable() {
         inputCell.dir = 'auto';
         batchAddEventListener([inputCell, ['input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
         if (cell.parentElement) cell.parentElement.replaceChild(inputCell, cell);
+        caculateInputWidth(inputCell);
         return inputCell;
+
     }
+
+    function caculateInputWidth(inputCell: HTMLInputElement) {
+        const elem = document.createElement("div");
+        elem.style.position = "absolute";
+        elem.style.top = "-1000px";
+        const elemSpan = document.createElement("span");
+        elem.appendChild(elemSpan);
+        const pp = inputCell.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement;
+        pp?.appendChild(elem);
+        tableTreeInstance.cellCaculateWidth = elem;
+
+
+        elemSpan.textContent = inputCell.value;
+
+        const width1 = elemSpan.scrolltWidth;
+        const width2 = elem.offsetWidth;
+        //return width2;
+    }
+
     function stopEvent(e: Event) { e.stopImmediatePropagation(); };
 
     function getRowElement(index?: number) {
@@ -388,7 +411,7 @@ export async function replaceSecretKeysTable() {
         if (tableTreeInstance.editIndex) commitEditingRow();
         if (!e.target) return true;
         const div = e.target as HTMLElement;
-        const cellIndex = getcellIndex(event);
+        const cellIndex = getcellIndex(e);
         if (cellIndex == void 0) return true;
         const cell = div.childNodes[cellIndex];
         const cellNext = div.childNodes[cellIndex + 1];
@@ -706,7 +729,7 @@ export async function replaceSecretKeysTable() {
                     return row;
                 });
 
-                const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row)));
+                const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row))).filter(e => e);
                 const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
 
 
@@ -745,7 +768,7 @@ export async function replaceSecretKeysTable() {
             return row;
         });
 
-        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row)));
+        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row))).filter(e => e);
         const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
         rows.push(...newRows);
         tableHelper.render();
@@ -859,10 +882,10 @@ export async function replaceSecretKeysTable() {
             return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
         };
     }
-    function resizeColumnWidth(index: number) {
+    function resizeColumnWidth(columIndex: number, extendValue: number) {
         const onResizeData: any = {};
-        const column = getColumn(index);
-        onResizeData[column.dataKey] = column.width + 10;//@ts-ignore has
+        const column = getColumn(columIndex);
+        onResizeData[column.dataKey] = column.width + extendValue;//@ts-ignore has
         tableTreeInstance._columns.onResize(onResizeData);
     }
     function resize() {
@@ -870,6 +893,10 @@ export async function replaceSecretKeysTable() {
         const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
         //@ts-ignore has
         tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
+
+        // const styleIndex = tableTreeInstance._columns._columnStyleMap[dataKey]
+        //@ts-ignore has
+        // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
     }
 
 }
