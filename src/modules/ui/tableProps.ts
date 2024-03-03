@@ -1,13 +1,13 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseFile, chooseFilePath, differObject, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getDom, getElementValue } from "./uiTools";
 import { getDBSync } from "../database/database";
-import { deleteAcount, getSerialNumberSync, getServiceAccount, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
-import { DEFAULT_VALUE, EmptyValue, addonDir } from '../../utils/constant';
+import { deleteAcount, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
+import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -130,11 +130,6 @@ export async function replaceSecretKeysTable() {
         seletedRow.dispatchEvent(dblClickEvent);//发送鼠标双击，模拟激活节点，直接开始编辑
     }
 
-    async function deleteRecord(e: Event) { }
-
-    async function editRecord(e: Event) { }
-
-    async function searchRecord(e: Event) { }
 
     async function addRecordBulk(e: Event) {
         const filePath = await chooseFilePath();
@@ -254,8 +249,6 @@ export async function replaceSecretKeysTable() {
 
 
 
-    // addon.data.prefs.window.addEventListener("blur");
-    // ("beforeunload");
 
     function handleGetRowString(index: number) {
         const rowCellsString = Object.values(rows[index]).filter(e => typeof e === "string") as string[];
@@ -270,7 +263,7 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        if (tableTreeInstance.editIndex != void 0) {
+        /* if (tableTreeInstance.editIndex != void 0) {
             //tableTreeInstance.editingRow.currentCells.push({[cell.classList[1]]: cell.textContent});
             //@ts-ignore has
             const editingRow = tableTreeInstance._jsWindow._renderedRows.get(tableTreeInstance.editIndex);
@@ -279,11 +272,13 @@ export async function replaceSecretKeysTable() {
                 //{[cell.classList[1]]: cell.textContent}
             }
             tableTreeInstance.invalidate();
-            showInfo("当前行发生变化");
+            
             //commitEditingRow();
             return true;
         }
-        resizeColumnWidth(0, 200);
+        resizeColumnWidth(0, 200); */
+        showInfo("当前行发生变化");
+        return true;
     }
 
     function handleItemContextMenu(...args: any[]) {
@@ -345,13 +340,48 @@ export async function replaceSecretKeysTable() {
 
 
     function handleKeyDown(e: KeyboardEvent) {
-        // When pressing delete, delete selected line and refresh table.
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
-        //获取键码        //获取字符编码
-        //getCharCode(e);
+        if (e.key == "Delete" || e.key == "Backspace" || (Zotero.isMac && e.key == "Backspace")) {
+            const confirm = addon.data.prefs!.window.confirm(getString("info-delete-secretKey") + '\n'
+                + getString("info-delete-confirm"));
+            if (!confirm) return true;            //确认删除，点击cancel则取消
+
+            //过滤掉选中行的数据，保留未选中的数据为数组，赋值给rows
+            //@ts-ignore has
+            const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+            const rowsDelete = rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
+            const rowsBackup = [...rows];
+            selectedIndices.sort((a, b) => a - b);
+            selectedIndices.filter((indexValue: number, subIndex: number) => {
+                const deleteIndex = indexValue - subIndex;//避免下标变化而出错
+                rows.splice(deleteIndex, 1);
+            });
+
+            //从services中删除
+            const service = addon.mountPoint.services[serviceID];
+            const appIDsDelete = rowsDelete.map(row => row.appID);
+            const secretkeysDelete = [];
+            for (const row of rowsDelete) {
+                const secretkeyDelete = getSerialNumberSync(serviceID, row.appID);
+                secretkeysDelete.push(secretkeyDelete);
+            }
+            const accountsDelete = service.accounts.filter((account: TranslateServiceAccount) => appIDsDelete.includes(account.appID));
+            if (!accountsDelete || !accountsDelete.length) return false;
+            service.accountsDelete = accountsDelete;
+            const accounts = service?.accounts?.filter((account: TranslateServiceAccount) => !appIDsDelete.includes(account.appID));
+            service.accounts = accounts;
 
 
+            //删除数据库数据
+            //移到回收站？添加删除标志?
+            for (const secretkeyDelete of secretkeysDelete) {
+                deleteAcount(Number(secretkeyDelete));
+            }
+
+            tableTreeInstance.invalidate();
+            return false;
+        }
 
         if (tableTreeInstance.editIndex != void 0) {
             if (e.key == 'Enter' || e.key == 'Escape') {
@@ -367,62 +397,7 @@ export async function replaceSecretKeysTable() {
             } */
             return false;
         }
-        if (e.key == "Delete" || e.key == "Backspace" || (Zotero.isMac && e.key == "Backspace")) {
-            //获取要删除的单行数据，获得秘钥，和services中的秘钥比较,然后删除秘钥
-            const rowsDataDelete = rows.filter(
-                //@ts-ignore has
-                (v: any, i: number) => tableTreeInstance.selection.isSelected(i)
-            );
-            //确认删除，点击cancel则取消
-            const confirm = addon.data.prefs!.window.confirm(getString("info-delete-secretKey") + '\n'
-                + getString("info-delete-confirm"));
-            if (!confirm) return true;
 
-            //过滤掉选中行的数据，保留未选中的数据为数组，赋值给rows
-            //@ts-ignore has
-            const selectedIndices = Array.from(tableTreeInstance.selection.selected);
-            const rowsDelete = rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
-
-            //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-            //rows,tableTreeInstance.rows指向原数组，给rows重新赋值，则rows指向新数组，导致数据不一致
-            //操作数组元素不改变指向
-            const rowsBackup = [...rows];
-            selectedIndices.sort((a, b) => a - b);
-            selectedIndices.filter((indexValue: number, subIndex: number) => {
-                const deleteIndex = indexValue - subIndex;
-                rows.splice(deleteIndex, 1);
-            });
-
-            //rows = rows.filter((v: any, i: number) => !selectedIndices.includes(i)) || [];
-            tableHelper.render();
-
-            //从services中删除
-            const service = addon.mountPoint.services[serviceID];
-
-            const appIDsDelete = rowsDelete.map(row => row.appID);
-            const secretkeysDelete = [];
-            for (const row of rowsDelete) {
-                const secretkeyDelete = getSerialNumberSync(serviceID, row.appID);
-                secretkeysDelete.push(secretkeyDelete);
-            }
-            const accountsDelete = service.accounts.filter((account: TranslateServiceAccount) => appIDsDelete.includes(account.appID));
-            if (!accountsDelete || !accountsDelete.length) return false;
-
-            service.accountsDelete = accountsDelete;
-
-            const accounts = service?.accounts?.filter((account: TranslateServiceAccount) => !appIDsDelete.includes(account.appID));
-            service.accounts = accounts;
-
-
-            //删除数据库数据
-            //移到回收站？添加删除标志?
-            for (const secretkeyDelete of secretkeysDelete) {
-                deleteAcount(Number(secretkeyDelete));
-            }
-
-            tableTreeInstance.invalidate();
-            return false;
-        }
 
         if ((e.ctrlKey || e.metaKey) && e.key == "z") {
             showInfo("恢复");
@@ -452,22 +427,29 @@ export async function replaceSecretKeysTable() {
 
     async function handleActivate(event: Event, indices: number[]) {
         //@ts-ignore has
-        const editingRow = tableTreeInstance._jsWindow._renderedRows.get(indices[0]);
+        const editingRow = tableTreeInstance._jsWindow._renderedRows.get(indices[0]) as HTMLDivElement;
+        editingRow.setAttribute("tabIndex", '-1');
+        editingRow.addEventListener("blur", () => {
+            showInfo("editingRow div 失焦");
+        });
+        editingRow.addEventListener("focus", () => {
+            showInfo("editingRow div 聚焦");
+        });
         const cellIndex = getcellIndex(event);
+        if (cellIndex == void 0) return;
         /* if (tableTreeInstance.editIndex != void 0) {
             showInfo("提交之前的编辑数据");
             //commitEditingRow();
         } */
         //@ts-ignore has
         tableTreeInstance.OriginRow = { ...rows[indices[0]] };
-        const cell = editingRow.children[cellIndex];
+        const cell = editingRow.children[cellIndex] as HTMLSpanElement;
         const inputCell = cellChangeToInput(cell);
         setTimeout(() => {
             inputCell.focus();
             inputCell.select();
         });
         tableTreeInstance.editIndex = indices[0];
-        //editingRow.addEventListener("mousedown", handleKeyDown);
 
 
 
@@ -517,9 +499,22 @@ export async function replaceSecretKeysTable() {
         //const updateRowDebounce = Zotero.Utilities.debounce(valueToRows, 1000);
         inputCell.addEventListener('input', updateWidth);
         //inputCell.addEventListener('input', updateRowDebounce);
-        batchAddEventListener([inputCell, ['keydown', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
+        batchAddEventListener([inputCell, ['keydown', 'keyup', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
+        //当选中的行发生变化，先更新表，所以 input 消失了，也未能触发 blur 事件
         inputCell.addEventListener('blur', blurUpdateRow);
+        inputCell.addEventListener('focus', () => {
+            showInfo("inputCell 聚焦 focus");
+        });
+        inputCell.addEventListener('focusin', () => {
+            showInfo("inputCell 聚焦focusin ");
+        });
 
+        inputCell.addEventListener('blur', () => {
+            showInfo("inputCell 失焦 blur");
+        });
+        inputCell.addEventListener('focusout', () => {
+            showInfo("inputCell 失焦 focusout");
+        });
 
         function valueToRows(e: Event) {
             const currentCell = e.target as HTMLInputElement;
@@ -534,7 +529,10 @@ export async function replaceSecretKeysTable() {
         }
         function blurUpdateRow(e: Event) {
             const value = (e.target as HTMLInputElement).value;
-            if (value == cell.textContent) return;
+            if (value == cell.textContent) {
+                inputCell.remove();
+                return;
+            }
             if (!tableTreeInstance.editIndex) tableTreeInstance.editIndex = Number((e.target as HTMLInputElement).classList[1]);
             valueToRows(e);
             //@ts-ignore has
@@ -606,59 +604,59 @@ export async function replaceSecretKeysTable() {
 
     }
 
-    async function editCell(e: Event, indices: number[]) {
-        //处理前一个单元格的编辑状态
-        if (tableTreeInstance.editIndex) commitEditingRow();
-        if (!e.target) return true;
-        const div = e.target as HTMLElement;
-        const cellIndex = getcellIndex(e);
-        if (cellIndex == void 0) return true;
-        const cell = div.childNodes[cellIndex];
-        const cellNext = div.childNodes[cellIndex + 1];
-        if (!cell) return true;//@ts-ignore has
-        const inputCell = cellChangeToInput(cell);
-
-
-        //@ts-ignore has
-        const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
-        inputCell.style.width = width + "px";
-        inputCell.addEventListener('blur', async (e) => {
-            commitEditingRow();
-            addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
-        });        //@ts-ignore has
-
-        addon.data.prefs?.window.addEventListener("click", blurEditingRow);
-        function blurEditingRow(e: Event) {
-            if (e.target != div) {
-                div.blur();
-                addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
-            }
-        }
-        // Feels like a bit of a hack, but it gets the job done
-        setTimeout(() => {
-            inputCell.focus();
-            inputCell.select();
-        });
-
-        if (tableTreeInstance.editingRow) {
-            commitEditingRow();
-        }
-        tableTreeInstance.editingRow = {
-            oldCells: [],
-            currentCells: []
-        };
-
-        //tableTreeInstance.oldCell = cell;//@ts-ignore has
-        tableTreeInstance.editingRow.oldCells.push(cell);
-        //tableTreeInstance.inputCell = inputCell;//@ts-ignore has
-        tableTreeInstance.editingRow.currentCells.push(inputCell);
-        tableTreeInstance.editIndex = indices[0];
-        div.replaceChild(inputCell, cell);
-        //禁用默认操作
-        return false;
-
-    }
-
+    /*  async function editCell(e: Event, indices: number[]) {
+         //处理前一个单元格的编辑状态
+         if (tableTreeInstance.editIndex) commitEditingRow();
+         if (!e.target) return true;
+         const div = e.target as HTMLElement;
+         const cellIndex = getcellIndex(e);
+         if (cellIndex == void 0) return true;
+         const cell = div.childNodes[cellIndex];
+         const cellNext = div.childNodes[cellIndex + 1];
+         if (!cell) return true;//@ts-ignore has
+         const inputCell = cellChangeToInput(cell);
+ 
+ 
+         //@ts-ignore has
+         const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
+         inputCell.style.width = width + "px";
+         inputCell.addEventListener('blur', async (e) => {
+             commitEditingRow();
+             addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
+         });        //@ts-ignore has
+ 
+         addon.data.prefs?.window.addEventListener("click", blurEditingRow);
+         function blurEditingRow(e: Event) {
+             if (e.target != div) {
+                 div.blur();
+                 addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
+             }
+         }
+         // Feels like a bit of a hack, but it gets the job done
+         setTimeout(() => {
+             inputCell.focus();
+             inputCell.select();
+         });
+ 
+         if (tableTreeInstance.editingRow) {
+             commitEditingRow();
+         }
+         tableTreeInstance.editingRow = {
+             oldCells: [],
+             currentCells: []
+         };
+ 
+         //tableTreeInstance.oldCell = cell;//@ts-ignore has
+         tableTreeInstance.editingRow.oldCells.push(cell);
+         //tableTreeInstance.inputCell = inputCell;//@ts-ignore has
+         tableTreeInstance.editingRow.currentCells.push(inputCell);
+         tableTreeInstance.editIndex = indices[0];
+         div.replaceChild(inputCell, cell);
+         //禁用默认操作
+         return false;
+ 
+     }
+  */
     function getColumn(index: number) {
         //@ts-ignore has
         const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
@@ -711,15 +709,19 @@ export async function replaceSecretKeysTable() {
 
 
 
-    function listentRow() {
-        const index = tableTreeInstance.editIndex;
+    function clickTableOutside() {
         const win = addon.data.prefs?.window;
-        if (index == void 0) return;
-        const rowElement = getRowElement(index)[0];
+
+
+
         function commit(e: Event) {
-            if (e.target != rowElement.parentElement) {
+
+            if (getSelectedRow() && e.target != getSelectedRow()) {
+                const index = tableTreeInstance.selection.focused;
+                if (index == void 0) return;
                 // showInfo("请保存数据");
                 //commitEditingRow();
+                getSelectedRow().blur();
                 if (win) {
                     win.removeEventListener("click", commit);
                     win.removeEventListener("click", stopEvent);
@@ -732,6 +734,12 @@ export async function replaceSecretKeysTable() {
             win.addEventListener("click", stopEvent);
         }
     }
+
+    function getSelectedRow() {
+        //@ts-ignore has
+        return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
+    }
+
     function commitEditingRow() {
         if (!tableTreeInstance.editingRow) return;
         const oldCells = tableTreeInstance.editingRow["oldCells"];
@@ -1171,3 +1179,12 @@ function validateRowData(row: any) {
 
 
 
+
+// addon.data.prefs.window.addEventListener("blur");
+// ("beforeunload");
+
+async function deleteRecord(e: Event) { }
+
+async function editRecord(e: Event) { }
+
+async function searchRecord(e: Event) { }
