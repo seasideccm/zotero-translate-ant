@@ -202,6 +202,7 @@ interface VTable extends React.Component<VirtualizedTableProps, any> {
   rows?: any[];
   editIndex?: number | undefined | null;
   editingRow?: any;
+  invalidateRow: (row: number) => void;
 }
 
 declare type columnsProp = {

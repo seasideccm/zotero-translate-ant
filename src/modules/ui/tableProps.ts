@@ -484,15 +484,17 @@ export async function replaceSecretKeysTable() {
     };
 
     function cellChangeToInput(cell: HTMLElement) {
-        const match = cell.parentElement?.id.match(/row-\d+$/);
+        //const match = cell.parentElement?.id.match(/row-\d+$/);
         const inputCell = document.createElement('input');
         inputCell.placeholder = cell.textContent || "";
-
         inputCell.value = cell.textContent ? cell.textContent : "";
+        //将行号作为class，作为编辑行的标志（blur时行号可能已经改变）
+        const selectedRow = Array.from(tableTreeInstance.selection.selected)[0];
         inputCell.className = cell.classList[1];
-        if (match) {
-            inputCell.classList.add(match[0]);
-        }
+        inputCell.classList.add(String(selectedRow));
+        /*   if (match) {
+              inputCell.classList.add(match[0]);
+          } */
         inputCell.dir = 'auto';
         const cellBackgroundColor = window.getComputedStyle(cell).getPropertyValue('backgroundColor');
         //cell.textContent = '';
@@ -511,35 +513,40 @@ export async function replaceSecretKeysTable() {
         Object.assign(inputCell.style, styleInput);
         cell.parentElement!.appendChild(inputCell);
 
-        const updateRowDebounce = Zotero.Utilities.debounce(updateRow, 1000);
+
+        //const updateRowDebounce = Zotero.Utilities.debounce(valueToRows, 1000);
         inputCell.addEventListener('input', updateWidth);
-        inputCell.addEventListener('input', updateRowDebounce);
+        //inputCell.addEventListener('input', updateRowDebounce);
         batchAddEventListener([inputCell, ['keydown', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
         inputCell.addEventListener('blur', blurUpdateRow);
-        const doResizeInput = resizeInput(inputCell);
-        return inputCell;
-        function updateRow(e: Event) {
+
+
+        function valueToRows(e: Event) {
             const currentCell = e.target as HTMLInputElement;
             if (!currentCell || !currentCell.value) return;
             const key = currentCell.classList[0];
-            const index = tableTreeInstance.editIndex;
-            if (index == void 0) return;
-            if (rows[index][key]) {
-                dataChanged(index, key, currentCell.value);
-                //rows[index][key] = currentCell.value;
-            }
+            if (currentCell.classList[1] == void 0) return;
+            const index = Number(currentCell.classList[1]);
+            if (!rows[index] || !rows[index][key]) return;
+            dataChanged(index, key, currentCell.value);
+            //rows[index][key] = currentCell.value;   
+            if (!tableTreeInstance.editIndex) tableTreeInstance.editIndex = index;
         }
         function blurUpdateRow(e: Event) {
-            updateRow(e);
-            if (tableTreeInstance.editIndex) {                //@ts-ignore has
-                tableTreeInstance.invalidateRow(tableTreeInstance.editIndex);
-                inputCell.remove();
-            }
-        }
+            const value = (e.target as HTMLInputElement).value;
+            if (value == cell.textContent) return;
+            if (!tableTreeInstance.editIndex) tableTreeInstance.editIndex = Number((e.target as HTMLInputElement).classList[1]);
+            valueToRows(e);
+            //@ts-ignore has
+            tableTreeInstance.invalidateRow(tableTreeInstance.editIndex);
+            inputCell.remove();
 
+        }
+        const doResizeInput = resizeInput(inputCell);
         function updateWidth(e: Event) {
             doResizeInput(inputCell);
         }
+        return inputCell;
     }
 
 
@@ -695,12 +702,11 @@ export async function replaceSecretKeysTable() {
         if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
         //todo 删除行也要处理缓存的修改数据
         if (!tableTreeInstance.dataChangedCache[index]) tableTreeInstance.dataChangedCache[index] = {};
-        const rowDataCache = tableTreeInstance.dataChangedCache[index];
-        rowDataCache[key] = rows[index][key];
+        tableTreeInstance.dataChangedCache[index][key] = rows[index][key];
         //修改表格单元格数据
         rows[index][key] = inputCell.value;
-        oldCell!.textContent = inputCell.value;
-        inputCell.parentNode?.replaceChild(oldCell, inputCell);
+        /*         oldCell!.textContent = inputCell.value;
+                inputCell.parentNode?.replaceChild(oldCell, inputCell); */
     };
 
 
@@ -775,28 +781,20 @@ export async function replaceSecretKeysTable() {
     tableTreeInstance.commitEditingRow = commitEditingRow;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
     function stopRowEditing() {
-        //注意0
-        if (tableTreeInstance.editIndex == void 0) {
-            tableTreeInstance.dataChangedCache = null;
-            tableTreeInstance.editingRow = null;
-            return;
-        }
         const dataChangedCache = tableTreeInstance.dataChangedCache;
-        tableTreeInstance.editIndex = null;
         if (!dataChangedCache) {
-            tableTreeInstance.dataChangedCache = null;
-            tableTreeInstance.editingRow = null;
+            clearEditing();
             return;
         }
         const indices = Object.keys(dataChangedCache);
-
         for (const index of indices) {
             if (index == void 0) return;
             const changedKeys = Object.keys(dataChangedCache[index]);
             const rowData = rows[Number(index)];
             const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
-            //false==0结果为true
-            if (typeof serialNumber != "boolean" && serialNumber != void 0) {
+            //比较false==0的结果为true
+            //if (typeof serialNumber != "boolean" && serialNumber != void 0) {
+            if (serialNumber >= 0) {
                 //更新账号
                 const serviceAccount = getServiceAccountSync(serviceID, serialNumber);
                 if (!serviceAccount) continue;
