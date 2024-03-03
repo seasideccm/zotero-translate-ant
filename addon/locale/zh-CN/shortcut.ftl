@@ -1,0 +1,1 @@
+pref-shortcut = 设置任意快捷键

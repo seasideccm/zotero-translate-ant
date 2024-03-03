@@ -1,6 +1,53 @@
 import { KeyModifier } from "zotero-plugin-toolkit/dist/managers/keyboard";
 import { showInfo } from "./tools";
 import { 百度翻译, 腾讯翻译 } from "../modules/ui/testOpen";
+import { getString } from "./locale";
+import { config } from "../../package.json";
+import { openAddonPrefPane } from "../modules/preferenceScript";
+import { getElementValue } from "../modules/ui/uiTools";
+
+
+
+export function registerPrefsShortcut() {
+  ztoolkit.PreferencePane.register({
+    pluginID: config.addonID,
+    src: rootURI + "chrome/content/shortcut.xhtml",
+    label: getString("info-shortcut"),
+    defaultXUL: true,
+  });
+}
+
+export function onShortcutPan() {
+  const doc = addon.data.prefs?.window?.document;
+  if (!doc) {
+    return;
+  }
+  const win = addon.data.prefs!.window;
+  win.addEventListener("keydown", (e) => {
+    //失败监测不到
+    showInfo("keydown");
+  });
+  win.addEventListener("keyup", (e) => {
+    //失败监测不到
+    showInfo("keyup");
+  });
+
+  const ele = doc.querySelector("#input-shortcut");
+  ele?.addEventListener('blur', () => {
+    if (ele.value && ele.value != '') {
+      const shortcutStr = ele.value.split('').join(" ");
+      customShortcut(shortcutStr, "setting");
+    }
+  });
+
+
+
+}
+
+
+
+
+
 
 export function registerShortcutsCache() {
   type KeyboardEventType = "keydown" | "keyup";
@@ -24,16 +71,18 @@ export function registerShortcutsCache() {
     );
     const shortcutStr = cachedShortcuts.join(" ");
     dispatchDebounced(shortcutStr);
-    logDebounced(shortcutStr, 2000);
+    logDebounced(shortcutStr);
   }
-
+  registerFn();
+  setShortcut();
   ztoolkit.Keyboard.register(cacheShortcuts);
+
 }
 const dispatchDebounced = Zotero.Utilities.debounce(dispatchShortcuts, 1000);
 function dispatchShortcuts(shortcutStr: string) {
   const cachedShortcuts = addon.mountPoint.cachedShortcuts;
   // 清空快捷键缓存
-  cachedShortcuts ? (cachedShortcuts.length = 0) : () => {};
+  cachedShortcuts ? (cachedShortcuts.length = 0) : () => { };
   //获取 Map 对象中键的值（函数），然后直接运行
 
   //
@@ -55,11 +104,27 @@ function dispatchShortcuts(shortcutStr: string) {
 }
 
 export function setShortcut() {
-  customShortcut("b d f y", 百度翻译);
-  customShortcut("t x f y", 腾讯翻译);
-  customShortcut("ctrl+t x f y", "txfy");
-  customShortcut("b d", "increaseFontSize");
-  customShortcut("b x", "decreaseFontSize");
+
+  const argsArr = [
+    ["b d f y", 百度翻译],
+    ["t x f y", 腾讯翻译],
+    ["ctrl+t x f y", "txfy"],
+    ["b d", "increaseFontSize"],
+    ["b x", "decreaseFontSize"],
+    ["a s", "setting"],
+
+  ];
+
+  argsArr.forEach((args: any[]) => {
+    customShortcut(args[0], args[1]);
+  });
+
+
+  /*   customShortcut("b d f y", 百度翻译);
+    customShortcut("t x f y", 腾讯翻译);
+    customShortcut("ctrl+t x f y", "txfy");
+    customShortcut("b d", "increaseFontSize");
+    customShortcut("b x", "decreaseFontSize"); */
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -112,4 +177,7 @@ export function registerFn() {
   addon.mountPoint.fn = { txfy: 腾讯翻译 };
   addon.mountPoint.fn.increaseFontSize = increaseFontSize;
   addon.mountPoint.fn.decreaseFontSize = decreaseFontSize;
+  addon.mountPoint.fn.setting = openAddonPrefPane;
 }
+
+

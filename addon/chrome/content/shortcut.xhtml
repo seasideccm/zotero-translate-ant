@@ -1,0 +1,22 @@
+<linkset>
+  <html:link rel="localization" href="__addonRef__-shortcut.ftl" />
+</linkset>
+<vbox
+  id="zotero-prefpane-__addonRef__-shortcut"
+  onload="Zotero.__addonInstance__.hooks.onPrefsEvent('shortcut',
+  {str:'请设置快捷键'})"
+>
+  <label data-l10n-id="pref-shortcut"></label>
+</vbox>
+<vbox>
+  <hbox>
+    <html:span id="input-function">setting:</html:span>
+    <html:input
+      size="10"
+      value=""
+      type="text"
+      style="text-transform: uppercase"
+      id="input-shortcut"
+    ></html:input>
+  </hbox>
+</vbox>

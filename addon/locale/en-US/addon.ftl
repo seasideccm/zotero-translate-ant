@@ -135,9 +135,4 @@ test = star test
 autoDetect = Auto Detect
 menu-label = TranslateAnt
 menuAddon-openAddonPrefPane = Setting
-
-
-
-
-
-
+info-shortcut = shortcut

@@ -3,17 +3,17 @@ import { TranslateServices } from "./modules/database/dataObjects";
 import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
-import { registerPrefsScripts } from "./modules/preferenceScript";
+import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { initTranslateServices } from "./modules/translate/translateServices";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
 import {
-  registerFn,
+  onShortcutPan,
+  registerPrefsShortcut,
   registerShortcutsCache,
-  setShortcut,
 } from "./utils/shortcut";
-import { getPopupWin } from "./utils/tools";
+import { getPopupWin, showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 
 async function onStartup() {
@@ -29,19 +29,10 @@ async function onStartup() {
   } */
   initLocale();
   registerNotifier();
-
-  ztoolkit.PreferencePane.register({
-    pluginID: config.addonID,
-    src: rootURI + "chrome/content/preferences.xhtml",
-    label: getString("prefs-title"),
-    image: `chrome://${config.addonRef}/content/icons/favicon.png`,
-    defaultXUL: true,
-  });
-
-  //registerShortcuts();
-  registerShortcutsCache();
-
-  //registerPrefs();
+  //registerShortcuts();  
+  registerPrefs();
+  //失败
+  registerPrefsShortcut();
   await onMainWindowLoad(window);
 }
 
@@ -51,10 +42,9 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountMenu();
   window.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
-  setShortcut();
   const popupWin = getPopupWin();
   addon.mountPoint['TranslateServices'] = TranslateServices;
-  registerFn();
+  registerShortcutsCache();
   popupWin
     .createLine({
       text: getString("startup-begin"),
@@ -98,6 +88,10 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
       await registerPrefsScripts(data.window);
+      break;
+    case "shortcut":
+      onShortcutPan();
+      showInfo(data.str);
       break;
     default:
       return;
