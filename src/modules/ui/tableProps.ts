@@ -30,7 +30,8 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
 }
 
 export async function replaceSecretKeysTable() {
-    if (addon.data.prefs?.window == undefined) return;
+    const win = addon.data.prefs?.window;
+    if (!win) return;
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
 
@@ -91,7 +92,11 @@ export async function replaceSecretKeysTable() {
 
     const tableHelper = await tableFactory(options);
     const tableTreeInstance = tableHelper.treeInstance as VTable;
-    tableTreeInstance.invalidateRow(rows.length - 1);
+    //tableTreeInstance.invalidateRow(rows.length - 1);
+    //@ts-ignore has
+    tableTreeInstance.scrollToRow(rows.length - 1);
+    //win.resizeBy(200, 200);
+    //win.resizeBy(-200, -200);
     tableTreeInstance.rows = rows;
     function handleFocus(e: any) {        //@ts-ignore has
         if (tableTreeInstance && tableTreeInstance.prevFocusCell) {//@ts-ignore has
@@ -372,8 +377,10 @@ export async function replaceSecretKeysTable() {
         const inputCell = cellChangeToInput(cell);
         setTimeout(() => {
             inputCell.focus();
+            inputCell.select();
         });
         tableTreeInstance.editIndex = indices[0];
+        //editingRow.addEventListener("mousedown", handleKeyDown);
 
 
 
@@ -393,8 +400,6 @@ export async function replaceSecretKeysTable() {
         const match = cell.parentElement?.id.match(/row-\d+$/);
         const inputCell = document.createElement('input');
         inputCell.placeholder = cell.textContent || "";
-
-
 
         inputCell.value = cell.textContent ? cell.textContent : "";
         inputCell.className = cell.classList[1];
@@ -432,7 +437,10 @@ export async function replaceSecretKeysTable() {
             const key = currentCell.classList[0];
             const index = tableTreeInstance.editIndex;
             if (index == void 0) return;
-            if (rows[index][key]) rows[index][key] = currentCell.value;
+            if (rows[index][key]) {
+                dataChanged(index, key, currentCell.value);
+                //rows[index][key] = currentCell.value;
+            }
         }
         function blurUpdateRow(e: Event) {
             updateRow(e);
@@ -445,6 +453,17 @@ export async function replaceSecretKeysTable() {
         function updateWidth(e: Event) {
             doResizeInput(inputCell);
         }
+    }
+
+
+    function dataChanged(index: number, key: string, value: any) {
+        if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
+        //todo 删除行也要处理缓存的修改数据
+        if (!tableTreeInstance.dataChangedCache[index]) tableTreeInstance.dataChangedCache[index] = {};
+        const rowDataCache = tableTreeInstance.dataChangedCache[index];
+        rowDataCache[key] = rows[index][key];
+        //修改表格单元格数据
+        rows[index][key] = value;
     }
 
     function resizeInput(inputCell: HTMLInputElement) {
