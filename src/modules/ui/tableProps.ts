@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, differObject, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseFile, chooseFilePath, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -101,6 +101,7 @@ export async function replaceSecretKeysTable() {
 
     //绑定事件，增删改查
     getDom("addRecord")!.addEventListener("command", addRecord);
+    getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
 
     async function addRecord(e: Event) {
         // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
@@ -134,6 +135,22 @@ export async function replaceSecretKeysTable() {
     async function editRecord(e: Event) { }
 
     async function searchRecord(e: Event) { }
+
+    async function addRecordBulk(e: Event) {
+        const filePath = await chooseFilePath();
+        const extension = Zotero.File.getExtension(filePath);
+        let text = '';
+        const result = Zotero.File.getContentsAsync(filePath);
+        if (typeof result == "string") {
+            text += result;
+        } else if (!(result instanceof Uint8Array)) {
+            text += await result;
+
+        };
+        //showInfo([text, extension]);
+        batchAddAccount(text);
+        tableHelper.render();
+    }
     /**
      * 获取引擎账号或空数据
      * @param serviceID 
@@ -231,8 +248,11 @@ export async function replaceSecretKeysTable() {
             tableHelper.render();
             return false;
         });
-
+        return false;
     }
+
+
+
 
     // addon.data.prefs.window.addEventListener("blur");
     // ("beforeunload");

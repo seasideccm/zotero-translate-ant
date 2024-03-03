@@ -691,3 +691,30 @@ export function batchAddEventListener2(optins: {
     }
   }
 }
+
+
+export async function chooseFilePath(defaultPath?: string) {
+  const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+  const fp = new FilePicker();
+  fp.init(window, Zotero.getString("fileInterface.import"), fp.modeOpen);
+  fp.appendFilters(fp.filterAll);
+  defaultPath = defaultPath || getDefaultPath();
+  fp.displayDirectory = defaultPath;
+
+
+  const rv = await fp.show();
+  if (rv !== fp.returnOK && rv !== fp.returnReplace) {
+    return;
+  }
+
+  Zotero.debug(`File is ${fp.file}`);
+  return fp.file;
+
+  function getDefaultPath() {
+    if (Zotero.isWin) {
+      return "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+    } else {
+      return "";
+    }
+  }
+}
