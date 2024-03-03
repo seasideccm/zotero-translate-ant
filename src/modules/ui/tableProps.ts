@@ -263,21 +263,26 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        /* if (tableTreeInstance.editIndex != void 0) {
+        //input 失焦不能触发是因为 行选择变化后表格立即刷新，重新渲染，input 丢失
+
+        if (tableTreeInstance.editIndex != void 0 && selection.focused != tableTreeInstance.editIndex) {
+
+            //getRowElement(tableTreeInstance.editIndex).blur();
             //tableTreeInstance.editingRow.currentCells.push({[cell.classList[1]]: cell.textContent});
             //@ts-ignore has
-            const editingRow = tableTreeInstance._jsWindow._renderedRows.get(tableTreeInstance.editIndex);
+            /* const editingRow = tableTreeInstance._jsWindow._renderedRows.get(tableTreeInstance.editIndex);
             for (const cell of editingRow.children) {
                 rows[tableTreeInstance.editIndex!][cell.classList[1]] = cell.textContent;
                 //{[cell.classList[1]]: cell.textContent}
             }
-            tableTreeInstance.invalidate();
-            
+            tableTreeInstance.invalidate(); */
+
             //commitEditingRow();
             return true;
         }
-        resizeColumnWidth(0, 200); */
-        showInfo("当前行发生变化");
+        //resizeColumnWidth(0, 200);
+        //getSelectedRow().blur();
+        //showInfo("当前行发生变化");
         return true;
     }
 
@@ -428,19 +433,9 @@ export async function replaceSecretKeysTable() {
     async function handleActivate(event: Event, indices: number[]) {
         //@ts-ignore has
         const editingRow = tableTreeInstance._jsWindow._renderedRows.get(indices[0]) as HTMLDivElement;
-        editingRow.setAttribute("tabIndex", '-1');
-        editingRow.addEventListener("blur", () => {
-            showInfo("editingRow div 失焦");
-        });
-        editingRow.addEventListener("focus", () => {
-            showInfo("editingRow div 聚焦");
-        });
         const cellIndex = getcellIndex(event);
         if (cellIndex == void 0) return;
-        /* if (tableTreeInstance.editIndex != void 0) {
-            showInfo("提交之前的编辑数据");
-            //commitEditingRow();
-        } */
+
         //@ts-ignore has
         tableTreeInstance.OriginRow = { ...rows[indices[0]] };
         const cell = editingRow.children[cellIndex] as HTMLSpanElement;
@@ -599,9 +594,8 @@ export async function replaceSecretKeysTable() {
 
 
     function getRowElement(index?: number) {
-        if (!index) index = Array.from(tableTreeInstance.selection.selected)[0];//@ts-ignore has
-        return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
-
+        if (!index) index = tableTreeInstance.selection.focused;//@ts-ignore has
+        return tableTreeInstance._jsWindow.getElementByIndex(index);
     }
 
     /*  async function editCell(e: Event, indices: number[]) {
@@ -748,7 +742,7 @@ export async function replaceSecretKeysTable() {
         const keys = Object.keys(rows[0]);
         const changeCellIndices = [];
         if (tableTreeInstance.editIndex != void 0) {
-            const rowElement = getRowElement(tableTreeInstance.editIndex)[0];
+            const rowElement = getRowElement(tableTreeInstance.editIndex);
             if (rowElement.children[0].tagName == "span") {
                 clearEditing();
                 return;
