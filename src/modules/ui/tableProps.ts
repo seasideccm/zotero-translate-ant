@@ -4,7 +4,7 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
-import { getElementValue } from "./uiTools";
+import { getDom, getElementValue } from "./uiTools";
 import { getDBSync } from "../database/database";
 import { deleteAcount, getSerialNumberSync, getServiceAccount, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, addonDir } from '../../utils/constant';
@@ -98,6 +98,69 @@ export async function replaceSecretKeysTable() {
     //win.resizeBy(200, 200);
     //win.resizeBy(-200, -200);
     tableTreeInstance.rows = rows;
+
+    //绑定事件，增删改查
+    getDom("addRecord")!.addEventListener("command", addRecord);
+
+    async function addRecord(e: Event) {
+        // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+        if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
+            tableTreeInstance.commitEditingRow();
+        }
+        const rows = tableTreeInstance.rows || [];
+        const emptyrows = await secretKeysTableRowsData(serviceID, true) || [];
+        if (emptyrows.length == 0) {
+            const keys = Object.keys(rows[0]);
+            const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
+            emptyrows.push(row);
+        }
+        rows.push(emptyrows[0]);
+        tableTreeInstance.render();
+        tableTreeInstance.selection.select(rows.length - 1);//@ts-ignore has        
+        const seletedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
+        if (!seletedRow) {
+            showInfo("No seletedRow");
+            return;
+        }
+        const dblClickEvent = new window.MouseEvent('dblclick', {
+            bubbles: true,
+            cancelable: true,
+        });
+        seletedRow.dispatchEvent(dblClickEvent);//发送鼠标双击，模拟激活节点，直接开始编辑
+    }
+
+    async function deleteRecord(e: Event) { }
+
+    async function editRecord(e: Event) { }
+
+    async function searchRecord(e: Event) { }
+    /**
+     * 获取引擎账号或空数据
+     * @param serviceID 
+     * @param getEmptyData 
+     * @returns 
+     */
+    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID: T, getEmptyData: boolean = false) {
+        let services = await getServices();
+        let serviceSelected = services[serviceID];
+        if (!serviceSelected || !serviceSelected.accounts) {
+            services = await getServicesFromDB();
+            serviceSelected = services[serviceID];
+            if (!serviceSelected) return;
+        }
+        let rows: any[];
+        if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
+        const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
+        const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
+        if (!serviceSelected.accounts || !serviceSelected.accounts.length || getEmptyData) {
+            return rows = [kvArrsToObject(keys)()];  // 返回空数据   
+        }
+        //const keys = Object.keys(serviceSelected.accounts[0]);// feild much more
+        const getRowDataValues = kvArrsToObject(keys);
+        rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
+            getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
+        return rows;
+    };
     function handleFocus(e: any) {        //@ts-ignore has
         if (tableTreeInstance && tableTreeInstance.prevFocusCell) {//@ts-ignore has
             tableTreeInstance.prevFocusCell.focus();
@@ -143,27 +206,32 @@ export async function replaceSecretKeysTable() {
             Zotero.debug("No drag data");
             return false;
         }
-
         const data = dragData.data;
+        let text: string = '';
+        const allPromise = [];
         for (let i = 0; i < data.length; i++) {
             const file = data[i];
             const extension = Zotero.File.getExtension(file);
-            const text = Zotero.File.getContentsAsync(file);
-            if (typeof text == "string") {
-                showInfo("文件内容:" + text);
-                batchAddAccount(text);
-            } else if (!(text instanceof Uint8Array)) {
-                if (text.then) text.then((str) => {
-                    showInfo("文件内容:" + str);
-                    if (typeof str == "string") batchAddAccount(str);
+            const result = Zotero.File.getContentsAsync(file);
+            if (typeof result == "string") {
+                text += result;
+            } else if (!(result instanceof Uint8Array)) {
+                const readerLock = Zotero.Promise.defer();
+                allPromise.push(readerLock);
+                result.then(str => {
+                    if (typeof str == "string") text += str;
+                    readerLock.resolve();
                 });
-            }
+
+            };
             showInfo("drop file extension:" + extension);
-        }
+        }        //@ts-ignore has
+        Zotero.Promise.all(allPromise).then(() => {
+            batchAddAccount(text);
+            tableHelper.render();
+            return false;
+        });
 
-
-
-        return false;
     }
 
     // addon.data.prefs.window.addEventListener("blur");
@@ -343,7 +411,6 @@ export async function replaceSecretKeysTable() {
 
         if ((e.ctrlKey || e.metaKey) && e.key == "v") {
             pasteAccount();
-            showInfo("粘贴，添加秘钥");
             return false;
         }
 
@@ -684,11 +751,6 @@ export async function replaceSecretKeysTable() {
 
         stopRowEditing();
     }
-
-
-
-
-
     //@ts-ignore has
     tableTreeInstance.commitEditingRow = commitEditingRow;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
@@ -817,14 +879,15 @@ export async function replaceSecretKeysTable() {
 
     }
 
-    function pasteAccount() {
 
+    function pasteAccount() {
         window.navigator.clipboard
             .readText()
             .then((v) => {
                 const text: string = v;
-                const textArr = text.split(/\r?\n/).filter(e => e);
-                const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
+                batchAddAccount(text);
+                /* const textArr = text.split(/\r?\n/).filter(e => e);
+                const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
                 const keys = Object.keys(rows[0]);
                 const pasteRows = valuesArr.map((values: string[]) => {
                     const row: any = kvArrsToObject(keys)(values);
@@ -835,35 +898,21 @@ export async function replaceSecretKeysTable() {
                     });
                     return row;
                 });
-
-                const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row))).filter(e => e);
-                const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
-
-
-                /* const values = text.split(/[#\s,;@]/).filter(e => e)
-                const row: any = kvArrsToObject(keys)(values);
-                Object.keys(row).filter((key: string, i: number) => {
-                    if ((row[key] as string).includes(EmptyValue)) {
-                        row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-                    }
-                }); */
-
-
-                rows.push(...newRows);
+                const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
+                if (newRows && pasteRows && newRows.length != pasteRows.length) {
+                    ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
+                }
+                rows.push(...newRows); */
                 tableHelper.render();
             })
             .catch((v) => {
-                console.log("获取剪贴板失败: ", v);
+                ztoolkit.log("Failed To Read Clipboard: ", v);
             });
-
-
-        // const text = '20201001000577901#jQMdyV80ouaYBnjHXNKs';
-
     }
 
     function batchAddAccount(text: string) {
         const textArr = text.split(/\r?\n/).filter(e => e);
-        const valuesArr = textArr.map((str: string) => str.split(/[#\s,;@]/).filter(e => e));
+        const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
         const keys = Object.keys(rows[0]);
         const pasteRows = valuesArr.map((values: string[]) => {
             const row: any = kvArrsToObject(keys)(values);
@@ -874,11 +923,13 @@ export async function replaceSecretKeysTable() {
             });
             return row;
         });
-
-        const sameRows = pasteRows.map((pasteRow: any) => rows.find((row: any) => !differObject(pasteRow, row))).filter(e => e);
-        const newRows = pasteRows.filter((pasteRow: any) => sameRows.some((row: any) => differObject(pasteRow, row)));
+        const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
+        if (newRows && pasteRows && newRows.length != pasteRows.length) {
+            ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
+        }
         rows.push(...newRows);
-        tableHelper.render();
+
+
     }
 
     function clearEditing() {
@@ -962,28 +1013,7 @@ export async function replaceSecretKeysTable() {
     };
 
 
-    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID: T) {
-        let services = await getServices();
-        let serviceSelected = services[serviceID];
-        if (!serviceSelected || !serviceSelected.accounts || !serviceSelected.accounts.length) {
-            services = await getServicesFromDB();
-            serviceSelected = services[serviceID];
-        }
-        let rows: any[];
-        if (!serviceSelected) return;
-        if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
-        const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
-        const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
-        if (!serviceSelected.accounts || !serviceSelected.accounts.length) {
-            // 返回空数据            
-            return rows = [kvArrsToObject(keys)()];
-        }
-        //const keys = Object.keys(serviceSelected.accounts[0]);// feild much more
-        const getRowDataValues = kvArrsToObject(keys);
-        rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
-            getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
-        return rows;
-    };
+
 
     /**
      * Auto fill with " key + ': '+ EmptyValue " when no values
@@ -1022,6 +1052,9 @@ export async function replaceSecretKeysTable() {
         //@ts-ignore has
         // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
     }
+
+
+
 
 }
 

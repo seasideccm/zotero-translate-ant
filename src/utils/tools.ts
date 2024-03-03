@@ -39,14 +39,13 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
-//对象比较
+
 /**
  * 对象属性不同返回 true，
  * @param obj1 
  * @param obj2 
  * @returns 
  */
-
 export function differObject(obj1: any, obj2: any) {
   const cache1 = new WeakMap();
   const cache2 = new WeakMap();
@@ -98,7 +97,8 @@ export function differObject(obj1: any, obj2: any) {
     }
     return false;
   }
-  return _differObject(obj1, obj2);
+  const result = _differObject(obj1, obj2);
+  return result;
 }
 function compareType(a: any, b: any) {
   return Object.prototype.toString.call(a) === Object.prototype.toString.call(b);

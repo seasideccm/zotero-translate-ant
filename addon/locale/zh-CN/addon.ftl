@@ -83,7 +83,7 @@ pref-limitMode-total = 总额度
 pref-limitMode-noLimit = 不限额度
 pref-limitMode-pay = 付费
 info-please-verifyModify = 修改秘钥请点击 ok，只查看请点击 cancle
-pref-addSecretKey = 秘钥已保存
+pref-addRecord = 记录已保存
 info-failure = 无可用翻译引擎，终止翻译
 pref-switchService = 翻译引擎已切换为：
 info-addonName=fullTextTranslate 翻山蚁
@@ -133,3 +133,5 @@ autoDetect = 自动识别
 menu-label = 翻山蚁
 menuAddon-openAddonPrefPane = 设置
 info-shortcut = 快捷键
+info-filtered = 条重复记录已过滤
+

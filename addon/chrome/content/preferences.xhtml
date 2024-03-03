@@ -258,20 +258,32 @@
     <spacer width="20px" height="20px" />
     <hbox>
       <button
-        id="__addonRef__-addSecretKey"
-        data-l10n-id="pref-addSecretKey"
+        id="__addonRef__-addRecord"
+        data-l10n-id="pref-addRecord"
+        tooltip="addRecordtip"
       ></button>
+      <tooltip id="addRecordtip" orient="vertical">
+        <label data-l10n-id="pref-secretKey-help" />
+        <label data-l10n-id="pref-secretKey-help1" />
+        <label data-l10n-id="pref-secretKey-help2" />
+      </tooltip>
       <button
-        id="__addonRef__-addSecretKeyBulk"
-        data-l10n-id="pref-addSecretKeyBulk"
+        id="__addonRef__-addRecordBulk"
+        data-l10n-id="pref-addRecordBulk"
+        tooltip="addRecordBulktip"
       ></button>
+      <tooltip id="addRecordBulktip" orient="vertical">
+        <label data-l10n-id="pref-importSecretKeysFromFile" />
+        <label data-l10n-id="pref-importSecretKeysFromClipboard" />
+        <label data-l10n-id="pref-addRecordBulkTooltip" />
+        <label value="e.g.:" />
+        <label value="200000000000#jjjjjjjjjj;1,10" />
+        <label value="200000000000#jjjjjjjjjj;1,10" />
+      </tooltip>
     </hbox>
   </vbox>
   <!-- 秘钥表格 -->
   <html:div id="__addonRef__-table-container" />
-
-  <spacer width="20px" height="20px" />
-  <description data-l10n-id="pref-secretKey-help" />
 </vbox>
 
 <!--看图-->

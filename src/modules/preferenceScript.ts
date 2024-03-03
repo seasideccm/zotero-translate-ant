@@ -308,7 +308,7 @@ function bindPrefEvents() {
     attributeFilter: ["value"],
   });
 
-  getDom("addSecretKey")!.addEventListener("command", (e) => {
+  /* getDom("addRecord")!.addEventListener("command", (e) => {
     const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
     if (table.treeInstance.editIndex != void 0) {
       table.treeInstance.commitEditingRow();
@@ -330,7 +330,7 @@ function bindPrefEvents() {
       cancelable: true,
     });
     seletedRow.dispatchEvent(dblClickEvent);
-  });
+  }); */
 
 }
 
