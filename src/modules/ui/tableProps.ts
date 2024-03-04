@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, deepClone, differObject, objOrder, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -86,6 +86,128 @@ export async function replaceSecretKeysTable() {
     });
     win.addEventListener("click", clickTableOutsideCommit);
 
+    //切换选项标签
+    adjustWidth();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    function adjustWidth() {
+        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
+        const onResizeData: any = {};
+        const totalWidth = tableTreeInstance._topDiv?.clientWidth;
+        if (!totalWidth) return;
+        const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
+        const longestCells = strMax(colums);
+        const keys = visibleKeys || Object.keys(rows[0]);
+        const widthCells = [];
+        const keyWidth: any[] = [];
+        for (let i = 0; i < keys.length; i++) {
+            const cellText = longestCells[i];
+            const key = keys[i];
+            const width = caculateCellWidth(key, cellText, i);
+            widthCells.push(width);
+            keyWidth.push({ [key]: width || 0 });
+        }
+
+
+
+        const sum = widthCells.filter(e => e).reduce((prev, curr) => {
+            return (prev || 0) + (curr || 0);
+        });
+        if (!sum) return;
+
+        if (sum >= totalWidth) {
+            //只关注可见列，除了最宽列，均最佳显示
+            let sumTemp = sum;
+            const keyWidthOrder = objOrder(keyWidth).objOrderByValue;
+            while (sumTemp >= totalWidth)
+                keyWidthOrder.shift();
+            sumTemp = keyWidthOrder.map(e => Object.values(e)).flat().reduce((prev, curr) => {
+                return (prev || 0) + (curr || 0);
+            });
+            for (const keyWith of keyWidthOrder) {
+                const key = Object.keys(keyWith)[0];
+                const width = Object.values(keyWith)[0];
+                onResizeData[key] = (width || 0);
+            }
+
+
+        } else {
+            const diff = totalWidth - sum;
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                onResizeData[key] = (widthCells[i] || 0) + Math.round(diff * ((widthCells[i] || 0) / sum));
+
+
+            }
+        }
+        tableTreeInstance._columns.onResize(onResizeData);
+        tableTreeInstance.rerender();
+    }
+
+    function caculateCellWidth(key: string, cellText: string, index: number = 0) {
+        tableTreeInstance._topDiv?.scrollIntoView();
+        tableTreeInstance.rerender();
+        const container = tableTreeInstance._topDiv?.children[1].children[0].children[0] as HTMLDivElement;
+
+        if (!container) return;
+        const span = container.children.item(index);
+        if (!span || span?.classList[1] !== key) {
+            showInfo("行元素有错误");
+            return;
+        }
+        const spanClone = span.cloneNode(true) as HTMLSpanElement;
+        container.appendChild(spanClone);
+        spanClone.style.position = "fixed";
+        spanClone.style.top = "-1000px";
+        spanClone.textContent = cellText;
+        const clientWidth = spanClone.clientWidth;
+        return spanClone.scrollWidth;
+
+    }
+
+    function strMax(colums: any[][]) {
+        const longestCells = [];
+        for (const column of colums) {
+            let tempLength = 0;
+            let strMax = '';
+            for (const str of column) {
+                const length = String(str).length;
+                if (length > tempLength) {
+                    tempLength = length;
+                    strMax = str;
+                }
+            }
+            longestCells.push(strMax);
+        }
+        return longestCells;
+    }
+    function rowsToColums(rows: any[], visibleKeys?: string[]) {
+        visibleKeys ? visibleKeys : Object.keys(rows[0]);
+        if (!visibleKeys || visibleKeys.length == 0) return;
+        const colums: any[] = [];
+        visibleKeys.filter((key, index) => {
+            colums.push([]);
+        });
+        for (const row of rows) {
+            visibleKeys.filter((key, index) => {
+                colums[index].push(row[key]);
+            });
+
+        }
+        return colums as any[][];
+    }
     async function addRecord(e: Event) {
         // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
         if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
@@ -247,6 +369,7 @@ export async function replaceSecretKeysTable() {
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         if (tableTreeInstance.dataChangedCache) saveAccounts();
+        adjustWidth();
         return true;
     }
 
@@ -763,8 +886,8 @@ export async function replaceSecretKeysTable() {
     tableTreeInstance.commitEditingRow = commitEditingRow;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
     function saveAccounts() {
-
         const dc = tableTreeInstance.dataChangedCache;
+        if (!dc) return;
         const indices = Object.keys(dc);
         if (!dc || !indices?.length) {
             clearEditing();
@@ -1058,7 +1181,7 @@ export async function replaceSecretKeysTable() {
             return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
         };
     }
-    function resizeColumnWidth(columIndexOrKey: number | string, extendValue: number) {
+    function resizeColumnWidth(columIndexOrKey: number | string, extendValue?: number) {
         const onResizeData: any = {};
         let column;
         if (typeof columIndexOrKey === 'number') {

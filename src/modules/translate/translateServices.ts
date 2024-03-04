@@ -118,7 +118,7 @@ export function getServiceAccountSync(serviceID: string, serialNumber: number) {
 
 export async function getNextServiceSN() {
     const DB = await getDB();
-    addon.mountPoint.lastServiceSN = await DB.getNextID("translateServiceSN", "serialNumber");
+    addon.mountPoint.nextServiceSN = await DB.getNextID("translateServiceSN", "serialNumber");
 }
 
 export function getNextServiceSNSync() {

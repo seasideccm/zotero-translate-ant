@@ -39,6 +39,281 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
+
+export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
+  const objOrdered: {
+    objOrderByKey: object[];
+    objOrderByKeyReverse: object[];
+    objOrderByValue: object[];
+    objOrderByValueReverse: object[];
+    keysOrderByValues: any[];
+    keysOrderByValuesReverse: any[];
+    keysOrderBykeys: any[];
+    keysOrderBykeysReverse: any[];
+    valuesOrderByvalues: any[];
+    valuesOrderByvaluesReverse: any[];
+    valuesOrderByKeys: any[];
+    valuesOrderByKeysReverse: any[];
+  } = {
+    objOrderByKey: [],
+    objOrderByKeyReverse: [],
+    objOrderByValue: [],
+    objOrderByValueReverse: [],
+    keysOrderByValues: [],
+    keysOrderByValuesReverse: [],
+    keysOrderBykeys: [],
+    keysOrderBykeysReverse: [],
+    valuesOrderByvalues: [],
+    valuesOrderByvaluesReverse: [],
+    valuesOrderByKeys: [],
+    valuesOrderByKeysReverse: [],
+  };
+
+  /* 按字符串排序;
+  字符串中有数字，补齐后排序;
+  按键排序;
+  按值排序; */
+  // 以 obj 的键作为字符串数组，根据相应键的值为条件排序
+
+  const keys = Object.keys(obj);
+  let values = Object.values(obj);
+  //全部元素均可转为数字
+  let valuesIsNumber: boolean;
+  let keysIsNumber: boolean;
+  if (values.filter(e => !isNaN(Number(e))).length == values.length) {
+    valuesIsNumber = true;
+  } else {
+    valuesIsNumber = false;
+  }
+  if (keys.filter(e => !isNaN(Number(e))).length == keys.length) {
+    keysIsNumber = true;
+  } else {
+    keysIsNumber = false;
+  }
+  const vv: any = {};
+  const kk: any = {};
+  if (isPad === undefined || isPad == true) {
+    const reg = [];
+    reg.push(/^(\d+)$/m);
+    reg.push(/^(\d+).*?[^\d]+$/m);
+    reg.push(/^[^\d]+.*?(\d+)$/m);
+    reg.push(/^[^\d]+.*?(\d+).*?[^\d]+$/m);
+    if (!keysIsNumber) {
+      for (const reg0 of reg) {
+        //提取reg匹配的内容
+        //key一定是字符串
+        let numbers: any[] = [];
+        keys.map(k => {
+          const contition = k.match(reg0);
+          if (contition == null) {
+            return false;
+          } else {
+            numbers.push(contition[1]);
+            return;
+          }
+        });
+        if (!numbers.length) { continue; }
+        numbers = numbers.filter((e: any) => e && e);
+        //确定最长数字串的长度
+        const numLength = numbers.reduce((maxLength: number, num: any) => {
+          if (num.length > maxLength) {
+            maxLength = num.length;
+          }
+          return maxLength;
+        }, 0);
+        keys.filter((k: any, i) => {
+          const condition = k.match(reg0);
+          if (condition) {
+            const s1 = condition[1];
+            const s2 = s1.padStart(numLength, '0');
+            let temp = k;
+            //查看临时对象是否有k对应的值，如果有则给替换后的k赋原值，以便于还原
+            if (kk[k]) {
+              temp = kk[k];
+            }
+            k = k.replace(s1, s2);
+            keys[i] = k;
+            kk[k] = temp;
+          }
+        });
+      }
+    }
+    if (!valuesIsNumber) {
+      for (const reg0 of reg) {
+        //提取reg匹配的内容
+        let numbers: any = [];
+        values.map(k => {
+          k = k.toString();
+          const contition = k.match(reg0);
+          if (contition == null) {
+            return false;
+          } else {
+            numbers.push(contition[1]);
+            return;
+          }
+        });
+        if (!numbers.length) { continue; }
+        numbers = numbers.filter((e: any) => e && e);
+        //确定最长数字串的长度
+        const numLength = numbers.reduce((maxLength: number, num: any) => {
+          if (num.length > maxLength) {
+            maxLength = num.length;
+            return maxLength;
+          }
+        }, 0);
+        values.filter((k: any, i) => {
+          k = k.toString();
+          const condition = k.match(reg0);
+          if (condition) {
+            const s1 = condition[1];
+            const s2 = s1.padStart(numLength, '0');
+            let temp = k;
+            if (vv[k]) {
+              temp = vv[k];
+            }
+            k = k.replace(s1, s2);
+            values[i] = k;
+            vv[k] = temp;
+          }
+        });
+      }
+    }
+  }
+
+  //按键排序
+  if (!keysIsNumber) {
+    keys.sort().filter(k => {
+      const objTemp: any = {};
+      k = kk[k];
+      objTemp[k] = obj[k];
+      objOrdered.objOrderByKey.push(objTemp);
+      objOrdered.keysOrderBykeys.push(k);
+      if (valuesIsNumber) {
+        objOrdered.valuesOrderByKeys.push(Number(obj[k]));
+      } else {
+        objOrdered.valuesOrderByKeys.push(obj[k]);
+      }
+    });
+    keys.reverse().filter(k => {
+      const objTemp: any = {};
+      k = kk[k];
+      objTemp[k] = obj[k];
+      objOrdered.objOrderByKeyReverse.push(objTemp);
+      objOrdered.keysOrderBykeysReverse.push(k);
+      if (valuesIsNumber) {
+        objOrdered.valuesOrderByKeysReverse.push(Number(obj[k]));
+      } else {
+        objOrdered.valuesOrderByKeysReverse.push(obj[k]);
+      }
+    });
+  } else {
+    keys.sort((a, b) => Number(a) - Number(b)).filter(k => {
+      const objTemp: any = {};
+      objTemp[k] = obj[k];
+      objOrdered.objOrderByKey.push(objTemp);
+      objOrdered.keysOrderBykeys.push(Number(k));
+      if (valuesIsNumber) {
+        objOrdered.valuesOrderByKeys.push(Number(obj[k]));
+      } else {
+        objOrdered.valuesOrderByKeys.push(obj[k]);
+      }
+    });
+    keys.reverse().filter(k => {
+      const objTemp: any = {};
+      objTemp[k] = obj[k];
+      objOrdered.objOrderByKeyReverse.push(objTemp);
+      objOrdered.keysOrderBykeysReverse.push(Number(k));
+      if (valuesIsNumber) {
+        objOrdered.valuesOrderByKeysReverse.push(Number(obj[k]));
+      } else {
+        objOrdered.valuesOrderByKeysReverse.push(obj[k]);
+      }
+    });
+  }
+  //按值排序,先去重
+  values = [...new Set(values)];
+  if (!valuesIsNumber) {
+    values.sort().filter(e => {
+      Object.keys(obj).filter(k => {
+        //values的值已经是补齐0后的字符串，故而取出该值对应的字符串
+        //由于字符串可能是纯数字转换而来，故而还要和转为数字做比对
+        //原始对象有可能部分值为数字，
+        if (obj[k] == vv[e] || obj[k] == Number(vv[e])) {
+          const objTemp: any = {};
+          k = vv[k];
+          //取原始键值组成对象
+          objTemp[k] = obj[k];
+          objOrdered.objOrderByValue.push(objTemp);
+          if (keysIsNumber) {
+            objOrdered.keysOrderByValues.push(Number(k));
+          } else {
+            objOrdered.keysOrderByValues.push(k);
+          }
+          objOrdered.valuesOrderByvalues.push(obj[k]);
+        }
+      });
+    });
+    values.reverse().filter(e => {
+      Object.keys(obj).filter(k => {
+        if (obj[k] == vv[e] || obj[k] == Number(vv[e])) {
+          const objTemp: any = {};
+          k = vv[k];
+          objTemp[k] = obj[k];
+          objOrdered.objOrderByValueReverse.push(objTemp);
+          if (keysIsNumber) {
+            objOrdered.keysOrderByValuesReverse.push(Number(k));
+          } else {
+            objOrdered.keysOrderByValuesReverse.push(k);
+          }
+          objOrdered.valuesOrderByvaluesReverse.push(obj[k]);
+        }
+      });
+    });
+  } else {
+    /* 排序后的值未变，逐一和对象的值对比，
+    比对上就和相应的键构成单独的对象纳入数组中，
+    一个值可以比对多个对象 */
+    values.sort((a, b) => Number(a) - Number(b)).filter(e => {
+      Object.keys(obj).filter(k => {
+        if (obj[k] == e || obj[k] == Number(e)) {
+          const objTemp: any = {};
+          objTemp[k] = obj[k];
+          objOrdered.objOrderByValue.push(objTemp);
+          if (keysIsNumber) {
+            objOrdered.keysOrderByValues.push(Number(k));
+          } else {
+            objOrdered.keysOrderByValues.push(k);
+          }
+          objOrdered.valuesOrderByvalues.push(Number(obj[k]));
+        }
+      });
+    });
+    //values已经排序，仅需翻转
+    values.reverse().filter(e => {
+      Object.keys(obj).filter(k => {
+        if (obj[k] == e || obj[k] == Number(e)) {
+          const objTemp: any = {};
+          objTemp[k] = obj[k];
+          objOrdered.objOrderByValueReverse.push(objTemp);
+          if (keysIsNumber) {
+            objOrdered.keysOrderByValuesReverse.push(Number(k));
+          } else {
+            objOrdered.keysOrderByValuesReverse.push(k);
+          }
+          objOrdered.valuesOrderByvaluesReverse.push(Number(obj[k]));
+        }
+      });
+    });
+  }
+
+  // 如果排序后众数对应的高（字符串，在首位）的频次与第二位相同，
+  // 则有可能未进行排序，不相等则一定做过排序
+  //所有键均为数值数字，否则无法运行
+  /// if (Object.keys(num).filter(e => e.match(/^[0-9.]+$/g) != null).length == Object.keys(num).length) {
+
+  return objOrdered;
+};
+
 /**
  * 对象深度克隆
  * @param value 
