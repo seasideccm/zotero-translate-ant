@@ -687,500 +687,498 @@ export async function replaceSecretKeysTable() {
     function clickTableOutside() {
 
         const win = addon.data.prefs?.window;
-        function commit(e: Event) {
+        function commit(e: MouseEvent) {
 
-            if (outside()) {
-                showInfo(e.type);
-            }
+            if (outside(e)) {
 
-            function outside() {
-                const tableRect = tableTreeInstance._topDiv.getBoundingClientRect();
-
-                const mouseX = e.pageX;
-                const mouseY = e.pageY;
-
-                if (
-                    mouseX < tableRect.left ||
-                    mouseX > tableRect.right ||
-                    mouseY < tableRect.top ||
-                    mouseY > tableRect.bottom
-                ) {
-                    return true;
-                }
-                return;
-                if (getSelectedRow() && e.target != getSelectedRow()) {
-                    const index = tableTreeInstance.selection.focused;
-                    if (index == void 0) return;
-                    // showInfo("请保存数据");
-                    //commitEditingRow();
-                    getSelectedRow().blur();
-                    if (win) {
-                        win.removeEventListener("click", commit);
-                        win.removeEventListener("click", stopEvent);
-                    }
+                const index = tableTreeInstance.selection.focused;
+                if (index == void 0) return;
+                // showInfo("请保存数据");
+                //commitEditingRow();
+                getSelectedRow().blur();
+                if (win) {
+                    win.removeEventListener("click", commit);
+                    win.removeEventListener("click", stopEvent);
                 }
             }
 
-            if (win) {
-                win.addEventListener("click", commit);
-                win.addEventListener("click", stopEvent);
-            }
+
+
+
+
         }
 
-        function getSelectedRow() {
-            //@ts-ignore has
-            return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
+
+        if (win) {
+            win.addEventListener("click", commit);
+            win.addEventListener("click", stopEvent);
         }
+    }
 
-        function commitEditingRow() {
-            if (!tableTreeInstance.editingRow) return;
-            const oldCells = tableTreeInstance.editingRow["oldCells"];
-            const currentCells = tableTreeInstance.editingRow["currentCells"];
-            if (!oldCells || !currentCells) return;
-            const keys = Object.keys(rows[0]);
-            const changeCellIndices = [];
-            if (tableTreeInstance.editIndex != void 0) {
-                const rowElement = getRowElement(tableTreeInstance.editIndex);
-                if (rowElement.children[0].tagName == "span") {
-                    clearEditing();
-                    return;
-                }
+    function outside(e: MouseEvent) {
+        const tableRect = tableTreeInstance._topDiv.getBoundingClientRect();
+        const mouseX = e.x;
+        const mouseY = e.y;
+        return mouseX < tableRect.left ||
+            mouseX > tableRect.right ||
+            mouseY < tableRect.top ||
+            mouseY > tableRect.bottom;
+    }
 
-
-            }
-            /* const selectedIndex = Array.from(tableTreeInstance.selection.selected)[0];
-            if (selectedIndex != tableTreeInstance.editIndex){
-     
-            } */
-            for (let i = 0; i < currentCells.length; i++) {
-                if (oldCells[i].textContent != currentCells[i].value) {
-
-                    changeCellIndices.push(i);
-                }
-                if (currentCells[i].value.includes(EmptyValue) && [keys[0], keys[1]].includes(keys[i])) {
-                    showInfo(keys[0] + " or " + keys[1] + " cannot be the default EmptyValue");
-                    //@ts-ignore has
-
-                    return;
-                }
-            }
-            if (!changeCellIndices.length) return;
-
-            for (let i = 0; i < currentCells.length; i++) {
-                if (currentCells[i].value.includes(EmptyValue)) {
-                    currentCells[i].value = DEFAULT_VALUE[keys[i] as keyof typeof DEFAULT_VALUE];
-                    if (!currentCells[i].value) return;
-                }
-                commitEditing(currentCells[i], oldCells[i]);
-            }
-            // stopRowEditing();
-        }
+    function getSelectedRow() {
         //@ts-ignore has
-        tableTreeInstance.commitEditingRow = commitEditingRow;
-        //更新翻译引擎账号，清除编辑标志，重新渲染表格
-        function saveAccounts() {
-            notifyAccountSave({});
-            showInfo("测试保存");
-            return;
-            const dc = tableTreeInstance.dataChangedCache;
-            if (!dc) {
+        return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0] as HTMLElement;
+    }
+
+    function commitEditingRow() {
+        if (!tableTreeInstance.editingRow) return;
+        const oldCells = tableTreeInstance.editingRow["oldCells"];
+        const currentCells = tableTreeInstance.editingRow["currentCells"];
+        if (!oldCells || !currentCells) return;
+        const keys = Object.keys(rows[0]);
+        const changeCellIndices = [];
+        if (tableTreeInstance.editIndex != void 0) {
+            const rowElement = getRowElement(tableTreeInstance.editIndex);
+            if (rowElement.children[0].tagName == "span") {
                 clearEditing();
                 return;
             }
-            const indices = Object.keys(dc);
-            const serviceAccountsSave = [];
-            for (const index of indices) {
-                if (index == void 0) return;
-                const changedKeys = Object.keys(dc[index]);
-                const rowData = rows[Number(index)];
-                const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
-                //比较false==0的结果为true
-                //if (typeof serialNumber != "boolean" && serialNumber != void 0) {
-                if (serialNumber >= 0) {
-                    //更新账号
-                    const serviceAccount = getServiceAccountSync(serviceID, serialNumber);
-                    if (!serviceAccount) continue;
-                    changedKeys.filter((key) => {
-                        if (rowData[key] != serviceAccount[key as keyof TranslateServiceAccount]) {
-                            if (!serviceAccount.changedData) serviceAccount.changedData = {};
-                            serviceAccount.changedData[key] = rowData[key];
-                            if (!serviceAccount.previousData) serviceAccount.previousData = {};
-                            serviceAccount.previousData[key] = serviceAccount[key as keyof TranslateServiceAccount];
-                            //@ts-ignore has 修改 services   
-                            serviceAccount[key] = rowData[key];
+
+
+        }
+        /* const selectedIndex = Array.from(tableTreeInstance.selection.selected)[0];
+        if (selectedIndex != tableTreeInstance.editIndex){
+     
+        } */
+        for (let i = 0; i < currentCells.length; i++) {
+            if (oldCells[i].textContent != currentCells[i].value) {
+
+                changeCellIndices.push(i);
+            }
+            if (currentCells[i].value.includes(EmptyValue) && [keys[0], keys[1]].includes(keys[i])) {
+                showInfo(keys[0] + " or " + keys[1] + " cannot be the default EmptyValue");
+                //@ts-ignore has
+
+                return;
+            }
+        }
+        if (!changeCellIndices.length) return;
+
+        for (let i = 0; i < currentCells.length; i++) {
+            if (currentCells[i].value.includes(EmptyValue)) {
+                currentCells[i].value = DEFAULT_VALUE[keys[i] as keyof typeof DEFAULT_VALUE];
+                if (!currentCells[i].value) return;
+            }
+            commitEditing(currentCells[i], oldCells[i]);
+        }
+        // stopRowEditing();
+    }
+    //@ts-ignore has
+    tableTreeInstance.commitEditingRow = commitEditingRow;
+    //更新翻译引擎账号，清除编辑标志，重新渲染表格
+    function saveAccounts() {
+        notifyAccountSave({});
+        showInfo("测试保存");
+        return;
+        const dc = tableTreeInstance.dataChangedCache;
+        if (!dc) {
+            clearEditing();
+            return;
+        }
+        const indices = Object.keys(dc);
+        const serviceAccountsSave = [];
+        for (const index of indices) {
+            if (index == void 0) return;
+            const changedKeys = Object.keys(dc[index]);
+            const rowData = rows[Number(index)];
+            const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
+            //比较false==0的结果为true
+            //if (typeof serialNumber != "boolean" && serialNumber != void 0) {
+            if (serialNumber >= 0) {
+                //更新账号
+                const serviceAccount = getServiceAccountSync(serviceID, serialNumber);
+                if (!serviceAccount) continue;
+                changedKeys.filter((key) => {
+                    if (rowData[key] != serviceAccount[key as keyof TranslateServiceAccount]) {
+                        if (!serviceAccount.changedData) serviceAccount.changedData = {};
+                        serviceAccount.changedData[key] = rowData[key];
+                        if (!serviceAccount.previousData) serviceAccount.previousData = {};
+                        serviceAccount.previousData[key] = serviceAccount[key as keyof TranslateServiceAccount];
+                        //@ts-ignore has 修改 services   
+                        serviceAccount[key] = rowData[key];
+                    }
+                });
+                //serviceAccount.save()
+                serviceAccountsSave.push(serviceAccount);
+            } else {
+                const serialNumber = getNextServiceSNSync();
+                const accuntOptions: any = {};
+                accuntOptions.serviceID = serviceID;
+                accuntOptions.serialNumber = serialNumber;
+                Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
+                accuntOptions.forbidden = false;
+                const account = new TranslateServiceAccount(accuntOptions);
+                const service = addon.mountPoint.services[serviceID];
+                if (!service) {
+                    notifyAccountSave(serviceAccountsSave);
+                    clearEditing();
+                    tableTreeInstance.invalidate();
+                    throw new Error("service not found: " + service);
+                }
+                if (!service.accounts) service.accounts = [];
+                service.accounts.push(account);
+                serviceAccountsSave.push(account);
+            }
+        }
+        notifyAccountSave(serviceAccountsSave);
+        clearEditing();
+        tableTreeInstance.invalidate();
+    }
+
+    function notifyAccountSave(obj: any | any[]) {
+        if (!Array.isArray(obj)) obj = [obj];
+        Zotero.Notifier.trigger('add', 'item', [999999999999], { data: obj }, true);
+        //event, type, ids, extraData, force
+        /**
+    * Trigger a notification to the appropriate observers
+    *
+    * Possible values:
+    *
+    * 	event: 'add', 'modify', 'delete', 'move' ('c', for changing parent),
+    *		'remove' (ci, it), 'refresh', 'redraw', 'trash', 'unreadCountUpdated', 'index'
+    * 	type - 'collection', 'search', 'item', 'collection-item', 'item-tag', 'tag',
+    *		'group', 'relation', 'feed', 'feedItem'
+    * 	ids - single id or array of ids
+    *
+    * Notes:
+    *
+    * - If event queuing is on, events will not fire until commit() is called
+    * unless _force_ is true.
+    *
+    * - New events and types should be added to the order arrays in commit()
+    **/
+
+        //var _types = [		'collection', 'search', 'share', 'share-items', 'item', 'file',		'collection-item', 'item-tag', 'tag', 'setting', 'group', 'trash',		'bucket', 'relation', 'feed', 'feedItem', 'sync', 'api-key', 'tab',		'itemtree'	]
+
+
+        /* 
+        
+        Zotero.Notifier.trigger('add', 'tab', [id], { [id]: data }, true);
+    ('close', 'tab', [closedIDs], true);
+    ('select', 'tab', [tab.id], { [tab.id]: { type: tab.type } }, true);
+    ('open', 'file', item.id);
+    ('redraw', 'item', []);
+    ('open', 'file', attachment.id);
+    () on an undo or redo
+    (eventParts[0], eventParts[1], data['id']);
+    ('delete', 'collection', 'document');
+    ('add', 'collection', 'document');
+    ('modify', 'item', [item.id]);
+    ('refresh', 'item', [itemID]);
+    ('refresh', 'item', itemIDs);
+    ('redraw', 'item', item.id, { column: "hasAttachment" });
+    ('redraw', 'item', parentItem.id, { column: "hasAttachment" });
+    (event, 'setting', [id], extraData);
+    ('delete', 'setting', [id], extraData);
+    ('statusChanged', 'feed', this.id);
+    ('unreadCountUpdated', 'feed', this.id);
+    ('modify', 'item', ids, {});
+    ('refresh', 'item', this.id);
+    ('removeDuplicatesMaster', 'item', item.id, null, true);
+    ('refresh', 'trash', libraryID);
+    ('refresh', 'item', idsToRefresh);
+    ('redraw', 'item', affectedItems, { column: 'title' });
+    ('download', 'file', item.id);
+    ('delete', 'api-key', []);
+    ('modify', 'api-key', []);
+    ('start', 'sync', []);
+    ('finish', 'sync', librariesToSync || []);
+    ('redraw', 'collection', []);
+        
+        */
+
+    }
+
+
+    function pasteAccount() {
+        window.navigator.clipboard
+            .readText()
+            .then((v) => {
+                const text: string = v;
+                batchAddAccount(text);
+                /* const textArr = text.split(/\r?\n/).filter(e => e);
+                const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
+                const keys = Object.keys(rows[0]);
+                const pasteRows = valuesArr.map((values: string[]) => {
+                    const row: any = kvArrsToObject(keys)(values);
+                    Object.keys(row).filter((key: string, i: number) => {
+                        if ((row[key] as string).includes(EmptyValue)) {
+                            row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
                         }
                     });
-                    //serviceAccount.save()
-                    serviceAccountsSave.push(serviceAccount);
-                } else {
-                    const serialNumber = getNextServiceSNSync();
-                    const accuntOptions: any = {};
-                    accuntOptions.serviceID = serviceID;
-                    accuntOptions.serialNumber = serialNumber;
-                    Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
-                    accuntOptions.forbidden = false;
-                    const account = new TranslateServiceAccount(accuntOptions);
-                    const service = addon.mountPoint.services[serviceID];
-                    if (!service) {
-                        notifyAccountSave(serviceAccountsSave);
-                        clearEditing();
-                        tableTreeInstance.invalidate();
-                        throw new Error("service not found: " + service);
-                    }
-                    if (!service.accounts) service.accounts = [];
-                    service.accounts.push(account);
-                    serviceAccountsSave.push(account);
-                }
-            }
-            notifyAccountSave(serviceAccountsSave);
-            clearEditing();
-            tableTreeInstance.invalidate();
-        }
-
-        function notifyAccountSave(obj: any | any[]) {
-            if (!Array.isArray(obj)) obj = [obj];
-            Zotero.Notifier.trigger('add', 'item', [999999999999], { data: obj }, true);
-            //event, type, ids, extraData, force
-            /**
-        * Trigger a notification to the appropriate observers
-        *
-        * Possible values:
-        *
-        * 	event: 'add', 'modify', 'delete', 'move' ('c', for changing parent),
-        *		'remove' (ci, it), 'refresh', 'redraw', 'trash', 'unreadCountUpdated', 'index'
-        * 	type - 'collection', 'search', 'item', 'collection-item', 'item-tag', 'tag',
-        *		'group', 'relation', 'feed', 'feedItem'
-        * 	ids - single id or array of ids
-        *
-        * Notes:
-        *
-        * - If event queuing is on, events will not fire until commit() is called
-        * unless _force_ is true.
-        *
-        * - New events and types should be added to the order arrays in commit()
-        **/
-
-            //var _types = [		'collection', 'search', 'share', 'share-items', 'item', 'file',		'collection-item', 'item-tag', 'tag', 'setting', 'group', 'trash',		'bucket', 'relation', 'feed', 'feedItem', 'sync', 'api-key', 'tab',		'itemtree'	]
-
-
-            /* 
-            
-            Zotero.Notifier.trigger('add', 'tab', [id], { [id]: data }, true);
-        ('close', 'tab', [closedIDs], true);
-        ('select', 'tab', [tab.id], { [tab.id]: { type: tab.type } }, true);
-        ('open', 'file', item.id);
-        ('redraw', 'item', []);
-        ('open', 'file', attachment.id);
-        () on an undo or redo
-        (eventParts[0], eventParts[1], data['id']);
-        ('delete', 'collection', 'document');
-        ('add', 'collection', 'document');
-        ('modify', 'item', [item.id]);
-        ('refresh', 'item', [itemID]);
-        ('refresh', 'item', itemIDs);
-        ('redraw', 'item', item.id, { column: "hasAttachment" });
-        ('redraw', 'item', parentItem.id, { column: "hasAttachment" });
-        (event, 'setting', [id], extraData);
-        ('delete', 'setting', [id], extraData);
-        ('statusChanged', 'feed', this.id);
-        ('unreadCountUpdated', 'feed', this.id);
-        ('modify', 'item', ids, {});
-        ('refresh', 'item', this.id);
-        ('removeDuplicatesMaster', 'item', item.id, null, true);
-        ('refresh', 'trash', libraryID);
-        ('refresh', 'item', idsToRefresh);
-        ('redraw', 'item', affectedItems, { column: 'title' });
-        ('download', 'file', item.id);
-        ('delete', 'api-key', []);
-        ('modify', 'api-key', []);
-        ('start', 'sync', []);
-        ('finish', 'sync', librariesToSync || []);
-        ('redraw', 'collection', []);
-            
-            */
-
-        }
-
-
-        function pasteAccount() {
-            window.navigator.clipboard
-                .readText()
-                .then((v) => {
-                    const text: string = v;
-                    batchAddAccount(text);
-                    /* const textArr = text.split(/\r?\n/).filter(e => e);
-                    const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
-                    const keys = Object.keys(rows[0]);
-                    const pasteRows = valuesArr.map((values: string[]) => {
-                        const row: any = kvArrsToObject(keys)(values);
-                        Object.keys(row).filter((key: string, i: number) => {
-                            if ((row[key] as string).includes(EmptyValue)) {
-                                row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-                            }
-                        });
-                        return row;
-                    });
-                    const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
-                    if (newRows && pasteRows && newRows.length != pasteRows.length) {
-                        ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
-                    }
-                    rows.push(...newRows); */
-                    tableHelper.render();
-                })
-                .catch((v) => {
-                    ztoolkit.log("Failed To Read Clipboard: ", v);
+                    return row;
                 });
-        }
-
-        function batchAddAccount(text: string) {
-            const textArr = text.split(/\r?\n/).filter(e => e);
-            const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
-            const keys = Object.keys(rows[0]);
-            const pasteRows = valuesArr.map((values: string[]) => {
-                const row: any = kvArrsToObject(keys)(values);
-                Object.keys(row).filter((key: string, i: number) => {
-                    if ((row[key] as string).includes(EmptyValue)) {
-                        row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-                    }
-                });
-                return row;
+                const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
+                if (newRows && pasteRows && newRows.length != pasteRows.length) {
+                    ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
+                }
+                rows.push(...newRows); */
+                tableHelper.render();
+            })
+            .catch((v) => {
+                ztoolkit.log("Failed To Read Clipboard: ", v);
             });
-            const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
-            if (newRows && pasteRows && newRows.length != pasteRows.length) {
-                ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
-            }
-            rows.push(...newRows);
-
-
-        }
-
-        function clearEditing() {
-            ['dataChangedCache', 'editIndex', 'editingRow', 'editIndices', 'editingRow'].forEach((key) => {
-                (tableTreeInstance as any)[key] = void 0;
-            });
-        }
-
-        function getSelectedTranlateServiceItems() {
-            const selectedIndices = Array.from(tableTreeInstance.selection.selected);
-            //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-            return rows.filter((v: any, i: number) => selectedIndices.includes(i));
-        }
-
-        function getColumnWidth(index: number) {
-            const COLUMN_PADDING = 16;
-            //@ts-ignore has
-            const columns = tableTreeInstance._getVisibleColumns();
-            const proportion = columns[index].width / columns.map((c: any) => c.width).reduce((sum: number, number: number) => sum + number, 0);
-
-            //@ts-ignore has
-            const tableWidth = tableTreeInstance._topDiv.getBoundingClientRect().width;
-            return Math.round(proportion * tableWidth * window.devicePixelRatio);
-        }
-
-
-        // const saveDebounce = Zotero.Utilities.debounce(saveTx, 10000);
-
-        function getcellIndex(e: Event) {
-            //@ts-ignore has
-            //如果代码触发双击，则返回 0
-            let x = e.x;
-            if (!x) {
-                return 0;
-                const clickEvent = new window.MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                });
-                e.target!.dispatchEvent(clickEvent);
-                x = clickEvent.x;
-            };
-            if (!e.target) return 0;
-            const parent = e.target as HTMLElement;
-            function left(el: HTMLElement) { return el.getBoundingClientRect().x; }
-            function right(el: HTMLElement) { return el.getBoundingClientRect().x + el.getBoundingClientRect().width; }
-            for (let i = 0; i < parent.childNodes.length; i++) {
-                //@ts-ignore has
-                if (e.x >= left(parent.childNodes[i]) && e.x <= right(parent.childNodes[i])) {
-                    return i;
-                }
-            }
-        }
-
-
-
-        function makeColumnPropValues(row: any) {
-            // 本地化 ftl 文件中条目的前缀
-            const prefTableStringPrefix = "prefs-table-";
-
-            const temp = Object.keys(row).map((key: string, i: number) => {
-                //let type = '';
-                // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
-                let label = getString(`${prefTableStringPrefix}${key}`);
-                if (!label || label.startsWith(config.addonRef)) {
-                    label = key;
-                }
-                const result: any[] = [key, label];
-                result.push(false, false);
-                if (i == 1) {
-                    result.push(2);
-                } else {
-                    result.push(1);
-                }
-                /* if (key == "usable") {
-                    type = 'checkbox';
-                }
-                result.push(type); */
-                return result;
-            });
-            return temp;
-        };
-
-
-
-
-        /**
-         * Auto fill with " key + ': '+ EmptyValue " when no values
-         * @param keys 
-         * @returns 
-         */
-        function kvArrsToObject(keys: string[]) {
-            return function (values?: any | any[]) {
-                if (!values) values = [];
-                if (!Array.isArray(values)) values = [values];
-                return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
-            };
-        }
-        function resizeColumnWidth(columIndexOrKey: number | string, extendValue: number) {
-            const onResizeData: any = {};
-            let column;
-            if (typeof columIndexOrKey === 'number') {
-                column = getColumn(columIndexOrKey);
-            }
-            if (typeof columIndexOrKey === "string") {            //@ts-ignore has
-                const temps = tableTreeInstance._getColumns().filter((e: any) => e.dataKey == columIndexOrKey);
-                if (temps.length == 0) return;
-                column = temps[0];
-            }
-            if (!column) return;
-            onResizeData[column.dataKey] = column.width + extendValue;//@ts-ignore has
-            tableTreeInstance._columns.onResize(onResizeData);
-        }
-        function resize() {
-            //@ts-ignore has
-            const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
-            //@ts-ignore has
-            tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
-
-            // const styleIndex = tableTreeInstance._columns._columnStyleMap[dataKey]
-            //@ts-ignore has
-            // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
-        }
-
-
-
-
     }
 
-
-
-    export function getTableByID(tableID?: string) {
-        if (!addon.mountPoint.tables) return;
-        const tables = addon.mountPoint.tables;
-        if (!tableID) return tables;
-        return tables[tableID];
-    }
-
-    function makeTableProps(options: VTableProps, rows: any[]) {
-        const defaultVtableProps: VTableProps = {
-            getRowCount: () => rows.length,
-            getRowData: (index: number) => rows[index],
-            showHeader: true,
-            multiSelect: true,
-            getRowString: ((index: number) => rows[index].key || ""),
-        };
-        //清理options
-        const columnPropAvilableKeys = [
-            "id",
-            "getRowCount",
-            "getRowData",
-            "renderItem",
-            "linesPerRow",
-            "disableFontSizeScaling",
-            "alternatingRowColors",
-            "label",
-            "role",
-            "showHeader",
-            "columns",
-            "onColumnPickerMenu",
-            "onColumnSort",
-            "getColumnPrefs",
-            "storeColumnPrefs",
-            "getDefaultColumnOrder",
-            "staticColumns",
-            "containerWidth",
-            "treeboxRef",
-            "hide",
-            "multiSelect",
-            "onSelectionChange",
-            "isSelectable",
-            "getParentIndex",
-            "isContainer",
-            "isContainerEmpty",
-            "isContainerOpen",
-            "toggleOpenState",
-            "getRowString",
-            "onKeyDown",
-            "onKeyUp",
-            "onDragOver",
-            "onDrop",
-            "onActivate",
-            "onActivate",
-            "onFocus",
-            "onItemContextMenu",];
-        const optionsKeys = Object.keys(options);
-        optionsKeys.filter((key: string) => {
-            if (!columnPropAvilableKeys.includes(key)) {
-                delete options[key as keyof VTableProps];
-            }
+    function batchAddAccount(text: string) {
+        const textArr = text.split(/\r?\n/).filter(e => e);
+        const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
+        const keys = Object.keys(rows[0]);
+        const pasteRows = valuesArr.map((values: string[]) => {
+            const row: any = kvArrsToObject(keys)(values);
+            Object.keys(row).filter((key: string, i: number) => {
+                if ((row[key] as string).includes(EmptyValue)) {
+                    row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
+                }
+            });
+            return row;
         });
+        const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
+        if (newRows && pasteRows && newRows.length != pasteRows.length) {
+            ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
+        }
+        rows.push(...newRows);
 
-        return Object.assign(defaultVtableProps, options);
+
     }
+
+    function clearEditing() {
+        ['dataChangedCache', 'editIndex', 'editingRow', 'editIndices', 'editingRow'].forEach((key) => {
+            (tableTreeInstance as any)[key] = void 0;
+        });
+    }
+
+    function getSelectedTranlateServiceItems() {
+        const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+        //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
+        return rows.filter((v: any, i: number) => selectedIndices.includes(i));
+    }
+
+    function getColumnWidth(index: number) {
+        const COLUMN_PADDING = 16;
+        //@ts-ignore has
+        const columns = tableTreeInstance._getVisibleColumns();
+        const proportion = columns[index].width / columns.map((c: any) => c.width).reduce((sum: number, number: number) => sum + number, 0);
+
+        //@ts-ignore has
+        const tableWidth = tableTreeInstance._topDiv.getBoundingClientRect().width;
+        return Math.round(proportion * tableWidth * window.devicePixelRatio);
+    }
+
+
+    // const saveDebounce = Zotero.Utilities.debounce(saveTx, 10000);
+
+    function getcellIndex(e: Event) {
+        //@ts-ignore has
+        //如果代码触发双击，则返回 0
+        let x = e.x;
+        if (!x) {
+            return 0;
+            const clickEvent = new window.MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+            });
+            e.target!.dispatchEvent(clickEvent);
+            x = clickEvent.x;
+        };
+        if (!e.target) return 0;
+        const parent = e.target as HTMLElement;
+        function left(el: HTMLElement) { return el.getBoundingClientRect().x; }
+        function right(el: HTMLElement) { return el.getBoundingClientRect().x + el.getBoundingClientRect().width; }
+        for (let i = 0; i < parent.childNodes.length; i++) {
+            //@ts-ignore has
+            if (e.x >= left(parent.childNodes[i]) && e.x <= right(parent.childNodes[i])) {
+                return i;
+            }
+        }
+    }
+
+
+
+    function makeColumnPropValues(row: any) {
+        // 本地化 ftl 文件中条目的前缀
+        const prefTableStringPrefix = "prefs-table-";
+
+        const temp = Object.keys(row).map((key: string, i: number) => {
+            //let type = '';
+            // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
+            let label = getString(`${prefTableStringPrefix}${key}`);
+            if (!label || label.startsWith(config.addonRef)) {
+                label = key;
+            }
+            const result: any[] = [key, label];
+            result.push(false, false);
+            if (i == 1) {
+                result.push(2);
+            } else {
+                result.push(1);
+            }
+            /* if (key == "usable") {
+                type = 'checkbox';
+            }
+            result.push(type); */
+            return result;
+        });
+        return temp;
+    };
+
 
 
 
     /**
-     * 有无效数据则返回false
-     * @param row 
+     * Auto fill with " key + ': '+ EmptyValue " when no values
+     * @param keys 
      * @returns 
      */
-    function validateRowData(row: any) {
-        const keys = Object.keys(row);
-        //数据无效时返回key值
-        const res = keys.find((key) => {
-            const fn = validata[key as keyof typeof validata];
-            if (typeof fn != "function") return true;
-            return !fn(row[key]);
-        });
-        if (res) {
-            showInfo(res + " invalid value: " + row[res]);
+    function kvArrsToObject(keys: string[]) {
+        return function (values?: any | any[]) {
+            if (!values) values = [];
+            if (!Array.isArray(values)) values = [values];
+            return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
+        };
+    }
+    function resizeColumnWidth(columIndexOrKey: number | string, extendValue: number) {
+        const onResizeData: any = {};
+        let column;
+        if (typeof columIndexOrKey === 'number') {
+            column = getColumn(columIndexOrKey);
         }
-        //有无效数据则返回false
-        return !!res;
+        if (typeof columIndexOrKey === "string") {            //@ts-ignore has
+            const temps = tableTreeInstance._getColumns().filter((e: any) => e.dataKey == columIndexOrKey);
+            if (temps.length == 0) return;
+            column = temps[0];
+        }
+        if (!column) return;
+        onResizeData[column.dataKey] = column.width + extendValue;//@ts-ignore has
+        tableTreeInstance._columns.onResize(onResizeData);
+    }
+    function resize() {
+        //@ts-ignore has
+        const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
+        //@ts-ignore has
+        tableTreeInstance._columns.onResize(Object.fromEntries(columns.map(c => [c.dataKey, c.width])));
+
+        // const styleIndex = tableTreeInstance._columns._columnStyleMap[dataKey]
+        //@ts-ignore has
+        // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
     }
 
 
 
 
+}
+
+
+
+export function getTableByID(tableID?: string) {
+    if (!addon.mountPoint.tables) return;
+    const tables = addon.mountPoint.tables;
+    if (!tableID) return tables;
+    return tables[tableID];
+}
+
+function makeTableProps(options: VTableProps, rows: any[]) {
+    const defaultVtableProps: VTableProps = {
+        getRowCount: () => rows.length,
+        getRowData: (index: number) => rows[index],
+        showHeader: true,
+        multiSelect: true,
+        getRowString: ((index: number) => rows[index].key || ""),
+    };
+    //清理options
+    const columnPropAvilableKeys = [
+        "id",
+        "getRowCount",
+        "getRowData",
+        "renderItem",
+        "linesPerRow",
+        "disableFontSizeScaling",
+        "alternatingRowColors",
+        "label",
+        "role",
+        "showHeader",
+        "columns",
+        "onColumnPickerMenu",
+        "onColumnSort",
+        "getColumnPrefs",
+        "storeColumnPrefs",
+        "getDefaultColumnOrder",
+        "staticColumns",
+        "containerWidth",
+        "treeboxRef",
+        "hide",
+        "multiSelect",
+        "onSelectionChange",
+        "isSelectable",
+        "getParentIndex",
+        "isContainer",
+        "isContainerEmpty",
+        "isContainerOpen",
+        "toggleOpenState",
+        "getRowString",
+        "onKeyDown",
+        "onKeyUp",
+        "onDragOver",
+        "onDrop",
+        "onActivate",
+        "onActivate",
+        "onFocus",
+        "onItemContextMenu",];
+    const optionsKeys = Object.keys(options);
+    optionsKeys.filter((key: string) => {
+        if (!columnPropAvilableKeys.includes(key)) {
+            delete options[key as keyof VTableProps];
+        }
+    });
+
+    return Object.assign(defaultVtableProps, options);
+}
+
+
+
+/**
+ * 有无效数据则返回false
+ * @param row 
+ * @returns 
+ */
+function validateRowData(row: any) {
+    const keys = Object.keys(row);
+    //数据无效时返回key值
+    const res = keys.find((key) => {
+        const fn = validata[key as keyof typeof validata];
+        if (typeof fn != "function") return true;
+        return !fn(row[key]);
+    });
+    if (res) {
+        showInfo(res + " invalid value: " + row[res]);
+    }
+    //有无效数据则返回false
+    return !!res;
+}
 
 
 
 
 
 
-    // ("beforeunload");
 
-    async function deleteRecord(e: Event) { }
 
-    async function editRecord(e: Event) { }
 
-    async function searchRecord(e: Event) { }
+
+// ("beforeunload");
+
+async function deleteRecord(e: Event) { }
+
+async function editRecord(e: Event) { }
+
+async function searchRecord(e: Event) { }
