@@ -43,10 +43,16 @@ async function onNotify(
         "ids::", ids,
         "extraData::", JSON.stringify(extraData, null, 4)
     );
+    if (ids[0] == 999999999999) {
+        if (!extraData) return;
+        for (const account of extraData.data) {
+            if (account && account["save"] && typeof account["save"] == "function") {
+                await account["save"]();
+            }
 
-    if (extraData && extraData["save"] && typeof extraData["save"] == "function") {
-        await extraData["save"]();
+        }
     }
+
 
 
 

@@ -206,6 +206,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
 
 
   async getNextID(table: string, field: string) {
+    //这个 SQL 语句从表中选择特定字段的最大值，并使用 COALESCE 函数将其加1。如果最大值为 null，则返回默认值1。
     const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
     return await this.valueQueryAsync(sql);
   };

@@ -68,6 +68,7 @@ export async function getServices() {
     if (!services) services = await servicesToDB(keysTranslateService, parasArrTranslateService);
     if (!services) throw "Database Initial Error";
     addon.mountPoint.services = services;
+    await getNextServiceSN();
     return services;
 }
 
@@ -76,6 +77,8 @@ export async function getTranslateService(serviceID: string) {
     if (services) return services[serviceID];
 
 }
+
+
 
 export function getSerialNumberSync(serviceID: string, appID: string) {
     const service = addon.mountPoint.services[serviceID];
@@ -112,6 +115,17 @@ export function getServiceAccountSync(serviceID: string, serialNumber: number) {
     if (!service || !service.accounts) return;
     return service.accounts.filter((account: TranslateServiceAccount) => account.serialNumber = serialNumber)[0] as TranslateServiceAccount;
 }
+
+export async function getNextServiceSN() {
+    const DB = await getDB();
+    addon.mountPoint.lastServiceSN = await DB.getNextID("translateServiceSN", "serialNumber");
+}
+
+export function getNextServiceSNSync() {
+    return addon.mountPoint.nextServiceSN++;
+
+}
+
 
 
 export async function getServicesFromDB() {
