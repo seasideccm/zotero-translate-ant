@@ -197,6 +197,7 @@ interface VirtualizedTableProps {
 
 interface VTable extends React.Component<VirtualizedTableProps, any> {
   selection: TreeSelection;
+  _topDiv?: HTMLDivElement;
   invalidate: () => void;
   dataChangedCache?: any;
   rows?: any[];

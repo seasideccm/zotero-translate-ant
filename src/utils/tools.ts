@@ -39,6 +39,31 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
+/**
+ * 对象深度克隆
+ * @param value 
+ * @returns 
+ */
+export function deepClone(value: any) {
+  const cache = new WeakMap();
+  function _deepClone(value: any) {
+    if (value === null || typeof value !== "object") {
+      return value;
+    }
+    if (cache.has(value)) {
+      return cache.get(value);
+    }
+    const result: any = Array.isArray(value) ? [] : {};
+    cache.set(value, result);
+    for (const key in value) {
+      if ((Object.prototype.hasOwnProperty.call(value, key))) {
+        result[key] = _deepClone(value[key]);
+      }
+    }
+    return result;
+  }
+  return _deepClone(value);
+}
 
 /**
  * 对象属性不同返回 true，

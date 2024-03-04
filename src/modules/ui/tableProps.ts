@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, differObject, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -8,6 +8,7 @@ import { getDom, getElementValue } from "./uiTools";
 import { getDBSync } from "../database/database";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
+import { appendFile } from "fs";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -34,33 +35,11 @@ export async function replaceSecretKeysTable() {
     if (!win) return;
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
-
-    /*暂时做不到复用表格   
-     if (addon.mountPoint.tables) {
-           if (!addon.mountPoint.tables[id]) {
-               () => { };
-           } else {
-               const doc = addon.data.prefs?.window?.document;
-               const vtable = doc.querySelector(`#${containerId}`);
-               if (vtable?.children.length) {
-                   showInfo("表格已渲染");
-               } else {
-                   const htable = addon.mountPoint.tables[id];
-                   htable.render(-1);
-                   showInfo("表格已渲染");
-                   return;
-               }
-           }
-       }
-    */
-
     const serviceID = getElementValue("serviceID");
     const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     const rows: any[] = await secretKeysTableRowsData(serviceID) || [];
     if (!rows || rows.length == 0) return;
-
-
     //props
     const columnPropValues = makeColumnPropValues(rows[0]);
     const columnsProp = arrsToObjs(columnPropKeys)(columnPropValues) as ColumnOptions[];
@@ -85,7 +64,7 @@ export async function replaceSecretKeysTable() {
     };
 
     const options: TableFactoryOptions = {
-        win: addon.data.prefs!.window,
+        win: win,
         containerId: containerId,
         props: props,
     };
@@ -102,10 +81,10 @@ export async function replaceSecretKeysTable() {
     //绑定事件，增删改查
     getDom("addRecord")!.addEventListener("command", addRecord);
     getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
-    addon.data.prefs?.window.addEventListener("beforeunload", () => {
+    win.addEventListener("beforeunload", () => {
         saveAccounts();
     });
-    clickTableOutside();
+    win.addEventListener("click", clickTableOutsideCommit);
 
     async function addRecord(e: Event) {
         // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
@@ -267,11 +246,7 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        //input 失焦不能触发是因为 行选择变化后表格立即刷新，重新渲染，input 丢失
-
-        if (tableTreeInstance.editIndex != void 0 || tableTreeInstance.editIndices != void 0) {
-            saveAccounts();
-        }
+        if (tableTreeInstance.dataChangedCache) saveAccounts();
         return true;
     }
 
@@ -320,7 +295,7 @@ export async function replaceSecretKeysTable() {
             const id = target.id;
             showInfo(["表格行右键菜单:" + id, `事件类型：${eventType}`],
                 {
-                    window: addon.data.prefs?.window,
+                    window: win,
 
                 });
             const arg1 = args[0];
@@ -337,7 +312,7 @@ export async function replaceSecretKeysTable() {
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
         if (e.key == "Delete" || e.key == "Backspace" || (Zotero.isMac && e.key == "Backspace")) {
-            const confirm = addon.data.prefs!.window.confirm(getString("info-delete-secretKey") + '\n'
+            const confirm = win?.confirm(getString("info-delete-secretKey") + '\n'
                 + getString("info-delete-confirm"));
             if (!confirm) return true;            //确认删除，点击cancel则取消
 
@@ -443,6 +418,23 @@ export async function replaceSecretKeysTable() {
             e.stopPropagation();
         }
     };
+    //todo
+    function validateSecretKey(index: number) {
+        const validateFunc = {
+            appID: (value: any) => {
+                if (typeof value != "string") throw "value not string";
+                if (value.length != 17) throw "value length not equal 17";
+                if (!value.match(/^\d+$/)) throw "value has none figure";
+            }
+
+
+        };
+        //const validateFunc = sevices[serviceID].validateFunc;
+        const row = rows[index];
+        Object.keys(row).forEach((key) => {
+            validateFunc[key as keyof typeof validateFunc](row[key]);
+        });
+    }
 
     function cellChangeToInput(cell: HTMLElement) {
         //const match = cell.parentElement?.id.match(/row-\d+$/);
@@ -455,7 +447,8 @@ export async function replaceSecretKeysTable() {
         inputCell.classList.add(String(selectedRow));
         inputCell.dir = 'auto';
         const cellBackgroundColor = window.getComputedStyle(cell).getPropertyValue('backgroundColor');
-        const color = window.getComputedStyle(cell).getPropertyValue('color');
+        //const color = window.getComputedStyle(cell).getPropertyValue('color');
+        const color = "#4072e5";
         const styleInput = {
             width: Math.round(cell.clientWidth / cell.parentElement!.clientWidth * 100) + '%',
             height: cell.clientHeight + 'px',
@@ -476,7 +469,20 @@ export async function replaceSecretKeysTable() {
         //const updateRowDebounce = Zotero.Utilities.debounce(valueToRows, 1000);
         inputCell.addEventListener('input', updateWidth);
         inputCell.addEventListener('input', valueToRows);
+        inputCell.addEventListener('focus', upLevel);
         batchAddEventListener([inputCell, ['keydown', 'keyup', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
+
+        function upLevel() {
+            const cells = inputCell.parentElement?.querySelectorAll("input");
+            if (!cells) return;
+            const zIndexs = [];
+            for (const cell of cells) {
+                Number(cell.style.zIndex || 0);
+                zIndexs.push(Number(cell.style?.zIndex || 0));
+            }
+            const zIndex = Math.max(...zIndexs) + 100;
+            inputCell.style.zIndex = `${zIndex}`;
+        }
         //当选中的行发生变化，先更新表，所以 input 消失了，也未能触发 blur 事件 focusin focusou
         //inputCell.addEventListener('blur', blurUpdateRow);
         function valueToRows(e: Event) {
@@ -514,9 +520,8 @@ export async function replaceSecretKeysTable() {
     }
 
     function dataHistory(dataChangedCache: any) {
-        //@ts-ignore has
-        let dh = tableTreeInstance.dataHistory;
-        if (!dh) dh = [];
+        if (!tableTreeInstance.dataHistory) tableTreeInstance.dataHistory = [];
+        const dh = tableTreeInstance.dataHistory;
         dh.push(dataChangedCache);
     }
     /**
@@ -526,10 +531,10 @@ export async function replaceSecretKeysTable() {
      * @param value 
      */
     function dataChanged(index: number, key: string, value: any) {
-        let dc = tableTreeInstance.dataChangedCache;
-        if (!dc) dc = {};
+        if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
+        const dc = tableTreeInstance.dataChangedCache;
         if (!dc[index]) dc[index] = {};
-        if (!dc[index]["originRow"]) dc[index]["originRow"] = rows[index];
+        if (!dc[index]["originRow"]) dc[index]["originRow"] = deepClone(rows[index]);
         if (!dc[index][key]) dc[index][key] = rows[index][key];
         //修改表格单元格数据
         rows[index][key] = value;
@@ -684,39 +689,20 @@ export async function replaceSecretKeysTable() {
 
 
 
-    function clickTableOutside() {
 
-        const win = addon.data.prefs?.window;
-        function commit(e: MouseEvent) {
-
-            if (outside(e)) {
-
-                const index = tableTreeInstance.selection.focused;
-                if (index == void 0) return;
-                // showInfo("请保存数据");
-                //commitEditingRow();
-                getSelectedRow().blur();
-                if (win) {
-                    win.removeEventListener("click", commit);
-                    win.removeEventListener("click", stopEvent);
-                }
-            }
-
-
-
-
-
-        }
-
-
-        if (win) {
-            win.addEventListener("click", commit);
-            win.addEventListener("click", stopEvent);
-        }
+    function clickTableOutsideCommit(e: MouseEvent) {
+        if (!outside(e, tableTreeInstance._topDiv!)) return;
+        saveAccounts();
     }
 
-    function outside(e: MouseEvent) {
-        const tableRect = tableTreeInstance._topDiv.getBoundingClientRect();
+
+    /**
+     * 坐标在矩形外
+     * @param e 
+     * @returns 
+     */
+    function outside(e: MouseEvent, element: HTMLElement) {
+        const tableRect = element.getBoundingClientRect();
         const mouseX = e.x;
         const mouseY = e.y;
         return mouseX < tableRect.left ||
@@ -777,15 +763,13 @@ export async function replaceSecretKeysTable() {
     tableTreeInstance.commitEditingRow = commitEditingRow;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
     function saveAccounts() {
-        notifyAccountSave({});
-        showInfo("测试保存");
-        return;
+
         const dc = tableTreeInstance.dataChangedCache;
-        if (!dc) {
+        const indices = Object.keys(dc);
+        if (!dc || !indices?.length) {
             clearEditing();
             return;
         }
-        const indices = Object.keys(dc);
         const serviceAccountsSave = [];
         for (const index of indices) {
             if (index == void 0) return;
@@ -811,23 +795,49 @@ export async function replaceSecretKeysTable() {
                 //serviceAccount.save()
                 serviceAccountsSave.push(serviceAccount);
             } else {
-                const serialNumber = getNextServiceSNSync();
-                const accuntOptions: any = {};
-                accuntOptions.serviceID = serviceID;
-                accuntOptions.serialNumber = serialNumber;
-                Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
-                accuntOptions.forbidden = false;
-                const account = new TranslateServiceAccount(accuntOptions);
-                const service = addon.mountPoint.services[serviceID];
-                if (!service) {
+                try {
+                    serviceAccountsSave.push(saveNewAccount(rowData));
+
+                } catch (e) {
                     notifyAccountSave(serviceAccountsSave);
                     clearEditing();
                     tableTreeInstance.invalidate();
-                    throw new Error("service not found: " + service);
+                    throw e;
                 }
-                if (!service.accounts) service.accounts = [];
-                service.accounts.push(account);
-                serviceAccountsSave.push(account);
+
+            }
+        }
+        notifyAccountSave(serviceAccountsSave);
+        clearEditing();
+        tableTreeInstance.invalidate();
+    }
+    function saveNewAccount(rowData: any) {
+        const serialNumber = getNextServiceSNSync();
+        const accuntOptions: any = {};
+        accuntOptions.serviceID = serviceID;
+        accuntOptions.serialNumber = serialNumber;
+        Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
+        accuntOptions.forbidden = false;
+        const account = new TranslateServiceAccount(accuntOptions);
+        const service = addon.mountPoint.services[serviceID];
+        if (!service) {
+            throw new Error("service not found: " + service);
+        }
+        if (!service.accounts) service.accounts = [];
+        service.accounts.push(account);
+        return account;
+    }
+    function saveNewAccounts(rows: any[]) {
+        const serviceAccountsSave = [];
+        for (const rowData of rows) {
+            try {
+                serviceAccountsSave.push(saveNewAccount(rowData));
+
+            } catch (e) {
+                notifyAccountSave(serviceAccountsSave);
+                clearEditing();
+                tableTreeInstance.invalidate();
+                throw e;
             }
         }
         notifyAccountSave(serviceAccountsSave);
@@ -948,6 +958,7 @@ export async function replaceSecretKeysTable() {
             ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
         }
         rows.push(...newRows);
+        saveNewAccounts(newRows);
 
 
     }

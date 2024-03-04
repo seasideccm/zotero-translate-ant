@@ -435,6 +435,7 @@ export class TranslateServiceOld {
   synced?: boolean;
   key?: string;
   version?: number;
+  validateFunc?: any;
 
 
   /**
