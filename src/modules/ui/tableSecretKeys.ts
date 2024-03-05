@@ -86,8 +86,9 @@ export async function replaceSecretKeysTable() {
     });
     win.addEventListener("click", clickTableOutsideCommit);
 
-    //切换选项标签
-    adjustWidth();
+    //@ts-ignore has//切换选项标签
+    const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
+    adjustWidth(rows, visibleKeys);
 
 
 
@@ -102,62 +103,53 @@ export async function replaceSecretKeysTable() {
 
 
 
-    function adjustWidth() {
-        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
+    function adjustWidth(rows: any[], visibleKeys?: string[]) {
+
         const onResizeData: any = {};
-        const totalWidth = tableTreeInstance._topDiv?.clientWidth;
+        const totalWidth = tableTreeInstance._topDiv?.clientWidth;//表格宽度
         if (!totalWidth) return;
         const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
         const longestCells = strMax(colums);
-        const keys = visibleKeys || Object.keys(rows[0]);
-        const widthCells = [];
-        const keyWidth: any[] = [];
+        const keys = visibleKeys || Object.keys(rows[0]);//可指定keys
+        const keyWidth: { [key: string]: number; } = {};
         for (let i = 0; i < keys.length; i++) {
             const cellText = longestCells[i];
             const key = keys[i];
             const width = caculateCellWidth(key, cellText, i);
-            widthCells.push(width);
-            keyWidth.push({ [key]: width || 0 });
+            keyWidth[key] = width || 0;
         }
-
-
-
-        const sum = widthCells.filter(e => e).reduce((prev, curr) => {
-            return (prev || 0) + (curr || 0);
-        });
+        const sum = Object.values(keyWidth).reduce((prev, curr) => { return prev + curr; }, 0);
         if (!sum) return;
 
         if (sum >= totalWidth) {
             //只关注可见列，除了最宽列，均最佳显示
-            let sumTemp = sum;
-            const keyWidthOrder = objOrder(keyWidth).objOrderByValue;
-            while (sumTemp >= totalWidth)
-                keyWidthOrder.shift();
-            sumTemp = keyWidthOrder.map(e => Object.values(e)).flat().reduce((prev, curr) => {
-                return (prev || 0) + (curr || 0);
-            });
-            for (const keyWith of keyWidthOrder) {
-                const key = Object.keys(keyWith)[0];
-                const width = Object.values(keyWith)[0];
-                onResizeData[key] = (width || 0);
+            let sumTemp = sum;         //根据列的内容（筛选出每列字符数最多的值）排序
+            const values = Object.values(keyWidth).sort();
+            let keys = Object.keys(keyWidth);
+            let lengthMax: number;
+            while (sumTemp >= totalWidth) {
+                lengthMax = values.pop() || 0;
+                const keyMax = keys.find(key => keyWidth[key] == lengthMax);
+                keys = keys.filter(key => key != keyMax);
+                sumTemp = values.reduce((prev, curr) => { return prev + curr; }, 0);
             }
-
+            for (const key of keys) {
+                onResizeData[key] = (keyWidth[key] || 0);
+            }
 
         } else {
             const diff = totalWidth - sum;
             for (let i = 0; i < keys.length; i++) {
                 const key = keys[i];
-                onResizeData[key] = (widthCells[i] || 0) + Math.round(diff * ((widthCells[i] || 0) / sum));
-
-
+                onResizeData[key] = keyWidth[key] + Math.round(diff * (keyWidth[key] / sum));
             }
-        }
-        tableTreeInstance._columns.onResize(onResizeData);
+        }//@ts-ignore has        
+        tableTreeInstance._columns.onResize(onResizeData);//@ts-ignore has
         tableTreeInstance.rerender();
     }
 
     function caculateCellWidth(key: string, cellText: string, index: number = 0) {
-        tableTreeInstance._topDiv?.scrollIntoView();
+        tableTreeInstance._topDiv?.scrollIntoView();//@ts-ignore has
         tableTreeInstance.rerender();
         const container = tableTreeInstance._topDiv?.children[1].children[0].children[0] as HTMLDivElement;
 
@@ -193,6 +185,12 @@ export async function replaceSecretKeysTable() {
         }
         return longestCells;
     }
+    /**
+     * 每列值为一组，依据key的顺序成组
+     * @param rows 
+     * @param visibleKeys 
+     * @returns 
+     */
     function rowsToColums(rows: any[], visibleKeys?: string[]) {
         visibleKeys ? visibleKeys : Object.keys(rows[0]);
         if (!visibleKeys || visibleKeys.length == 0) return;
@@ -369,7 +367,9 @@ export async function replaceSecretKeysTable() {
 
     function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         if (tableTreeInstance.dataChangedCache) saveAccounts();
-        adjustWidth();
+        //@ts-ignore has
+        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
+        adjustWidth(rows, visibleKeys);
         return true;
     }
 

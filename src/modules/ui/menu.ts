@@ -1,7 +1,7 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive, test1 } from "../../utils/tools";
+import { arrToObj, collectFilesRecursive, getFilesRecursive, objOrder, test1 } from "../../utils/tools";
 import { compareSQLUpdateDB, getDB } from '../database/database';
 import { openAddonPrefPane } from "../preferenceScript";
 
@@ -26,6 +26,7 @@ async function clearTable(tableNames: string[]) {
 }
 
 const tableNames2 = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
+const testobj = { a: 5, b2: 6, c9c: 66 };
 
 const paraArrs = [
   ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
@@ -33,6 +34,7 @@ const paraArrs = [
   ["compareSQLUpdateDB", compareSQLUpdateDB, []],
   ["clearTable", clearTable, [tableNames2]],
   ["menuAddon-openAddonPrefPane", openAddonPrefPane, []],
+  ["menuAddon-objOrder", objOrder, [testobj]],
 ];
 
 

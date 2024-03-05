@@ -39,7 +39,14 @@ export function compareObj(obj1: any, obj2: any) {
   return true;
 }
 
-
+/**
+ * 排序规则，数字、中英、所有语种的规则？？？
+ * 有错误 出现undefined
+ * 对象的键或值排序，给出各种排序组合
+ * @param obj 
+ * @param isPad 
+ * @returns 
+ */
 export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
   const objOrdered: {
     objOrderByKey: object[];
@@ -76,44 +83,28 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
   // 以 obj 的键作为字符串数组，根据相应键的值为条件排序
 
   const keys = Object.keys(obj);
+
+  keys.sort();
   let values = Object.values(obj);
   //全部元素均可转为数字
-  let valuesIsNumber: boolean;
-  let keysIsNumber: boolean;
-  if (values.filter(e => !isNaN(Number(e))).length == values.length) {
-    valuesIsNumber = true;
-  } else {
-    valuesIsNumber = false;
-  }
-  if (keys.filter(e => !isNaN(Number(e))).length == keys.length) {
-    keysIsNumber = true;
-  } else {
-    keysIsNumber = false;
-  }
+  const valuesIsNumber = values.filter(e => !isNaN(Number(e))).length == values.length;
+  const keysIsNumber = keys.filter(e => !isNaN(Number(e))).length == keys.length;
   const vv: any = {};
   const kk: any = {};
-  if (isPad === undefined || isPad == true) {
+  if (isPad !== false) {
     const reg = [];
-    reg.push(/^(\d+)$/m);
-    reg.push(/^(\d+).*?[^\d]+$/m);
-    reg.push(/^[^\d]+.*?(\d+)$/m);
-    reg.push(/^[^\d]+.*?(\d+).*?[^\d]+$/m);
+    reg.push(/^(\d+)$/m);//纯数字
+    reg.push(/^(\d+).*?[^\d]+$/m);//首尾是数字
+    reg.push(/^[^\d]+.*?(\d+)$/m);//结尾连续数字
+    reg.push(/^[^\d]+.*?(\d+).*?[^\d]+$/m);//首尾非数字
     if (!keysIsNumber) {
       for (const reg0 of reg) {
         //提取reg匹配的内容
         //key一定是字符串
         let numbers: any[] = [];
-        keys.map(k => {
-          const contition = k.match(reg0);
-          if (contition == null) {
-            return false;
-          } else {
-            numbers.push(contition[1]);
-            return;
-          }
-        });
+        numbers = keys.map(k => k.match(reg0)).filter(e => e).map(e => e![1]);
         if (!numbers.length) { continue; }
-        numbers = numbers.filter((e: any) => e && e);
+        numbers = numbers.filter((e: any) => e);
         //确定最长数字串的长度
         const numLength = numbers.reduce((maxLength: number, num: any) => {
           if (num.length > maxLength) {
@@ -121,6 +112,7 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
           }
           return maxLength;
         }, 0);
+        //对象所有键中的数字调整到等长，以最长的数字为基准，原来的键作为值另存到对象kk中
         keys.filter((k: any, i) => {
           const condition = k.match(reg0);
           if (condition) {
@@ -131,9 +123,9 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
             if (kk[k]) {
               temp = kk[k];
             }
-            k = k.replace(s1, s2);
+            k = k.replace(s1, s2);//keys的元素被替换
             keys[i] = k;
-            kk[k] = temp;
+            kk[k] = temp;//替换后的keys元素对应的值
           }
         });
       }
@@ -313,6 +305,9 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
 
   return objOrdered;
 };
+
+
+
 
 /**
  * 对象深度克隆
