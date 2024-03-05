@@ -1,14 +1,13 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, getElementValue, makeId, } from "./ui/uiTools";
+import { getDom, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
-import { arrToObj, showInfo } from "../utils/tools";
+import { showInfo } from "../utils/tools";
 
 import { mountMenu } from "./ui/menu";
-import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { getTableByID, replaceSecretKeysTable } from "./ui/tableProps";
-import { getServices, getServicesFromDB } from "./translate/translateServices";
-//import { makeColumnProps, makeTableProps } from "./ui/tableProps";
+import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
+import { getServices } from "./translate/translateServices";
+
 
 
 
