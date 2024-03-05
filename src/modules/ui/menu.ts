@@ -4,6 +4,7 @@ import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, objOrder, test1 } from "../../utils/tools";
 import { compareSQLUpdateDB, getDB } from '../database/database';
 import { openAddonPrefPane } from "../preferenceScript";
+import { testTableClass } from "./table";
 
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
@@ -35,6 +36,7 @@ const paraArrs = [
   ["clearTable", clearTable, [tableNames2]],
   ["menuAddon-openAddonPrefPane", openAddonPrefPane, []],
   ["menuAddon-objOrder", objOrder, [testobj]],
+  ['testTableClass', testTableClass, []],
 ];
 
 

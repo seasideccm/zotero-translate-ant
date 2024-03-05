@@ -5,10 +5,8 @@ import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getDom, getElementValue } from "./uiTools";
-import { getDBSync } from "../database/database";
-import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, getTranslateService, validata } from "../translate/translateServices";
+import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
-import { appendFile } from "fs";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -89,18 +87,6 @@ export async function replaceSecretKeysTable() {
     //@ts-ignore has//切换选项标签
     const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
     adjustWidth(rows, visibleKeys);
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     function adjustWidth(rows: any[], visibleKeys?: string[]) {

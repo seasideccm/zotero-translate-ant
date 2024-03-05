@@ -61,7 +61,7 @@ export class TranslateServiceAccount {
           sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
           await DB.queryAsync(sql);
         }
-        catch (e) {
+        catch (e: any) {
           this.saveDeferred!.reject();
           ztoolkit.log(e);
           showInfo(e);
@@ -132,7 +132,7 @@ export class TranslateServiceAccount {
   recoverPrevious() {
     try {
       Zotero.Utilities.Internal.assignProps(this, this.previousData);
-    } catch (e) {
+    } catch (e: any) {
       showInfo(e);
       ztoolkit.log(e);
     }
