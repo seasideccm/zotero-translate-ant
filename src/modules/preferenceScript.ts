@@ -453,7 +453,10 @@ function skipLangsHideShow() {
 
 
 export async function openAddonPrefPane() {
-  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.id?.includes(config.addonID))[0];
+
+  //const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.id?.includes(config.addonID) && "".endsWith("preferences.xhtml"))[0];
+  //shortcut.xhtml
+  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.pluginID == config.addonID && e.src.endsWith("preferences.xhtml"))[0];
   if (addonPrefPane.id) {
     Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
   }
