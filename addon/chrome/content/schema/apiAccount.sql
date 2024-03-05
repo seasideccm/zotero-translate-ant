@@ -7,7 +7,7 @@ CREATE TABLE translateServiceSN(
     appID TEXT NOT NULL DEFAULT "no",
     usable INT NOT NULL DEFAULT 1,
     forbidden INT NOT NULL DEFAULT 0,
-    FOREIGN KEY (serviceID) REFERENCES translateServiceSN (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE translateServices(

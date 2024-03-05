@@ -1039,23 +1039,6 @@ export async function replaceSecretKeysTable() {
             .then((v) => {
                 const text: string = v;
                 batchAddAccount(text);
-                /* const textArr = text.split(/\r?\n/).filter(e => e);
-                const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
-                const keys = Object.keys(rows[0]);
-                const pasteRows = valuesArr.map((values: string[]) => {
-                    const row: any = kvArrsToObject(keys)(values);
-                    Object.keys(row).filter((key: string, i: number) => {
-                        if ((row[key] as string).includes(EmptyValue)) {
-                            row[key] = DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE];
-                        }
-                    });
-                    return row;
-                });
-                const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
-                if (newRows && pasteRows && newRows.length != pasteRows.length) {
-                    ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
-                }
-                rows.push(...newRows); */
                 tableHelper.render();
             })
             .catch((v) => {
