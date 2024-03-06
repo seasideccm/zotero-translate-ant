@@ -1,0 +1,10 @@
+{
+    "extension": ["js", "ts", "tsx"],
+    "loader": ["ts-node/esm"],
+    "recursive": "src/test/*.test.ts",
+    "require": [
+        "ts-node/register",
+        "tsconfig-paths/register"
+    ],
+    "ui": "bdd"
+}

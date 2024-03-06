@@ -11,7 +11,7 @@ export class Table {
         this.initialPromise = this.init(options);
 
     }
-    init(options: any) {
+    async init(options: any) {
         if (!options.win) throw new Error("window undefined");
         options.props.getRowCount = () => this.rowsData.length;
         options.props.getRowData = (index: number) => this.rowsData[index];
@@ -21,10 +21,10 @@ export class Table {
         };
         if (!this.rowsData && (!options.props.getRowCount || !options.props.getRowData)) throw new Error("Data not available");
         Object.assign(defaultProps, options.props);
-        tableFactory(options).then((tableHelper: VirtualizedTableHelper) => {
-            Zotero.Utilities.Internal.assignProps(this, tableHelper.treeInstance);
+        const tableHelper = await tableFactory(options);
+        Object.assign(this, tableHelper.treeInstance);
 
-        });
+
     }
 
     adjustWidth(rows: any[], visibleKeys?: string[]) {
