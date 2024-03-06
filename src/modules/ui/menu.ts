@@ -1,51 +1,14 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive, objOrder, test1 } from "../../utils/tools";
-import { compareSQLUpdateDB, getDB } from '../database/database';
+import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../../utils/tools";
+import { clearAllTable } from '../database/database';
 import { openAddonPrefPane } from "../preferenceScript";
+import { translate } from "../translate/translate";
 import { testTableClass } from "./table";
-
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
-const keysForButtonMenu = ["label", "func", "args"];
 
-async function renameTable() {
-
-  const old = "translateService";
-  const newTable = "translateServices";
-  const DB = await getDB();
-  await DB.renameTable(old, newTable);
-}
-
-async function clearTable(tableNames: string[]) {
-  const DB = await getDB();
-  for (const tableName of tableNames) {
-    const sql = `DELETE FROM ${tableName}`;
-    await DB.queryAsync(sql);
-  }
-}
-
-const tableNames2 = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
-const testobj = { a: 5, b2: 6, c9c: 66 };
-
-const paraArrs = [
-  ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-  ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-  ["compareSQLUpdateDB", compareSQLUpdateDB, []],
-  ["clearTable", clearTable, [tableNames2]],
-  ["menuAddon-openAddonPrefPane", openAddonPrefPane, []],
-  ["menuAddon-objOrder", objOrder, [testobj]],
-  ['testTableClass', testTableClass, []],
-];
-
-
-
-function menuitemObj(argsArr: any[]) {
-  return arrToObj(keysForButtonMenu, argsArr);
-}
-
-const menuitemGroupArr = paraArrs.map(e => [menuitemObj(e)]);
 export function mountMenu() {
   let menu = document.querySelector(`#${makeId("menu")}`);
   if (!menu) {
@@ -56,6 +19,7 @@ export function mountMenu() {
       attributes: {
         align: "right",
         draggable: "true",
+        accesskey: "A",
       },
       styles: {
         padding: "4px 2px 4px 28px",
@@ -66,13 +30,29 @@ export function mountMenu() {
       },
       properties: {
         label: getString("menu-label"),
-        accesskey: "A",
-        crop: "right",
+        //crop: "right",
         tooltiptext: getString("menu-label"),
         //"oncommand": "Zotero_Tools.imgTableTool.toggle();"
       },
     });
     menu = ztoolkit.UI.createElement(document, "menu", menuProps);
+    if (!menu) {
+      ztoolkit.log("menu not created");
+      return;
+    }
+    const paraArrs = [
+      ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+      ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+      ["翻译测试", translate, ["跑流程"], "T", "Ctrl+T"],
+      ["clearTable", clearAllTable,],
+      ["menuAddon-openAddonPrefPane", openAddonPrefPane],
+      ['testTableClass', testTableClass],
+    ];
+
+
+
+    const menuitemGroupArr = paraArrs.map(e => [menuitemObj(e)]);
+
     const menuPopup = makeClickButton(makeId("menu"), menuitemGroupArr) as Element;
     menu.append(menuPopup);
   }
@@ -82,10 +62,12 @@ export function mountMenu() {
     ref = document.querySelector(".titlebar-button.titlebar-min");
     ref?.parentElement?.insertBefore(menu, ref);
   } else {
-
     ref = document.querySelector("#helpMenu");
     ref?.insertAdjacentElement("afterend", menu);
   }
 
-
+  function menuitemObj(argsArr: any[]) {
+    return arrToObj(["label", "func", "args", "accesskey"], argsArr);
+    //"acceltext" 可显示，无功能
+  }
 }

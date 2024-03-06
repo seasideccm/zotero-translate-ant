@@ -1,4 +1,3 @@
-import { VirtualizedTableHelper } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { showInfo } from "../../utils/tools";
 import { openAddonPrefPane } from "../preferenceScript";
 
@@ -21,7 +20,7 @@ export class Table {
         };
         if (!this.rowsData && (!options.props.getRowCount || !options.props.getRowData)) throw new Error("Data not available");
         Object.assign(defaultProps, options.props);
-        const tableHelper = await tableFactory(options);
+        const tableHelper = await this.tableFactory(options);
         Object.assign(this, tableHelper.treeInstance);
 
 
@@ -33,7 +32,7 @@ export class Table {
         const totalWidth = this._topDiv?.clientWidth;//表格宽度
         if (!totalWidth) return;
         const colums: any[][] = this.rowsToColums(rows, visibleKeys) || [[]];
-        const longestCells = this.strMax(colums);
+        const longestCells = strMax(colums);
         const keys = visibleKeys || Object.keys(rows[0]);//可指定keys
         const keyWidth: { [key: string]: number; } = {};
         for (let i = 0; i < keys.length; i++) {
@@ -70,6 +69,23 @@ export class Table {
         }//@ts-ignore has        
         this._columns.onResize(onResizeData);//@ts-ignore has
         this.rerender();
+
+        function strMax(colums: any[][]) {
+            const longestCells = [];
+            for (const column of colums) {
+                let tempLength = 0;
+                let strMax = '';
+                for (const str of column) {
+                    const length = String(str).length;
+                    if (length > tempLength) {
+                        tempLength = length;
+                        strMax = str;
+                    }
+                }
+                longestCells.push(strMax);
+            }
+            return longestCells;
+        }
     }
 
     caculateCellWidth(key: string, cellText: string, index: number = 0) {
@@ -92,22 +108,7 @@ export class Table {
 
     }
 
-    strMax(colums: any[][]) {
-        const longestCells = [];
-        for (const column of colums) {
-            let tempLength = 0;
-            let strMax = '';
-            for (const str of column) {
-                const length = String(str).length;
-                if (length > tempLength) {
-                    tempLength = length;
-                    strMax = str;
-                }
-            }
-            longestCells.push(strMax);
-        }
-        return longestCells;
-    }
+
     /**
      * 每列值为一组，依据key的顺序成组
      * @param rows 
@@ -130,24 +131,26 @@ export class Table {
         return colums as any[][];
     }
 
-}
-async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
-    if (!containerId) {
-        throw "Must pass containerId which assign table location";
-    }
-    const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
-    const tableHelper = new ztoolkit.VirtualizedTable(win);
+    async tableFactory({ win, containerId, props }: TableFactoryOptions) {
+        if (!containerId) {
+            throw "Must pass containerId which assign table location";
+        }
+        const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
+        const tableHelper = new ztoolkit.VirtualizedTable(win);
 
-    tableHelper.setContainerId(containerId);
-    tableHelper.setProp(props);
-    tableHelper.render(-1, () => {
-        renderLock.resolve();
-        if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-        addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
-    });
-    await renderLock.promise;
-    return tableHelper;
+        tableHelper.setContainerId(containerId);
+        tableHelper.setProp(props);
+        tableHelper.render(-1, () => {
+            renderLock.resolve();
+            if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
+            addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
+        });
+        await renderLock.promise;
+        return tableHelper;
+    }
+
 }
+
 
 
 export async function testTableClass() {
@@ -155,6 +158,7 @@ export async function testTableClass() {
     const rows = [{ col1: "Row 1", col2: "john" }, { col1: "Row 2", col2: "mike" }];
 
     await openAddonPrefPane();
+    //@ts-ignore has
     await Zotero.Promise.delay(1000);
     const win = addon.data.prefs?.window;
     if (!win) {
@@ -170,6 +174,7 @@ export async function testTableClass() {
         props: {
             id: "my-table",
             columns: columns,
+            showHeader: true,
 
         },
         rowsData: rows,

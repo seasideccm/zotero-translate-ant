@@ -20,7 +20,7 @@
         "build": "tsc --noEmit && node scripts/build.mjs production",
         "stop": "node scripts/stop.mjs",
         "lint": "prettier --write . && eslint . --ext .ts --fix",
-        "test": "cross-env TS_NODE_PROJECT='./test/tsconfig.test.json' cross-env  TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --config .mocharc.json src/test/*.ts",
+        "test": "mocha -r ts-node/register src/test/*.ts",
         "release": "release-it --only-version --preReleaseId=beta",
         "update-deps": "npm update --save"
     },
@@ -49,7 +49,6 @@
         "@typescript-eslint/parser": "^6.21.0",
         "chai": "^5.1.0",
         "chokidar": "^3.6.0",
-        "co-mocha": "^1.2.2",
         "compressing": "^1.10.0",
         "cross-env": "^7.0.3",
         "cz-conventional-changelog": "^3.3.0",
@@ -119,14 +118,16 @@
         "printWidth": 80,
         "tabWidth": 2,
         "endOfLine": "lf",
-        "overrides": [{
-            "files": [
-                "*.xhtml"
-            ],
-            "options": {
-                "htmlWhitespaceSensitivity": "css"
+        "overrides": [
+            {
+                "files": [
+                    "*.xhtml"
+                ],
+                "options": {
+                    "htmlWhitespaceSensitivity": "css"
+                }
             }
-        }]
+        ]
     },
     "release-it": {
         "git": {

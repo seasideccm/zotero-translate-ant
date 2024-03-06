@@ -221,9 +221,9 @@ export async function replaceSecretKeysTable() {
 
 
     async function addRecordBulk(e: Event) {
-        const filePath = await chooseFilePath();
+        const filePath = await chooseFilePath();//
         const extension = Zotero.File.getExtension(filePath);
-        let text = '';
+        let text = '';//
         const result = Zotero.File.getContentsAsync(filePath);
         if (typeof result == "string") {
             text += result;
@@ -282,7 +282,7 @@ export async function replaceSecretKeysTable() {
         e.preventDefault();
         e.stopPropagation();//@ts-ignore has
         if (e.dataTransfer.types.contains("application/x-moz-file")) {
-
+            //
             if (!Zotero.isMac) {
                 if (e.shiftKey) {
                     if (e.ctrlKey) {
@@ -301,9 +301,9 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleDrop(e: DragEvent) {
-        if (!e.dataTransfer) return false;
+        if (!e.dataTransfer) return false;//
         const dragData = Zotero.DragDrop.getDataFromDataTransfer(e.dataTransfer);
-        if (!dragData) {
+        if (!dragData) {//
             Zotero.debug("No drag data");
             return false;
         }
@@ -311,15 +311,15 @@ export async function replaceSecretKeysTable() {
         let text: string = '';
         const allPromise = [];
         for (let i = 0; i < data.length; i++) {
-            const file = data[i];
-            const extension = Zotero.File.getExtension(file);
+            const file = data[i];//
+            const extension = Zotero.File.getExtension(file);//
             const result = Zotero.File.getContentsAsync(file);
             if (typeof result == "string") {
                 text += result;
-            } else if (!(result instanceof Uint8Array)) {
+            } else if (!(result instanceof Uint8Array)) {//
                 const readerLock = Zotero.Promise.defer();
                 allPromise.push(readerLock);
-                result.then(str => {
+                result.then((str: any) => {
                     if (typeof str == "string") text += str;
                     readerLock.resolve();
                 });
@@ -386,12 +386,13 @@ export async function replaceSecretKeysTable() {
             x = x || e.screenX; //@ts-ignore has
             y = y || e.screenY;
             // TEMP: Quick fix for https://forums.zotero.org/discussion/105103/
+            //
             if (Zotero.isWin) {
                 x += 10;
             }
             const anchor = e.target;
             //contextMenu.menupopup.openPopup(anchor, x, y);
-            contextMenu.menupopup.openPopup(anchor, 'after_pointer', 0, 0, true, false, e);
+            contextMenu.menupopup.openPopup(anchor, 'after_pointer', 0, 0, true, false, e);//
             contextMenu.menupopup.moveTo(x, y);
         };
 
@@ -420,6 +421,7 @@ export async function replaceSecretKeysTable() {
     function handleKeyDown(e: KeyboardEvent) {
         // Returning false to prevent default event.
         //return返回的值决定是否继续执行 virtualized-table.jsx 默认的按键功能
+        //
         if (e.key == "Delete" || e.key == "Backspace" || (Zotero.isMac && e.key == "Backspace")) {
             const confirm = win?.confirm(getString("info-delete-secretKey") + '\n'
                 + getString("info-delete-confirm"));
@@ -584,8 +586,8 @@ export async function replaceSecretKeysTable() {
         function upLevel() {
             const cells = inputCell.parentElement?.querySelectorAll("input");
             if (!cells) return;
-            const zIndexs = [];
-            for (const cell of cells) {
+            const zIndexs = [];//
+            for (const cell of Array.from(cells)) {
                 Number(cell.style.zIndex || 0);
                 zIndexs.push(Number(cell.style?.zIndex || 0));
             }
@@ -924,7 +926,7 @@ export async function replaceSecretKeysTable() {
         const serialNumber = getNextServiceSNSync();
         const accuntOptions: any = {};
         accuntOptions.serviceID = serviceID;
-        accuntOptions.serialNumber = serialNumber;
+        accuntOptions.serialNumber = serialNumber;//
         Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
         accuntOptions.forbidden = false;
         const account = new TranslateServiceAccount(accuntOptions);
@@ -955,7 +957,7 @@ export async function replaceSecretKeysTable() {
     }
 
     function notifyAccountSave(obj: any | any[]) {
-        if (!Array.isArray(obj)) obj = [obj];
+        if (!Array.isArray(obj)) obj = [obj];//
         Zotero.Notifier.trigger('add', 'item', [999999999999], { data: obj }, true);
         //event, type, ids, extraData, force
         /**

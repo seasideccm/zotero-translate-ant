@@ -490,6 +490,7 @@ export async function getFilesPathOrName(
   const filesPathOrName: string[] = [];
   async function onOntry(entry: any) {
     if (entry.isDir && option.subDirectory) {
+      //
       await Zotero.File.iterateDirectory(entry.path, onOntry);
     } else if (entry.isDir && !option.subDirectory) {
       return;
@@ -502,17 +503,16 @@ export async function getFilesPathOrName(
       }
     }
   }
+  //
   await Zotero.File.iterateDirectory(dir, onOntry);
   ztoolkit.log(filesPathOrName);
   return filesPathOrName;
 }
 
 export function arrToObj(keys: string[], values: any[]) {
-  if (keys.length !== values.length) {
-    throw "keys and values amount is not equal";
-  }
   const obj = {};
   keys.forEach((key: string, i: number) => {
+    if (values[i] == void 0) return;
     Object.assign(obj, { [key]: values[i] });
   });
   return obj;
@@ -664,17 +664,21 @@ export function ReadPNG(buf: any) {
 }
 
 
-export function getPopupWin(header: string = config.addonName, option?: OptionsPopupWin) {
+export function getPopupWin(option?: OptionsPopupWin, header?: string) {
   if (!addon.mountPoint["popupWin"] || option) {
+    if (!header) header = config.addonName;
     addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
   }
   return addon.mountPoint["popupWin"];
 }
-export function showInfo(infos?: string | string[], option?: OptionsPopupWin, header?: string, optionsCreatLine?: OptionsPopupWinCreateLine) {
-  const noop = () => {
-  };
+export function showInfo(infos?: string | string[],
+  option?: OptionsPopupWin,
+  header?: string,
+  optionsCreatLine?: OptionsPopupWinCreateLine) {
+  const noop = () => { };
   !header ? header = config.addonName : noop;
-  const popupWin = new ztoolkit.ProgressWindow(header, option);// 默认 options = {closeOnClick: true,closeTime: 5000,}
+  // 默认 options = {closeOnClick: true,closeTime: 5000,}
+  const popupWin = new ztoolkit.ProgressWindow(header, option);
   //if (!option || option.closeTime != -1) {
   //  Zotero.ProgressWindowSet.closeAll();
   //}

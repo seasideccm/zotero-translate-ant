@@ -1,5 +1,4 @@
 import { config } from "../package.json";
-import { TranslateServices } from "./modules/database/dataObjects";
 import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
@@ -13,7 +12,7 @@ import {
   registerPrefsShortcut,
   registerShortcutsCache,
 } from "./utils/shortcut";
-import { getPopupWin, showInfo } from "./utils/tools";
+import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 
 async function onStartup() {
@@ -22,11 +21,11 @@ async function onStartup() {
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
-  /* if (__env__ === "development") {
+  if (__env__ === "development") {
     // Keep in sync with the scripts/.mjs
     const loadDevToolWhen = `Plugin ${config.addonID} startup`;
     ztoolkit.log(loadDevToolWhen);
-  } */
+  }
   initLocale();
   registerNotifier();
   //registerShortcuts();  
@@ -39,25 +38,17 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
-  mountMenu();
-  window.addEventListener("mouseover", listenImageCallback, false);
+  win.addEventListener("mouseover", listenImageCallback, false);
   monitorImageItem();
-  const popupWin = getPopupWin();
-  addon.mountPoint['TranslateServices'] = TranslateServices;
+  //XXX addon.mountPoint['TranslateServices'] = TranslateServices;
   registerShortcutsCache();
-  popupWin
-    .createLine({
-      text: getString("startup-begin"),
-      type: "default",
-      progress: 0,
-    })
-    .show();
-  popupWin.startCloseTimer(5000);
+  showInfo(getString("startup-begin"));
   await getDB();
   if (addon.data.env == "development") {
     await compareSQLUpdateDB();
   }
   await initTranslateServices();
+  mountMenu();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

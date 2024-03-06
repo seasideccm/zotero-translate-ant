@@ -96,19 +96,19 @@ export const makeMenupopup = (id: string) => {
   return menupopup;
 };
 
+declare type MenuitemProps = { label: string; accesskey: string; acceltext: string, func: (...args: any[]) => any | void; args: any[]; };
 export const makeMenuitem = (
-  option: { label: string; func: (...args: any[]) => any | void; args: any[]; },
+  option: MenuitemProps,
   menupopup: any,
 ) => {
-  let label = getString(option.label);
-  label = label.startsWith(config.addonRef) || label == void 0 || label == "" ? option.label : label;
+  localLabel(option);
+  const attributes: any = {};
+  Zotero.Utilities.Internal.assignProps(attributes, option, ['label', 'accesskey', "acceltext"]);
   const makeMenuitem = ztoolkit.UI.appendElement(
     {
       tag: "menuitem",
       namespace: "xul",
-      attributes: {
-        label: label,
-      },
+      attributes: attributes,
     },
     menupopup,
   );
@@ -124,6 +124,14 @@ export const makeMenuitem = (
     makeMenuitem.addEventListener("command", () => {
       option.func(...option.args);
     });
+  }
+
+  function localLabel(option: MenuitemProps) {
+    let label = getString(option.label);
+    label = label.startsWith(config.addonRef) || label == void 0 || label == "" ? option.label : label;
+    if (option.accesskey) label += ` (${option.accesskey.toLocaleUpperCase()})`;
+    //if (option.acceltext) label += ` (${option.acceltext.toLocaleUpperCase()})`;
+    option.label = label;
   }
 };
 
@@ -167,3 +175,8 @@ export function getDom(idSuffix: string) {
   if (!doc) return;
   return doc.querySelector(`#${makeId(idSuffix)}`);
 }
+
+
+
+
+

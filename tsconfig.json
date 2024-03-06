@@ -2,19 +2,16 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "module": "commonjs",
-    "target": "es5",
+    "target": "ES2016",
+    "lib": ["ES5", "ES6", "DOM"],
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "esModuleInterop": true,
   },
   "include": [
-    "src/**/*.ts",
+    "src",    
     "typings",
     "node_modules/zotero-types",
-    "addon/chrome/content/test/testIncludes.js",
-    "addon/chrome/content/test/testItemTree.jsx",
-    "addon/chrome/content/test/test.js",
   ],
-  "exclude": ["build","node_modules"],
+  "exclude": ["build", "addon"],
 }

@@ -260,6 +260,18 @@ export async function getDB(dbName?: string) {
 
   return addonDB;
 }
+export async function clearTable(tableNames: string[]) {
+  const DB = await getDB();
+  for (const tableName of tableNames) {
+    const sql = `DELETE FROM ${tableName}`;
+    await DB.queryAsync(sql);
+  }
+}
+
+export async function clearAllTable() {
+  const tableNames = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
+  await clearTable(tableNames);
+}
 
 export function getDBSync() {
   return addon.mountPoint.database as DB;
