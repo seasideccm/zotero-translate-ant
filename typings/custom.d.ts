@@ -306,5 +306,84 @@ declare type LimitService = {
   limitMode: string;
   charasLimit: number;
   configID?: number;
-}
+};
+
+declare type CellBox = {
+  columnIndex: number;
+  rowIndex?: number;
+  top: number;
+  bottom: number;
+  left: number;
+  //right: number;
+  items: PDFItem[];
+};
+
+
+declare type PDFItem = {
+  /*   chars: {
+      baseline: number;
+      c: string;
+      fontName: string;
+      fontSize: number;
+      rect: number[];
+      rotation: number;
+    }[]; */
+  dir: string;
+  fontName: string;
+  height: number;
+  str: string;
+  transform: number[];
+  width: number;
+  hasEOL: boolean;
+};
+
+/**
+ * 将一段字符串转换为行，一整行可以有多个行
+ */
+declare type PDFLine = {
+  x: number;
+  _x?: number[];
+  y: number;
+  text: string;
+  height: number;
+  _height: number[];
+  width: number;
+  pageIndex: number;
+  lineIndex?: number;
+  lineSpaceTop: number;
+  lineSpaceBottom: number;
+  sourceLine: PDFItem[];
+  fontName: string;
+  _fontName: string[];
+  isReference: boolean;
+  //0非悬挂，1悬挂首行，2悬挂后续行
+  hangingIndent: 0 | 1 | 2;
+};
+
+declare type PDFParagraph = {
+  lineHeight: number;
+  text: string;
+  _height: number[];
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  pageIndex: number;
+  width: number;
+  isReference: boolean;
+  sourceLines: PDFItem[][];
+  lines: PDFLine[];
+  fontName: string;
+  paraSpaceTop: number;
+  paraSpaceBottom: number;
+  lineSpaceTop: number;
+  headingLevel: number;
+};
+
+declare type Box = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
 

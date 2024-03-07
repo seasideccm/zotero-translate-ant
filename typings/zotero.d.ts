@@ -174,3 +174,13 @@ declare namespace Zotero {
     _debug(str: any, level: any): void;
   }
 }
+
+declare namespace _ZoteroTypes {
+  interface Utilities {
+    /**
+         * Decodes HTML entities within a string, returning plain text
+         * @param {String} str
+         */
+    unescapeHTML(str: string): string;
+  }
+}

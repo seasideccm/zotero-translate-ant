@@ -41,17 +41,22 @@ export function mountMenu() {
       return;
     }
     const paraArrs = [
-      ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-      ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-      ["翻译测试", translate, ["跑流程"], "T", "Ctrl+T"],
-      ["clearTable", clearAllTable,],
-      ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-      ['testTableClass', testTableClass],
+      [
+        ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+        ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
+
+        ["clearTable", clearAllTable,],
+        ["menuAddon-openAddonPrefPane", openAddonPrefPane],
+        ['testTableClass', testTableClass],
+      ],
+      [
+        ["翻译测试", translate, ["跑流程"], "T", "Ctrl+T"],
+      ]
     ];
 
 
 
-    const menuitemGroupArr = paraArrs.map(e => [menuitemObj(e)]);
+    const menuitemGroupArr = paraArrs.map(paraArr => paraArr.map(e => menuitemObj(e)));
 
     const menuPopup = makeClickButton(makeId("menu"), menuitemGroupArr) as Element;
     menu.append(menuPopup);
@@ -83,7 +88,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: getString("menuitem-note") + " ALT+N",
     commandListener: ((ev) => {
-      Translator.translateFT("note");
+      //Translator.translateFT("note");
     }),
     icon: menuIcon,
   });
@@ -91,7 +96,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: getString("menuitem-pdf") + " ALT+P",
     commandListener: ((ev) => {
-      Translator.translateFT("pdf");
+      // Translator.translateFT("pdf");
     }),
     icon: menuIcon,
   });
@@ -99,7 +104,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: getString("menuitem-pdf2Note"),
     commandListener: (async (ev) => {
-      await this.pdf2Note();       //Translator.pdf2Note();
+      // await this.pdf2Note();       //Translator.pdf2Note();
     }),
     icon: menuIcon,
   });
@@ -108,7 +113,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: "添加图片注释",
     commandListener: (async (ev) => {
-      await imageToAnnotation();       //Translator.pdf2Note();
+      //await imageToAnnotation();       //Translator.pdf2Note();
     }),
     icon: menuIcon,
   });
@@ -116,7 +121,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: "测试保存图片",
     commandListener: (async (ev) => {
-      await testSaveImg();
+      //await testSaveImg();
     }),
     icon: menuIcon,
   });

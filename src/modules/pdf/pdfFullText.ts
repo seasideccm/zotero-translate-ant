@@ -1,9 +1,8 @@
+/* eslint-disable no-control-regex */
 
-import { getPref } from '../utils/prefs';
-import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getPageData, combineParagraphsWords, boxByParagraphs } from './imageTableFontInfo';
-import { pdfFontInfo } from "./fontDetect";
-import { prepareReader } from './prepareReader';
+import { getPref } from '../../utils/prefs';
+
+
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -769,12 +768,14 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
                 e.text != ''
                 && e.text.match(/^\s+$/g) == null
                 && !e.text.includes("\\u00")
+                // eslint-disable-next-line no-control-regex
                 && e.text.match(/[\u0000-\u001f]/) == null);
         } else {
             arrTemp = allItem.flat(Infinity).filter((e: PDFItem) =>
                 e.str != ''
                 && e.str.match(/^\s+$/g) == null
                 && !e.str.includes("\\u00")
+                // eslint-disable-next-line no-control-regex
                 && e.str.match(/[\u0000-\u001f]/) == null);
         }
     } else {
