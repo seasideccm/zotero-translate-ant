@@ -180,4 +180,3 @@ export function registerFn() {
   addon.mountPoint.fn.setting = openAddonPrefPane;
 }
 
-

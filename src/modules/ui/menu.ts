@@ -71,3 +71,80 @@ export function mountMenu() {
     //"acceltext" 可显示，无功能
   }
 }
+
+
+export function rightClickMenuItem() {
+  const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
+  ztoolkit.Menu.register("item", {
+    tag: "menuseparator",
+  });
+  // item menuitem with icon
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-note") + " ALT+N",
+    commandListener: ((ev) => {
+      Translator.translateFT("note");
+    }),
+    icon: menuIcon,
+  });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-pdf") + " ALT+P",
+    commandListener: ((ev) => {
+      Translator.translateFT("pdf");
+    }),
+    icon: menuIcon,
+  });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-pdf2Note"),
+    commandListener: (async (ev) => {
+      await this.pdf2Note();       //Translator.pdf2Note();
+    }),
+    icon: menuIcon,
+  });
+
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: "添加图片注释",
+    commandListener: (async (ev) => {
+      await imageToAnnotation();       //Translator.pdf2Note();
+    }),
+    icon: menuIcon,
+  });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: "测试保存图片",
+    commandListener: (async (ev) => {
+      await testSaveImg();
+    }),
+    icon: menuIcon,
+  });
+
+
+
+  ztoolkit.Shortcut.register("event", {
+    id: `${config.addonRef}-key-translate-note`,
+    key: "N",
+    // 似乎只支持单个修饰键
+    //modifiers="accel,shift,alt"
+    modifiers: "alt",
+    callback: (keyOptions) => {
+      addon.hooks.onShortcuts("translateNote");
+    },
+  });
+  ztoolkit.Shortcut.register("event", {
+    id: `${config.addonRef}-key-translate-pdf`,
+    key: "P",
+    modifiers: "alt",
+    callback: (keyOptions) => {
+      addon.hooks.onShortcuts("translatePDF");
+    },
+  });
+}
+
+
+
+
+
+
