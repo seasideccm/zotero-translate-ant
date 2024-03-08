@@ -115,10 +115,11 @@ export const makeMenuitem = (
   /* makeMenuitem.addEventListener("command", () => {
         option.func(...option.args);
     }); */
-  const func = option.func;
-  if (judgeAsync(func)) {
+  if (!option.func) return;
+  option.args ? option.args : option.args = [];
+  if (judgeAsync(option.func)) {
     makeMenuitem.addEventListener("command", async () => {
-      await func(...option.args);
+      await option.func(...option.args);
     });
   } else {
     makeMenuitem.addEventListener("command", () => {

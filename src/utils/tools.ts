@@ -10,6 +10,21 @@ export function requireModule(moduleName: string) {
   return module;
 }
 
+
+export function encrypt(txt: string, publicKey: string) {
+  const crypto = requireModule('crypto');
+  const encryptor = new crypto();
+  encryptor.setPublicKey(publicKey); // 设置公钥
+  return encryptor.encrypt(txt);
+}
+
+export function decrypt(txt: string, privateKey: string) {
+  const crypto = requireModule('crypto');
+  const encryptor = new crypto();
+  encryptor.setPrivateKey(privateKey); // 设置私钥
+  return encryptor.decrypt(txt);
+}
+
 export async function resourceFilesName(url?: string) {
   url = url || `chrome://${config.addonRef}/content/schema/`;
   //@ts-ignore has
@@ -1017,3 +1032,39 @@ export async function chooseFilePath(defaultPath?: string) {
     }
   }
 }
+
+export function fileSizeFormat(fileSize: number, idx = 0) {
+  const units = ["B", "KB", "MB", "GB"];
+  if (fileSize < 1024 || idx === units.length - 1) {
+    return fileSize.toFixed(1) + units[idx];
+  }
+  return fileSizeFormat(fileSize / 1024, ++idx);
+}
+
+export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
+  const path = getPathDir(filename, dir, ext).path;
+  if (!await OS.File.exists(path)) { return; }
+  const buf = await OS.File.read(path, {});
+  const blob = new Blob([buf]);
+  const response = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve(e.target?.result);
+    };
+    reader.readAsText(blob);
+  });
+  return JSON.parse(response as string);
+  //特殊符号出乱码return JSON.parse(arrayBufferToString(buf));
+}
+
+/**
+ * c:\\path\\to\\file.json
+ * 
+ * /c/path/to/file/json
+ * @param path 
+ * @returns 
+ */
+export const getFileInfo = async (path: string) => {
+  return await OS.File.stat(path);
+
+};

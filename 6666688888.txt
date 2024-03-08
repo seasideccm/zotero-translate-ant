@@ -1,0 +1,17 @@
+6666688888.txt
+addon/
+build/
+LICENSE
+logs/
+node_modules/
+package.json
+package-lock.json
+pnpm-lock.yaml
+README.md
+remoteData/
+scripts/
+src/
+tsconfig.json
+typings/
+update.json
+update-beta.json

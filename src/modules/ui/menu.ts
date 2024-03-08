@@ -4,8 +4,9 @@ import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../../utils/tools";
 import { clearAllTable } from '../database/database';
 import { openAddonPrefPane } from "../preferenceScript";
-import { translate } from "../translate/translate";
+import { translate, translateContent } from "../translate/translate";
 import { testTableClass } from "./table";
+import { generateKey } from "./testReact";
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 
 
@@ -40,7 +41,9 @@ export function mountMenu() {
       ztoolkit.log("menu not created");
       return;
     }
-    const paraArrs = [
+
+    const text = "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
+    const parasArrs = [
       [
         ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
         ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
@@ -50,13 +53,16 @@ export function mountMenu() {
         ['testTableClass', testTableClass],
       ],
       [
-        ["翻译测试", translate, ["跑流程"], "T", "Ctrl+T"],
+        ["翻译测试", translateContent, [], "T", "Ctrl+T"],
+      ],
+      [
+        ["密钥", generateKey, []]
       ]
     ];
 
 
 
-    const menuitemGroupArr = paraArrs.map(paraArr => paraArr.map(e => menuitemObj(e)));
+    const menuitemGroupArr = parasArrs.map(parasArr => parasArr.map(paras => menuitemObj(paras as any[])));
 
     const menuPopup = makeClickButton(makeId("menu"), menuitemGroupArr) as Element;
     menu.append(menuPopup);

@@ -3,6 +3,7 @@ import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
+import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
@@ -21,11 +22,14 @@ async function onStartup() {
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
-  if (__env__ === "development") {
+
+
+  /* if (__env__ === "development") {
     // Keep in sync with the scripts/.mjs
     const loadDevToolWhen = `Plugin ${config.addonID} startup`;
     ztoolkit.log(loadDevToolWhen);
-  }
+  } */
+
   initLocale();
   registerNotifier();
   //registerShortcuts();  
@@ -49,6 +53,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   }
   await initTranslateServices();
   mountMenu();
+  translate();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

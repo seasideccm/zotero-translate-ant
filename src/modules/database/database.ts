@@ -277,11 +277,15 @@ export function getDBSync() {
   return addon.mountPoint.database as DB;
 };
 
-async function makeDBPath(dbName?: string) {
+export async function makeDBPath(dbName?: string) {
   //dir.replace(/\/|\\$/gm, '')
-  let dir = dbName
-    ? getDir(dbName)
-    : PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
+  let dir;
+  if (dbName == void 0 || (dbName && getDir(dbName) == ".")) {
+    dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
+  } else {
+    dir = getDir(dbName);
+  }
+
   if (!(await IOUtils.exists(dir))) {
     try {
       await IOUtils.makeDirectory(dir);
@@ -295,9 +299,7 @@ async function makeDBPath(dbName?: string) {
       throw e;
     }
   }
-  dir == "."
-    ? (dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef))
-    : () => { };
+  //dir == "."    ? (dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef))    : () => { };
   dbName = dbName
     ? fileNameNoExt(dbName) + ".sqlite"
     : `${config.addonRef}DB.sqlite`;
