@@ -518,10 +518,22 @@ export async function getFilesPathOrName(
       }
     }
   }
+
+
+
   //
   await Zotero.File.iterateDirectory(dir, onOntry);
   ztoolkit.log(filesPathOrName);
   return filesPathOrName;
+}
+
+/**
+ * 文件路径格式转换 win2Unix
+ * @param filePath 
+ * @returns 
+ */
+export function path2UnixFormat(filePath: string) {
+  return filePath.toLocaleLowerCase().replace(/^([\w]):/, "/$1").replace(/[\\]/g, "/");
 }
 
 export function arrToObj(keys: string[], values: any[]) {
