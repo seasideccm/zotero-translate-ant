@@ -1,7 +1,7 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../../utils/tools";
+import { arrToObj, collectFilesRecursive, getFilesRecursive, testCry } from "../../utils/tools";
 import { clearAllTable } from '../database/database';
 import { openAddonPrefPane } from "../preferenceScript";
 import { translate, translateContent } from "../translate/translate";
@@ -56,7 +56,8 @@ export function mountMenu() {
         ["翻译测试", translateContent, [], "T", "Ctrl+T"],
       ],
       [
-        ["密钥", generateKey, []]
+        ["密钥", generateKey, []],
+        ["保存秘钥", testCry],
       ]
     ];
 

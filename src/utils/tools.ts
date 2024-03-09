@@ -2,27 +2,112 @@ import { config } from "../../package.json";
 import { franc } from "franc-min";
 import { addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
+import { Cry } from "./crypto";
 
 export function requireModule(moduleName: string) {
-  const win = ztoolkit.getGlobal("window");
-  const _require = (win as any).require;
-  const module = _require(moduleName);
+  let require = ztoolkit.getGlobal("window").require;
+  if (typeof require == "undefined") {
+    require = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
+      .getService(Components.interfaces.mozIJSSubScriptLoader)
+      .loadSubScript('resource://zotero/require.js');
+  }
+  const module = require(moduleName);
   return module;
 }
 
 
-export function encrypt(txt: string, publicKey: string) {
-  const crypto = requireModule('crypto');
-  const encryptor = new crypto();
-  encryptor.setPublicKey(publicKey); // 设置公钥
-  return encryptor.encrypt(txt);
+
+
+
+
+export function stringToArrayBuffer(str: string) {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
 }
 
-export function decrypt(txt: string, privateKey: string) {
-  const crypto = requireModule('crypto');
-  const encryptor = new crypto();
-  encryptor.setPrivateKey(privateKey); // 设置私钥
-  return encryptor.decrypt(txt);
+export function uint8ArrayToString(buffer: Uint8Array) {
+  let str = '';
+  for (let i = 0; i < buffer.byteLength; i++) {
+    str += String.fromCharCode(buffer[i]);
+  }
+  return str;
+}
+export function stringToUint8Array(str: string) {
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+  return bytes;
+}
+export function stringToArrayBuffer2(str: string) {
+  return stringToUint8Array(str).buffer;
+}
+export function arrayBufferTOstring(buffer: ArrayBuffer) {
+  return uint8ArrayToString(new Uint8Array(buffer));
+}
+
+export async function testCry() {
+
+  //保存秘钥对
+  const keyPair = await Cry.getKeyPair();
+  const publicKey = await Cry.exportKey(keyPair.publicKey);
+  const privateKey = await Cry.exportKey(keyPair.privateKey);
+  const keyName = "ssh-keyTest";
+  let path = PathUtils.join(await chooseDirOrFilePath(), keyName);
+  path = await ensureNonePath(path);
+  await Cry.saveKey(publicKey, path + ".pub");
+  await Cry.saveKey(privateKey, path);
+  const rawKeyprivateKey = await Cry.importKey(privateKey);
+  const rawKeypublicKey = await Cry.importKey(publicKey);
+  const text = "加密解密流程测试";
+
+  const encryptedData = await Cry.encrypt(keyPair.publicKey, text);
+  //ArrayBuffer形式密文转为string以便传送，
+  //不使用 TextDecoder，因为转出的字符串无法被 TextEncoder 还原成原来的 Uint8Array
+  const sendString = uint8ArrayToString(new Uint8Array(encryptedData));
+  const restoreUint8Array = stringToUint8Array(sendString);
+  const decryptedText = await Cry.decrypt(rawKeyprivateKey, restoreUint8Array);//Uint8Array或ArrayBuffer均可
+  showInfo(["source:", text]);
+  showInfo(["decryptedText:", decryptedText]);
+
+
+  const test = "test";
+
+
+
+}
+
+
+/**
+ * - 添加时间戳确保路径可用 
+ * - 没有点且没有扩展名
+ * - 或最后一个点之后还有目录分割符，返回path+timeStamp
+ * @param path 
+ * @returns 
+ */
+export async function ensureNonePath(path: string) {
+  if (!await IOUtils.exists(path)) return path;
+  const timeStamp = "_" + Date.now();
+  const lastIndexOfDot = path.lastIndexOf(".");
+
+  if (lastIndexOfDot == -1 || path.includes("\\", lastIndexOfDot) || path.includes("/", lastIndexOfDot)) return path + timeStamp;
+  return path.substring(0, lastIndexOfDot) + timeStamp + path.substring(lastIndexOfDot);
+
+}
+export async function getFilePath(choose: boolean = false) {
+  let filePath: string;
+  if (choose) return await chooseFilePath();
+  return;
+
+
+}
+
+export function getAddonDir() {
+  return PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
 }
 
 export async function resourceFilesName(url?: string) {
@@ -569,6 +654,7 @@ export function base64ToBytes(imageDataURL: string):
   const parts = imageDataURL.split(",");
   if (!parts[0].includes("base64")) return;
   const mime = parts[0].match(/:(.*?);/)![1];
+  //字母转字节
   const bstr = atob(parts[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
@@ -1018,30 +1104,58 @@ export function batchAddEventListener2(optins: {
   }
 }
 
-
-export async function chooseFilePath(defaultPath?: string) {
-  const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+export async function chooseDirOrFilePath(isDir: boolean = true) {
+  const FilePicker = window.require("zotero/modules/filePicker").default;
   const fp = new FilePicker();
-  fp.init(window, Zotero.getString("fileInterface.import"), fp.modeOpen);
-  fp.appendFilters(fp.filterAll);
-  defaultPath = defaultPath || getDefaultPath();
-  fp.displayDirectory = defaultPath;
-
-
+  if (isDir) {
+    if (Zotero.isMac) {
+      fp.init(window, "Select application", fp.modeOpen);
+      fp.appendFilter("Mac OS X Application Bundle", "*.app");
+    } else {
+      fp.init(window, "Select directory", fp.modeGetFolder);
+    }
+  } else {
+    fp.init(window, "Select file", fp.modeOpen);
+    fp.appendFilters(fp.filterAll);
+  }
+  fp.displayDirectory = getDefaultPath();
   const rv = await fp.show();
   if (rv !== fp.returnOK && rv !== fp.returnReplace) {
     return;
   }
+  const message = (isDir ? "Directory " : "File ") + `is ${fp.file}`;
+  Zotero.debug(message);
+  return fp.file;
+}
+/**
+ * 废弃，请使用 chooseDirOrFilePath
+ * @param defaultPath 
+ * @returns 
+ */
+export async function chooseFilePath(defaultPath?: string) {
+  //const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+  const FilePicker = window.require("zotero/modules/filePicker").default;
+  const fp = new FilePicker();
 
+  if (Zotero.isMac) {
+    fp.init(window, "Select application", fp.modeOpen);
+    fp.appendFilter("Mac OS X Application Bundle", "*.app");
+  } else {
+    fp.init(window, "Select directory", fp.modeGetFolder);
+  }
+  fp.displayDirectory = defaultPath || getDefaultPath();
+  const rv = await fp.show();
+  if (rv !== fp.returnOK && rv !== fp.returnReplace) {
+    return;
+  }
   Zotero.debug(`File is ${fp.file}`);
   return fp.file;
-
-  function getDefaultPath() {
-    if (Zotero.isWin) {
-      return "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
-    } else {
-      return "";
-    }
+}
+function getDefaultPath() {
+  if (Zotero.isWin) {
+    return "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+  } else {
+    return "";
   }
 }
 

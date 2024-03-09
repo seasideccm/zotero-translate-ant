@@ -1,4 +1,4 @@
-import { encrypt, path2UnixFormat, requireModule, showInfo } from "../../utils/tools";
+import { path2UnixFormat, requireModule, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 
 //测试通过
@@ -33,8 +33,7 @@ export function cryptoTest() {
 
 
     const text = "zotero 翻译工具包";
-    const publicKey = "1234567890123456789012345678901234567890";
-    const encode = encrypt(text, "1234567890123456789012345678901234567890");
+
 }
 
 export async function generateKey() {
@@ -67,62 +66,7 @@ export async function generateKey() {
     const privateKey = await Zotero.File.getContentsAsync(filePath);
 
 
-    async function encryptAsymmetricKey(publicKey: any, data: any) {
-        const encodedData = new TextEncoder().encode(data);
-        const encryptedData = await window.crypto.subtle.encrypt(
-            {
-                name: "RSA-OAEP",
-            },
-            publicKey,
-            encodedData
-        );
-        return encryptedData;
-    }
 
-    async function decryptAsymmetricKey(privateKey: any, encryptedData: any) {
-        const decryptedData = await window.crypto.subtle.decrypt(
-            {
-                name: "RSA-OAEP",
-            },
-            privateKey,
-            encryptedData
-        );
-        return new TextDecoder().decode(decryptedData);
-    }
-
-    async function asymmetricEncryptionDecryption() {
-        const text = "Shavahn";
-
-        // 生成一对非对称加密密钥
-        const keyPair = await window.crypto.subtle.generateKey(
-            {
-                name: "RSA-OAEP",
-                modulusLength: 2048,
-                publicExponent: new Uint8Array([1, 0, 1]),
-                hash: { name: "SHA-256" },
-            },
-            true,
-            ["encrypt", "decrypt"]
-        );
-
-        // 加密文本
-        const encryptedData = await encryptAsymmetricKey(keyPair.publicKey, text);
-
-        // 将加密后的文本解密
-        const decryptedText = await decryptAsymmetricKey(
-            keyPair.privateKey,
-            encryptedData
-        );
-
-
-
-        ztoolkit.log("原始文本：", text);
-        ztoolkit.log("加密后的文本：", new Uint8Array(encryptedData));
-        ztoolkit.log("解密后的文本：", decryptedText);
-        return keyPair;
-    }
-
-    const key = await asymmetricEncryptionDecryption();
 
 
     /*     const
@@ -143,7 +87,6 @@ export async function generateKey() {
         }); */
 
     showInfo(["success? " + success, key.publicKey.toString()]);
-    //showInfo("publicKey");
-    //showInfo("privateKey");
+
 
 }
