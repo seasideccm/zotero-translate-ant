@@ -3,6 +3,7 @@ import { franc } from "franc-min";
 import { addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 import { Cry } from "./crypto";
+import { getString } from "./locale";
 
 export function requireModule(moduleName: string) {
   let require = ztoolkit.getGlobal("window").require;
@@ -518,7 +519,7 @@ export function test1() {
  * @param keys2 
  * @returns 
  */
-function arrayDiffer(keys1: any[], keys2: any[]) {
+export function arrayDiffer(keys1: any[], keys2: any[]) {
   if (keys1.length != keys2.length) return true;
   let allKeys = keys1.concat(keys2);
   allKeys = [...new Set(allKeys)];
@@ -1105,7 +1106,12 @@ export function batchAddEventListener2(optins: {
   }
 }
 
-export async function chooseDirOrFilePath(isDir: boolean = true) {
+/**
+ * 默认目录
+ * @param isDir 默认目录
+ * @returns 
+ */
+export async function chooseDirOrFilePath(isDir: boolean = true, defaultPath?: string) {
   const FilePicker = window.require("zotero/modules/filePicker").default;
   const fp = new FilePicker();
   if (isDir) {
@@ -1113,15 +1119,16 @@ export async function chooseDirOrFilePath(isDir: boolean = true) {
       fp.init(window, "Select application", fp.modeOpen);
       fp.appendFilter("Mac OS X Application Bundle", "*.app");
     } else {
-      fp.init(window, "Select directory", fp.modeGetFolder);
+      fp.init(window, getString("info-SelectDirectory"), fp.modeGetFolder);
     }
   } else {
     fp.init(window, "Select file", fp.modeOpen);
     fp.appendFilters(fp.filterAll);
   }
-  fp.displayDirectory = getDefaultPath();
+  fp.displayDirectory = defaultPath || getDefaultPath();
   const rv = await fp.show();
   if (rv !== fp.returnOK && rv !== fp.returnReplace) {
+    if (rv == fp.returnCancel) showInfo(getString("info-userCancle"));
     return;
   }
   const message = (isDir ? "Directory " : "File ") + `is ${fp.file}`;

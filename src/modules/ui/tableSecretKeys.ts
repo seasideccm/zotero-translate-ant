@@ -1,5 +1,5 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseFilePath, deepClone, differObject, objOrder, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, chooseFilePath, deepClone, differObject, objOrder, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -7,7 +7,7 @@ import { TranslateService, TranslateServiceAccount } from "../translate/translat
 import { getDom, getElementValue } from "./uiTools";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
-import { Cry } from "../../utils/crypto";
+import { Cry } from '../../utils/crypto';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -80,6 +80,8 @@ export async function replaceSecretKeysTable() {
     //绑定事件，增删改查
     getDom("addRecord")!.addEventListener("command", addRecord);
     getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
+    getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
+    getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
     win.addEventListener("beforeunload", () => {
         saveAccounts();
     });
@@ -222,7 +224,7 @@ export async function replaceSecretKeysTable() {
 
 
     async function addRecordBulk(e: Event) {
-        const filePath = await chooseFilePath();//
+        const filePath = await chooseDirOrFilePath();//
         const extension = Zotero.File.getExtension(filePath);
         let text = '';//
         const result = Zotero.File.getContentsAsync(filePath);
@@ -236,6 +238,26 @@ export async function replaceSecretKeysTable() {
         batchAddAccount(text);
         tableHelper.render();
     }
+
+    async function addNewCryKey(e: Event) {
+
+        Cry.addCryKey();
+
+
+    }
+    async function addOldCryKey(e: Event) {
+
+        const filePath = await chooseDirOrFilePath();
+        const publicKey = await Cry.getKey("publicKey");
+        if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
+        addon.mountPoint.crypto.path = PathUtils.parent(filePath);
+        addon.mountPoint.crypto.publicKey = publicKey;
+
+
+    }
+
+
+
     /**
      * 获取引擎账号或空数据
      * @param serviceID 

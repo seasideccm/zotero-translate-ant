@@ -1,5 +1,9 @@
 import { config } from "../../package.json";
 
+
+
+export const ENCRYPT_KEYS = ["secretKey", "token"];
+
 export const EmptyValue = "No Data";
 //该值用于替换输入框内容，故应为 string
 export const DEFAULT_VALUE = {
@@ -50,6 +54,11 @@ export const msg = {
 export const addonStorageDir = PathUtils.join(
   Zotero.getStorageDirectory().path,
   config.addonName,
+);
+
+export const addonDatabaseDir = PathUtils.join(
+  Zotero.DataDirectory.dir,
+  config.addonRef,
 );
 export const { OS } = Components.utils.import(
   "resource://gre/modules/osfile.jsm",

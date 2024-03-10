@@ -138,3 +138,5 @@ menuAddon-openAddonPrefPane = Setting
 menuAddon-openAddonShortcut = Keyboard Shortcut
 info-shortcut = shortcut
 info-filtered= duplicate records filtered
+info-SelectDirectory = Select Directory Please
+info-userCancle = User Cancle 

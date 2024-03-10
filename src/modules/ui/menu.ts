@@ -9,6 +9,7 @@ import { translate, translateContent } from "../translate/translate";
 import { testTableClass } from "./table";
 import { generateKey } from "./testReact";
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
+import { Cry } from '../../utils/crypto';
 
 
 export function mountMenu() {
@@ -58,9 +59,7 @@ export function mountMenu() {
         ["翻译测试", translateContent, [], "T", "Ctrl+T"],
       ],
       [
-        ["密钥", generateKey, []],
-        ["保存秘钥", testCry],
-        ["测试自动设置", addonSetting],
+        ["秘钥AES", Cry.unwrapAESKey],
       ]
     ];
 

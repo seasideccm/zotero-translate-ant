@@ -102,3 +102,13 @@ pref-addRecordBulkTooltip = 每行一条记录，字段分隔符支持 "#,;，�
 pref-enableSSH =
     .label = SSH 加密
 pref-sshProtect = 安全设置
+
+pref-addNewCryKey = 创建RSA和AES秘钥
+pref-addNewCryKey1 = RSA公钥私钥和AES秘钥保存在同一目录下使用，请妥善保管
+pref-addNewCryKey2 =RSA公钥私钥用来对AES秘钥加解密
+pref-addNewCryKey3 =AES秘钥用来对文本加解密
+
+pref-addOldCryKey = 导入RSA和AES秘钥
+pref-addOldCryKey1 = RSA公钥私钥和AES秘钥需要在同一目录下
+pref-addOldCryKey2 =RSA公钥私钥导入的格式为 pem
+pref-addOldCryKey3 =AES秘钥导入的格式为 raw

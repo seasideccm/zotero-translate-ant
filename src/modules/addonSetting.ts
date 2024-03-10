@@ -1,4 +1,4 @@
-import { showInfo } from "../utils/tools";
+import { arrayDiffer, showInfo } from "../utils/tools";
 import { getDB } from './database/database';
 import { getElementValue, getElementValueByElement } from "./ui/uiTools";
 
@@ -15,6 +15,10 @@ export async function addonSetting() {
         const match = item.id.match(/-setting-(.*)/);
         if (match) keys.push(match[1]);
     }
+    if (!addon.mountPoint.settings) addon.mountPoint.settings = {};
+    const settings = addon.mountPoint.settings;
+    const oldKeys = Object.keys(settings);
+    if (!arrayDiffer(keys, oldKeys)) return;
     await setAddon(keys);
 
 }
@@ -23,10 +27,7 @@ async function setAddon(keys: string[]) {
     const doc = addon.data.prefs?.window.document;
     if (!doc) return;
     const DB = await getDB();
-    if (!addon.mountPoint.settings) addon.mountPoint.settings = {};
     const settings = addon.mountPoint.settings;
-    const oldKeys = Object.keys(settings);
-    if (oldKeys.length == keys.length) return;
     const newSettings: string[] = [];
     DB.executeTransaction(async () => {
         for (const key of keys) {

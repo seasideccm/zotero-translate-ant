@@ -35,6 +35,7 @@ export async function registerPrefsScripts(_window: Window) {
   await buildPrefsPane();
   await replaceSecretKeysTable();
   bindPrefEvents();
+  addonSetting();
 }
 
 async function buildPrefsPane() {
@@ -320,8 +321,8 @@ function bindPrefEvents() {
   function addonSettingTest(mutationsList: MutationRecord[], observer: any) {
 
     // Use traditional 'for loops' for IE 11
-    for (const mutation of mutationsList) {
-      if (!mutation.target.id.match(/-setting-(.*)/)) continue;
+    for (const mutation of mutationsList) {//@ts-ignore has
+      if (!mutation.target.id.match(/-setting-(.*)/)) continue;//@ts-ignore has
       showInfo(mutation.target.id);
       if (mutation.type === "childList") {
         showInfo("A child node has been added or removed.");
@@ -428,7 +429,7 @@ function skipLangsHideShow() {
     }
     const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
     if (!checkboxs || !checkboxs.length) return;
-    for (const checkbox of checkboxs) {
+    for (const checkbox of Array.from(checkboxs)) {
       //@ts-ignore has
       if (excludes.includes(checkbox.label)) continue;
 
@@ -440,7 +441,7 @@ function skipLangsHideShow() {
     function (e) {
       const checkboxs = getDom("skipLangs")?.getElementsByTagName("checkbox");
       if (!checkboxs || !checkboxs.length) return;
-      for (const checkbox of checkboxs) {
+      for (const checkbox of Array.from(checkboxs)) {
         //@ts-ignore has
         if (Zotero.Locale.availableLocales[Zotero.locale] != checkbox.label)
           continue;
