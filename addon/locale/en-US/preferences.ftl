@@ -97,3 +97,6 @@ pref-leftMenuLocation=
     .label = Behind of Help Menu
 pref-serviceSelectMode=Service Select Mode
 pref-addRecordBulkTooltip = Each row has one record, can have empty rows. The field separator supports any combination of "#", tab, ",", ";", "，", and "；"
+pref-enableSSH =
+    .label = SSH Encrypt
+pref-sshProtect = Safe Setting

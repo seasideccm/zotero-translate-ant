@@ -7,6 +7,7 @@ import { showInfo } from "../utils/tools";
 import { mountMenu } from "./ui/menu";
 import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
+import { addonSetting } from "./addonSetting";
 
 
 
@@ -291,6 +292,9 @@ async function buildPrefsPane() {
 }
 
 function bindPrefEvents() {
+  const win = addon.data.prefs?.window;
+  const doc = addon.data.prefs?.window.document;
+  if (!win || !doc) return;
   bilingualContrastHideShow();
   getDom("bilingualContrast")?.addEventListener("command", (e) => {
     bilingualContrastHideShow();
@@ -300,37 +304,33 @@ function bindPrefEvents() {
   getDom("sourceLang")!.addEventListener("command", (e) => {
     skipLangsHideShow();
   });
+  //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has
-  const mutationObserver = new addon.data.prefs!.window.MutationObserver(mountMenu);
+  const mutationObserver = new win.MutationObserver(mountMenu);
   mutationObserver.observe(getDom("addonMenuLocation")!, {
     attributes: true,
     attributeFilter: ["value"],
   });
+  //监控插件设置项目变化
+  //@ts-ignore has
+  const mutationObserverSettings = new win.MutationObserver(addonSettingTest);
+  mutationObserverSettings.observe(doc.querySelector(`#zotero-prefpane-${config.addonRef}`)!.parentElement, {
+    attributes: true, childList: true, subtree: true,
+  });
+  function addonSettingTest(mutationsList: MutationRecord[], observer: any) {
 
-  /* getDom("addRecord")!.addEventListener("command", (e) => {
-    const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
-    if (table.treeInstance.editIndex != void 0) {
-      table.treeInstance.commitEditingRow();
+    // Use traditional 'for loops' for IE 11
+    for (const mutation of mutationsList) {
+      if (!mutation.target.id.match(/-setting-(.*)/)) continue;
+      showInfo(mutation.target.id);
+      if (mutation.type === "childList") {
+        showInfo("A child node has been added or removed.");
+      } else if (mutation.type === "attributes") {
+        showInfo("The " + mutation.attributeName + " attribute was modified.");
+      }
     }
-    const rows = table.treeInstance.rows;
-    const keys = Object.keys(rows[0]);
-    const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
-    rows.push(row);
-    table.render();
-    table.treeInstance.selection.select(rows.length - 1);
-    const seletedRow = table.treeInstance._topDiv.querySelectorAll(`#${table.treeInstance._jsWindowID} [aria-selected=true]`)[0];
 
-    if (!seletedRow) {
-      showInfo("No seletedRow");
-      return;
-    }
-    const dblClickEvent = new window.MouseEvent('dblclick', {
-      bubbles: true,
-      cancelable: true,
-    });
-    seletedRow.dispatchEvent(dblClickEvent);
-  }); */
-
+  }
 }
 
 function bilingualContrastHideShow(e?: Event) {
@@ -453,36 +453,23 @@ function skipLangsHideShow() {
 
 export async function openAddonPrefPane() {
 
-  //const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.id?.includes(config.addonID) && "".endsWith("preferences.xhtml"))[0];
   //shortcut.xhtml
   const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.pluginID == config.addonID && e.src.endsWith("preferences.xhtml"))[0];
   if (addonPrefPane.id) {
     Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
   }
-  /* 
-    if (addon.data.prefs?.window) {
-      //@ts-ignore has
-      Zotero.Utilities.Internal.openPreferences();
-  
-  
-    }
-    let win;
-    const time = new Date().getMilliseconds();
-    while (!(win = addon.data.prefs?.window)) {
-      const currentTime = new Date().getMilliseconds();
-      if ((currentTime - time) > 5000) {
-        return;
-      }
-    }
-    //@ts-ignore has
-    const prefs = win.Zotero_Preferences;//@ts-ignore has
-    const panes = win.Zotero_Preferences.panes;
-    for (const [id, pane] of panes) {
-      if (id.includes(config.addonID)) {
-        prefs._showPane(id);
-      }
-    } */
+  addonSetting();
 }
+
+export async function openAddonShortcut() {
+  //shortcut.xhtml
+  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.pluginID == config.addonID && e.src.endsWith("shortcut.xhtml"))[0];
+  if (addonPrefPane.id) {
+    Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
+  }
+
+}
+
 
 
 

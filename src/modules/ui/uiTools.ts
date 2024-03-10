@@ -158,6 +158,15 @@ export function getElementValue(keyword: string) {
     }
   }
 }
+
+export function getElementValueByElement(ele: Element) {
+  if (!ele) return;
+  if (ele.tagName == "checkbox") {
+    return (ele as XUL.Checkbox).checked;
+  } else {
+    return (ele as any).value;
+  }
+}
 /**
   @param keyword: string
 */

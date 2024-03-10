@@ -61,6 +61,7 @@ export async function testCry() {
   path = await ensureNonePath(path);
   await Cry.saveKey(publicKey, path + ".pub");
   await Cry.saveKey(privateKey, path);
+
   const rawKeyprivateKey = await Cry.importKey(privateKey);
   const rawKeypublicKey = await Cry.importKey(publicKey);
   const text = "加密解密流程测试";

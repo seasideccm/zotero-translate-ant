@@ -132,6 +132,7 @@ test = 开始测试
 autoDetect = 自动识别
 menu-label = 翻山蚁
 menuAddon-openAddonPrefPane = 设置
+menuAddon-openAddonShortcut = 键盘快捷键
 info-shortcut = 快捷键
 info-filtered = 条重复记录已过滤
 

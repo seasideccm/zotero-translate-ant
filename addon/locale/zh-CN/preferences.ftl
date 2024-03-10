@@ -99,3 +99,6 @@ pref-leftMenuLocation=
     .label = 帮助菜单之后
 pref-serviceSelectMode=翻译引擎选择方式
 pref-addRecordBulkTooltip = 每行一条记录，字段分隔符支持 "#,;，；" 或制表符的任意组合，可有空行
+pref-enableSSH =
+    .label = SSH 加密
+pref-sshProtect = 安全设置

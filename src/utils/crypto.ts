@@ -1,4 +1,5 @@
-import { showInfo, stringToArrayBuffer } from "./tools";
+import { chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from "./tools";
+import { config } from "../../package.json";
 
 export class Cry {
 
@@ -155,4 +156,56 @@ export class Cry {
 
     wrapKey = window.crypto.subtle.wrapKey;
     unwrapKey = window.crypto.subtle.unwrapKey;
+
+
+    static async getKey(type: "publicKey" | 'privateKey') {
+        let key;
+        if (addon.mountPoint.crypto && addon.mountPoint.crypto[type]) {
+            key = addon.mountPoint.crypto[type];
+
+        } else {
+            let path;
+            if (addon.mountPoint.crypto && addon.mountPoint.crypto.path) {
+                path = addon.mountPoint.crypto.path;
+            } else {
+                await this.addAddonSSHKEY();
+                path = addon.mountPoint.crypto.path;
+            }
+
+            path += type == "publicKey" ? ".pub" : "";
+            key = await Zotero.File.getContentsAsync(path);
+            addon.mountPoint.crypto[type] = key;
+        }
+        return await this.importKey(key);
+    }
+    static async encryptAccount(value: string) {
+        const encryptedData = await this.encrypt(this.getKey("publicKey"), value);
+        return uint8ArrayToString(new Uint8Array(encryptedData));
+    }
+    static async decryptAccount(value: string) {
+        const encryptedData = stringToUint8Array(value).buffer;
+        return await this.decrypt(this.getKey("privateKey"), encryptedData);
+    }
+
+    static async addAddonSSHKEY() {
+        const keyPair = await this.getKeyPair();
+        const publicKey = await this.exportKey(keyPair.publicKey);
+        const privateKey = await this.exportKey(keyPair.privateKey);
+        const keyName = `SSHKEY-${config.addonRef}`;
+        let path = PathUtils.join(await chooseDirOrFilePath(), keyName);
+        path = await ensureNonePath(path);
+        await Cry.saveKey(publicKey, path + ".pub");
+        await Cry.saveKey(privateKey, path);
+        addon.mountPoint["crypto"] = {
+            publicKey: publicKey,
+            privateKey: privateKey,
+            path: path,
+        };
+    }
+    // todo 更换 SSHKEY 密钥轮换 保留旧秘钥解码相应密文
+    //RSA算法，在使用OAEP填充模式时，每次最多只能加密190字节。
+    //非对称密钥加解密的性能相对于对称密钥，差了很多，在这实际的业务流加解密中，无法进行业务落地。
+    //因此在实际的工程化上，一般使用非对称密钥进行数据密钥的协商与交换，而使用数据密钥与对称加密算法进行数据流的加解密保护。
+
 }
+

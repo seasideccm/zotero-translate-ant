@@ -7,6 +7,7 @@ import { TranslateService, TranslateServiceAccount } from "../translate/translat
 import { getDom, getElementValue } from "./uiTools";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
+import { Cry } from "../../utils/crypto";
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
@@ -1056,6 +1057,7 @@ export async function replaceSecretKeysTable() {
 
 
     }
+
 
     function clearEditing() {
         ['dataChangedCache', 'editIndex', 'editingRow', 'editIndices', 'editingRow'].forEach((key) => {

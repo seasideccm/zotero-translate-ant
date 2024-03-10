@@ -135,5 +135,6 @@ test = star test
 autoDetect = Auto Detect
 menu-label = TranslateAnt
 menuAddon-openAddonPrefPane = Setting
+menuAddon-openAddonShortcut = Keyboard Shortcut
 info-shortcut = shortcut
 info-filtered= duplicate records filtered

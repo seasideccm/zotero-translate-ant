@@ -2,8 +2,9 @@ import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, collectFilesRecursive, getFilesRecursive, testCry } from "../../utils/tools";
+import { addonSetting } from "../addonSetting";
 import { clearAllTable } from '../database/database';
-import { openAddonPrefPane } from "../preferenceScript";
+import { openAddonPrefPane, openAddonShortcut } from "../preferenceScript";
 import { translate, translateContent } from "../translate/translate";
 import { testTableClass } from "./table";
 import { generateKey } from "./testReact";
@@ -49,6 +50,7 @@ export function mountMenu() {
         ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
 
         ["clearTable", clearAllTable,],
+        ["menuAddon-openAddonShortcut", openAddonShortcut],
         ["menuAddon-openAddonPrefPane", openAddonPrefPane],
         ['testTableClass', testTableClass],
       ],
@@ -58,6 +60,7 @@ export function mountMenu() {
       [
         ["密钥", generateKey, []],
         ["保存秘钥", testCry],
+        ["测试自动设置", addonSetting],
       ]
     ];
 
