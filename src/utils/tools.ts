@@ -51,37 +51,7 @@ export function arrayBufferTOstring(buffer: ArrayBuffer) {
   return uint8ArrayToString(new Uint8Array(buffer));
 }
 
-export async function testCry() {
 
-  //保存秘钥对
-  const keyPair = await Cry.getKeyPair();
-  const publicKey = await Cry.exportKey(keyPair.publicKey);
-  const privateKey = await Cry.exportKey(keyPair.privateKey);
-  const keyName = "ssh-keyTest";
-  let path = PathUtils.join(await chooseDirOrFilePath(), keyName);
-  path = await ensureNonePath(path);
-  await Cry.saveKey(publicKey, path + ".pub");
-  await Cry.saveKey(privateKey, path);
-
-  const rawKeyprivateKey = await Cry.importKey(privateKey);
-  const rawKeypublicKey = await Cry.importKey(publicKey);
-  const text = "加密解密流程测试";
-
-  const encryptedData = await Cry.encrypt(keyPair.publicKey, text);
-  //ArrayBuffer形式密文转为string以便传送，
-  //不使用 TextDecoder，因为转出的字符串无法被 TextEncoder 还原成原来的 Uint8Array
-  const sendString = uint8ArrayToString(new Uint8Array(encryptedData));
-  const restoreUint8Array = stringToUint8Array(sendString);
-  const decryptedText = await Cry.decrypt(rawKeyprivateKey, restoreUint8Array);//Uint8Array或ArrayBuffer均可
-  showInfo(["source:", text]);
-  showInfo(["decryptedText:", decryptedText]);
-
-
-  const test = "test";
-
-
-
-}
 
 
 /**

@@ -1,15 +1,13 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive, testCry } from "../../utils/tools";
-import { addonSetting } from "../addonSetting";
+import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../../utils/tools";
 import { clearAllTable } from '../database/database';
 import { openAddonPrefPane, openAddonShortcut } from "../preferenceScript";
-import { translate, translateContent } from "../translate/translate";
+import { translateContent } from "../translate/translate";
 import { testTableClass } from "./table";
-import { generateKey } from "./testReact";
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
-import { Cry } from '../../utils/crypto';
+import { decryptAES } from '../../utils/crypto';
 
 
 export function mountMenu() {
@@ -59,7 +57,7 @@ export function mountMenu() {
         ["翻译测试", translateContent, [], "T", "Ctrl+T"],
       ],
       [
-        ["秘钥AES", Cry.unwrapAESKey],
+        ["加密=>解密", decryptAES, []],
       ]
     ];
 

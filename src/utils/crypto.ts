@@ -1,12 +1,11 @@
-import { chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from "./tools";
+import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from './tools';
 import { config } from "../../package.json";
-import { addonDatabaseDir, addonStorageDir } from "./constant";
-import { getString } from "./locale";
+import { addonDatabaseDir } from "./constant";
 import { getDB } from "../modules/database/database";
 
 export class Cry {
 
-    static async encrypt(publicKey: any, data: any) {
+    static async encryptRSA(publicKey: any, data: any) {
         const encodedData = new TextEncoder().encode(data);
         const encryptedData = await window.crypto.subtle.encrypt(
             { name: "RSA-OAEP", },
@@ -22,7 +21,7 @@ export class Cry {
      * @param encryptedData 
      * @returns 
      */
-    static async decrypt(privateKey: any, encryptedData: any) {
+    static async decryptRSA(privateKey: any, encryptedData: any) {
         const decryptedData = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP", },
             privateKey,
@@ -31,7 +30,7 @@ export class Cry {
         return new TextDecoder().decode(decryptedData);
     }
 
-    static async getKeyPair() {
+    static async getRSAKeyPair() {
         return await window.crypto.subtle.generateKey(
             {
                 name: "RSA-OAEP",
@@ -97,8 +96,6 @@ export class Cry {
         );
     }
 
-
-
     static async saveKey(key: any, path: string) {
         if (!key || !path || await IOUtils.exists(path)) { showInfo("not save"); return; }
         //btoa 字节转字母
@@ -119,7 +116,6 @@ export class Cry {
         );
     }
 
-
     static async getSignKey() {
         return await window.crypto.subtle.generateKey(
             { name: 'HMAC', hash: { name: 'SHA-256' }, },
@@ -130,6 +126,7 @@ export class Cry {
     static getIV() {
         return window.crypto.getRandomValues(new Uint8Array(16));
     }
+
     static async encryptAESKey(data: BufferSource, secretKey: CryptoKey, iv: any) {
         return await window.crypto.subtle.encrypt(
             { name: 'AES-CBC', iv, },
@@ -164,19 +161,16 @@ export class Cry {
         );
     }
 
-
-
-
     static async getKey(type: "publicKey" | 'privateKey' | "AESCBC") {
 
         //公钥读取后留在程序中随时用来加密
-        if (addon.mountPoint.crypto && type == "publicKey") {
+        if (addon.mountPoint.crypto && addon.mountPoint.crypto.publicKey && type == "publicKey") {
             const key = addon.mountPoint.crypto[type];
             return await Cry.importKey(key);
         }
         let path;
         if (!addon.mountPoint.crypto) {
-            path = await getCryKeyPath();
+            path = await Cry.getCryKeyPath();
             path ? addon.mountPoint.crypto = { path: path } : await Cry.addCryKey();
         }
         path = addon.mountPoint.crypto.path;
@@ -186,7 +180,7 @@ export class Cry {
             let key;
             try {
                 key = await IOUtils.read(path);
-            } catch (e) {
+            } catch (e: any) {
                 showInfo(e.message);
                 showInfo("Please check: " + path);
                 throw e;
@@ -205,7 +199,7 @@ export class Cry {
         let key;
         try {
             key = await Zotero.File.getContentsAsync(path);
-        } catch (e) {
+        } catch (e: any) {
             showInfo(e.message);
             showInfo("Please check: " + path);
             throw e;
@@ -221,13 +215,13 @@ export class Cry {
 
     }
 
-
     static async unwrapAESKey() {
-        const wrapedKey: BufferSource = (await Cry.getKey("AESCBC"))!.buffer;
+        const wrapedKey = await Cry.getKey("AESCBC") as Uint8Array;
+        if (!wrapedKey) return;
         const privateKey = await Cry.getKey("privateKey") as CryptoKey;
         const AESKey = await window.crypto.subtle.unwrapKey(
             "raw",
-            wrapedKey,
+            wrapedKey,//.buffer
             privateKey,
             { name: "RSA-OAEP" },
             { name: 'AES-CBC' },
@@ -238,24 +232,22 @@ export class Cry {
         return AESKey;
     }
 
-
     static async encryptAccount(value: string) {
         //非对称秘钥负责加密对称秘钥，对称秘钥负责加密解密文本内容
         //读取私钥，加密的对称秘钥
 
-        const encryptedData = await Cry.encrypt(Cry.getKey("publicKey"), value);
+        const encryptedData = await Cry.encryptRSA(Cry.getKey("publicKey"), value);
         return uint8ArrayToString(new Uint8Array(encryptedData));
     }
+
     static async decryptAccount(value: string) {
         //读取私钥，加密的对称秘钥
         const encryptedData = stringToUint8Array(value).buffer;
-        return await Cry.decrypt(Cry.getKey("privateKey"), encryptedData);
+        return await Cry.decryptRSA(Cry.getKey("privateKey"), encryptedData);
     }
 
-
     static async addCryKey() {
-
-        const keyPair = await Cry.getKeyPair();
+        const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
         const privateKey = await Cry.exportKey(keyPair.privateKey);
         const keyName = `SSHKEY-${config.addonRef}`;
@@ -266,8 +258,7 @@ export class Cry {
         await Cry.saveKey(publicKey, pathSSH + ".pub");
         await Cry.saveKey(privateKey, pathSSH);
         const AESKey = await Cry.getAESKey();
-        const AESKeyArrayBuffer = await window.crypto.subtle.exportKey("raw", AESKey);
-        const iv = window.crypto.getRandomValues(new Uint8Array(16));
+        ///const AESKeyArrayBuffer = await window.crypto.subtle.exportKey("raw", AESKey);
         const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
         const AESKeyWrapedUnit8Array = new Uint8Array(AESKeyWraped);
         const pathAES = await ensureNonePath(PathUtils.join(path, "AESCBCWraped"));
@@ -290,6 +281,12 @@ export class Cry {
             await DB.queryAsync(sql);
         });
     }
+
+    static async getCryKeyPath() {
+        const DB = await getDB();
+        const sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
+        return await DB.valueQueryAsync(sql);
+    }
     // todo 更换 SSHKEY 密钥轮换 保留旧秘钥解码相应密文
     //RSA算法，在使用OAEP填充模式时，每次最多只能加密190字节。
     //非对称密钥加解密的性能相对于对称密钥，差了很多，在这实际的业务流加解密中，无法进行业务落地。
@@ -297,8 +294,118 @@ export class Cry {
 
 }
 
-async function getCryKeyPath() {
-    const DB = await getDB();
-    const sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
-    return await DB.valueQueryAsync(sql);
+
+
+export const encryptAES = async (text: string = "Hello, world!") => {
+    const key = await Cry.unwrapAESKey();
+    if (!key) return;
+    const data = new TextEncoder().encode(text);
+    const signKey = await Cry.getSignKey();
+    const iv = Cry.getIV();//加解密必须使用相同的初始向量,iv是 initialization vector的缩写，必须为 16 位
+    const algorithm = { name: 'AES-CBC', iv };// 加密算法
+    const encryptAESBuffer = await window.crypto.subtle.encrypt(algorithm, key, data);//加密
+    const encryptAESString = arrayBufferTOstring(encryptAESBuffer);//密文转字符串  
+    const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
+    const signatureString = arrayBufferTOstring(signature); //签名转字符串 
+    const publicKey = await Cry.getKey("publicKey") as CryptoKey;
+    const wrapedKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedKey可以是储存的和当前包裹的key
+    const wrapedsignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
+    const wrapedsignKeyString = arrayBufferTOstring(wrapedsignKey);
+    const wrapedKeyString = arrayBufferTOstring(wrapedKey.buffer);
+    const decryptAlgorithm = { name: 'AES-CBC' };
+    const ivString = arrayBufferTOstring(iv);//向量转字符串
+
+    const encryptAESInfo = {
+        encryptAESString,
+        signatureString,
+        decryptAlgorithm,
+        ivString,
+        wrapedKeyString,
+        wrapedsignKeyString
+    };
+    showInfo(["加密结果:", encryptAESString]);
+    return JSON.stringify(encryptAESInfo);
+};
+
+export const decryptAES = async (encryptAESInfoString?: string) => {
+    encryptAESInfoString = await encryptAES();
+    if (!encryptAESInfoString) return;
+    const encryptAESInfo = JSON.parse(encryptAESInfoString!);
+
+
+
+
+    //@ts-ignore XXX
+    Object.keys(encryptAESInfo).forEach(key => { if (typeof encryptAESInfo[key] == "string") { encryptAESInfo[key] = stringToArrayBuffer(encryptAESInfo[key]); } });
+    //const iv=stringToArrayBuffer(encryptAESInfo.ivString)
+    const privateKey = await Cry.getKey("privateKey") as CryptoKey;
+    const algorithmVerify = { name: 'HMAC', hash: { name: 'SHA-256' } };
+    const signingKey = await window.crypto.subtle.unwrapKey(
+        "raw",
+        encryptAESInfo.wrapedsignKeyString,
+        privateKey,
+        { name: "RSA-OAEP" },
+        algorithmVerify,
+        true,
+        ['sign', 'verify']);
+
+    const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, encryptAESInfo.signatureString, encryptAESInfo.encryptAESString);
+
+    if (!verified) {
+        throw new Error("Can't verify message");
+    }
+    const algorithm = { name: encryptAESInfo.decryptAlgorithm.name, iv: encryptAESInfo.ivString };
+
+    const key = await window.crypto.subtle.unwrapKey(
+        "raw",
+        encryptAESInfo.wrapedKeyString,
+        privateKey,
+        { name: "RSA-OAEP" },
+        { name: 'AES-CBC' },
+        true,
+        ["encrypt", "decrypt"]);
+    const deBuffer = await window.crypto.subtle.decrypt(algorithm, key, encryptAESInfo.encryptAESString);
+    showInfo(["解密数据:", arrayBufferTOstring(deBuffer)]);
+};
+
+export async function testCry() {
+
+    //保存秘钥对
+    const keyPair = await Cry.getRSAKeyPair();
+    const publicKey = await Cry.exportKey(keyPair.publicKey);
+    const privateKey = await Cry.exportKey(keyPair.privateKey);
+    const keyName = "ssh-keyTest";
+    let path = PathUtils.join(await chooseDirOrFilePath(), keyName);
+    path = await ensureNonePath(path);
+    await Cry.saveKey(publicKey, path + ".pub");
+    await Cry.saveKey(privateKey, path);
+
+    const rawKeyprivateKey = await Cry.importKey(privateKey);
+    const rawKeypublicKey = await Cry.importKey(publicKey);
+    const text = "加密解密流程测试";
+
+    const encryptedData = await Cry.encryptRSA(keyPair.publicKey, text);
+    //ArrayBuffer形式密文转为string以便传送，
+    //不使用 TextDecoder，因为转出的字符串无法被 TextEncoder 还原成原来的 Uint8Array
+    const sendString = uint8ArrayToString(new Uint8Array(encryptedData));
+    const restoreUint8Array = stringToUint8Array(sendString);
+    const decryptedText = await Cry.decryptRSA(rawKeyprivateKey, restoreUint8Array);//Uint8Array或ArrayBuffer均可
+    showInfo(["source:", text]);
+    showInfo(["decryptedText:", decryptedText]);
+
+
+    const test = "test";
+
+
+
 }
+
+
+/* const toSend= {
+    payload: payloadString,
+    signature: signatureString,
+    iv: ivString,
+    keys: encryptedKeys,
+  },
+  original: jsonToSend,
+}; */
