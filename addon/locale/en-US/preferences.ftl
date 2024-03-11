@@ -78,7 +78,8 @@ pref-servicePriorityWithKey = Priority Of Service With SecreteKey
 pref-servicePriorityWithoutKey = Priority Of Service Without SecreteKey
 pref-secretKey-help = Add Record: Click the add Record button; 
 pref-secretKey-help1 = Edit SecretKey: Double click a cell to start editing, and the data will be automatically saved; 
-pref-secretKey-help2 = Delete SecretKey: Select a single or multiple rows and press the Delete key or Backspace key.pref-switchService = Use This ServiceID
+pref-secretKey-help2 = Delete SecretKey: Select a single or multiple rows and press the Delete key or Backspace key
+pref-switchService = Use This ServiceID
 pref-deleteService =  Forbidden This ServiceID
 pref-recoverService = Recover All Forbidden ServiceID
 pref-Priority-help = Order Or Bulk Forbidden ServiceID: Select One Item, Up/Down Arrow To order; Select one or more items, press delete or backspace key to switch forbidden.
