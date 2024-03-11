@@ -5,6 +5,7 @@ import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
+import { onOpenInputDialog } from "./modules/ui/inputDialog";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
@@ -126,4 +127,5 @@ export default {
   onPrefsEvent,
   onShortcuts,
   onDialogEvents,
+  onOpenInputDialog,
 };

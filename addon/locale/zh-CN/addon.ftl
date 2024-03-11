@@ -137,3 +137,4 @@ info-shortcut = 快捷键
 info-filtered = 条重复记录已过滤
 info-SelectDirectory = 请选择目录
 info-userCancle = 用户取消
+dialog-inputDialog = 输入窗口

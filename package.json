@@ -17,6 +17,7 @@
     "main": "src/index.ts",
     "scripts": {
         "start": "node scripts/server.mjs",
+        "checkFTL": "node scripts/uselessInFTL.mjs",
         "build": "tsc --noEmit && node scripts/build.mjs production",
         "stop": "node scripts/stop.mjs",
         "lint": "prettier --write . && eslint . --ext .ts --fix",
@@ -73,8 +74,7 @@
         "root": true,
         "extends": [
             "eslint:recommended",
-            "plugin:@typescript-eslint/recommended",
-            "prettier"
+            "plugin:@typescript-eslint/recommended"
         ],
         "overrides": [],
         "parser": "@typescript-eslint/parser",
@@ -118,16 +118,14 @@
         "printWidth": 80,
         "tabWidth": 2,
         "endOfLine": "lf",
-        "overrides": [
-            {
-                "files": [
-                    "*.xhtml"
-                ],
-                "options": {
-                    "htmlWhitespaceSensitivity": "css"
-                }
+        "overrides": [{
+            "files": [
+                "*.xhtml"
+            ],
+            "options": {
+                "htmlWhitespaceSensitivity": "css"
             }
-        ]
+        }]
     },
     "release-it": {
         "git": {
