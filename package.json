@@ -22,6 +22,7 @@
         "lint": "prettier --write . && eslint . --ext .ts --fix",
         "test": "mocha -r ts-node/register src/test/*.ts",
         "release": "release-it --only-version --preReleaseId=beta",
+        "check": "node scripts/uselessInFTL.mjs",
         "update-deps": "npm update --save"
     },
     "repository": {
