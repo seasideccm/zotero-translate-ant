@@ -233,7 +233,7 @@ export async function replaceSecretKeysTable() {
         } else if (!(result instanceof Uint8Array)) {
             text += await result;
 
-        };
+        }
         //showInfo([text, extension]);
         batchAddAccount(text);
         tableHelper.render();
@@ -284,7 +284,7 @@ export async function replaceSecretKeysTable() {
         rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
             getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
         return rows;
-    };
+    }
     function handleFocus(e: any) {        //@ts-ignore has
         if (tableTreeInstance && tableTreeInstance.prevFocusCell) {//@ts-ignore has
             tableTreeInstance.prevFocusCell.focus();
@@ -347,7 +347,7 @@ export async function replaceSecretKeysTable() {
                     readerLock.resolve();
                 });
 
-            };
+            }
             showInfo("drop file extension:" + extension);
         }        //@ts-ignore has
         Zotero.Promise.all(allPromise).then(() => {
@@ -402,7 +402,7 @@ export async function replaceSecretKeysTable() {
             const idPostfix = "tableContextMenu";
             const contextMenu = new ContextMenu({ keys, menuPropsGroupsArr, idPostfix });
             return contextMenu;
-        };
+        }
         async function onCollectionsContextMenuOpen(e: Event, x: number, y: number) {
             const contextMenu = buildContextMenu();
             //@ts-ignore has
@@ -417,7 +417,7 @@ export async function replaceSecretKeysTable() {
             //contextMenu.menupopup.openPopup(anchor, x, y);
             contextMenu.menupopup.openPopup(anchor, 'after_pointer', 0, 0, true, false, e);//
             contextMenu.menupopup.moveTo(x, y);
-        };
+        }
 
         function testContextMenu(...args: any[]) {
             const menuPopupEvent = args.pop();
@@ -454,7 +454,6 @@ export async function replaceSecretKeysTable() {
             //@ts-ignore has
             const selectedIndices = Array.from(tableTreeInstance.selection.selected);
             const rowsDelete = rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
-            const rowsBackup = [...rows];
             selectedIndices.sort((a, b) => a - b);
             selectedIndices.filter((indexValue: number, subIndex: number) => {
                 const deleteIndex = indexValue - subIndex;//避免下标变化而出错
@@ -551,7 +550,7 @@ export async function replaceSecretKeysTable() {
             e.nativeEvent.stopImmediatePropagation();
             e.stopPropagation();
         }
-    };
+    }
     //todo
     function validateSecretKey(index: number) {
         const validateFunc = {
@@ -685,7 +684,7 @@ export async function replaceSecretKeysTable() {
                     if (old == inputCellCurrent.clientWidth) {
                         break;
                     }
-                };
+                }
                 cacheValue.value = inputCellCurrent.value;
             }
             if (inputCellCurrent.scrollWidth > inputCellCurrent.clientWidth) {
@@ -819,7 +818,7 @@ export async function replaceSecretKeysTable() {
         rows[index][key] = inputCell.value;
         /*         oldCell!.textContent = inputCell.value;
                 inputCell.parentNode?.replaceChild(oldCell, inputCell); */
-    };
+    }
 
 
 
@@ -1119,7 +1118,7 @@ export async function replaceSecretKeysTable() {
             });
             e.target!.dispatchEvent(clickEvent);
             x = clickEvent.x;
-        };
+        }
         if (!e.target) return 0;
         const parent = e.target as HTMLElement;
         function left(el: HTMLElement) { return el.getBoundingClientRect().x; }
@@ -1159,7 +1158,7 @@ export async function replaceSecretKeysTable() {
             return result;
         });
         return temp;
-    };
+    }
 
 
 
