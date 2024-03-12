@@ -35,21 +35,21 @@ href="chrome://zotero-platform/content/zotero.css"?>
 
   <linkset>
     <html:link rel="localization" href="branding/brand.ftl" />
-    <html:link rel="localization" href="zotero.ftl" />
+    <html:link rel="localization" href="inputDialog.ftl" />
   </linkset>
 
   <dialog
     buttons="cancel,accept"
-    data-l10n-id="new-collection-dialog"
+    data-l10n-id="input-dialog"
     data-l10n-attrs="buttonlabelaccept"
   >
     <vbox>
-      <label data-l10n-id="new-collection-name" control="name" />
+      <label data-l10n-id="input-name" control="name" />
       <html:input id="name" />
     </vbox>
 
     <vbox>
-      <label data-l10n-id="new-collection-create-in" control="create-in" />
+      <label data-l10n-id="input-content" control="create-in" />
       <menulist id="create-in" native="true">
         <menupopup />
       </menulist>
