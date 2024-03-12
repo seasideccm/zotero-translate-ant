@@ -1,4 +1,5 @@
-import details from "../package.json" assert { type: "json" };
+import details from "../package.json"
+assert { type: "json" };
 import {
     Logger,
     clearFolder,
