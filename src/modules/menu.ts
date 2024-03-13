@@ -1,16 +1,35 @@
-import { config } from "../../../package.json";
-import { getString } from "../../utils/locale";
-import { getPref } from "../../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../../utils/tools";
-import { clearAllTable } from '../database/database';
-import { openAddonPrefPane, openAddonShortcut } from "../preferenceScript";
-import { translateContent } from "../translate/translate";
-import { testTableClass } from "./table";
-import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
-import { decryptAES } from '../../utils/crypto';
-import { inputData } from "./inputDialog";
+import { config } from "../../package.json";
+import { getString } from "../utils/locale";
+import { getPref } from "../utils/prefs";
+import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../utils/tools";
+import { clearAllTable } from './database/database';
+import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
+import { translateContent } from "./translate/translate";
+import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
+import { decryptAES, testCryInfo } from './crypto';
+import { inputData } from "./ui/inputDialog";
 
 
+
+
+function getParasArrs() {
+  const text = "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
+  const parasArrs = [
+    [
+      ["clearTable", clearAllTable,],
+      ["menuAddon-openAddonShortcut", openAddonShortcut],
+      ["menuAddon-openAddonPrefPane", openAddonPrefPane],
+      ['inputData', inputData, ["age", "weight", "sex"]],
+    ],
+    [
+      ["翻译测试", translateContent, [], "T", "Ctrl+T"],
+    ],
+    [
+      ["加密<=>解密", testCryInfo, [text]],
+    ]
+  ];
+  return parasArrs;
+}
 export function mountMenu() {
   let menu = document.querySelector(`#${makeId("menu")}`);
   if (!menu) {
@@ -42,28 +61,7 @@ export function mountMenu() {
       ztoolkit.log("menu not created");
       return;
     }
-
-    const text = "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
-    const parasArrs = [
-      [
-        ["getFilesRecursive", getFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-        ["collectFilesRecursive", collectFilesRecursive, ["C:\\Users\\Administrator\\Documents\\test"]],
-
-        ["clearTable", clearAllTable,],
-        ["menuAddon-openAddonShortcut", openAddonShortcut],
-        ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-        ['inputData', inputData, ["age", "weight", "sex"]],
-      ],
-      [
-        ["翻译测试", translateContent, [], "T", "Ctrl+T"],
-      ],
-      [
-        ["加密=>解密", decryptAES, []],
-      ]
-    ];
-
-
-
+    const parasArrs = getParasArrs();
     const menuitemGroupArr = parasArrs.map(parasArr => parasArr.map(paras => menuitemObj(paras as any[])));
 
     const menuPopup = makeClickButton(makeId("menu"), menuitemGroupArr) as Element;

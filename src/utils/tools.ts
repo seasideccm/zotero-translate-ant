@@ -2,7 +2,7 @@ import { config } from "../../package.json";
 import { franc } from "franc-min";
 import { addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
-import { Cry } from "./crypto";
+import { Cry } from "../modules/crypto";
 import { getString } from "./locale";
 
 export function requireModule(moduleName: string) {

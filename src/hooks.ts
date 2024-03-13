@@ -6,7 +6,7 @@ import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript"
 import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
 import { InputDialog } from "./modules/ui/inputDialog";
-import { mountMenu } from "./modules/ui/menu";
+import { mountMenu } from "./modules/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
 import {

@@ -387,3 +387,14 @@ declare type Box = {
   bottom: number;
 };
 
+
+declare type EncryptAESInfo = {
+  encryptAESString: string;
+  signatureString?: string;
+  decryptAlgorithm?: {
+    name: string;
+  };
+  ivString: string;
+  wrapedKeyString?: string;
+  wrapedsignKeyString?: string;
+};

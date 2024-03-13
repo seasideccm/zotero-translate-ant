@@ -7,7 +7,7 @@ import { TranslateService, TranslateServiceAccount } from "../translate/translat
 import { getDom, getElementValue } from "./uiTools";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, validata } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
-import { Cry } from '../../utils/crypto';
+import { Cry } from '../crypto';
 
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };

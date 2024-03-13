@@ -1,7 +1,7 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from './tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
-import { addonDatabaseDir } from "./constant";
-import { getDB } from "../modules/database/database";
+import { addonDatabaseDir } from "../utils/constant";
+import { getDB } from "./database/database";
 
 export class Cry {
 
@@ -277,7 +277,7 @@ export class Cry {
                 sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`;
             } else {
                 sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`;
-            };
+            }
             await DB.queryAsync(sql);
         });
     }
@@ -295,7 +295,18 @@ export class Cry {
 }
 
 
-
+/**
+ * - 返回 json 字符串
+ * - 含有：
+ * - encryptAESString
+ * - signatureString
+ * - decryptAlgorithm
+ * - ivString
+ * - wrapedKeyString
+ * - wrapedsignKeyString
+ * @param text 
+ * @returns 
+ */
 export const encryptAES = async (text: string = "Hello, world!") => {
     const key = await Cry.unwrapAESKey();
     if (!key) return;
@@ -314,7 +325,6 @@ export const encryptAES = async (text: string = "Hello, world!") => {
     const wrapedKeyString = arrayBufferTOstring(wrapedKey.buffer);
     const decryptAlgorithm = { name: 'AES-CBC' };
     const ivString = arrayBufferTOstring(iv);//向量转字符串
-
     const encryptAESInfo = {
         encryptAESString,
         signatureString,
@@ -323,51 +333,78 @@ export const encryptAES = async (text: string = "Hello, world!") => {
         wrapedKeyString,
         wrapedsignKeyString
     };
-    showInfo(["加密结果:", encryptAESString]);
     return JSON.stringify(encryptAESInfo);
 };
 
+/**
+ * - 字符串参数至少含有密文和向量
+ * - 其他参数参见 {@link EncryptAESInfo}
+ * @param encryptAESInfoString 
+ * @returns 
+ */
 export const decryptAES = async (encryptAESInfoString?: string) => {
-    encryptAESInfoString = await encryptAES();
+    //encryptAESInfoString = await encryptAES();
     if (!encryptAESInfoString) return;
-    const encryptAESInfo = JSON.parse(encryptAESInfoString!);
-
-
-
-
-    //@ts-ignore XXX
+    const encryptAESInfo = JSON.parse(encryptAESInfoString!);    //@ts-ignore XXX
+    if (!encryptAESInfo.ivString) return;
     Object.keys(encryptAESInfo).forEach(key => { if (typeof encryptAESInfo[key] == "string") { encryptAESInfo[key] = stringToArrayBuffer(encryptAESInfo[key]); } });
     //const iv=stringToArrayBuffer(encryptAESInfo.ivString)
     const privateKey = await Cry.getKey("privateKey") as CryptoKey;
     const algorithmVerify = { name: 'HMAC', hash: { name: 'SHA-256' } };
-    const signingKey = await window.crypto.subtle.unwrapKey(
-        "raw",
-        encryptAESInfo.wrapedsignKeyString,
-        privateKey,
-        { name: "RSA-OAEP" },
-        algorithmVerify,
-        true,
-        ['sign', 'verify']);
+    // 签名验证
+    if (encryptAESInfo.wrapedsignKeyString) {
+        const signingKey = await window.crypto.subtle.unwrapKey(
+            "raw",
+            encryptAESInfo.wrapedsignKeyString,
+            privateKey,
+            { name: "RSA-OAEP" },
+            algorithmVerify,
+            true,
+            ['sign', 'verify']);
 
-    const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, encryptAESInfo.signatureString, encryptAESInfo.encryptAESString);
+        const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, encryptAESInfo.signatureString, encryptAESInfo.encryptAESString);
 
-    if (!verified) {
-        throw new Error("Can't verify message");
+        if (!verified) {
+            throw new Error("Can't verify message");
+        }
+    }
+    let key;
+    if (encryptAESInfo.wrapedKeyString) {
+        key = await window.crypto.subtle.unwrapKey(
+            "raw",
+            encryptAESInfo.wrapedKeyString,
+            privateKey,
+            { name: "RSA-OAEP" },
+            { name: 'AES-CBC' },
+            true,
+            ["encrypt", "decrypt"]);
+    } else {
+        // 读取保存的对称私钥
+        key = await Cry.unwrapAESKey();
+    }
+    if (!key) {
+        showInfo("No available decryption key (AES-CBC)");
+        return;
+    }
+    if (!encryptAESInfo.decryptAlgorithm.name) {
+        encryptAESInfo.decryptAlgorithm.name = 'AES-CBC';
     }
     const algorithm = { name: encryptAESInfo.decryptAlgorithm.name, iv: encryptAESInfo.ivString };
-
-    const key = await window.crypto.subtle.unwrapKey(
-        "raw",
-        encryptAESInfo.wrapedKeyString,
-        privateKey,
-        { name: "RSA-OAEP" },
-        { name: 'AES-CBC' },
-        true,
-        ["encrypt", "decrypt"]);
     const deBuffer = await window.crypto.subtle.decrypt(algorithm, key, encryptAESInfo.encryptAESString);
-    showInfo(["解密数据:", arrayBufferTOstring(deBuffer)]);
+    if (!deBuffer) {
+        showInfo("Decrypt Failure");
+        return;
+    }
+    showInfo(["decryptContent:", arrayBufferTOstring(deBuffer)]);
 };
 
+
+export async function testCryInfo(info: string) {
+    const cryedInfo = await encryptAES(info);
+    if (!cryedInfo) return;
+    const cryedInfoJSON = JSON.parse(cryedInfo);
+    showInfo(cryedInfoJSON.encryptAESString);
+}
 export async function testCry() {
 
     //保存秘钥对
@@ -400,12 +437,3 @@ export async function testCry() {
 
 }
 
-
-/* const toSend= {
-    payload: payloadString,
-    signature: signatureString,
-    iv: ivString,
-    keys: encryptedKeys,
-  },
-  original: jsonToSend,
-}; */

@@ -4,7 +4,7 @@ import { getDom, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 
-import { mountMenu } from "./ui/menu";
+import { mountMenu } from "./menu";
 import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
