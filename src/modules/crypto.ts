@@ -1,14 +1,20 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, getPS, promptService, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, collectFilesRecursive, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB } from "./database/database";
 import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 
+const KEYS_NAME: {
+    PUBLICKEY_NAME: string;
+    PRIVATEKEY_NAME: string;
+    AESCBCKEY_NAME: string;
+} = {
+    PUBLICKEY_NAME: `RSAO-AEP-${config.addonRef}.pub`,
+    PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
+    AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
+};
 
-const PUBLICKEY_NAME = `RSAOAEP-${config.addonRef}.pub`;
-const PRIVATEKEY_NAME = `RSAOAEP-${config.addonRef}`;
-const AESCBCKEY__NAME = `AESCBCWraped-${config.addonRef}`;
 export class Cry {
     static async encryptRSA(publicKey: any, data: any) {
         const encodedData = new TextEncoder().encode(data);
@@ -248,44 +254,91 @@ export class Cry {
         return await Cry.decryptRSA(Cry.getKey("privateKey"), encryptedData);
     }
 
-    static async checkCryKey() {
-        const hasKeys = [];
+    static async checkCryKey(customComfirm: boolean = false) {
+        const hasKeys: string[] = [];
         let path = addon.mountPoint.crypto?.path;
         path = path ? path : await Cry.getCryKeyPath();
-        if (addon.mountPoint.crypto?.publicKey) {
-            hasKeys.push("publicKey");
-        } else {
-            if (await IOUtils.exists(OS.Path.join(path, PUBLICKEY_NAME))) {
-                hasKeys.push("publicKey");
+        Object.keys(KEYS_NAME).forEach(async (keyName) => {
+            const keyPath = OS.Path.join(path, KEYS_NAME[keyName as keyof typeof KEYS_NAME]);
+            const exist = await IOUtils.exists(keyPath);
+            if (exist) hasKeys.push(keyName);
+        });
+        showInfo("hasKeys:\n" + hasKeys.join('\n'));
+        if (customComfirm) {
+            let info = '', title = '';
+            if (hasKeys.length == 0) {
+                info = getString("info-hasNot") + " AES ARS " + getString("prefs-table-secretKey") + "\n" + getString("info-Confirm") + getString("info-addNewCryKey") + "?";
+                title = getString("info-addNewCryKey");
+            } else if (hasKeys.length == 3) {
+                info = getString("info-hasAllKey") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt");
+                title = getString("info-replaceOldKey");
+            } else {
+                info += getString("info-has") + ":";
+                if (hasKeys.includes("PUBLICKEY_NAME")) {
+                    info += (getString("info-hasPublicKey") + ' ');
+                }
+                if (hasKeys.includes("PRIVATEKEY_NAME")) {
+                    info += getString("info-privateKey") + ' ';
+                }
+                if (hasKeys.includes("AESCBCKEY_NAME")) {
+                    info += getString("info-AESKey");
+                }
+                info += ("\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt"));
+                title = getString("info-replaceOldKey");
+            }
+
+            const promptService = getPS();
+            const replace = promptService.confirm(window, title, info,);
+            return replace;
+        }
+        return hasKeys;
+    }
+
+    static async importCryKey(filePaths: string[] = []) {
+        if (filePaths.length != 3) return;
+        showInfo("TODO");
+
+    }
+
+    static async addCryKey() {
+        const path = await chooseDirOrFilePath(true, addonDatabaseDir);
+        if (!path) return;
+
+        const files = await collectFilesRecursive(path);
+        if (files && files.length) {
+            // 是否导入原有秘钥
+            const filesName = files.map(e => e.name);
+            const promptService = getPS();
+            const title = getString("info-addOldCryKey");
+            const info = getString("info-has") + filesName.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
+            let confirm = promptService.confirm(window, title, info);
+            if (confirm) {
+                const filePaths = files.map(e => e.path);
+                let info = filePaths.join('\n');
+                const title = "Check FilePaths";
+                confirm = promptService.confirm(window, title, info);
+                if (!confirm) {
+                    const fs = await chooseDirOrFilePath(false, path);
+                    info = fs.join('\n');
+                    confirm = promptService.confirm(window, title, info);
+                    if (!confirm) {
+                        showInfo(getString('info-cancle') + ': ' + getString("info-addOldCryKey"));
+                        return;
+                    }
+                }
+                Cry.importCryKey(filePaths);
+                return;
+            } else {
+                showInfo("create new AES RSA keys");
             }
         }
 
-        if (await IOUtils.exists(OS.Path.join(path, PRIVATEKEY_NAME))) {
-            hasKeys.push("privateKey");
-        }
-        if (await IOUtils.exists(OS.Path.join(path, AESCBCKEY__NAME))) {
-            hasKeys.push("AESKeyWraped");
-        }
-        let info;
-        //if (hasKeys.length == 3) {}
-        info = getString("info-hasAllKey") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "?\n" + getString("info-decrypThenEncrypt");
-        const title = getString("info-replaceOldKey");
-        const name = { value: "name" };
-        const promptService = getPS();
-        const replace = promptService.prompt(window, title, info, name, "none-name", { name, value: "yes-name" });
-        if (replace) {
-            showInfo(getString("info-Confirm") + getString("info-replaceOldKey"));
-        }
-
-    }
-    static async addCryKey() {
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
         const privateKey = await Cry.exportKey(keyPair.privateKey);
-        const keyName = PRIVATEKEY_NAME;
+        const keyName = KEYS_NAME["PRIVATEKEY_NAME"];
         // 公钥私钥 AES 秘钥三者保存在用户指定的同一目录下
-        const path = await chooseDirOrFilePath(true, addonDatabaseDir);
-        if (!path) return;
+
         const pathSSH = await ensureNonePath(PathUtils.join(path, keyName));
         await Cry.saveKey(publicKey, pathSSH + ".pub");
         await Cry.saveKey(privateKey, pathSSH);

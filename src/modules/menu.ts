@@ -22,7 +22,7 @@ function getParasArrs() {
       ['inputData', inputData, ["age", "weight", "sex"]],
     ],
     [
-      ["替换秘钥", Cry.checkCryKey],
+      ["检查秘钥", Cry.checkCryKey],
     ],
     [
       ["加密<=>解密", testCryInfo, [text]],

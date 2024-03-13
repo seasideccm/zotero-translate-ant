@@ -16,6 +16,8 @@ import {
 } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
+import { Cry } from "./modules/crypto";
+import { Command } from "./modules/command";
 
 async function onStartup() {
   await Promise.all([
@@ -95,6 +97,16 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   }
 }
 
+async function onCommand(cmd: string) {
+  switch (cmd) {
+    case "cmd_setEnableEncrypt":
+      await Command.setEnableEncrypt();
+      break;
+    default:
+      return;
+  }
+}
+
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
@@ -129,4 +141,5 @@ export default {
   onShortcuts,
   onDialogEvents,
   onOpenInputDialog,
+  onCommand,
 };

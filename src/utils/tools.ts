@@ -931,11 +931,10 @@ export async function getFilesRecursive(dir: string, ext?: string) {
 }
 
 
-export async function collectFilesRecursive(dirPath: string, parents = [], files = []) {
+export async function collectFilesRecursive(dirPath: string, parents: any[] = [], files: any[] = []) {
   //@ts-ignore has
-  await Zotero.File.iterateDirectory(dirPath, async ({ isDir, _isSymlink, name, path }) => {
+  await Zotero.File.iterateDirectory(dirPath, async ({ isDir, _isSymlink, name, path }: { isDir: boolean, _isSymlink: boolean, name: string, path: string; }) => {
     if (isDir) {
-      //@ts-ignore has
       await collectFilesRecursive(path, [...parents, name], files);
     }
     // TODO: Also check for hidden file attribute on windows?

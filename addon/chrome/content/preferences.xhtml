@@ -1,6 +1,12 @@
 <linkset>
   <html:link rel="localization" href="__addonRef__-preferences.ftl" />
 </linkset>
+<commandset id="mainCommandSet">
+  <command
+    id="cmd_setEnableEncrypt"
+    oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_setEnableEncrypt')"
+  />
+</commandset>
 
 <vbox
   id="zotero-prefpane-__addonRef__"
@@ -192,17 +198,23 @@
   <hbox>
     <label data-l10n-id="pref-sshProtect"></label>
     <checkbox
-      id="__addonRef__-setting-enableSSH"
+      id="__addonRef__-setEnableEncrypt"
       native="true"
       checked="true"
-      data-l10n-id="pref-enableSSH"
+      data-l10n-id="pref-enableEncrypt"
+      command="cmd_setEnableEncrypt"
+      tooltip="setEnableEncryptTip"
     />
+    <tooltip id="setEnableEncryptTip" orient="vertical">
+      <label data-l10n-id="pref-setEnableEncryptTip" />
+    </tooltip>
+
     <button
       id="__addonRef__-addNewCryKey"
       data-l10n-id="pref-addNewCryKey"
-      tooltip="addNewCryKeytip"
+      tooltip="addNewCryKeyTip"
     ></button>
-    <tooltip id="addNewCryKeytip" orient="vertical">
+    <tooltip id="addNewCryKeyTip" orient="vertical">
       <label data-l10n-id="pref-addNewCryKey1" />
       <label data-l10n-id="pref-addNewCryKey2" />
       <label data-l10n-id="pref-addNewCryKey3" />
@@ -210,12 +222,12 @@
     <button
       id="__addonRef__-addOldCryKey"
       data-l10n-id="pref-addOldCryKey"
-      tooltip="addOldCryKeytip"
+      tooltip="addOldCryKeyTip"
     ></button>
-    <tooltip id="addOldCryKeytip" orient="vertical">
+    <tooltip id="addOldCryKeyTip" orient="vertical">
       <label data-l10n-id="pref-addOldCryKey1" />
       <label data-l10n-id="pref-addOldCryKey2" />
-      <label data-l10n-id="pref-addOldCryKey2" />
+      <label data-l10n-id="pref-addOldCryKey3" />
     </tooltip>
 
     <spacer width="20px" height="20px" />

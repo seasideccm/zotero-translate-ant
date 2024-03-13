@@ -81,6 +81,7 @@ export async function replaceSecretKeysTable() {
     getDom("addRecord")!.addEventListener("command", addRecord);
     getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
     getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
+    getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
     getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
     win.addEventListener("beforeunload", () => {
         saveAccounts();
