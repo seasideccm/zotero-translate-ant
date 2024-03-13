@@ -6,7 +6,7 @@ import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { translateContent } from "./translate/translate";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { decryptAES, testCryInfo } from './crypto';
+import { Cry, decryptAES, testCryInfo } from './crypto';
 import { inputData } from "./ui/inputDialog";
 
 
@@ -22,7 +22,7 @@ function getParasArrs() {
       ['inputData', inputData, ["age", "weight", "sex"]],
     ],
     [
-      ["翻译测试", translateContent, [], "T", "Ctrl+T"],
+      ["替换秘钥", Cry.checkCryKey],
     ],
     [
       ["加密<=>解密", testCryInfo, [text]],

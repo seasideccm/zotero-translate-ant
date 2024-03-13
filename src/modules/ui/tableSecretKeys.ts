@@ -240,10 +240,7 @@ export async function replaceSecretKeysTable() {
     }
 
     async function addNewCryKey(e: Event) {
-
-        Cry.addCryKey();
-
-
+        await Cry.addCryKey();
     }
     async function addOldCryKey(e: Event) {
 

@@ -1,10 +1,15 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, ensureNonePath, getPS, promptService, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB } from "./database/database";
+import { OS } from "../utils/tools";
+import { getString } from '../utils/locale';
 
+
+const PUBLICKEY_NAME = `RSAOAEP-${config.addonRef}.pub`;
+const PRIVATEKEY_NAME = `RSAOAEP-${config.addonRef}`;
+const AESCBCKEY__NAME = `AESCBCWraped-${config.addonRef}`;
 export class Cry {
-
     static async encryptRSA(publicKey: any, data: any) {
         const encodedData = new TextEncoder().encode(data);
         const encryptedData = await window.crypto.subtle.encrypt(
@@ -27,6 +32,7 @@ export class Cry {
             privateKey,
             encryptedData
         );
+
         return new TextDecoder().decode(decryptedData);
     }
 
@@ -162,19 +168,17 @@ export class Cry {
     }
 
     static async getKey(type: "publicKey" | 'privateKey' | "AESCBC") {
-
-        //公钥读取后留在程序中随时用来加密
         if (addon.mountPoint.crypto && addon.mountPoint.crypto.publicKey && type == "publicKey") {
             const key = addon.mountPoint.crypto[type];
             return await Cry.importKey(key);
         }
-        let path;
-        if (!addon.mountPoint.crypto) {
+        if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
+        let path = addon.mountPoint.crypto?.path;
+        if (!path) {
             path = await Cry.getCryKeyPath();
-            path ? addon.mountPoint.crypto = { path: path } : await Cry.addCryKey();
+            path ? addon.mountPoint["crypto"]["path"] = path : await Cry.addCryKey();
         }
         path = addon.mountPoint.crypto.path;
-        const SSHKEYName = `SSHKEY-${config.addonRef}`;
         if (type == "AESCBC") {
             path = PathUtils.join(path, "AESCBCWraped");
             let key;
@@ -194,8 +198,8 @@ export class Cry {
             return key;
         }
 
-        if (type == "publicKey") path = PathUtils.join(path, SSHKEYName + ".pub");
-        if (type == 'privateKey') path = PathUtils.join(path, SSHKEYName);
+        if (type == "publicKey") path = PathUtils.join(path, PUBLICKEY_NAME);
+        if (type == 'privateKey') path = PathUtils.join(path, PRIVATEKEY_NAME);
         let key;
         try {
             key = await Zotero.File.getContentsAsync(path);
@@ -203,9 +207,7 @@ export class Cry {
             showInfo(e.message);
             showInfo("Please check: " + path);
             throw e;
-
         }
-
         if (!key) {
             showInfo("Please check: " + path);
             return;
@@ -246,11 +248,41 @@ export class Cry {
         return await Cry.decryptRSA(Cry.getKey("privateKey"), encryptedData);
     }
 
+    static async checkCryKey() {
+        const hasKeys = [];
+        let path = addon.mountPoint.crypto?.path;
+        path = path ? path : await Cry.getCryKeyPath();
+        if (addon.mountPoint.crypto?.publicKey) {
+            hasKeys.push("publicKey");
+        } else {
+            if (await IOUtils.exists(OS.Path.join(path, PUBLICKEY_NAME))) {
+                hasKeys.push("publicKey");
+            }
+        }
+
+        if (await IOUtils.exists(OS.Path.join(path, PRIVATEKEY_NAME))) {
+            hasKeys.push("privateKey");
+        }
+        if (await IOUtils.exists(OS.Path.join(path, AESCBCKEY__NAME))) {
+            hasKeys.push("AESKeyWraped");
+        }
+        let info;
+        //if (hasKeys.length == 3) {}
+        info = getString("info-hasAllKey") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "?\n" + getString("info-decrypThenEncrypt");
+        const title = getString("info-replaceOldKey");
+        const name = { value: "name" };
+        const promptService = getPS();
+        const replace = promptService.prompt(window, title, info, name, "none-name", { name, value: "yes-name" });
+        if (replace) {
+            showInfo(getString("info-Confirm") + getString("info-replaceOldKey"));
+        }
+
+    }
     static async addCryKey() {
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
         const privateKey = await Cry.exportKey(keyPair.privateKey);
-        const keyName = `SSHKEY-${config.addonRef}`;
+        const keyName = PRIVATEKEY_NAME;
         // 公钥私钥 AES 秘钥三者保存在用户指定的同一目录下
         const path = await chooseDirOrFilePath(true, addonDatabaseDir);
         if (!path) return;
@@ -263,13 +295,15 @@ export class Cry {
         const AESKeyWrapedUnit8Array = new Uint8Array(AESKeyWraped);
         const pathAES = await ensureNonePath(PathUtils.join(path, "AESCBCWraped"));
         await Cry.saveKey(AESKeyWrapedUnit8Array, pathAES);
-        //保存参数到数据库
+        //公钥读取后留在程序中随时用来加密
         addon.mountPoint["crypto"] = {
             publicKey: publicKey,
             path: path,
+            fileName: keyName,
         };
         const DB = await getDB();
         await DB.executeTransaction(async () => {
+            //保存参数到数据库
             let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
             const value = await DB.valueQueryAsync(sql);
             if (value && path == value) return;
@@ -282,10 +316,14 @@ export class Cry {
         });
     }
 
+
+
     static async getCryKeyPath() {
+
         const DB = await getDB();
         const sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
-        return await DB.valueQueryAsync(sql);
+        const path = await DB.valueQueryAsync(sql);
+        return path;
     }
     // todo 更换 SSHKEY 密钥轮换 保留旧秘钥解码相应密文
     //RSA算法，在使用OAEP填充模式时，每次最多只能加密190字节。

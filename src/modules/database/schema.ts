@@ -4,7 +4,7 @@ adapted from Zotero
 
 //import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
-import { compareObj, fileNameNoExt, resourceFilesRecursive, showInfo } from "../../utils/tools";
+import { compareObj, fileNameNoExt, getPS, promptService, resourceFilesRecursive, showInfo } from "../../utils/tools";
 import { DB, compareSQLUpdateDB } from "./database";
 import { OS } from "../../utils/tools";
 import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
@@ -200,7 +200,7 @@ export class Schema {
         const msg = "Failure Update Schema: " + schema;
         showInfo(msg);
         throw msg;
-      };
+      }
     }
     //成功后无需更新
     return false;
@@ -873,10 +873,8 @@ export class Schema {
 
 function reportError(e: any) {
   Components.utils.reportError(e);
-  const ps = Components.classes[
-    "@mozilla.org/embedcomp/prompt-service;1"
-  ].getService(Components.interfaces.nsIPromptService);
-  ps.alert(
+  const promptService = getPS();
+  promptService.alert(
     null,
     Zotero.getString("general.error"),
     Zotero.getString("startupError", Zotero.appName),

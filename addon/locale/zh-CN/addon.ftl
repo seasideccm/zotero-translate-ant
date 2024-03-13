@@ -142,3 +142,6 @@ info-filtered = 条重复记录已过滤
 info-SelectDirectory = 请选择目录
 info-userCancle = 用户取消
 dialog-inputDialog = 输入窗口
+info-hasAllKey = 已有AES 秘钥和 RSA 公钥私钥
+info-replaceOldKey = 是否替换旧秘钥？
+info-decrypThenEncrypt = 已经加密内容将先解密然后使用新秘钥重新加密

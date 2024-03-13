@@ -17,6 +17,9 @@ export function requireModule(moduleName: string) {
 }
 
 
+export const getPS = () => Components.classes[
+  "@mozilla.org/embedcomp/prompt-service;1"
+].getService(Components.interfaces.nsIPromptService);
 
 
 
@@ -459,7 +462,7 @@ export function differObject(obj1: any, obj2: any) {
         cache2.set(obj2, resultObj2);
         if (_differObject(obj1[key], obj2[key])) {
           return true;
-        };
+        }
       }
     }
     return false;
@@ -943,7 +946,7 @@ export async function collectFilesRecursive(dirPath: string, parents = [], files
   });
   ztoolkit.log(files);
   return files;
-};
+}
 
 
 export async function resourceFilesRecursive(url: string = `chrome://${config.addonRef}/content/schema/`, files: any[] = [], ext?: string) {
@@ -1081,15 +1084,16 @@ export function batchAddEventListener2(optins: {
  * @param isDir 默认目录
  * @returns 
  */
-export async function chooseDirOrFilePath(isDir: boolean = true, defaultPath?: string) {
+export async function chooseDirOrFilePath(isDir: boolean = true, defaultPath?: string, windowTip?: string) {
   const FilePicker = window.require("zotero/modules/filePicker").default;
   const fp = new FilePicker();
+  windowTip = windowTip ? windowTip : (getString("info-SelectDirectory") || "Select Directory");
   if (isDir) {
     if (Zotero.isMac) {
-      fp.init(window, "Select application", fp.modeOpen);
+      fp.init(window, windowTip, fp.modeOpen);
       fp.appendFilter("Mac OS X Application Bundle", "*.app");
     } else {
-      fp.init(window, getString("info-SelectDirectory"), fp.modeGetFolder);
+      fp.init(window, windowTip, fp.modeGetFolder);
     }
   } else {
     fp.init(window, "Select file", fp.modeOpen);
