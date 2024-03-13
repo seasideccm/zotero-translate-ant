@@ -1,0 +1,63 @@
+================================================
+Begin Check l10n Phrase...
+Wed Mar 13 2024 07:59:58 GMT+0800 (中国标准时间)
+================================================
+
+
+[xHTML] addon\chrome\content\inputDialog.xhtml
+
+XHTML 文件中的短语是否存在于 FLT 文件中
+The phrase "dialog-inputDialog" in the XHTML file is not in the  en-US FTL file
+[XHTML:] addon\chrome\content\inputDialog.xhtml
+[FTL  :] addon\locale
+The phrase "dialog-inputDialog" in the XHTML file is not in the  zh-CN FTL file
+[XHTML:] addon\chrome\content\inputDialog.xhtml
+[FTL  :] addon\locale
+-------------------------------------------------
+
+[xHTML] addon\chrome\content\preferences.xhtml
+
+FLT 文件中的短语是否存在于 XHTML 文件中
+The phrase(s) in en-US FTL is not in the XHTML.
+"pref-title,pref-enable,pref-input,pref-underUse,pref-secretKey,pref-secretKey-charConsum,pref-secretKeyUsable,pref-servicePriorityWithKey,pref-servicePriorityWithoutKey,pref-recoverService,pref-Priority-help,pref-help,pref-addOldCryKey3" 
+[FTL] addon\locale\en-US\preferences.ftl
+-------------------------------------------------
+
+The phrase(s) in zh-CN FTL is not in the XHTML.
+"pref-title,pref-enable,pref-input,pref-underUse,pref-secretKey,pref-secretKey-charConsum,pref-secretKeyUsable,pref-servicePriorityWithKey,pref-servicePriorityWithoutKey,pref-recoverService,pref-Priority-help,pref-help,pref-addOldCryKey3" 
+[FTL] addon\locale\zh-CN\preferences.ftl
+-------------------------------------------------
+
+================================================
+
+Pass check Source Code FTL Phrase
+================================================
+End check l10n Phrase
+Wed Mar 13 2024 07:59:58 GMT+0800 (中国标准时间)
+================================================
+================================================
+Begin Check l10n Phrase...
+Wed Mar 13 2024 08:04:12 GMT+0800 (中国标准时间)
+================================================
+
+
+[xHTML] addon\chrome\content\preferences.xhtml
+
+FLT 文件中的短语是否存在于 XHTML 文件中
+The phrase(s) in en-US FTL is not in the XHTML.
+"pref-title,pref-enable,pref-input,pref-underUse,pref-secretKey,pref-secretKey-charConsum,pref-secretKeyUsable,pref-servicePriorityWithKey,pref-servicePriorityWithoutKey,pref-recoverService,pref-Priority-help,pref-help,pref-addOldCryKey3" 
+[FTL] addon\locale\en-US\preferences.ftl
+-------------------------------------------------
+
+The phrase(s) in zh-CN FTL is not in the XHTML.
+"pref-title,pref-enable,pref-input,pref-underUse,pref-secretKey,pref-secretKey-charConsum,pref-secretKeyUsable,pref-servicePriorityWithKey,pref-servicePriorityWithoutKey,pref-recoverService,pref-Priority-help,pref-help,pref-addOldCryKey3" 
+[FTL] addon\locale\zh-CN\preferences.ftl
+-------------------------------------------------
+
+================================================
+
+Pass check Source Code FTL Phrase
+================================================
+End check l10n Phrase
+Wed Mar 13 2024 08:04:12 GMT+0800 (中国标准时间)
+================================================

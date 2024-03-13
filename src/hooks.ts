@@ -5,7 +5,7 @@ import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
-import { onOpenInputDialog } from "./modules/ui/inputDialog";
+import { InputDialog } from "./modules/ui/inputDialog";
 import { mountMenu } from "./modules/ui/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
@@ -118,6 +118,7 @@ function onDialogEvents(type: string) {
 // Add your hooks here. For element click, etc.
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
 // Otherwise the code would be hard to read and maintain.
+const onOpenInputDialog = InputDialog.onOpenInputDialog;
 
 export default {
   onStartup,

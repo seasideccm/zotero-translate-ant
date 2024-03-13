@@ -1,19 +1,16 @@
 <?xml version="1.0"?>
-<?xml-stylesheet href="chrome://global/skin/"?> <?xml-stylesheet
-href="chrome://zotero/skin/zotero.css" type="text/css"?> <?xml-stylesheet
-href="chrome://zotero/skin/overlay.css" type="text/css"?> <?xml-stylesheet
-href="chrome://zotero-platform/content/overlay.css"?> <?xml-stylesheet
-href="chrome://zotero-platform/content/zotero.css"?>
+<?xml-stylesheet href="chrome://zotero/skin/zotero.css" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css"?>
 
 <window
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
   xmlns:html="http://www.w3.org/1999/xhtml"
   id="__addonRef__-inputDialog"
   class="zotero-dialog"
-  data-l10n-id="dialog-inputDialog"
+  data-l10n-id="input-dialog"
   data-l10n-attrs="title"
   width="350"
-  onload="Zotero.__addonInstance__.hooks.onOpenInputDialog()"
+  onload="Zotero.__addonInstance__.hooks.onOpenInputDialog(window)"
 >
   <script>
     const { Services } = ChromeUtils.import(
@@ -23,36 +20,17 @@ href="chrome://zotero-platform/content/zotero.css"?>
       "chrome://zotero/content/include.js",
       this,
     );
-    Services.scriptloader.loadSubScript(
-      "chrome://zotero/content/customElements.js",
-      this,
-    );
-    Services.scriptloader.loadSubScript(
-      "chrome://zotero/content/newCollectionDialog.js",
-      this,
-    );
   </script>
 
   <linkset>
-    <html:link rel="localization" href="branding/brand.ftl" />
-    <html:link rel="localization" href="inputDialog.ftl" />
+    <html:link rel="localization" href="__addonRef__-inputDialog.ftl" />
   </linkset>
 
   <dialog
     buttons="cancel,accept"
     data-l10n-id="input-dialog"
-    data-l10n-attrs="buttonlabelaccept"
+    data-l10n-attrs="buttonlabelcancel,buttonlabelaccept"
   >
-    <vbox>
-      <label data-l10n-id="input-name" control="name" />
-      <html:input id="name" />
-    </vbox>
-
-    <vbox>
-      <label data-l10n-id="input-content" control="create-in" />
-      <menulist id="create-in" native="true">
-        <menupopup />
-      </menulist>
-    </vbox>
+    <vbox id="input"> </vbox>
   </dialog>
 </window>

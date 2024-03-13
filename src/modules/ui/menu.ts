@@ -8,6 +8,7 @@ import { translateContent } from "../translate/translate";
 import { testTableClass } from "./table";
 import { makeClickButton, makeId, makeTagElementProps } from "./uiTools";
 import { decryptAES } from '../../utils/crypto';
+import { inputData } from "./inputDialog";
 
 
 export function mountMenu() {
@@ -51,7 +52,7 @@ export function mountMenu() {
         ["clearTable", clearAllTable,],
         ["menuAddon-openAddonShortcut", openAddonShortcut],
         ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-        ['testTableClass', testTableClass],
+        ['inputData', inputData, ["age", "weight", "sex"]],
       ],
       [
         ["翻译测试", translateContent, [], "T", "Ctrl+T"],
