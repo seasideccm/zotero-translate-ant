@@ -6,10 +6,9 @@ import { getElementValueByElement } from "./ui/uiTools";
 export async function addonSetting() {
     const doc = addon.data.prefs?.window.document;
     if (!doc) return;
-
     //元素 id 包含 "-setting-"
     const settingItems = doc.querySelectorAll('[id*="-setting-"]');
-    showInfo(settingItems.length.toString());
+    showInfo(`插件 prefs 面板中id 包含 "-setting-" 的元素数量：` + settingItems.length.toString());
     const keys = [];
     for (const item of Array.from(settingItems)) {
         const match = item.id.match(/-setting-(.*)/);
@@ -18,11 +17,18 @@ export async function addonSetting() {
     if (!addon.mountPoint.settings) addon.mountPoint.settings = {};
     const settings = addon.mountPoint.settings;
     const oldKeys = Object.keys(settings);
-    if (!arrayDiffer(keys, oldKeys)) return;
+    if (!arrayDiffer(keys, oldKeys)) return;    // 判断插件面板是否有新增设置项目
     await setAddon(keys);
 
 }
 
+/**
+ * - 从数据库读取插件设置参数
+ * - 写入addon.mountPoint.settings中
+ * - 新增设置项目写入数据库
+ * @param keys 
+ * @returns 
+ */
 async function setAddon(keys: string[]) {
     const doc = addon.data.prefs?.window.document;
     if (!doc) return;
@@ -50,9 +56,8 @@ async function setAddon(keys: string[]) {
                 showInfo("请检查取值自元素的哪个属性");
                 continue;
             }
-
             //VALUES的类型是文本
-            //sqlite 参数解析非数组不考虑布尔值
+            //布尔值会出错，sqlite 参数解析非数组不考虑布尔值
             try {
                 await DB.queryAsync(
                     `INSERT INTO settings (setting, key, value) VALUES ('addon', '${key}', ?)`,

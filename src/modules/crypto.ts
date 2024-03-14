@@ -4,9 +4,7 @@ import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
 import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
-import { get } from 'http';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
-import { inflate } from 'zlib';
 import { getDom } from './ui/uiTools';
 
 const KEYS_NAME: {
@@ -474,7 +472,11 @@ export const encryptByAESKey = async (text: string, serialNumber?: number | stri
 };
 
 
-export const encryptFileByAESKey = async (path: string) => {
+export const encryptFileByAESKey = async (path?: string) => {
+    if (!path) {
+        path = await chooseDirOrFilePath(false);
+        if (!path) return;
+    }
     const key = await Cry.unwrapAESKey();
     if (!key) return;
     const fileUint8Array = await IOUtils.read(path);

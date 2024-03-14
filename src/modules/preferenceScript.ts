@@ -185,8 +185,16 @@ async function buildPrefsPane() {
       });
     }
   }
-  // 安全设置 
-  Command.checkSetEnableEncrypt();
+  // 安全设置   
+  try {
+    const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
+    const dbValue = await DB.valueQueryAsync(sqlSELECT);
+    Command.showHiddenEncryptDom(Boolean(Number(dbValue)));
+  } catch (e: any) {
+    showInfo(e.message);
+    throw e;
+  }
+
 
   //多账户管理
 
@@ -319,13 +327,11 @@ function bindPrefEvents() {
   });
   //监控插件设置项目变化
   //@ts-ignore has
-  const mutationObserverSettings = new win.MutationObserver(addonSettingTest);
+  const mutationObserverSettings = new win.MutationObserver(addonSettingUpdate);
   mutationObserverSettings.observe(doc.querySelector(`#zotero-prefpane-${config.addonRef}`)!.parentElement, {
     attributes: true, childList: true, subtree: true,
   });
-  function addonSettingTest(mutationsList: MutationRecord[], observer: any) {
-
-    // Use traditional 'for loops' for IE 11
+  function addonSettingUpdate(mutationsList: MutationRecord[], observer: any) {
     for (const mutation of mutationsList) {//@ts-ignore has
       if (!mutation.target.id.match(/-setting-(.*)/)) continue;//@ts-ignore has
       showInfo(mutation.target.id);
@@ -335,7 +341,6 @@ function bindPrefEvents() {
         showInfo("The " + mutation.attributeName + " attribute was modified.");
       }
     }
-
   }
 }
 

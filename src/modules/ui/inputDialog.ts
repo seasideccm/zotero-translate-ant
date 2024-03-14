@@ -1,11 +1,11 @@
 import { config } from "../../../package.json";
 import { showInfo } from "../../utils/tools";
 
-export function inputData(...fieldName: string[]) {
+export function inputData(dialogType: 'input' | 'multiSelect' = 'input', fieldNames: string[]) {
 
     const url = `chrome://${config.addonRef}/content/inputDialog.xhtml`;
-    //fieldName.push(name);
-    const io: any = { fieldName };
+    //fieldNames.push(name);
+    const io: any = { fieldNames, dialogType };
     const win = window.openDialog(url, "_blank", "chrome,modal,centerscreen,resizable=no", io);//io负责对话框窗口数据通信
     const dataOut = io.dataOut;
     if (!dataOut) {
@@ -20,20 +20,53 @@ export class InputDialog {
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
         //@ts-ignore xxx
         const io = win.arguments[0];
-        const fieldName = io.fieldName;
+        const fieldNames = io.fieldNames as string[];
+        const dialogType = io.dialogType;
         ztoolkit.log(io);
         const parent = win.document.querySelector('#input')!;
-        fieldName.forEach((field: string) => {
-            ztoolkit.UI.appendElement({
+        win.document.addEventListener('dialogaccept', () => InputDialog.handleAccept(win));
+        if (dialogType == 'input') {
+            fieldNames.forEach((field: string) => {
+                ztoolkit.UI.appendElement({
+                    tag: "input",
+                    id: `fieldName-${field}`,
+                    namespace: "html",
+                    attributes: {
+                        placeholder: `${field}: Please Input Content`,
+                    }
+                }, parent);
+            });
+
+        }
+        if (dialogType == 'multiSelect') {
+
+            const checkboxs = fieldNames.map((e: string) => ({
                 tag: "input",
-                id: `fieldName-${field}`,
+                id: `fieldName-${e}`,
+                name: e,
                 namespace: "html",
                 attributes: {
-                    placeholder: `${field}: Please Input Content`,
-                }
+                    type: "checkbox",
+                },
+                properties: {
+                    checked: false,
+                    label: e,
+                },
+            }));
+
+
+
+            const multiselet = ztoolkit.UI.appendElement({
+                tag: "div",
+                id: `${config.addonRef}-multiSelectDialog`,
+                namespace: "html",
+                children: checkboxs,
             }, parent);
-            win.document.addEventListener('dialogaccept', () => InputDialog.handleAccept(win));
-        });
+
+            showInfo(multiselet.id);
+
+        }
+
 
     }
     static handleAccept(win: Window) {

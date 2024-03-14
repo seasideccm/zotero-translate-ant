@@ -5,7 +5,7 @@ import { arrToObj } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { Cry, testCryInfo } from './crypto';
+import { Cry, encryptFileByAESKey, testCryInfo } from './crypto';
 import { inputData } from "./ui/inputDialog";
 
 
@@ -18,10 +18,10 @@ function getParasArrs() {
       ["clearTable", clearAllTable,],
       ["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-      ['inputData', inputData, ["age", "weight", "sex"]],
+      ['inputData', inputData, ['multiSelect', ["age", "weight", "sex"]]],
     ],
     [
-      ["检查秘钥", Cry.checkCryKey],
+      ["加密文件", encryptFileByAESKey],
     ],
     [
       ["加密<=>解密", testCryInfo, [text]],
