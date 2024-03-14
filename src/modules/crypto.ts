@@ -578,13 +578,16 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
     const deBuffer = await window.crypto.subtle.decrypt(algorithm, key, encryptAESInfo.encryptAESString);
     if (!deBuffer) {
         showInfo("Decrypt Failure");
-        return;
+        return false;
     }
     if (fileBuffer && path) {
         await IOUtils.write(path, new Uint8Array(deBuffer));
-        return;
+        showInfo(["decryptFileSuccess", path]);
+        return true;
     }
-    showInfo(["decryptContent:", arrayBufferTOstring(deBuffer)]);
+    const decryptContent = arrayBufferTOstring(deBuffer);
+    showInfo(["decryptContent:", decryptContent]);
+    return decryptContent;
 };
 
 
@@ -592,8 +595,9 @@ export async function decryptAllAccount() {
     const encryptSerialNumbers = await getAllEncryptAccounts();
     const DB = getDBSync();
     if (!encryptSerialNumbers?.length) return;
-    await DB.executeTransaction(async () => {
+    const decryptedAccounts = await DB.executeTransaction(async () => {
         const snTokens = [];
+        const decryptAccounts = [];
         for (const sn of encryptSerialNumbers) {
             let sql = `SELECT secretKey FROM accounts WHERE serialNumber = ${sn}`;
             let secretKey = await DB.valueQueryAsync(sql);
@@ -605,6 +609,8 @@ export async function decryptAllAccount() {
             if (!secretKey) throw new Error("decryptAccount error");
             sql = `UPDATE accounts SET secretKey = '${secretKey}' WHERE serialNumber = ${sn}`;
             await DB.queryAsync(sql);
+            decryptAccounts.push(sn);
+            showInfo(`${sn} has decrypted`);
         }
         for (const sn of snTokens) {
             let sql = `SELECT token FROM accessTokens WHERE serialNumber = ${sn}`;
@@ -617,8 +623,12 @@ export async function decryptAllAccount() {
             if (!token) throw new Error("decryptAccount error");
             sql = `UPDATE accessTokens SET token = '${token}' WHERE serialNumber = ${sn}`;
             await DB.queryAsync(sql);
+            decryptAccounts.push(sn);
+            showInfo(`${sn} has decrypted`);
         }
+        return decryptAccounts;
     });
+    return decryptedAccounts as string[];
 }
 
 /**
@@ -636,12 +646,15 @@ export async function decryptAllFiles() {
     const rows = await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`);
     const fileEncryptInfos = dbRowsToObjs(rows, ['path,encryptAESStringNoBuffer']);
     if (!fileEncryptInfos || !fileEncryptInfos.length) return;
+    let decryptedFileNumbers = 0;
     for (const info of fileEncryptInfos) {
         const path = info.path;
         const encryptAESStringNoBuffer = info.encryptAESStringNoBuffer;
         const fileUint8Array = await IOUtils.read(path);
-        await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+        const res = await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+        if (res) decryptedFileNumbers++;
     }
+    return decryptedFileNumbers;
 }
 
 export async function decryptFile(path: string) {

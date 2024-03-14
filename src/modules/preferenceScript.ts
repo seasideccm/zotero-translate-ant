@@ -46,7 +46,7 @@ async function buildPrefsPane() {
   }
 
   // 原文语言
-  let defaultSourceLang, defaultTargetLang, enableEncrypt, deleSourceFile;
+  let defaultSourceLang, defaultTargetLang;
 
   const DB = await getDB();
   if (DB) {
@@ -57,12 +57,7 @@ async function buildPrefsPane() {
       defaultTargetLang = await DB.valueQueryAsync(
         "SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'",
       );
-      enableEncrypt = await DB.valueQueryAsync(
-        "SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'",
-      );
-      deleSourceFile = await DB.valueQueryAsync(
-        "SELECT value FROM settings WHERE setting='addon' AND key='deleSourceFile'",
-      );
+
     } catch (e) {
       ztoolkit.log(e);
     }
@@ -190,11 +185,7 @@ async function buildPrefsPane() {
       });
     }
   }
-  // 安全设置
-  const switchEncrypt = (getDom("setEnableEncrypt") as XUL.Checkbox);
-  if (enableEncrypt) switchEncrypt.checked = enableEncrypt;
-  const switchDeleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox);
-  if (deleSourceFile) switchDeleSourceFile.checked = deleSourceFile;
+  // 安全设置 
   Command.checkSetEnableEncrypt();
 
   //多账户管理

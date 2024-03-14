@@ -1,8 +1,8 @@
 import { getString } from "../utils/locale";
-import { getPS, showInfo } from "../utils/tools";
+import { showInfo } from "../utils/tools";
 import { Cry, decryptAllAccount, decryptAllFiles } from "./crypto";
-import { getDB } from "./database/database";
-import { getDom, makeId } from "./ui/uiTools";
+import { getDBSync } from "./database/database";
+import { getDom, } from "./ui/uiTools";
 
 export class Command {
     static async checkSetEnableEncrypt() {
@@ -18,10 +18,12 @@ export class Command {
             addOldCryKey.hidden = true;
             deleSourceFile.hidden = true;
             win.alert(getString("info-disableEncrypt"));
-            await decryptAllAccount();
-            await decryptAllFiles();
-            win.alert(getString("info-finishedDecrypt"));
-
+            const numberAccount = await decryptAllAccount();
+            let numbers = await decryptAllFiles();
+            if (numberAccount != void 0) numbers = numberAccount.length + (numbers || 0);
+            if (numbers) {
+                win.alert(getString("info-finishedDecrypt"));
+            }
         } else {
             showInfo(getString('info-encryptTip'));
             addNewCryKey.hidden = false;
@@ -32,34 +34,23 @@ export class Command {
                 await Cry.addCryKey();
             }
         }
-
-        const DB = await getDB();
-        const enableEncryptDBValue = await DB.valueQueryAsync(
-            "SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'",
-        );
-        const deleSourceFileDBValue = await DB.valueQueryAsync(
-            "SELECT value FROM settings WHERE setting='addon' AND key='deleSourceFile'",
-        );
-        if (enableEncrypt.checked != enableEncryptDBValue) {
-
-
-        }
-        if (deleSourceFile.checked != deleSourceFileDBValue) {
-
-        }
+        const DB = getDBSync();
         await DB.executeTransaction(async () => {
-            //保存参数到数据库
-            let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
-            const value = await DB.valueQueryAsync(sql);
-            if (value && path == value) return;
-            if (value) {
-                sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`;
-            } else {
-                sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`;
-            }
-            await DB.queryAsync(sql);
+            await updateDBSettings(enableEncrypt.checked, 'enableEncrypt');
+            await updateDBSettings(deleSourceFile.checked, 'deleSourceFile');
         });
-
+        async function updateDBSettings(elementChecked: boolean, key: string) {
+            const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='${key}'`;
+            const dbValue = await DB.valueQueryAsync(sqlSELECT);
+            const sqlINSERT = `INSERT INTO settings (setting,key,value) VALUES ('addon','${key}',${elementChecked})`;
+            const sqlUPDATE = `UPDATE settings SET value = '${elementChecked}' WHERE key = '${key}'`;
+            if (dbValue === false) {
+                await DB.queryAsync(sqlINSERT);
+            } else {
+                if (dbValue == elementChecked) return;
+                await DB.queryAsync(sqlUPDATE);
+            }
+        }
 
     }
 }
