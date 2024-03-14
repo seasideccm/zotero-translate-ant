@@ -1,6 +1,6 @@
 import { arrayDiffer, showInfo } from "../utils/tools";
 import { getDB } from './database/database';
-import { getElementValue, getElementValueByElement } from "./ui/uiTools";
+import { getElementValueByElement } from "./ui/uiTools";
 
 
 export async function addonSetting() {
@@ -36,7 +36,7 @@ async function setAddon(keys: string[]) {
             if (!value) {
                 newSettings.push(key);
                 continue;
-            };
+            }
             if (settings[key] && settings[key] == value) continue;
             settings[key] = value;
         }

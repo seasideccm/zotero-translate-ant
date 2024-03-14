@@ -249,11 +249,19 @@ async function getAccessTokens(serviceID: string) {
     return arrsToObjs(keys)(valuesArr); */
 }
 
-function dbRowsToObjs(rows: any[], sqlColumns: string[]) {
+export function dbRowsToObjs(rows: any[], sqlColumns: string[]) {
     if (!rows.length) return;
+    //表名和列字段组合时的分隔符为 “.”
     const keys = sqlColumns.map((colum) => colum.split(".").pop()) as string[];
     const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
     return arrsToObjs(keys)(valuesArr);
+}
+
+export function dbRowsToArray(rows: any[], sqlColumns: string[]) {
+    if (!rows.length) return;
+    const keys = sqlColumns.map((colum) => colum.split(".").pop()) as string[];
+    const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
+    return valuesArr;
 }
 
 

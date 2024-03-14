@@ -153,3 +153,4 @@ info-addNewCryKey = Add New AES AND ARS Keys
 info-decrypThenEncrypt = The Content That Has Already Been Encrypted Will First Be Decrypted And Then Re-Encrypted With The New Keys
 info-disableEncrypt = After disabling encryption, encrypted content will be decrypted
 info-addOldCryKey = Import RSA And AES Keys
+info-finishedDecrypt = Finished Decrypt

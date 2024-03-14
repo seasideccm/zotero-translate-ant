@@ -100,7 +100,7 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 async function onCommand(cmd: string) {
   switch (cmd) {
     case "cmd_setEnableEncrypt":
-      await Command.setEnableEncrypt();
+      await Command.checkSetEnableEncrypt();
       break;
     default:
       return;

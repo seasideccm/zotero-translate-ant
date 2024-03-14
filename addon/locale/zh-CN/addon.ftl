@@ -153,3 +153,4 @@ info-addNewCryKey = 添加新的 AES ARS 秘钥
 info-decrypThenEncrypt = 已经加密内容将先解密然后使用新秘钥重新加密
 info-disableEncrypt = 停用加密后，已经加密的内容将会解密
 info-addOldCryKey = 导入RSA和AES秘钥
+info-finishedDecrypt = 完成解密

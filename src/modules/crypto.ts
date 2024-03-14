@@ -1,9 +1,13 @@
 import { arrayBufferTOstring, chooseDirOrFilePath, collectFilesRecursive, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
-import { getDB } from "./database/database";
+import { getDB, getDBSync } from "./database/database";
 import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
+import { get } from 'http';
+import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
+import { inflate } from 'zlib';
+import { getDom } from './ui/uiTools';
 
 const KEYS_NAME: {
     PUBLICKEY_NAME: string;
@@ -14,6 +18,23 @@ const KEYS_NAME: {
     PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
     AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
 };
+
+
+async function cryptoKeyPathToDB(path: string) {
+    const DB = await getDB();
+    await DB.executeTransaction(async () => {
+        //保存参数到数据库
+        let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
+        const value = await DB.valueQueryAsync(sql);
+        if (value && path == value) return;
+        if (value) {
+            sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`;
+        } else {
+            sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`;
+        }
+        await DB.queryAsync(sql);
+    });
+}
 
 export class Cry {
     static async encryptRSA(publicKey: any, data: any) {
@@ -204,8 +225,8 @@ export class Cry {
             return key;
         }
 
-        if (type == "publicKey") path = PathUtils.join(path, PUBLICKEY_NAME);
-        if (type == 'privateKey') path = PathUtils.join(path, PRIVATEKEY_NAME);
+        if (type == "publicKey") path = PathUtils.join(path, KEYS_NAME['PUBLICKEY_NAME']);
+        if (type == 'privateKey') path = PathUtils.join(path, KEYS_NAME['PRIVATEKEY_NAME']);
         let key;
         try {
             key = await Zotero.File.getContentsAsync(path);
@@ -224,12 +245,12 @@ export class Cry {
     }
 
     static async unwrapAESKey() {
-        const wrapedKey = await Cry.getKey("AESCBC") as Uint8Array;
-        if (!wrapedKey) return;
+        const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;
+        if (!wrapedAESKey) return;
         const privateKey = await Cry.getKey("privateKey") as CryptoKey;
         const AESKey = await window.crypto.subtle.unwrapKey(
             "raw",
-            wrapedKey,//.buffer
+            wrapedAESKey,//.buffer
             privateKey,
             { name: "RSA-OAEP" },
             { name: 'AES-CBC' },
@@ -354,7 +375,7 @@ export class Cry {
             path: path,
             fileName: keyName,
         };
-        const DB = await getDB();
+        /* const DB = await getDB();
         await DB.executeTransaction(async () => {
             //保存参数到数据库
             let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
@@ -366,7 +387,8 @@ export class Cry {
                 sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`;
             }
             await DB.queryAsync(sql);
-        });
+        }); */
+        cryptoKeyPathToDB(path);
     }
 
 
@@ -393,12 +415,12 @@ export class Cry {
  * - signatureString
  * - decryptAlgorithm
  * - ivString
- * - wrapedKeyString
- * - wrapedsignKeyString
+ * - wrapedAESKeyString
+ * - wrapedSignKeyString
  * @param text 
  * @returns 
  */
-export const encryptAES = async (text: string = "Hello, world!") => {
+export const encryptByAESKey = async (text: string, serialNumber?: number | string) => {
     const key = await Cry.unwrapAESKey();
     if (!key) return;
     const data = new TextEncoder().encode(text);
@@ -410,10 +432,10 @@ export const encryptAES = async (text: string = "Hello, world!") => {
     const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
     const signatureString = arrayBufferTOstring(signature); //签名转字符串 
     const publicKey = await Cry.getKey("publicKey") as CryptoKey;
-    const wrapedKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedKey可以是储存的和当前包裹的key
-    const wrapedsignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
-    const wrapedsignKeyString = arrayBufferTOstring(wrapedsignKey);
-    const wrapedKeyString = arrayBufferTOstring(wrapedKey.buffer);
+    const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedAESKey可以是储存的和当前包裹的key
+    const wrapedSignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
+    const wrapedSignKeyString = arrayBufferTOstring(wrapedSignKey);
+    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey.buffer);
     const decryptAlgorithm = { name: 'AES-CBC' };
     const ivString = arrayBufferTOstring(iv);//向量转字符串
     const encryptAESInfo = {
@@ -421,21 +443,86 @@ export const encryptAES = async (text: string = "Hello, world!") => {
         signatureString,
         decryptAlgorithm,
         ivString,
-        wrapedKeyString,
-        wrapedsignKeyString
+        wrapedAESKeyString,
+        wrapedSignKeyString
     };
-    return JSON.stringify(encryptAESInfo);
+    const stringEncyptAES = JSON.stringify(encryptAESInfo);
+    if (!serialNumber) return stringEncyptAES;
+    const DB = getDBSync();
+    let tableName = "accounts";
+    let fieldName = "secretKey";
+    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    let content = await DB.valueQueryAsync(sql);
+    if (!content) {
+        tableName = "accessTokens";
+        fieldName = "token";
+        sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+        content = await DB.valueQueryAsync(sql);
+    }
+
+    if (content) {
+        sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+        await DB.queryAsync(sql);
+    } else {
+        sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+    }
+
+    await DB.executeTransaction(async () => {
+        await DB.queryAsync(sql);
+    });
+    return stringEncyptAES;
+};
+
+
+export const encryptFileByAESKey = async (path: string) => {
+    const key = await Cry.unwrapAESKey();
+    if (!key) return;
+    const fileUint8Array = await IOUtils.read(path);
+    const signKey = await Cry.getSignKey();
+    const iv = Cry.getIV();//加解密必须使用相同的初始向量,iv是 initialization vector的缩写，必须为 16 位
+    const algorithm = { name: 'AES-CBC', iv };// 加密算法
+    const encryptAESBuffer = await window.crypto.subtle.encrypt(algorithm, key, fileUint8Array);//加密
+    const newPath = await IOUtils.write(path + ".AESEncrypt", new Uint8Array(encryptAESBuffer));
+    const deleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox)?.checked;
+    if (deleSourceFile) {
+        await Zotero.File.removeIfExists(path);
+    }
+    //const encryptAESString = arrayBufferTOstring(encryptAESBuffer);//密文转字符串  
+    const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
+    const signatureString = arrayBufferTOstring(signature); //签名转字符串 
+    const publicKey = await Cry.getKey("publicKey") as CryptoKey;
+    const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedAESKey可以是储存的和当前包裹的key
+    const wrapedSignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
+    const wrapedSignKeyString = arrayBufferTOstring(wrapedSignKey);
+    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey.buffer);
+    const decryptAlgorithm = { name: 'AES-CBC' };
+    const ivString = arrayBufferTOstring(iv);//向量转字符串
+    const encryptAESInfoNoFileBuffer = {
+        signatureString,
+        decryptAlgorithm,
+        ivString,
+        wrapedAESKeyString,
+        wrapedSignKeyString
+    };
+    const stringToTableEncryptFilePaths = JSON.stringify(encryptAESInfoNoFileBuffer);
+    const sql = `INSERT INTO encryptFilePaths (path, encryptAESStringNoBuffer) VALUES ('${newPath}', '${stringToTableEncryptFilePaths}')`;
+    const DB = getDBSync();
+    await DB.executeTransaction(async () => {
+        await DB.queryAsync(sql);
+    });
+    return newPath;
 };
 
 /**
  * - 字符串参数至少含有密文和向量
  * - 其他参数参见 {@link EncryptAESInfo}
+ * - 文件解密时，从文件读取 buffer/Unit8Array ，作为参数传递
  * @param encryptAESInfoString 
  * @returns 
  */
-export const decryptAES = async (encryptAESInfoString?: string) => {
-    //encryptAESInfoString = await encryptAES();
-    if (!encryptAESInfoString) return;
+export const decryptByAESKey = async (encryptAESInfoString: string,
+    fileBuffer?: Buffer | Uint8Array,
+    path?: string) => {
     const encryptAESInfo = JSON.parse(encryptAESInfoString!);    //@ts-ignore XXX
     if (!encryptAESInfo.ivString) return;
     Object.keys(encryptAESInfo).forEach(key => { if (typeof encryptAESInfo[key] == "string") { encryptAESInfo[key] = stringToArrayBuffer(encryptAESInfo[key]); } });
@@ -443,10 +530,10 @@ export const decryptAES = async (encryptAESInfoString?: string) => {
     const privateKey = await Cry.getKey("privateKey") as CryptoKey;
     const algorithmVerify = { name: 'HMAC', hash: { name: 'SHA-256' } };
     // 签名验证
-    if (encryptAESInfo.wrapedsignKeyString) {
+    if (encryptAESInfo.wrapedSignKeyString) {
         const signingKey = await window.crypto.subtle.unwrapKey(
             "raw",
-            encryptAESInfo.wrapedsignKeyString,
+            encryptAESInfo.wrapedSignKeyString,
             privateKey,
             { name: "RSA-OAEP" },
             algorithmVerify,
@@ -460,10 +547,10 @@ export const decryptAES = async (encryptAESInfoString?: string) => {
         }
     }
     let key;
-    if (encryptAESInfo.wrapedKeyString) {
+    if (encryptAESInfo.wrapedAESKeyString) {
         key = await window.crypto.subtle.unwrapKey(
             "raw",
-            encryptAESInfo.wrapedKeyString,
+            encryptAESInfo.wrapedAESKeyString,
             privateKey,
             { name: "RSA-OAEP" },
             { name: 'AES-CBC' },
@@ -481,17 +568,93 @@ export const decryptAES = async (encryptAESInfoString?: string) => {
         encryptAESInfo.decryptAlgorithm.name = 'AES-CBC';
     }
     const algorithm = { name: encryptAESInfo.decryptAlgorithm.name, iv: encryptAESInfo.ivString };
+    if (!encryptAESInfo.encryptAESString) {
+        if (!fileBuffer) {
+            showInfo("No provider File's Buffer Or Unit8Array");
+            return;
+        }
+        encryptAESInfo.encryptAESString = fileBuffer;
+    }
     const deBuffer = await window.crypto.subtle.decrypt(algorithm, key, encryptAESInfo.encryptAESString);
     if (!deBuffer) {
         showInfo("Decrypt Failure");
+        return;
+    }
+    if (fileBuffer && path) {
+        await IOUtils.write(path, new Uint8Array(deBuffer));
         return;
     }
     showInfo(["decryptContent:", arrayBufferTOstring(deBuffer)]);
 };
 
 
+export async function decryptAllAccount() {
+    const encryptSerialNumbers = await getAllEncryptAccounts();
+    const DB = getDBSync();
+    if (!encryptSerialNumbers?.length) return;
+    await DB.executeTransaction(async () => {
+        const snTokens = [];
+        for (const sn of encryptSerialNumbers) {
+            let sql = `SELECT secretKey FROM accounts WHERE serialNumber = ${sn}`;
+            let secretKey = await DB.valueQueryAsync(sql);
+            if (!secretKey) {
+                snTokens.push(sn);
+                continue;
+            }
+            secretKey = await decryptByAESKey(secretKey);
+            if (!secretKey) throw new Error("decryptAccount error");
+            sql = `UPDATE accounts SET secretKey = '${secretKey}' WHERE serialNumber = ${sn}`;
+            await DB.queryAsync(sql);
+        }
+        for (const sn of snTokens) {
+            let sql = `SELECT token FROM accessTokens WHERE serialNumber = ${sn}`;
+            let token = await DB.valueQueryAsync(sql);
+            if (!token) {
+                showInfo(`account ${sn} hasn't serialNumber or token`);
+                continue;
+            }
+            token = await decryptByAESKey(token);
+            if (!token) throw new Error("decryptAccount error");
+            sql = `UPDATE accessTokens SET token = '${token}' WHERE serialNumber = ${sn}`;
+            await DB.queryAsync(sql);
+        }
+    });
+}
+
+/**
+   * @returns encryptSerialNumbers
+   */
+async function getAllEncryptAccounts() {
+    const DB = await getDB();
+    const rows = await DB.queryAsync(`SELECT serialNumber FROM encryptAccounts`);
+    return dbRowsToArray(rows, ['serialNumber'])?.flat(Infinity) as string[];
+}
+
+
+export async function decryptAllFiles() {
+    const DB = await getDB();
+    const rows = await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`);
+    const fileEncryptInfos = dbRowsToObjs(rows, ['path,encryptAESStringNoBuffer']);
+    if (!fileEncryptInfos || !fileEncryptInfos.length) return;
+    for (const info of fileEncryptInfos) {
+        const path = info.path;
+        const encryptAESStringNoBuffer = info.encryptAESStringNoBuffer;
+        const fileUint8Array = await IOUtils.read(path);
+        await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+    }
+}
+
+export async function decryptFile(path: string) {
+    const DB = await getDB();
+    const encryptAESStringNoBuffer = await DB.valueQueryAsync(`SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE path='${path}'`);
+    const fileUint8Array = await IOUtils.read(path);
+    await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+}
+
+
+
 export async function testCryInfo(info: string) {
-    const cryedInfo = await encryptAES(info);
+    const cryedInfo = await encryptByAESKey(info);
     if (!cryedInfo) return;
     const cryedInfoJSON = JSON.parse(cryedInfo);
     showInfo(cryedInfoJSON.encryptAESString);

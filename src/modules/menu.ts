@@ -1,12 +1,11 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
-import { arrToObj, collectFilesRecursive, getFilesRecursive } from "../utils/tools";
+import { arrToObj } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
-import { translateContent } from "./translate/translate";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { Cry, decryptAES, testCryInfo } from './crypto';
+import { Cry, testCryInfo } from './crypto';
 import { inputData } from "./ui/inputDialog";
 
 

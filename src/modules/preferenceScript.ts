@@ -8,6 +8,7 @@ import { mountMenu } from "./menu";
 import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
+import { Command } from "./command";
 
 
 
@@ -45,8 +46,8 @@ async function buildPrefsPane() {
   }
 
   // 原文语言
-  let defaultSourceLang;
-  let defaultTargetLang;
+  let defaultSourceLang, defaultTargetLang, enableEncrypt, deleSourceFile;
+
   const DB = await getDB();
   if (DB) {
     try {
@@ -56,6 +57,12 @@ async function buildPrefsPane() {
       defaultTargetLang = await DB.valueQueryAsync(
         "SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'",
       );
+      enableEncrypt = await DB.valueQueryAsync(
+        "SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'",
+      );
+      deleSourceFile = await DB.valueQueryAsync(
+        "SELECT value FROM settings WHERE setting='addon' AND key='deleSourceFile'",
+      );
     } catch (e) {
       ztoolkit.log(e);
     }
@@ -63,6 +70,7 @@ async function buildPrefsPane() {
 
   defaultSourceLang = defaultSourceLang ? defaultSourceLang : void 0;
   defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
+
 
   const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
   const targetLangPlaceholder = getDom("targetLang-placeholder")!;
@@ -182,6 +190,12 @@ async function buildPrefsPane() {
       });
     }
   }
+  // 安全设置
+  const switchEncrypt = (getDom("setEnableEncrypt") as XUL.Checkbox);
+  if (enableEncrypt) switchEncrypt.checked = enableEncrypt;
+  const switchDeleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox);
+  if (deleSourceFile) switchDeleSourceFile.checked = deleSourceFile;
+  Command.checkSetEnableEncrypt();
 
   //多账户管理
 

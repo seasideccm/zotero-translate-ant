@@ -389,12 +389,12 @@ declare type Box = {
 
 
 declare type EncryptAESInfo = {
-  encryptAESString: string;
+  encryptAESString?: string;
   signatureString?: string;
   decryptAlgorithm?: {
     name: string;
   };
   ivString: string;
-  wrapedKeyString?: string;
-  wrapedsignKeyString?: string;
+  wrapedAESKeyString?: string;
+  wrapedSignKeyString?: string;
 };

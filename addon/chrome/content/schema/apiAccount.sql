@@ -10,6 +10,11 @@ CREATE TABLE translateServiceSN(
     FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+CREATE TABLE encryptAccounts(
+    serialNumber INTEGER PRIMARY KEY,
+    FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 CREATE TABLE translateServices(
     serviceID TEXT NOT NULL PRIMARY KEY,
     serviceTypeID INT NOT NULL,

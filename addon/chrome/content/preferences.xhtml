@@ -187,20 +187,17 @@
   </groupbox>
 </vbox>
 
-<!--多账户管理-->
+<!-- 安全设置 加密保护账户秘钥和 token -->
 <separator class="groove" />
 <vbox>
   <label>
-    <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
+    <html:h3 data-l10n-id="pref-cryProtect"></html:h3>
   </label>
-
-  <!-- 安全设置 SSHKEY 加密保护账户秘钥和 token -->
   <hbox>
-    <label data-l10n-id="pref-sshProtect"></label>
     <checkbox
       id="__addonRef__-setEnableEncrypt"
       native="true"
-      checked="true"
+      checked="false"
       data-l10n-id="pref-enableEncrypt"
       command="cmd_setEnableEncrypt"
       tooltip="setEnableEncryptTip"
@@ -232,6 +229,28 @@
 
     <spacer width="20px" height="20px" />
   </hbox>
+
+  <hbox>
+    <checkbox
+      id="__addonRef__-deleSourceFile"
+      native="true"
+      checked="false"
+      data-l10n-id="pref-deleSourceFile"
+      tooltip="deleSourceFileTip"
+    />
+    <tooltip id="deleSourceFileTip" orient="vertical">
+      <label data-l10n-id="pref-deleSourceFileTip" />
+    </tooltip>
+  </hbox>
+</vbox>
+
+<!--多账户管理-->
+<separator class="groove" />
+<vbox>
+  <label>
+    <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
+  </label>
+
   <hbox>
     <label data-l10n-id="pref-multi-service"></label>
     <!-- Replace -->

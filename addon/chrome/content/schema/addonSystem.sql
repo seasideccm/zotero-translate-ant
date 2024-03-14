@@ -23,6 +23,9 @@ CREATE TABLE  IF NOT EXISTS syncedSettings (
     FOREIGN KEY (libraryID) REFERENCES libraries (libraryID) ON DELETE CASCADE
 );
 
+-- path can belong to dir or file
+CREATE TABLE encryptFilePaths (path TEXT NOT NULL PRIMARY KEY, encryptAESStringNoBuffer TEXT NOT NULL);
+
 CREATE TABLE IF NOT EXISTS version (schema TEXT PRIMARY KEY, version INT NOT NULL);
 
 DROP INDEX IF EXISTS schema;
