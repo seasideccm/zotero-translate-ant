@@ -5,7 +5,7 @@ import { listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
-import { InputDialog } from "./modules/ui/inputDialog";
+import { DataDialog } from "./modules/ui/dataDialog";
 import { mountMenu } from "./modules/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
@@ -51,6 +51,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   registerShortcutsCache();
   showInfo(getString("startup-begin"));
   await getDB();
+  await Cry.getKEYS_NAME();
   if (addon.data.env == "development") {
     await compareSQLUpdateDB();
   }
@@ -100,7 +101,10 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
 async function onCommand(cmd: string) {
   switch (cmd) {
     case "cmd_setEnableEncrypt":
-      await Command.setEnableEncrypt();
+      await Command.showHiddenEncryptDom();
+      break;
+    case "cmd_customKeysFileName":
+      await Command.customKeysFileName();
       break;
     default:
       return;
@@ -130,7 +134,7 @@ function onDialogEvents(type: string) {
 // Add your hooks here. For element click, etc.
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
 // Otherwise the code would be hard to read and maintain.
-const onOpenInputDialog = InputDialog.onOpenInputDialog;
+const onOpenDataDialog = DataDialog.onOpenDataDialog;
 
 export default {
   onStartup,
@@ -140,6 +144,6 @@ export default {
   onPrefsEvent,
   onShortcuts,
   onDialogEvents,
-  onOpenInputDialog,
+  onOpenDataDialog,
   onCommand,
 };

@@ -113,3 +113,5 @@ pref-setEnableEncryptTip = Encrypt And Decrypt The Secretkey Of The Translation 
 pref-deleSourceFile = 
     .label = Delete source files after file encryption
 pref-deleSourceFileTip = Please choose carefully and make a backup. Once deleted, Otherwise, it can only be recovered through decryption
+pref-customKeysFileName = Custom Crypto Keys File Name
+pref-customKeysFileNameTip = Click the button, then modify the corresponding file name. After confirming the modification, the records in the addon database will be modified. If there is a key that is already in use in the encryption key storage directory, the file name will be modified at the same time, and the file name of the unused key will not be changed.

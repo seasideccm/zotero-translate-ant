@@ -6,6 +6,10 @@
     id="cmd_setEnableEncrypt"
     oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_setEnableEncrypt')"
   />
+  <command
+    id="cmd_customKeysFileName"
+    oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_customKeysFileName')"
+  />
 </commandset>
 
 <vbox
@@ -209,6 +213,7 @@
     <button
       id="__addonRef__-addNewCryKey"
       data-l10n-id="pref-addNewCryKey"
+      hidden="true"
       tooltip="addNewCryKeyTip"
     ></button>
     <tooltip id="addNewCryKeyTip" orient="vertical">
@@ -219,12 +224,23 @@
     <button
       id="__addonRef__-addOldCryKey"
       data-l10n-id="pref-addOldCryKey"
+      hidden="true"
       tooltip="addOldCryKeyTip"
     ></button>
     <tooltip id="addOldCryKeyTip" orient="vertical">
       <label data-l10n-id="pref-addOldCryKey1" />
       <label data-l10n-id="pref-addOldCryKey2" />
       <label data-l10n-id="pref-addOldCryKey3" />
+    </tooltip>
+    <button
+      id="__addonRef__-customKeysFileName"
+      data-l10n-id="pref-customKeysFileName"
+      command="cmd_customKeysFileName"
+      hidden="true"
+      tooltip="customKeysFileNameTip"
+    ></button>
+    <tooltip id="customKeysFileNameTip" orient="vertical">
+      <label data-l10n-id="pref-customKeysFileNameTip" />
     </tooltip>
 
     <spacer width="20px" height="20px" />
@@ -236,6 +252,7 @@
       native="true"
       checked="false"
       data-l10n-id="pref-deleSourceFile"
+      hidden="true"
       tooltip="deleSourceFileTip"
     />
     <tooltip id="deleSourceFileTip" orient="vertical">

@@ -115,3 +115,5 @@ pref-setEnableEncryptTip = 对翻译账号的秘钥加解密，以免泄露造�
 pref-deleSourceFile = 
     .label = 文件加密后删除源文件
 pref-deleSourceFileTip = 请谨慎选择，做好备份，否则仅能通过解密恢复
+pref-customKeysFileName = 修改加密秘钥文件名
+pref-customKeysFileNameTip = 点击按钮，然后修改对应的文件名，确认修改后将修改插件数据库中的记录，如若加密秘钥存储目录内有已经在使用的秘钥，则同时修改其文件名，对未使用的秘钥文件名不做改动。

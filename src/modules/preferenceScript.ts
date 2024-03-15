@@ -189,7 +189,10 @@ async function buildPrefsPane() {
   try {
     const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
     const dbValue = await DB.valueQueryAsync(sqlSELECT);
-    Command.showHiddenEncryptDom(Boolean(Number(dbValue)));
+    const res = Boolean(Number(dbValue));
+    if (!res) return;
+    Command.showHiddenEncryptDom(res, true);
+
   } catch (e: any) {
     showInfo(e.message);
     throw e;

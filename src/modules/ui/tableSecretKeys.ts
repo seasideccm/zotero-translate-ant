@@ -244,6 +244,8 @@ export async function replaceSecretKeysTable() {
         await Cry.addCryKey();
     }
     async function addOldCryKey(e: Event) {
+        await Cry.importCryKey();
+        return;
 
         const filePath = await chooseDirOrFilePath();
         const publicKey = await Cry.getKey("publicKey");

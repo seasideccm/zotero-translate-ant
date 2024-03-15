@@ -13,7 +13,7 @@ href="chrome://zotero-platform/content/zotero.css"?>
   data-l10n-id="input-dialog"
   data-l10n-attrs="title"
   width="350"
-  onload="Zotero.__addonInstance__.hooks.onOpenInputDialog(window)"
+  onload="Zotero.__addonInstance__.hooks.onOpenDataDialog(window)"
 >
   <script>
     const { Services } = ChromeUtils.import(
@@ -26,7 +26,7 @@ href="chrome://zotero-platform/content/zotero.css"?>
   </script>
 
   <linkset>
-    <html:link rel="localization" href="__addonRef__-inputDialog.ftl" />
+    <html:link rel="localization" href="__addonRef__-dataDialog.ftl" />
   </linkset>
   <dialog
     buttons="cancel,accept"
