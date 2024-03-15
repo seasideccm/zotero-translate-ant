@@ -1083,11 +1083,11 @@ export function batchAddEventListener2(optins: {
  * @param isDir 默认目录
  * @returns 
  */
-export async function chooseDirOrFilePath(isDir: boolean = true, defaultPath?: string, windowTip?: string) {
+export async function chooseDirOrFilePath(filesOrDir: "files" | "dir" = "dir", defaultPath?: string, windowTip?: string) {
   const FilePicker = window.require("zotero/modules/filePicker").default;
   const fp = new FilePicker();
   windowTip = windowTip ? windowTip : (getString("info-SelectDirectory") || "Select Directory");
-  if (isDir) {
+  if (filesOrDir == "dir") {
     if (Zotero.isMac) {
       fp.init(window, windowTip, fp.modeOpen);
       fp.appendFilter("Mac OS X Application Bundle", "*.app");
@@ -1104,7 +1104,7 @@ export async function chooseDirOrFilePath(isDir: boolean = true, defaultPath?: s
     if (rv == fp.returnCancel) showInfo(getString("info-userCancle"));
     return;
   }
-  const message = (isDir ? "Directory " : "File ") + `is ${fp.file}`;
+  const message = (filesOrDir == "dir" ? "Directory " : "File ") + `is ${fp.file}`;
   Zotero.debug(message);
   return fp.file;
 }

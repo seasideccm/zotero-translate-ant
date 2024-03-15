@@ -6,6 +6,7 @@ import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
+import { inputData } from './ui/inputDialog';
 
 const KEYS_NAME: {
     PUBLICKEY_NAME: string;
@@ -16,6 +17,7 @@ const KEYS_NAME: {
     PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
     AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
 };
+const cryptoKeyFileNames = Object.values(KEYS_NAME);
 
 
 async function cryptoKeyPathToDB(path: string) {
@@ -128,6 +130,7 @@ export class Cry {
     }
 
     static async saveKey(key: any, path: string) {
+        path = await ensureNonePath(path);
         if (!key || !path || await IOUtils.exists(path)) { showInfo("not save"); return; }
         //btoa 字节转字母
         //const keyBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(key) as any));
@@ -198,24 +201,24 @@ export class Cry {
             return await Cry.importKey(key);
         }
         if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
-        let path = addon.mountPoint.crypto?.path;
-        if (!path) {
-            path = await Cry.getCryKeyPath();
-            path ? addon.mountPoint["crypto"]["path"] = path : await Cry.addCryKey();
+
+        if (!addon.mountPoint.crypto?.path) {
+            const res = await Cry.getCryKeyPath();
+            res ? addon.mountPoint["crypto"]["path"] = res : await Cry.addCryKey();
         }
-        path = addon.mountPoint.crypto.path;
+        let path = addon.mountPoint.crypto.path;
+        if (!path) return;
         if (type == "AESCBC") {
-            path = PathUtils.join(path, "AESCBCWraped");
+            path = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
             let key;
             try {
                 key = await IOUtils.read(path);
             } catch (e: any) {
                 showInfo(e.message);
                 showInfo("Please check: " + path);
+                showInfo(`Please Set Crypto Keys in ${config.addonName} Settings`);
                 throw e;
-
             }
-
             if (!key) {
                 showInfo("Please check: " + path);
                 return;
@@ -320,59 +323,103 @@ export class Cry {
     }
 
     static async addCryKey() {
-        const path = await chooseDirOrFilePath(true, addonDatabaseDir);
+        const path = await chooseDirOrFilePath("dir", addonDatabaseDir);
         if (!path) return;
+        let files: boolean | string[];
+        files = await collectFilesRecursive(path);
+        const result = isRechooseFiles(files);
+        if (result === true) {
+            files = [];
+            while (files.length < 3) {
+                const path = await chooseDirOrFilePath("files", addonDatabaseDir);
+                files.push(...path);
+            }
+            files = isRechooseFiles(files);
+            if (!Array.isArray(files)) return;
+        } else {
+            if (!result) return;
+            files = result as string[];
+        }
+        if (!files || !files.length) return;
+        function isRechooseFiles(files: string[] | any[]) {
+            if (files[0].name) {
+                files = files.map(file => file.path) as string[];
+            }
+            let filesSelected;
+            const fileNames = files.map(path => OS.Path.basename(path));
+            let reChoose = false;
+            if (files.length != cryptoKeyFileNames.length) {
+                if (files.length > cryptoKeyFileNames.length) {
+                    const dataOut = inputData("multiSelect", fileNames);
+                    if (!dataOut) {
+                        reChoose = true;
+                    }
+                    else {
+                        const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
+                        filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
+                        if (isRechooseFiles(filesSelected)) {
+                            reChoose = true;
+                            filesSelected = null;
+                        }
+                    }
+                } else {
+                    reChoose = true;
+                }
 
-        const files = await collectFilesRecursive(path);
-        if (files && files.length) {
-            // 是否导入原有秘钥
-            const filesName = files.map(e => e.name);
-            const promptService = getPS();
-            const title = getString("info-addOldCryKey");
-            const info = getString("info-has") + filesName.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
-            let confirm = promptService.confirm(window, title, info);
-            if (confirm) {
-                const filePaths = files.map(e => e.path);
-                let info = filePaths.join('\n');
-                const title = "Check FilePaths";
+            } else {
+                // 判断 预设秘钥文件名和目录中文件名不一致
+                reChoose = fileNames.some(fileName => cryptoKeyFileNames.some(keyName => keyName != fileName));
+            }
+            return filesSelected ? filesSelected : reChoose;
+        }
+
+        // 是否导入原有秘钥
+        const filesName = files.map(e => OS.Path.basename(e));
+        const promptService = getPS();
+        const title = getString("info-addOldCryKey");
+        const info = getString("info-has") + filesName.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
+        let confirm = promptService.confirm(window, title, info);
+        if (confirm) {
+            let info = files.join('\n');
+            const title = "Check FilePaths";
+            confirm = promptService.confirm(window, title, info);
+            if (!confirm) {
+                const fs = await chooseDirOrFilePath("files", path);
+                info = fs.join('\n');
                 confirm = promptService.confirm(window, title, info);
                 if (!confirm) {
-                    const fs = await chooseDirOrFilePath(false, path);
-                    info = fs.join('\n');
-                    confirm = promptService.confirm(window, title, info);
-                    if (!confirm) {
-                        showInfo(getString('info-cancle') + ': ' + getString("info-addOldCryKey"));
-                        return;
-                    }
+                    showInfo(getString('info-cancle') + ': ' + getString("info-addOldCryKey"));
+                    return;
                 }
-                Cry.importCryKey(filePaths);
-                return;
-            } else {
-                showInfo("create new AES RSA keys");
             }
+            Cry.importCryKey(files);
+            return;
+        } else {
+            confirm = promptService.confirm(window, "Are You Shoure", "create new AES RSA keys?");
+            if (!confirm) return;
+            showInfo("create new AES RSA keys...");
         }
+
 
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
-        const privateKey = await Cry.exportKey(keyPair.privateKey);
-        const keyName = KEYS_NAME["PRIVATEKEY_NAME"];
-        // 公钥私钥 AES 秘钥三者保存在用户指定的同一目录下
-
-        const pathSSH = await ensureNonePath(PathUtils.join(path, keyName));
-        await Cry.saveKey(publicKey, pathSSH + ".pub");
-        await Cry.saveKey(privateKey, pathSSH);
+        // ARS 公钥私钥 AES 秘钥三者保存在用户指定的同一目录下, AES 秘钥保存意义不大
+        const pathRASKey = PathUtils.join(path, KEYS_NAME["PRIVATEKEY_NAME"]);
+        await Cry.saveKey(publicKey, PathUtils.join(path, KEYS_NAME["PUBLICKEY_NAME"]));
+        await Cry.saveKey(await Cry.exportKey(keyPair.privateKey), pathRASKey);
         const AESKey = await Cry.getAESKey();
-        ///const AESKeyArrayBuffer = await window.crypto.subtle.exportKey("raw", AESKey);
         const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
         const AESKeyWrapedUnit8Array = new Uint8Array(AESKeyWraped);
-        const pathAES = await ensureNonePath(PathUtils.join(path, "AESCBCWraped"));
-        await Cry.saveKey(AESKeyWrapedUnit8Array, pathAES);
+        const pathAESKey = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
+        await Cry.saveKey(AESKeyWrapedUnit8Array, pathAESKey);
         //公钥读取后留在程序中随时用来加密
+        const ARSAESKeysDir = PathUtils.parent(pathRASKey);
+        if (!ARSAESKeysDir) return;
         addon.mountPoint["crypto"] = {
             publicKey: publicKey,
-            path: path,
-            fileName: keyName,
+            path: ARSAESKeysDir,
         };
+        cryptoKeyPathToDB(ARSAESKeysDir);
         /* const DB = await getDB();
         await DB.executeTransaction(async () => {
             //保存参数到数据库
@@ -386,7 +433,7 @@ export class Cry {
             }
             await DB.queryAsync(sql);
         }); */
-        cryptoKeyPathToDB(path);
+
     }
 
 
@@ -474,7 +521,7 @@ export const encryptByAESKey = async (text: string, serialNumber?: number | stri
 
 export const encryptFileByAESKey = async (path?: string) => {
     if (!path) {
-        path = await chooseDirOrFilePath(false);
+        path = await chooseDirOrFilePath('files');
         if (!path) return;
     }
     const key = await Cry.unwrapAESKey();

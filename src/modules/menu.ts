@@ -18,7 +18,6 @@ function getParasArrs() {
       ["clearTable", clearAllTable,],
       ["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-      ['inputData', inputData, ['multiSelect', ["age", "weight", "sex"]]],
     ],
     [
       ["加密文件", encryptFileByAESKey],
