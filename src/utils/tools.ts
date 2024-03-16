@@ -1083,10 +1083,14 @@ export function batchAddEventListener2(optins: {
  * @param isDir 默认目录
  * @returns 
  */
-export async function chooseDirOrFilePath(filesOrDir: "files" | "dir" = "dir", defaultPath?: string, windowTip?: string) {
+export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" = "dir", defaultPath?: string, windowTip?: string) {
+  //FilePicker.prototype.modeOpen = 0;
+  //FilePicker.prototype.modeSave = 1;
+  //FilePicker.prototype.modeGetFolder = 2;
+  //FilePicker.prototype.modeOpenMultiple = 3;
   const FilePicker = window.require("zotero/modules/filePicker").default;
   const fp = new FilePicker();
-  windowTip = windowTip ? windowTip : (getString("info-SelectDirectory") || "Select Directory");
+  windowTip = windowTip ? windowTip : (filesOrDir == "dir" ? getString("info-SelectDirectory") : "Select Directory");
   if (filesOrDir == "dir") {
     if (Zotero.isMac) {
       fp.init(window, windowTip, fp.modeOpen);
@@ -1094,18 +1098,24 @@ export async function chooseDirOrFilePath(filesOrDir: "files" | "dir" = "dir", d
     } else {
       fp.init(window, windowTip, fp.modeGetFolder);
     }
+  } else if (filesOrDir == "files") {
+    fp.init(window, windowTip, fp.modeOpenMultiple);
+    fp.appendFilters(fp.filterAll);
   } else {
-    fp.init(window, "Select file", fp.modeOpen);
+    fp.init(window, windowTip, fp.modeOpen);
     fp.appendFilters(fp.filterAll);
   }
+
   fp.displayDirectory = defaultPath || getDefaultPath();
   const rv = await fp.show();
   if (rv !== fp.returnOK && rv !== fp.returnReplace) {
     if (rv == fp.returnCancel) showInfo(getString("info-userCancle"));
     return;
   }
-  const message = (filesOrDir == "dir" ? "Directory " : "File ") + `is ${fp.file}`;
+  const message = (filesOrDir == "dir" ? "Directory " + `is ${fp.file}` : (filesOrDir == "files" ? "Files " + `are ${fp.files}` : "File " + `is ${fp.file}`));
+
   Zotero.debug(message);
+  if (filesOrDir == "files") return fp.files;
   return fp.file;
 }
 /**

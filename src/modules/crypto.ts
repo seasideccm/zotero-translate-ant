@@ -6,8 +6,15 @@ import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
-import { modifyData, selectData, selectDirectory } from './ui/dataDialog';
+import { selectData, selectDirectoryCryptoKeys } from './ui/dataDialog';
+import { Command } from './command';
 
+
+
+const BEGIN_PUBLIC = `-----BEGIN PUBLIC KEY-----\n`;
+const END_PUBLIC = `\n-----END PUBLIC KEY-----`;
+const BEGIN_PRIVATE = `-----BEGIN PUBLIC KEY-----\n`;
+const END_PRIVATE = `\n-----END PUBLIC KEY-----`;
 
 /**
  * 必须包含ARS公私秘钥
@@ -15,10 +22,135 @@ import { modifyData, selectData, selectDirectory } from './ui/dataDialog';
  * @returns 
  */
 async function isRechooseFiles(files: string[]) {
-    const KEYS_NAME = await Cry.getKEYS_NAME();
+    const KEYS_NAME = await Command.customKeysFileName();
+    if (!KEYS_NAME) return true;
     if (!Array.isArray(files) || typeof files[0] != "string") return;
     const fileNames = files.map(path => OS.Path.basename(path));
-    return fileNames.includes(KEYS_NAME.PUBLICKEY_NAME) && fileNames.includes(KEYS_NAME.PRIVATEKEY_NAME);
+    if (!fileNames.includes(KEYS_NAME.PUBLICKEY_NAME)) {
+        showInfo("缺少 RSA 公钥");
+        return true;
+    }
+    if (!fileNames.includes(KEYS_NAME.PRIVATEKEY_NAME)) {
+        showInfo("缺少 RSA 私钥");
+        return true;
+    }
+
+    for (const path of files) {
+        const res = await verifyKeyContent(path, files, KEYS_NAME);
+        if (res) return true;
+        /*         if (!await IOUtils.exists(path)) return true;
+                const ctx = await Zotero.File.getContentsAsync(path);
+                const name = PathUtils.filename(path);
+                const fileInfo = await IOUtils.stat(path);
+                const content = await IOUtils.read(path);
+                if (content.constructor == Uint8Array) {
+                    showInfo(name + "is Uint8Array");
+                }
+                if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
+                    if ((!ctx.startsWith(BEGIN_PUBLIC) || !ctx.endsWith(END_PUBLIC))) {
+                        showInfo("文件不是有效的 pem 格式 RSA 私钥");
+                        return true;
+                    }
+                }
+        
+                if (typeof ctx == "string" && name == KEYS_NAME.PRIVATEKEY_NAME) {
+                    if ((!ctx.startsWith(BEGIN_PRIVATE) || !ctx.endsWith(END_PRIVATE))) {
+                        showInfo("文件不是有效的 pem 格式 RSA 公钥");
+                        return true;
+                    }
+                }
+        
+                if (content.constructor == Uint8Array && name == KEYS_NAME.AESCBCKEY_NAME) {
+                    const privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME.PRIVATEKEY_NAME)[0];
+                    const privateStirng = await Zotero.File.getContentsAsync(privatePath);
+        
+                    if (typeof privateStirng != "string") {
+                        showInfo("无 RSA 私钥，无法验证AES秘钥");
+                        return;
+                    }
+                    const privateKey = await Cry.importKey(privateStirng);
+                    if (!privateKey) {
+                        showInfo("无 RSA 私钥，无法验证AES秘钥");
+                        return;
+                    }
+                    const AESKey = await window.crypto.subtle.unwrapKey(
+                        "raw",
+                        content,//.buffer
+                        privateKey,
+                        { name: "RSA-OAEP" },
+                        { name: 'AES-CBC' },
+                        true,
+                        ["encrypt", "decrypt"]
+                    );
+        
+                    if (!AESKey)
+                        showInfo("文件不是有效的 AES 秘钥");
+                    return true;
+                } */
+    }
+
+
+}
+async function verifyKeyContent(path: string, files: string[], KEYS_NAME: KEYSNAME) {
+    const name = PathUtils.filename(path);
+
+    if (!await IOUtils.exists(path)) {
+        showInfo(name + " 文件无法读取");
+        return true;
+    }
+    let ctx;
+    try {
+        ctx = await IOUtils.readUTF8(path);
+    } catch (e: any) {
+        ctx = await IOUtils.read(path);
+    }
+
+    if (!ctx) {
+        showInfo(name + " 文件读取失败");
+        return true;
+    }
+    //ctx = await Zotero.File.getContentsAsync(path);
+    if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
+        if ((!ctx.startsWith(BEGIN_PUBLIC) || !ctx.endsWith(END_PUBLIC))) {
+            showInfo("文件不是有效的 pem 格式 RSA 私钥");
+            return true;
+        }
+    }
+
+    if (typeof ctx == "string" && name == KEYS_NAME.PRIVATEKEY_NAME) {
+        if ((!ctx.startsWith(BEGIN_PRIVATE) || !ctx.endsWith(END_PRIVATE))) {
+            showInfo("文件不是有效的 pem 格式 RSA 公钥");
+            return true;
+        }
+    }
+
+    if (ctx.constructor == Uint8Array && name == KEYS_NAME.AESCBCKEY_NAME) {
+        const privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME.PRIVATEKEY_NAME)[0];
+        const privateStirng = await Zotero.File.getContentsAsync(privatePath);
+
+        if (typeof privateStirng != "string") {
+            showInfo("无 RSA 私钥，无法验证AES秘钥");
+            return true;
+        }
+        const privateKey = await Cry.importKey(privateStirng);
+        if (!privateKey) {
+            showInfo("无 RSA 私钥，无法验证AES秘钥");
+            return true;
+        }
+        const AESKey = await window.crypto.subtle.unwrapKey(
+            "raw",
+            ctx,//.buffer
+            privateKey,
+            { name: "RSA-OAEP" },
+            { name: 'AES-CBC' },
+            true,
+            ["encrypt", "decrypt"]
+        );
+
+        if (!AESKey)
+            showInfo("文件不是有效的 AES 秘钥");
+        return true;
+    }
 }
 
 
@@ -76,8 +208,9 @@ export class Cry {
             RawKey
         );
         const keyBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(key) as any));
-        const PUBLIC = `-----BEGIN PUBLIC KEY-----\n${keyBase64}\n-----END PUBLIC KEY-----`;
-        const PRIVATE = `-----BEGIN PRIVATE KEY-----\n${keyBase64}\n-----END PRIVATE KEY-----`;
+
+        const PUBLIC = BEGIN_PUBLIC + keyBase64 + END_PUBLIC;
+        const PRIVATE = BEGIN_PRIVATE + keyBase64 + END_PRIVATE;
         return type == "pkcs8" ? PRIVATE : PUBLIC;//pemExported
     }
 
@@ -188,56 +321,58 @@ export class Cry {
             return await Cry.importKey(key);
         }
         if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
-
+        const info = getString("info-hasNot") + " crypto " + getString("prefs-table-secretKey") + "\n" + getString("info-addNewCryKey");
         if (!addon.mountPoint.crypto?.path) {
             const res = await Cry.getPathCryKey();
-            res ? addon.mountPoint["crypto"]["path"] = res : await Cry.addCryKey();
+            if (!res) {
+                showInfo(info);
+                return;
+            }
+            addon.mountPoint["crypto"]["path"] = res;
         }
         let path = addon.mountPoint.crypto.path;
         if (!path) return;
-        const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
+        const KEYS_NAME = await Cry.getKEYS_NAME();
+        if (!KEYS_NAME) {
+            showInfo(info);
+            return;
+        }
         if (type == "AESCBC") {
             path = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
-            let key;
-            try {
-                key = await IOUtils.read(path);
-            } catch (e: any) {
-                showInfo(e.message);
-                showInfo("Please check: " + path);
-                const ps = getPS();
-                ps.alert(null, "ALERT", getString('info-setCrypto'));
-                //showInfo(getString('info-setCrypto'));
-                throw e;
-            }
-            if (!key) {
-                showInfo("Please check: " + path);
-                return;
-            }
+            const key = await IOUtils.read(path);
+            verify(key);
             return key;
         }
 
         if (type == "publicKey") path = PathUtils.join(path, KEYS_NAME['PUBLICKEY_NAME']);
         if (type == 'privateKey') path = PathUtils.join(path, KEYS_NAME['PRIVATEKEY_NAME']);
-        let key;
-        try {
-            key = await Zotero.File.getContentsAsync(path);
-        } catch (e: any) {
-            showInfo(e.message);
-            showInfo("Please check: " + path);
-            throw e;
+        const key = await Zotero.File.getContentsAsync(path);
+        verify(key);
+        if (typeof key == 'string') {
+            if (type == "publicKey") addon.mountPoint.crypto[type] = key;
+            return await Cry.importKey(key);
         }
-        if (!key) {
-            showInfo("Please check: " + path);
-            return;
-        }
-        if (type == "publicKey") addon.mountPoint.crypto[type] = key;
-        if (typeof key == 'string') return await Cry.importKey(key);
 
+        /**
+         * key 为空显示消息，然后抛出错误
+         * @param key 
+         * @returns 
+         */
+        function verify(key: any) {
+            if (!key) {
+                showInfo("Please check: " + path);
+                showInfo(info);
+                showInfo(`argument ${key} is null`);
+                //throw new Error(`argument ${key} is null`);
+            }
+        }
     }
 
-    static async unwrapAESKey() {
-        const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;
-        if (!wrapedAESKey) return;
+    static async unwrapAESKey(wrapedAESKey?: Uint8Array,) {
+        if (!wrapedAESKey) {
+            wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;
+            if (!wrapedAESKey) return;
+        }
         const privateKey = await Cry.getKey("privateKey") as CryptoKey;
         const AESKey = await window.crypto.subtle.unwrapKey(
             "raw",
@@ -307,18 +442,71 @@ export class Cry {
         return hasKeys;
     }
 
-    static async importCryKey(filePaths: string[] = []) {
-        const pathSave = await Cry.getPathCryKey();
-        const res = selectDirectory(pathSave);
+    static async importCryKey(filePaths?: string[]) {
+        //确认存储目录
+        const directoryCryptoKeys = await identifyPathCryKey();
+        if (!directoryCryptoKeys) return;
+
+        if (!filePaths || filePaths.length === 0) {
+            const temp = await collectFilesRecursive(directoryCryptoKeys);
+            const fileNames = temp.map(file => file.name);
+            const files = temp.map(file => file.path) as string[];
+            const dataOut = selectData(fileNames);
+            if (!dataOut) return;
+            const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
+            filePaths = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
+            if (!filePaths) return;
+        }
+        if (await isRechooseFiles(filePaths)) {
+            const TIP = "Has Invalid File, Please Reselect Files, Click Cancle When Finished";
+            const temp = [];
+            while (TIP) {
+                const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
+                if (!path || !path.length) break;
+                typeof path == "string" ? temp.push(path) : temp.push(...path);//undefine 无法 ... 解构
+                showInfo(temp.join('\n'));
+                const confirm = window.confirm("是否继续选择文件？点击取消结束选择");
+                if (!confirm) break;
+
+            }
+            if (await isRechooseFiles(temp)) {
+                showInfo("所选文件不是有效秘钥，请重新选择");
+                return;
+            }
+            filePaths = temp;
+        }
+        showInfo(filePaths.join('\n'));
+        return;
+
+
+
+
+        //const selectedPaths = res.filePaths;
+
+
+        //await Cry.makeNewRASAESKeys(pathSave);
+        // await Cry.setPathCryKey(pathSave);
+
         //const dirHandle = await window.showDirectoryPicker();
 
         //|| await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
 
         showInfo("TODO");
+        async function identifyPathCryKey() {
+            const pathSelect = await Cry.getPathCryKey() || await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
+            const res = selectDirectoryCryptoKeys(pathSelect);
+            if (!res) return;
+            if (typeof res == "object" && !Object.values(res).length) return;
+            const directoryCryptoKeys = Object.values(res)[0];
+            if (!directoryCryptoKeys || typeof directoryCryptoKeys !== 'string' || !await IOUtils.exists(directoryCryptoKeys)) return;
+            showInfo(["加密秘钥存储目录已确定", directoryCryptoKeys, "该选择文件了"]);
+            return directoryCryptoKeys;
+        }
 
     }
 
     static async addCryKey() {
+        //选择文件，确认并验证文件有效
         const path = await chooseDirOrFilePath("dir", addonDatabaseDir);
         if (!path) return;
         const temp = await collectFilesRecursive(path);
@@ -338,6 +526,7 @@ export class Cry {
             }
             if (await isRechooseFiles(filesSelected)) return;
         }
+        // todo验证是否是秘钥，是什么秘钥
 
         // 是否导入原有秘钥
         fileNames = filesSelected.map(e => OS.Path.basename(e));
@@ -417,11 +606,12 @@ export class Cry {
         return KEYS_NAME;
     }
 
-    static async setKEYS_NAME(KEYS_NAME: KEYSNAME = {
-        PUBLICKEY_NAME: `RSA-OAEP-${config.addonRef}.pub`,
-        PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
-        AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
-    }) {
+    static async setKEYS_NAME(KEYS_NAME?: KEYSNAME) {
+        if (!KEYS_NAME) KEYS_NAME = {
+            PUBLICKEY_NAME: `RSA-OAEP-${config.addonRef}.pub`,
+            PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
+            AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
+        };
         const DB = await getDB();
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);
@@ -432,6 +622,7 @@ export class Cry {
                 : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeysName','${jsonString}')`;
             await DB.queryAsync(sql);
         });
+        addon.mountPoint["KEYS_NAME"] = null;
     }
 
     // todo 更换 SSHKEY 密钥轮换 保留旧秘钥解码相应密文
@@ -576,7 +767,8 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
             { name: "RSA-OAEP" },
             algorithmVerify,
             true,
-            ['sign', 'verify']);
+            ['sign', 'verify']
+        );
 
         const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, encryptAESInfo.signatureString, encryptAESInfo.encryptAESString);
 

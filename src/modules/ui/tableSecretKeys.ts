@@ -28,7 +28,13 @@ export async function tableFactory({ win, containerId, props }: TableFactoryOpti
     return tableHelper;
 
 }
-
+export function stopEvent(e: Event) {
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();//@ts-ignore has
+    if (e.nativeEvent) {//@ts-ignore has
+        e.nativeEvent.stopImmediatePropagation();
+        e.stopPropagation();
+    }
+}
 export async function replaceSecretKeysTable() {
     const win = addon.data.prefs?.window;
     if (!win) return;
@@ -80,7 +86,6 @@ export async function replaceSecretKeysTable() {
     //绑定事件，增删改查
     getDom("addRecord")!.addEventListener("command", addRecord);
     getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
-    getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
     getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
     getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
     win.addEventListener("beforeunload", () => {
@@ -544,13 +549,7 @@ export async function replaceSecretKeysTable() {
 
 
     }
-    function stopEvent(e: Event) {
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();//@ts-ignore has
-        if (e.nativeEvent) {//@ts-ignore has
-            e.nativeEvent.stopImmediatePropagation();
-            e.stopPropagation();
-        }
-    }
+
     //todo
     function validateSecretKey(index: number) {
         const validateFunc = {

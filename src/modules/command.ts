@@ -2,7 +2,7 @@ import { getString } from "../utils/locale";
 import { showInfo } from "../utils/tools";
 import { Cry, decryptAllAccount, decryptAllFiles } from "./crypto";
 import { getDBSync } from "./database/database";
-import { modifyData, selectData } from "./ui/dataDialog";
+import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
 
 export class Command {
@@ -11,6 +11,7 @@ export class Command {
         const data = modifyData(KEYS_NAME);
         if (!data) return;
         await Cry.setKEYS_NAME(data);
+        return data;
     }
 
     // 打开面板时传入的参数用来设置按钮黄复选框是否显示，同时禁止弹窗
