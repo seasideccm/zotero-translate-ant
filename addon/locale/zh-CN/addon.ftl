@@ -159,3 +159,6 @@ info-setCrypto = 请前往插件设置中设置加解密秘钥
 info-encryptTip = 将启用加密保护翻译引擎账号秘钥和 token，您也可以用来对文件进行加密保护。请妥善保管好 RSA 公钥私钥，公钥用来加密 AES 秘钥，私钥用来解密 AES 秘钥，AES 秘钥加密包裹后保存在本插件数据库中或与 RSA 秘钥相同的目录下。对目标内容加密解密时会先解密 AES 秘钥。
 info-modifyData = 修改数据
 info-multiSelect = 选择项目
+info-decryptAllAccount = 解密所有翻译引擎账号密码
+info-decryptAllFiles = 解密所有加密文件
+info-enableEncrypt = 启用加密

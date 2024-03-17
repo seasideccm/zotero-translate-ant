@@ -1,9 +1,12 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
-import { OS, batchAddEventListener, chooseDirOrFilePath, showInfo } from "../../utils/tools";
-import { stopEvent } from "./tableSecretKeys";
+import { OS, chooseDirOrFilePath, showInfo } from "../../utils/tools";
 import { makeTagElementProps } from "./uiTools";
-
+/**
+ * fieldName 用作 Dom id ，不可有空格冒号
+ * @param fieldNames 
+ * @returns 
+ */
 export function modifyData(fieldNames: string[] | any) {
     const dialogType = 'input';
     const title = getString('info-modifyData');
@@ -19,7 +22,7 @@ export function selectData(fieldNames: string[]) {
 
 }
 
-export function selectDirectoryCryptoKeys(fieldNames: string[] | string) {
+export function selectDirectoryCryptoKeys(fieldNames?: string[] | string) {
     if (!fieldNames) return;
     if (!Array.isArray(fieldNames)) fieldNames = [fieldNames];
     const dialogType = 'directory';
@@ -38,8 +41,8 @@ function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: str
     //window.openDialog chrome,modal，等待用户操作，完成后给 io 赋值
 
     if (!win) win = window;
-    win.openDialog(url, "dataDialog", "chrome,modal,centerscreen,fitContent=true,resizable=yes", io);
-    //const win = window.openDialog(url, "dataDialog", "chrome,modal,centerscreen,fitContent=true,resizable=yes", io);
+    const dialog = win.openDialog(url, "dataDialog", "chrome,modal,centerscreen,fitContent=true,resizable=yes", io);
+    addon.mountPoint.dialog = dialog;
     return io;
 }
 
@@ -63,7 +66,7 @@ export class DataDialog {
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
         //@ts-ignore xxx
         const io = win.arguments[0];
-        const fieldNames = io.fieldNames;
+        let fieldNames = io.fieldNames;
         const dialogType = io.dialogType;
         const title = io.title;
         if (title) win.document.title = title;
@@ -72,24 +75,28 @@ export class DataDialog {
         if (!parent) return;
         win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
         if (Array.isArray(fieldNames)) {
+            const maxLength = Math.max(...fieldNames.map((field: string) => field.length)) + 2;
+            const style = `width: ${maxLength}rem; margin-inline: 1rem`;
             if (dialogType == 'input') {
-                fieldNames.forEach((field: string) => {
+                fieldNames.forEach((field: string, i: number) => {
                     ztoolkit.UI.appendElement({
                         tag: "input",
-                        id: `fieldName-${field}`,
+                        id: `fieldName-${Zotero.randomString(6)}`,
                         namespace: "html",
+                        classList: ['key' + i],
                         attributes: {
-                            placeholder: `${field}: Please Input Content`,
-                            name: field,
+                            placeholder: `${field}`,
+                            style: style,
                         }
                     }, parent);
                 });
             }
             if (dialogType == 'multiSelect') {
                 parent.style.marginLeft = "2em";
-                const checkboxs = fieldNames.map((e: string) => ({
+                const checkboxs = fieldNames.map((e: string, i: number) => ({
                     tag: "checkbox",
-                    id: `fieldName-${e}`,
+                    id: `fieldName-${Zotero.randomString(6)}`,
+                    classlist: ["key" + i],
                     namespace: "xul",
                     attributes: {
                         label: e,
@@ -106,6 +113,7 @@ export class DataDialog {
                 if (child && child.length == 2) (child[1] as XUL.Box).setAttribute("class", "");
             }
             if (dialogType == 'directory') {
+                if (!fieldNames) fieldNames = ["none"];
                 const basename = OS.Path.basename(fieldNames[0]);
                 const labelProps = makeTagElementProps({
                     tag: "label",
@@ -115,16 +123,7 @@ export class DataDialog {
                         textContent: fieldNames[0],
                     }
                 });
-                const filesIcon = makeTagElementProps({
-                    tag: "span",
-                    namespace: "html",
-                    classList: ['icon', 'icon-css', 'icon-collection', 'cell-icon'],
-                    listeners: [{
-                        type: "click",
-                        listener: selectDir
-                    }]
 
-                });
                 const filepicker = makeTagElementProps({
                     tag: "input",
                     id: "filepicker",
@@ -144,7 +143,14 @@ export class DataDialog {
                     {
                         tag: "div",
                         namespace: "html",
-                        children: [labelProps, filesIcon, filepicker]
+                        children: [labelProps]
+
+                    }, parent);
+                ztoolkit.UI.appendElement(
+                    {
+                        tag: "div",
+                        namespace: "html",
+                        children: [filepicker]
 
                     }, parent);
             }
@@ -153,6 +159,7 @@ export class DataDialog {
             const fields = Object.keys(fieldNames);
             if (dialogType == 'input') {
                 const maxLength = Math.max(...fields.map((field: string) => field.length)) + 2;
+                const stlye = `width: ${maxLength}rem; margin-inline: 1rem`;
                 const buttonDel = (e: MouseEvent) => {
                     //const button = win.document.querySelector('#deleteRow');
                     const button = e.target;
@@ -163,10 +170,9 @@ export class DataDialog {
                     const hboxRow = win.document.querySelectorAll('#insertHbox')!;
                     if (!hboxRow || hboxRow.length != 1) return;
                     const row = hboxRow[0];
-                    const label = addon.mountPoint.label;
-                    showInfo("结束编辑吗？");//@ts-ignore xxx
+                    const label = addon.mountPoint.label;//@ts-ignore xxx
                     const labelInput = row?.children[1] as HTMLInputElement;//@ts-ignore xxx
-                    row?.children[2].setAttribute("id", `fieldName-${labelInput!.value}`);
+                    //row?.children[2].setAttribute("id", `fieldName-${labelInput!.value}`);
                     label.textContent = labelInput!.value;
                     row.setAttribute("id", "");
                     row.replaceChild(label, labelInput);
@@ -175,7 +181,7 @@ export class DataDialog {
                     type: "click",
                     listener: buttonDel
                 };
-                fields.forEach((field: string) => {
+                fields.forEach((field: string, i: number) => {
                     const div = ztoolkit.UI.appendElement(
                         {
                             tag: "hbox",
@@ -190,14 +196,14 @@ export class DataDialog {
                                     },
                                     properties: {
                                         textContent: "删除",
-                                    },
+                                    },                                    //@ts-ignore xxx
                                     listeners: [ondelete]
                                 },
                                 {
                                     tag: "label",
                                     namespace: "html",
                                     attributes: {
-                                        for: `fieldName-${field}`,
+                                        for: `fieldName-${'key' + i}`,
                                         style: `margin-inline: 1em`
                                     },
                                     properties: {
@@ -206,14 +212,14 @@ export class DataDialog {
                                 },
                                 {
                                     tag: "input",
-                                    id: `fieldName-${field}`,
+                                    id: `fieldName-${'key' + i}`,
                                     namespace: "html",
+                                    classList: ['key' + i],
                                     attributes: {
                                         placeholder: `${fieldNames[field]}`,
                                         type: "text",
-                                        //size: maxLength,
                                         name: field,
-                                        style: `width: ${maxLength}em; margin-inline: 1em`,
+                                        style: stlye,
                                     },
                                     properties: {
                                         value: `${fieldNames[field]}`,
@@ -246,10 +252,7 @@ export class DataDialog {
                                 {
                                     type: "click",
                                     listener: (e) => {
-                                        const button = win.document.querySelector('#insertRow');
                                         endEdit(e);
-                                        showInfo("click 插入吗？");//@ts-ignore xxx
-                                        //const lastRow = button?.parentElement.previousSibling;
                                         const lastRow = parent.children[parent.children.length - 2];
                                         const newNode = lastRow?.cloneNode(true); //@ts-ignore xxx
                                         newNode?.setAttribute("id", "insertHbox");
@@ -269,7 +272,7 @@ export class DataDialog {
                                             },
 
                                         }, label as Element);//@ts-ignore xxx
-                                        newNode?.childNodes[2].setAttribute("id", "rowInput");//@ts-ignore xxx
+                                        //newNode?.childNodes[2].setAttribute("id", "rowInput");//@ts-ignore xxx
                                         lastRow?.insertAdjacentElement("afterend", newNode);
                                     }
                                 },
@@ -427,17 +430,6 @@ export class DataDialog {
         const dataOut: any = {};
         if (elements.length) {
             makeDataout();
-            /*             for (let i = 0; i < elements.length; i++) {
-                            const fieldName = elements.item(i).id.replace("fieldName-", "");
-                            if (elements.item(i).tagName == "checkbox") {
-                                dataOut[fieldName] = (elements.item(i) as XUL.Checkbox).checked;
-                            } else if () {
-                                textContent;
-                            }
-                            else {
-                                dataOut[fieldName] = (elements.item(i) as HTMLInputElement).value;
-                            }
-                        } */
         }
 
         function makeDataout() {
@@ -445,6 +437,7 @@ export class DataDialog {
                 const el = elements.item(i) as any;
                 const tagName = el.tagName;
                 const fieldName = el.id.replace("fieldName-", "");
+                const key = el.classList[0];
                 switch (tagName) {
                     case "checkbox":
                         dataOut[fieldName] = el.checked;
@@ -455,7 +448,7 @@ export class DataDialog {
                         }
                         break;
                     case "input":
-                        dataOut[fieldName] = el.value;
+                        dataOut[key] = el.value || el.placeholder;
                         break;
                     default: break;
                 }

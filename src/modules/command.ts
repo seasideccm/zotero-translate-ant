@@ -25,11 +25,14 @@ export class Command {
         const addNewCryKey = getDom('addNewCryKey') as XUL.Button;
         const addOldCryKey = getDom('addOldCryKey') as XUL.Button;
         const customKeysFileName = getDom('customKeysFileName') as XUL.Button;
+        const labelRun = getDom('cryptoProtectRun') as XUL.Label;
+
 
         if (checked !== void 0 && checked !== null) enableEncrypt.checked = checked;
         if (!enableEncrypt.checked) {
             if (!onOpenPrefs) {
-                const confirm = win?.confirm(getString("info-disableEncrypt"));
+                win?.alert(getString("info-disableEncrypt"));
+                const confirm = win?.confirm(getString("info-disableEncrypt") + "\n" + getString("info-Confirm") + "?");
                 if (!confirm) {
                     enableEncrypt.checked = true;
                     return;
@@ -39,9 +42,11 @@ export class Command {
             addOldCryKey.hidden = true;
             deleSourceFile.hidden = true;
             customKeysFileName.hidden = true;
+            labelRun.hidden = true;
         } else {
             if (!onOpenPrefs) {
-                const confirm = win?.confirm(getString('info-encryptTip'));
+                win?.alert(getString('info-encryptTip'));
+                const confirm = win?.confirm(getString("info-Confirm") + "?\n" + getString("info-enableEncrypt") + "?");
                 if (!confirm) {
                     enableEncrypt.checked = false;
                     return;
@@ -51,11 +56,12 @@ export class Command {
             addOldCryKey.hidden = false;
             deleSourceFile.hidden = false;
             customKeysFileName.hidden = false;
+            labelRun.hidden = false;
         }
-        Command.checkSetEnableEncrypt();
+        Command.checkStateEnableEncrypt();
 
     }
-    static async checkSetEnableEncrypt() {
+    static async checkStateEnableEncrypt() {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
         const deleSourceFile = getDom('deleSourceFile') as XUL.Checkbox;
         const win = enableEncrypt.ownerDocument.defaultView;
@@ -66,9 +72,10 @@ export class Command {
             if (numberAccount != void 0) numbers = numberAccount.length + (numbers || 0);
             if (numbers) showInfo(getString("info-finishedDecrypt"));
         } else {
-            const result = await Cry.checkCryKey(true);
-            if (result === true) await Cry.addCryKey();
+            const validKeys = await Cry.checkCryKey();
+            await Cry.replaceConfirm(validKeys) && await Cry.addCryKey();
         }
+        //更新本插件数据库中的加密设置项
         const DB = getDBSync();
         await DB.executeTransaction(async () => {
             await updateDBSettings(enableEncrypt.checked, 'enableEncrypt');

@@ -4,6 +4,7 @@ import { addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 import { Cry } from "../modules/crypto";
 import { getString } from "./locale";
+import { modifyData, selectDirectoryCryptoKeys } from "../modules/ui/dataDialog";
 
 export function requireModule(moduleName: string) {
   let require = ztoolkit.getGlobal("window").require;
@@ -20,9 +21,6 @@ export function requireModule(moduleName: string) {
 export const getPS = () => Components.classes[
   "@mozilla.org/embedcomp/prompt-service;1"
 ].getService(Components.interfaces.nsIPromptService);
-
-
-
 
 export function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
@@ -53,10 +51,6 @@ export function stringToArrayBuffer2(str: string) {
 export function arrayBufferTOstring(buffer: ArrayBuffer) {
   return uint8ArrayToString(new Uint8Array(buffer));
 }
-
-
-
-
 /**
  * - 添加时间戳确保路径可用 
  * - 没有点且没有扩展名
@@ -682,16 +676,39 @@ export async function readImage(path: string) {
 }
 
 export function fileNameNoExt(fileNameOrPath: string) {
-  let fileNameNoExt;
-  const baseName = OS.Path.basename(fileNameOrPath);
-  const pos = baseName.lastIndexOf(".");
-  if (pos > 0) {
-    fileNameNoExt = baseName.substr(0, pos);
-    const ext = baseName.substr(pos + 1);
-  } else {
-    fileNameNoExt = baseName;
+  //前后有引号（', "）
+  if (fileNameOrPath.startsWith("'") || fileNameOrPath.startsWith('"')) {
+    fileNameOrPath = fileNameOrPath.replace(/["']/g, "");
   }
-  return fileNameNoExt;
+  // 兼容非完整目录
+  try {
+    return PathUtils.filename(fileNameOrPath).split(".").shift();
+  } catch (e: any) {
+    return fileNameOrPath.split(".").shift();
+  }
+}
+
+export async function testFile() {
+  let pathName = await chooseDirOrFilePath("file");
+  pathName = selectDirectoryCryptoKeys(pathName).dir;
+
+  while (pathName) {
+    if (!Array.isArray(pathName)) {
+      pathName = [pathName];
+    }
+    const dataOut = modifyData(pathName);
+    if (!dataOut) break;
+    const fileNames = Object.values(dataOut) as string[];
+    pathName.length = 0;
+    fileNames.forEach((fileName: string) => {
+      pathName.push(fileNameNoExt(fileName));
+    });
+  }
+}
+
+export function getExt(fileNameOrPath: string) {
+  if (fileNameOrPath.lastIndexOf(".") != -1)
+    return fileNameOrPath.substring(fileNameOrPath.lastIndexOf(".") + 1);
 }
 
 export function getDir(fileNameOrPath: string) {

@@ -186,21 +186,11 @@ async function buildPrefsPane() {
     }
   }
   // 安全设置   
-  try {
-    const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
-    const dbValue = await DB.valueQueryAsync(sqlSELECT);
-    const res = Boolean(Number(dbValue));
-    if (!res) return;
-    Command.showHiddenEncryptDom(res, true);
-
-  } catch (e: any) {
-    showInfo(e.message);
-    throw e;
-  }
-
+  const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
+  const dbValue = await DB.valueQueryAsync(sqlSELECT);
+  Command.showHiddenEncryptDom(Boolean(Number(dbValue)), true);//undefined转NaN转false，null转0转false
 
   //多账户管理
-
   const services = await getServices();
   const childrenArr = Object.values(services)
     .filter((e) => !e.forbidden)

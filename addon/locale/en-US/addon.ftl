@@ -159,3 +159,6 @@ info-setCrypto = Please Set Crypto Keys in addon Settings
 info-encryptTip = Encryption protection will be enabled for translation engine account secretkeys and tokens, which can also be used to encrypt and protect files. Please keep the RSA public key and private key safe. The public key is used to encrypt the AES key, the private key is used to decrypt the AES key. the AES key Was Wraped and saved in the addon database Or Directory same as RSA Keys. When used, it is decrypted and used to encrypt and decrypt the target content.
 info-modifyData = modify Data
 info-multiSelect = Select Items
+info-decryptAllAccount = Decrypt Secretkey Or Token Of All Account 
+info-decryptAllFiles = Decrypt All Files Encrypted
+info-enableEncrypt = Enable Encrypt

@@ -13,13 +13,13 @@ import { Command } from './command';
 
 const BEGIN_PUBLIC = `-----BEGIN PUBLIC KEY-----\n`;
 const END_PUBLIC = `\n-----END PUBLIC KEY-----`;
-const BEGIN_PRIVATE = `-----BEGIN PUBLIC KEY-----\n`;
-const END_PRIVATE = `\n-----END PUBLIC KEY-----`;
+const BEGIN_PRIVATE = `-----BEGIN PRIVATE KEY-----\n`;
+const END_PRIVATE = `\n-----END PRIVATE KEY-----`;
 
 /**
  * 必须包含ARS公私秘钥
  * @param files 
- * @returns 
+ * @returns ture 代表秘钥文件不符合要求，需要重新选择文件，
  */
 async function isRechooseFiles(files: string[]) {
     const KEYS_NAME = await Command.customKeysFileName();
@@ -36,67 +36,24 @@ async function isRechooseFiles(files: string[]) {
     }
 
     for (const path of files) {
-        const res = await verifyKeyContent(path, files, KEYS_NAME);
-        if (res) return true;
-        /*         if (!await IOUtils.exists(path)) return true;
-                const ctx = await Zotero.File.getContentsAsync(path);
-                const name = PathUtils.filename(path);
-                const fileInfo = await IOUtils.stat(path);
-                const content = await IOUtils.read(path);
-                if (content.constructor == Uint8Array) {
-                    showInfo(name + "is Uint8Array");
-                }
-                if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
-                    if ((!ctx.startsWith(BEGIN_PUBLIC) || !ctx.endsWith(END_PUBLIC))) {
-                        showInfo("文件不是有效的 pem 格式 RSA 私钥");
-                        return true;
-                    }
-                }
-        
-                if (typeof ctx == "string" && name == KEYS_NAME.PRIVATEKEY_NAME) {
-                    if ((!ctx.startsWith(BEGIN_PRIVATE) || !ctx.endsWith(END_PRIVATE))) {
-                        showInfo("文件不是有效的 pem 格式 RSA 公钥");
-                        return true;
-                    }
-                }
-        
-                if (content.constructor == Uint8Array && name == KEYS_NAME.AESCBCKEY_NAME) {
-                    const privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME.PRIVATEKEY_NAME)[0];
-                    const privateStirng = await Zotero.File.getContentsAsync(privatePath);
-        
-                    if (typeof privateStirng != "string") {
-                        showInfo("无 RSA 私钥，无法验证AES秘钥");
-                        return;
-                    }
-                    const privateKey = await Cry.importKey(privateStirng);
-                    if (!privateKey) {
-                        showInfo("无 RSA 私钥，无法验证AES秘钥");
-                        return;
-                    }
-                    const AESKey = await window.crypto.subtle.unwrapKey(
-                        "raw",
-                        content,//.buffer
-                        privateKey,
-                        { name: "RSA-OAEP" },
-                        { name: 'AES-CBC' },
-                        true,
-                        ["encrypt", "decrypt"]
-                    );
-        
-                    if (!AESKey)
-                        showInfo("文件不是有效的 AES 秘钥");
-                    return true;
-                } */
+        if (!await verifyKeyContent(path, files, KEYS_NAME)) return true;
     }
 
 
 }
-async function verifyKeyContent(path: string, files: string[], KEYS_NAME: KEYSNAME) {
-    const name = PathUtils.filename(path);
 
+/**
+ * 验证秘钥文件内容是否正确
+ * @param path 秘钥文件地址
+ * @param files 可选，包含RSA秘钥的所有文件地址（用于未开启加密，或添加新秘钥的情况）
+ * @param KEYS_NAME 可选
+ * @returns 不存在或内容不正确返回 false 反之为true
+ */
+async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
+    const name = PathUtils.filename(path);
     if (!await IOUtils.exists(path)) {
         showInfo(name + " 文件无法读取");
-        return true;
+        return false;
     }
     let ctx;
     try {
@@ -107,35 +64,51 @@ async function verifyKeyContent(path: string, files: string[], KEYS_NAME: KEYSNA
 
     if (!ctx) {
         showInfo(name + " 文件读取失败");
-        return true;
+        return false;
     }
     //ctx = await Zotero.File.getContentsAsync(path);
+    if (!KEYS_NAME) {
+        KEYS_NAME = await Cry.getKEYS_NAME();
+        if (!KEYS_NAME) return false;
+    }
     if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
         if ((!ctx.startsWith(BEGIN_PUBLIC) || !ctx.endsWith(END_PUBLIC))) {
-            showInfo("文件不是有效的 pem 格式 RSA 私钥");
+            showInfo("文件不是有效的 pem 格式 RSA 公钥");
+            return false;
+        } else {
             return true;
         }
     }
 
     if (typeof ctx == "string" && name == KEYS_NAME.PRIVATEKEY_NAME) {
         if ((!ctx.startsWith(BEGIN_PRIVATE) || !ctx.endsWith(END_PRIVATE))) {
-            showInfo("文件不是有效的 pem 格式 RSA 公钥");
+            showInfo("文件不是有效的 pem 格式 RSA 私钥");
+            return false;
+        } else {
             return true;
         }
     }
 
     if (ctx.constructor == Uint8Array && name == KEYS_NAME.AESCBCKEY_NAME) {
-        const privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME.PRIVATEKEY_NAME)[0];
+        let privatePath;
+        if (!files) {
+            const dirName = PathUtils.parent(path);
+            if (!dirName) return;
+            privatePath = PathUtils.join(dirName, KEYS_NAME!.PRIVATEKEY_NAME);
+        } else {
+            privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME!.PRIVATEKEY_NAME)[0];
+        }
+        if (!privatePath) return false;
         const privateStirng = await Zotero.File.getContentsAsync(privatePath);
 
         if (typeof privateStirng != "string") {
             showInfo("无 RSA 私钥，无法验证AES秘钥");
-            return true;
+            return false;
         }
         const privateKey = await Cry.importKey(privateStirng);
         if (!privateKey) {
             showInfo("无 RSA 私钥，无法验证AES秘钥");
-            return true;
+            return false;
         }
         const AESKey = await window.crypto.subtle.unwrapKey(
             "raw",
@@ -149,6 +122,9 @@ async function verifyKeyContent(path: string, files: string[], KEYS_NAME: KEYSNA
 
         if (!AESKey)
             showInfo("文件不是有效的 AES 秘钥");
+        return false;
+    }
+    else {
         return true;
     }
 }
@@ -338,6 +314,7 @@ export class Cry {
             return;
         }
         if (type == "AESCBC") {
+            if (!Object.keys(KEYS_NAME).includes("AESCBCKEY_NAME")) return;
             path = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
             const key = await IOUtils.read(path);
             verify(key);
@@ -400,46 +377,54 @@ export class Cry {
         const encryptedData = stringToUint8Array(value).buffer;
         return await Cry.decryptRSA(Cry.getKey("privateKey"), encryptedData);
     }
-
-    static async checkCryKey(userConfirm: boolean = false) {
+    /**
+     * 
+     * @param needUserConfirm 
+     * @returns 
+     */
+    static async checkCryKey() {
         const hasKeys: string[] = [];
         const KEYS_NAME = await Cry.getKEYS_NAME();
         let path = addon.mountPoint.crypto?.path;
         path = path ? path : await Cry.getPathCryKey();
-        Object.keys(KEYS_NAME).forEach(async (keyName) => {
-            const keyPath = OS.Path.join(path, KEYS_NAME[keyName as keyof typeof KEYS_NAME]);
-            const exist = await IOUtils.exists(keyPath);
-            if (exist) hasKeys.push(keyName);
-        });
-        showInfo("hasKeys:\n" + hasKeys.join('\n'));
-        if (userConfirm) {
-            let info = '', title = '';
-            if (hasKeys.length == 0) {
-                info = getString("info-hasNot") + " AES ARS " + getString("prefs-table-secretKey") + "\n" + getString("info-Confirm") + getString("info-addNewCryKey") + "?";
-                title = getString("info-addNewCryKey");
-            } else if (hasKeys.length == 3) {
-                info = getString("info-hasAllKey") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt");
-                title = getString("info-replaceOldKey");
-            } else {
-                info += getString("info-has") + ":";
-                if (hasKeys.includes("PUBLICKEY_NAME")) {
-                    info += (getString("info-hasPublicKey") + ' ');
-                }
-                if (hasKeys.includes("PRIVATEKEY_NAME")) {
-                    info += getString("info-privateKey") + ' ';
-                }
-                if (hasKeys.includes("AESCBCKEY_NAME")) {
-                    info += getString("info-AESKey");
-                }
-                info += ("\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt"));
-                title = getString("info-replaceOldKey");
-            }
-
-            const promptService = getPS();
-            const replace = promptService.confirm(window, title, info,);
-            return replace;
+        for (const keyName of Object.keys(KEYS_NAME)) {
+            const keyPath = PathUtils.join(path, KEYS_NAME[keyName as keyof typeof KEYS_NAME]);
+            //const exist = await IOUtils.exists(keyPath);
+            const existCorrectContent = await verifyKeyContent(keyPath, undefined, KEYS_NAME);
+            if (!existCorrectContent) continue;
+            hasKeys.push(keyName);
         }
         return hasKeys;
+    }
+    /**
+     * RAS 公钥私钥均存在则直接返回 false
+     * 否则请用户决定
+     * @param hasKeys 验证通过的秘钥
+     * @returns 
+     */
+    static async replaceConfirm(hasKeys: string[]) {
+        let info = '', title = '';
+        if (hasKeys.length == 0) {
+            info = getString("info-hasNot") + " AES ARS " + getString("prefs-table-secretKey") + "\n" + getString("info-Confirm") + getString("info-addNewCryKey") + "?";
+            title = getString("info-addNewCryKey");
+        } else if (hasKeys.includes("PRIVATEKEY_NAME") && hasKeys.includes("PUBLICKEY_NAME")) {
+            return false;
+        } else {
+            const infokeys = [];
+            if (hasKeys.includes("PUBLICKEY_NAME")) {
+                infokeys.push(getString("info-publicKey"));
+            }
+            if (hasKeys.includes("PRIVATEKEY_NAME")) {
+                infokeys.push(getString("info-privateKey"));
+            }
+            if (hasKeys.includes("AESCBCKEY_NAME")) {
+                infokeys.push(getString("info-AESKey"));
+            }
+            info = getString("info-has") + ":\n" + infokeys.join(", ") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt");
+            title = getString("info-replaceOldKey");
+        }
+        const promptService = getPS();
+        return promptService.confirm(window, title, info);
     }
 
     static async importCryKey(filePaths?: string[]) {
@@ -526,7 +511,6 @@ export class Cry {
             }
             if (await isRechooseFiles(filesSelected)) return;
         }
-        // todo验证是否是秘钥，是什么秘钥
 
         // 是否导入原有秘钥
         fileNames = filesSelected.map(e => OS.Path.basename(e));
@@ -704,14 +688,16 @@ export const encryptFileByAESKey = async (path?: string) => {
         path = await chooseDirOrFilePath('files');
         if (!path) return;
     }
-    const key = await Cry.unwrapAESKey();
-    if (!key) return;
     const fileUint8Array = await IOUtils.read(path);
     const signKey = await Cry.getSignKey();
     const iv = Cry.getIV();//加解密必须使用相同的初始向量,iv是 initialization vector的缩写，必须为 16 位
     const algorithm = { name: 'AES-CBC', iv };// 加密算法
+    const key = await Cry.getAESKey();
+    if (!key) return;
     const encryptAESBuffer = await window.crypto.subtle.encrypt(algorithm, key, fileUint8Array);//加密
-    const newPath = await IOUtils.write(path + ".AESEncrypt", new Uint8Array(encryptAESBuffer));
+    const encrypedFilePath = path + ".AESEncrypt";
+    const res = await IOUtils.write(encrypedFilePath, new Uint8Array(encryptAESBuffer));
+    if (!res) return;
     const deleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox)?.checked;
     if (deleSourceFile) {
         await Zotero.File.removeIfExists(path);
@@ -720,10 +706,11 @@ export const encryptFileByAESKey = async (path?: string) => {
     const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
     const signatureString = arrayBufferTOstring(signature); //签名转字符串 
     const publicKey = await Cry.getKey("publicKey") as CryptoKey;
-    const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedAESKey可以是储存的和当前包裹的key
+
+    const wrapedAESKey = await window.crypto.subtle.wrapKey("raw", key, publicKey, { name: "RSA-OAEP" });
     const wrapedSignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
     const wrapedSignKeyString = arrayBufferTOstring(wrapedSignKey);
-    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey.buffer);
+    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey);
     const decryptAlgorithm = { name: 'AES-CBC' };
     const ivString = arrayBufferTOstring(iv);//向量转字符串
     const encryptAESInfoNoFileBuffer = {
@@ -734,12 +721,12 @@ export const encryptFileByAESKey = async (path?: string) => {
         wrapedSignKeyString
     };
     const stringToTableEncryptFilePaths = JSON.stringify(encryptAESInfoNoFileBuffer);
-    const sql = `INSERT INTO encryptFilePaths (path, encryptAESStringNoBuffer) VALUES ('${newPath}', '${stringToTableEncryptFilePaths}')`;
+    const sql = `INSERT INTO encryptFilePaths (path, encryptAESStringNoBuffer) VALUES ('${encrypedFilePath}', '${stringToTableEncryptFilePaths}')`;
     const DB = getDBSync();
     await DB.executeTransaction(async () => {
         await DB.queryAsync(sql);
     });
-    return newPath;
+    return encrypedFilePath;
 };
 
 /**
@@ -769,8 +756,15 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
             true,
             ['sign', 'verify']
         );
+        const signature = encryptAESInfo.signatureString;
+        encryptAESInfo.encryptAESString;
+        const data = fileBuffer ? fileBuffer : encryptAESInfo.encryptAESString;
+        if (!data) {
+            //无签名验证？
+            const test = "test";
+        }
 
-        const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, encryptAESInfo.signatureString, encryptAESInfo.encryptAESString);
+        const verified = await window.crypto.subtle.verify(algorithmVerify, signingKey, signature, data);
 
         if (!verified) {
             throw new Error("Can't verify message");
@@ -810,10 +804,8 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
         showInfo("Decrypt Failure");
         return false;
     }
-    if (fileBuffer && path) {
-        await IOUtils.write(path, new Uint8Array(deBuffer));
-        showInfo(["decryptFileSuccess", path]);
-        return true;
+    if (fileBuffer) {
+        return deBuffer;
     }
     const decryptContent = arrayBufferTOstring(deBuffer);
     showInfo(["decryptContent:", decryptContent]);
@@ -825,6 +817,10 @@ export async function decryptAllAccount() {
     const encryptSerialNumbers = await getAllEncryptAccounts();
     const DB = getDBSync();
     if (!encryptSerialNumbers?.length) return;
+    if (!window.confirm(getString("info-decryptAllAccount") + "?")) {
+        showInfo("info-userCancle");
+        return;
+    }
     const decryptedAccounts = await DB.executeTransaction(async () => {
         const snTokens = [];
         const decryptAccounts = [];
@@ -876,6 +872,10 @@ export async function decryptAllFiles() {
     const rows = await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`);
     const fileEncryptInfos = dbRowsToObjs(rows, ['path,encryptAESStringNoBuffer']);
     if (!fileEncryptInfos || !fileEncryptInfos.length) return;
+    if (!window.confirm(getString("info-decryptAllFiles") + "?")) {
+        showInfo("info-userCancle");
+        return;
+    }
     let decryptedFileNumbers = 0;
     for (const info of fileEncryptInfos) {
         const path = info.path;
@@ -888,10 +888,27 @@ export async function decryptAllFiles() {
 }
 
 export async function decryptFile(path: string) {
+    if (!path) {
+        path = await chooseDirOrFilePath('files');
+        if (!path) return;
+        if (Array.isArray(path)) path = path[0];
+    }
+    let fileName = PathUtils.filename(path).split(".").shift()!;
+    fileName = fileName.substring(0, fileName?.length - 3);
     const DB = await getDB();
-    const encryptAESStringNoBuffer = await DB.valueQueryAsync(`SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE path='${path}'`);
+    const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE path LIKE ?`;
+    const args = `%${fileName}%`;//LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
+    const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, args);
+    if (!encryptAESStringNoBuffer) return;
     const fileUint8Array = await IOUtils.read(path);
-    await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+    const deBuffer = await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
+    const is = deBuffer?.constructor instanceof ArrayBuffer;
+    if (!deBuffer || is) return;
+    const parent = PathUtils.parent(path)!;
+    fileName = PathUtils.filename(path);
+    const decryptFilePath = PathUtils.join(parent, "decrypt" + fileName);
+    await IOUtils.write(decryptFilePath, new Uint8Array(deBuffer as ArrayBuffer));
+    showInfo(["decryptFileSuccess", decryptFilePath]);
 }
 
 
