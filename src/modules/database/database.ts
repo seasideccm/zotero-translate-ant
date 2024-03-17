@@ -2,8 +2,6 @@ import { config } from "../../../package.json";
 import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecursive } from "../../utils/tools";
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
-import { langCodeDatabaseArr } from './insertLangCode';
-import { msg } from "../../utils/constant";
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
@@ -209,7 +207,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     //这个 SQL 语句从表中选择特定字段的最大值，并使用 COALESCE 函数将其加1。如果最大值为 null，则返回默认值1。
     const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
     return await this.valueQueryAsync(sql);
-  };
+  }
 }
 
 /**
@@ -275,7 +273,7 @@ export async function clearAllTable() {
 
 export function getDBSync() {
   return addon.mountPoint.database as DB;
-};
+}
 
 export async function makeDBPath(dbName?: string) {
   //dir.replace(/\/|\\$/gm, '')
@@ -382,7 +380,7 @@ async function checkSchema() {
 
 //读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
 export async function compareSQLUpdateDB() {
-  const DB = addon.mountPoint.database;
+  const DB = await getDB();
   const sqlsFromDB: string[] = [];
   const tableFromDB: string[] = [];
   const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");
@@ -402,7 +400,7 @@ export async function compareSQLUpdateDB() {
 
   if (!diffs.length) {
     ztoolkit.log("schema in database and files no diffs "); return;
-  };
+  }
 
   await DB.executeTransaction(async () => {
     const cache: string[] = [];
@@ -419,7 +417,6 @@ export async function compareSQLUpdateDB() {
         const rowsNumberOld = await DB.queryAsync(sql);
         //如果旧表没有列或没有数据，则删除旧表建新表
         if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
-
           const sql = `DROP ${tableType} ${tableName}`;
           await DB.queryAsync("PRAGMA foreign_keys = false");
           await DB.queryAsync(sql);
@@ -438,11 +435,20 @@ export async function compareSQLUpdateDB() {
           cache.push(tableName);
           ztoolkit.log(tableName + " table Create Failure");
           continue;
-        };
+        }
         const oldFields: any[] = [];
         for (const col of newColumns) {
+          // 新表新加的字段其值不能从旧表直接导入，筛选出其默认值
           if (!oldColumns.includes(col)) {
-            oldFields.push(getDefaltValue(col, diff));
+            //todo 传入临时函数
+            /* if(col=="MD5"){
+              await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`)
+              const valueOld= await DB.valueQueryAsync("")
+            } */
+            const defaultValue = getDefaltValue(col, diff);
+            if (defaultValue !== void 0) {
+              oldFields.push(defaultValue);// 如果没有默认值该如何？
+            }
           } else {
             oldFields.push(col);
           }
@@ -453,8 +459,6 @@ export async function compareSQLUpdateDB() {
         } else {
           sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
         }
-
-
         await DB.queryAsync(sql);
         sql = `DROP TABLE ${tableName}_tempTable`;
         await DB.queryAsync(sql);
@@ -474,17 +478,21 @@ export async function compareSQLUpdateDB() {
 function getDefaltValue(col: string, sql: string) {
   const reg = new RegExp("\\(.*?" + `(${col}` + ".+?)[,)]");
   const match = sql.match(reg);
-
   if (!match) return "NULL";
   const tempArr = match[1].split(/ +/);
   const index = tempArr.indexOf("DEFAULT");
   if (index > -1) {
     ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
-    return tempArr[index + 1];
+    return tempArr[index + 1];//返回定义的默认值
   }
-  if (tempArr.indexOf("INT") > -1) {
+  if (tempArr.indexOf("INT") > -1) {// 如果没有 “DEFAULT”字符串 但有“INT”，返回默认值0
     return 0;
   }
+  if (tempArr.indexOf("TEXT") > -1) {// 如果没有 “DEFAULT”字符串 但有“TEXT”，返回默认值"no"
+    return "'no'";
+  }
+
+
 }
 
 

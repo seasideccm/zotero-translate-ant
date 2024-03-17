@@ -689,20 +689,22 @@ export const encryptFileByAESKey = async (path?: string) => {
         if (!path) return;
     }
     const fileUint8Array = await IOUtils.read(path);
+    if (!fileUint8Array) return;
     const signKey = await Cry.getSignKey();
     const iv = Cry.getIV();//加解密必须使用相同的初始向量,iv是 initialization vector的缩写，必须为 16 位
     const algorithm = { name: 'AES-CBC', iv };// 加密算法
     const key = await Cry.getAESKey();
-    if (!key) return;
+    if (!key || !iv || !signKey) return;
     const encryptAESBuffer = await window.crypto.subtle.encrypt(algorithm, key, fileUint8Array);//加密
     const encrypedFilePath = path + ".AESEncrypt";
     const res = await IOUtils.write(encrypedFilePath, new Uint8Array(encryptAESBuffer));
     if (!res) return;
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(encrypedFilePath);
+    if (!fileMD5) return;
     const deleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox)?.checked;
     if (deleSourceFile) {
         await Zotero.File.removeIfExists(path);
     }
-    //const encryptAESString = arrayBufferTOstring(encryptAESBuffer);//密文转字符串  
     const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
     const signatureString = arrayBufferTOstring(signature); //签名转字符串 
     const publicKey = await Cry.getKey("publicKey") as CryptoKey;
@@ -713,6 +715,7 @@ export const encryptFileByAESKey = async (path?: string) => {
     const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey);
     const decryptAlgorithm = { name: 'AES-CBC' };
     const ivString = arrayBufferTOstring(iv);//向量转字符串
+    if (!signatureString || !decryptAlgorithm! || !ivString || !wrapedAESKeyString || !wrapedSignKeyString) return;
     const encryptAESInfoNoFileBuffer = {
         signatureString,
         decryptAlgorithm,
@@ -721,10 +724,12 @@ export const encryptFileByAESKey = async (path?: string) => {
         wrapedSignKeyString
     };
     const stringToTableEncryptFilePaths = JSON.stringify(encryptAESInfoNoFileBuffer);
-    const sql = `INSERT INTO encryptFilePaths (path, encryptAESStringNoBuffer) VALUES ('${encrypedFilePath}', '${stringToTableEncryptFilePaths}')`;
+    const sql = `INSERT INTO encryptFilePaths (MD5, path, encryptAESStringNoBuffer) VALUES (?,?,?)`;
+    const args = [fileMD5, encrypedFilePath, stringToTableEncryptFilePaths];
+    //'${fileMD5}', '${encrypedFilePath}','${stringToTableEncryptFilePaths}'
     const DB = getDBSync();
     await DB.executeTransaction(async () => {
-        await DB.queryAsync(sql);
+        await DB.queryAsync(sql, args);
     });
     return encrypedFilePath;
 };
@@ -868,9 +873,10 @@ async function getAllEncryptAccounts() {
 
 
 export async function decryptAllFiles() {
+    //文件不在原来目录下？
     const DB = await getDB();
-    const rows = await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`);
-    const fileEncryptInfos = dbRowsToObjs(rows, ['path,encryptAESStringNoBuffer']);
+    const rows = await DB.queryAsync(`SELECT MD5 path encryptAESStringNoBuffer FROM encryptFilePaths`);
+    const fileEncryptInfos = dbRowsToObjs(rows, ['MD5,path,encryptAESStringNoBuffer']);
     if (!fileEncryptInfos || !fileEncryptInfos.length) return;
     if (!window.confirm(getString("info-decryptAllFiles") + "?")) {
         showInfo("info-userCancle");
@@ -893,11 +899,12 @@ export async function decryptFile(path: string) {
         if (!path) return;
         if (Array.isArray(path)) path = path[0];
     }
-    let fileName = PathUtils.filename(path).split(".").shift()!;
-    fileName = fileName.substring(0, fileName?.length - 3);
+    //let fileName = PathUtils.filename(path).split(".").shift()!;
+    //fileName = fileName.substring(0, fileName?.length - 3);
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
     const DB = await getDB();
-    const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE path LIKE ?`;
-    const args = `%${fileName}%`;//LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
+    const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 LIKE ?`;
+    const args = `%${fileMD5}%`;//LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
     const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, args);
     if (!encryptAESStringNoBuffer) return;
     const fileUint8Array = await IOUtils.read(path);
@@ -905,7 +912,7 @@ export async function decryptFile(path: string) {
     const is = deBuffer?.constructor instanceof ArrayBuffer;
     if (!deBuffer || is) return;
     const parent = PathUtils.parent(path)!;
-    fileName = PathUtils.filename(path);
+    const fileName = PathUtils.filename(path);
     const decryptFilePath = PathUtils.join(parent, "decrypt" + fileName);
     await IOUtils.write(decryptFilePath, new Uint8Array(deBuffer as ArrayBuffer));
     showInfo(["decryptFileSuccess", decryptFilePath]);

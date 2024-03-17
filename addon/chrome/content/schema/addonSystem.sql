@@ -24,7 +24,7 @@ CREATE TABLE  IF NOT EXISTS syncedSettings (
 );
 
 -- path can belong to dir or file
-CREATE TABLE encryptFilePaths (path TEXT NOT NULL PRIMARY KEY, encryptAESStringNoBuffer TEXT NOT NULL);
+CREATE TABLE encryptFilePaths (MD5 TEXT NOT NULL DEFAULT "none" PRIMARY KEY, path TEXT NOT NULL DEFAULT "none", encryptAESStringNoBuffer TEXT NOT NULL DEFAULT "none");
 
 CREATE TABLE IF NOT EXISTS version (schema TEXT PRIMARY KEY, version INT NOT NULL);
 
