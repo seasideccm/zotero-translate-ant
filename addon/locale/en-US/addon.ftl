@@ -162,3 +162,6 @@ info-multiSelect = Select Items
 info-decryptAllAccount = Decrypt Secretkey Or Token Of All Account 
 info-decryptAllFiles = Decrypt All Files Encrypted
 info-enableEncrypt = Enable Encrypt
+info-contiuneSelectFiles = Continue selecting files? \nClick OK to continue selecting files. \nClick cancel to end the selection.
+info-noPublicKey = No PublicKey
+info-noPrivateKey = No PrivateKey

@@ -1,10 +1,8 @@
 import { config } from "../../package.json";
 import { franc } from "franc-min";
-import { addonStorageDir } from "./constant";
+import { addonDatabaseDir, addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
-import { Cry } from "../modules/crypto";
 import { getString } from "./locale";
-import { modifyData, selectDirectoryCryptoKeys } from "../modules/ui/dataDialog";
 
 export function requireModule(moduleName: string) {
   let require = ztoolkit.getGlobal("window").require;
@@ -568,7 +566,9 @@ export async function getFilesPathOrName(
       if (option.extension) {
         filesPathOrName.push(entry.name);
       } else {
-        filesPathOrName.push(fileNameNoExt(entry.name));
+        const nameNoExt = fileNameNoExt(entry.name);
+        nameNoExt && filesPathOrName.push(nameNoExt);
+
       }
     }
   }
@@ -688,23 +688,7 @@ export function fileNameNoExt(fileNameOrPath: string) {
   }
 }
 
-export async function testFile() {
-  let pathName = await chooseDirOrFilePath("file");
-  pathName = selectDirectoryCryptoKeys(pathName).dir;
 
-  while (pathName) {
-    if (!Array.isArray(pathName)) {
-      pathName = [pathName];
-    }
-    const dataOut = modifyData(pathName);
-    if (!dataOut) break;
-    const fileNames = Object.values(dataOut) as string[];
-    pathName.length = 0;
-    fileNames.forEach((fileName: string) => {
-      pathName.push(fileNameNoExt(fileName));
-    });
-  }
-}
 
 export function getExt(fileNameOrPath: string) {
   if (fileNameOrPath.lastIndexOf(".") != -1)
@@ -1096,6 +1080,27 @@ export function batchAddEventListener2(optins: {
 }
 
 /**
+ * 自动打开选中文件的上级目录，等待再次选择
+ */
+export async function chooseFiles() {
+  const TIP = "Please select Files. Click Cancle will return files already selected.";
+  const temp: string[] = [];
+  while (TIP) {
+    let defaultDir = temp.length ? PathUtils.parent(temp.slice(-1)[0]) : undefined;
+    if (!defaultDir) defaultDir = addonDatabaseDir;
+    const paths = await chooseDirOrFilePath("files", defaultDir, TIP);
+    if (!paths || !paths.length) break;
+    typeof paths == "string" ? temp.push(paths) : temp.push(...paths);//undefine 无法 ... 解构
+    const confirm = window.confirm("是否继续选择文件？\n点击确定继续选择文件。\n点击取消结束选择");
+    if (!confirm) break;
+  }
+  return temp;
+}
+
+export async function chooseDirOrFilePath(filesOrDir: "files", defaultPath?: string, windowTip?: string): Promise<string[]>;
+export function chooseDirOrFilePath(filesOrDir: "file" | "dir", defaultPath?: string, windowTip?: string): Promise<string>;
+
+/**
  * 默认目录
  * @param isDir 默认目录
  * @returns 
@@ -1132,8 +1137,8 @@ export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" =
   const message = (filesOrDir == "dir" ? "Directory " + `is ${fp.file}` : (filesOrDir == "files" ? "Files " + `are ${fp.files}` : "File " + `is ${fp.file}`));
 
   Zotero.debug(message);
-  if (filesOrDir == "files") return fp.files;
-  return fp.file;
+  if (filesOrDir == "files") return fp.files as string[];
+  return fp.file as string;
 }
 /**
  * 废弃，请使用 chooseDirOrFilePath

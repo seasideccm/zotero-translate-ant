@@ -8,7 +8,8 @@ import { getDom, } from "./ui/uiTools";
 export class Command {
     static async customKeysFileName() {
         const KEYS_NAME = await Cry.getKEYS_NAME();
-        const data = modifyData(KEYS_NAME);
+        const win = addon.data.prefs?.window;
+        const data = modifyData(KEYS_NAME, win);
         if (!data) return;
         await Cry.setKEYS_NAME(data);
         return data;

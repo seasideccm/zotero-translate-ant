@@ -32,7 +32,7 @@ export function onShortcutPan() {
     showInfo("keyup");
   });
 
-  const ele = doc.querySelector("#input-shortcut");
+  const ele = doc.querySelector("#input-shortcut") as HTMLInputElement;
   ele?.addEventListener('blur', () => {
     if (ele.value && ele.value != '') {
       const shortcutStr = ele.value.split('').join(" ");

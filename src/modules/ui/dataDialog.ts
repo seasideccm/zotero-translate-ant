@@ -7,22 +7,22 @@ import { makeTagElementProps } from "./uiTools";
  * @param fieldNames 
  * @returns 
  */
-export function modifyData(fieldNames: string[] | any) {
+export function modifyData(fieldNames: string[] | any, win?: Window) {
     const dialogType = 'input';
     const title = getString('info-modifyData');
-    const io = onOpenDialog(fieldNames, dialogType, title);
+    const io = onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 }
 
-export function selectData(fieldNames: string[]) {
+export function selectData(fieldNames: string[], win?: Window) {
     const dialogType = 'multiSelect';
     const title = getString('info-multiSelect');
-    const io = onOpenDialog(fieldNames, dialogType, title);
+    const io = onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 
 }
 
-export function selectDirectoryCryptoKeys(fieldNames?: string[] | string) {
+export function directorySaveCryptoKeys(fieldNames?: string[] | string) {
     if (!fieldNames) return;
     if (!Array.isArray(fieldNames)) fieldNames = [fieldNames];
     const dialogType = 'directory';
@@ -96,7 +96,7 @@ export class DataDialog {
                 const checkboxs = fieldNames.map((e: string, i: number) => ({
                     tag: "checkbox",
                     id: `fieldName-${Zotero.randomString(6)}`,
-                    classlist: ["key" + i],
+                    classList: ["key" + i],
                     namespace: "xul",
                     attributes: {
                         label: e,
@@ -109,7 +109,7 @@ export class DataDialog {
                     namespace: "xul",
                     children: checkboxs,
                 }, parent);
-                const child = parent.childNodes[0].childNodes[0].childNodes;
+                const child = parent.childNodes[0].childNodes[0].childNodes;//避免第一个选项自动选中显示边框
                 if (child && child.length == 2) (child[1] as XUL.Box).setAttribute("class", "");
             }
             if (dialogType == 'directory') {
@@ -378,12 +378,13 @@ export class DataDialog {
             }
             if (dialogType == 'multiSelect') {
                 parent.style.marginLeft = "2em";
-                const checkboxs = fields.map((e: string) => ({
+                const checkboxs = fields.map((e: string, i: number) => ({
                     tag: "checkbox",
-                    id: `fieldName-${e}`,
+                    id: `fieldName-${Zotero.randomString(6)}`,
+                    classList: ["key" + i],
                     namespace: "xul",
                     attributes: {
-                        label: e + ": " + fieldNames[e],
+                        label: fieldNames[e],
                         native: true,
                     }
                 }));
@@ -440,7 +441,7 @@ export class DataDialog {
                 const key = el.classList[0];
                 switch (tagName) {
                     case "checkbox":
-                        dataOut[fieldName] = el.checked;
+                        if (el.checked) dataOut[key] = el.label;
                         break;
                     case "label":
                         if (dialogType == "directory") {

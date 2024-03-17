@@ -1,4 +1,4 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, collectFilesRecursive, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
@@ -6,7 +6,7 @@ import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
-import { selectData, selectDirectoryCryptoKeys } from './ui/dataDialog';
+import { selectData, directorySaveCryptoKeys } from './ui/dataDialog';
 import { Command } from './command';
 
 
@@ -22,16 +22,16 @@ const END_PRIVATE = `\n-----END PRIVATE KEY-----`;
  * @returns ture 代表秘钥文件不符合要求，需要重新选择文件，
  */
 async function isRechooseFiles(files: string[]) {
-    const KEYS_NAME = await Command.customKeysFileName();
+    const KEYS_NAME = await Cry.getKEYS_NAME();
     if (!KEYS_NAME) return true;
     if (!Array.isArray(files) || typeof files[0] != "string") return;
     const fileNames = files.map(path => OS.Path.basename(path));
     if (!fileNames.includes(KEYS_NAME.PUBLICKEY_NAME)) {
-        showInfo("缺少 RSA 公钥");
+        showInfo(getString("info-noPublicKey"));
         return true;
     }
     if (!fileNames.includes(KEYS_NAME.PRIVATEKEY_NAME)) {
-        showInfo("缺少 RSA 私钥");
+        showInfo(getString('info-noPrivateKey'));
         return true;
     }
 
@@ -433,17 +433,20 @@ export class Cry {
         if (!directoryCryptoKeys) return;
 
         if (!filePaths || filePaths.length === 0) {
+            //参数没有指定文件时，用户选择秘钥存储目录下已有的秘钥
             const temp = await collectFilesRecursive(directoryCryptoKeys);
             const fileNames = temp.map(file => file.name);
             const files = temp.map(file => file.path) as string[];
-            const dataOut = selectData(fileNames);
+            const win = addon.data.prefs?.window;
+            const dataOut = selectData(fileNames, win);
             if (!dataOut) return;
-            const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
-            filePaths = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
+            //const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
+            const fileNamesSelected = Object.values(dataOut);
+            filePaths = files.filter((file: string) => fileNamesSelected.includes(PathUtils.filename(file)));
             if (!filePaths) return;
         }
         if (await isRechooseFiles(filePaths)) {
-            const TIP = "Has Invalid File, Please Reselect Files, Click Cancle When Finished";
+            /* const TIP = "Has Invalid File, Please Reselect Files, Click Cancle When Finished";
             const temp = [];
             while (TIP) {
                 const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
@@ -453,7 +456,8 @@ export class Cry {
                 const confirm = window.confirm("是否继续选择文件？点击取消结束选择");
                 if (!confirm) break;
 
-            }
+            } */
+            const temp = await chooseFiles();
             if (await isRechooseFiles(temp)) {
                 showInfo("所选文件不是有效秘钥，请重新选择");
                 return;
@@ -479,7 +483,7 @@ export class Cry {
         showInfo("TODO");
         async function identifyPathCryKey() {
             const pathSelect = await Cry.getPathCryKey() || await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
-            const res = selectDirectoryCryptoKeys(pathSelect);
+            const res = directorySaveCryptoKeys(pathSelect);
             if (!res) return;
             if (typeof res == "object" && !Object.values(res).length) return;
             const directoryCryptoKeys = Object.values(res)[0];
@@ -579,7 +583,16 @@ export class Cry {
     }
 
     static async getKEYS_NAME() {
-        if (addon.mountPoint["KEYS_NAME"]) return addon.mountPoint["KEYS_NAME"] as KEYSNAME;
+        if (addon.mountPoint["KEYS_NAME"]) {
+            const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
+            const keyNames = Object.keys(KEYS_NAME);
+            if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
+                showInfo(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
+                await Command.customKeysFileName();
+                return;
+            }
+            return KEYS_NAME;
+        }
         const DB = await getDB();
         const sql = `SELECT value from settings WHERE key = 'cryptoKeysName'`;
         let jsonString = await DB.valueQueryAsync(sql);
@@ -596,6 +609,11 @@ export class Cry {
             PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
             AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
         };
+        const keyNames = Object.keys(KEYS_NAME);
+        if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
+            showInfo(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
+            return;
+        }
         const DB = await getDB();
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);
@@ -685,8 +703,9 @@ export const encryptByAESKey = async (text: string, serialNumber?: number | stri
 
 export const encryptFileByAESKey = async (path?: string) => {
     if (!path) {
-        path = await chooseDirOrFilePath('files');
+        path = await chooseDirOrFilePath('file');
         if (!path) return;
+
     }
     const fileUint8Array = await IOUtils.read(path);
     if (!fileUint8Array) return;
@@ -895,7 +914,7 @@ export async function decryptAllFiles() {
 
 export async function decryptFile(path: string) {
     if (!path) {
-        path = await chooseDirOrFilePath('files');
+        path = await chooseDirOrFilePath('file');
         if (!path) return;
         if (Array.isArray(path)) path = path[0];
     }
@@ -926,37 +945,7 @@ export async function testCryInfo(info: string) {
     const cryedInfoJSON = JSON.parse(cryedInfo);
     showInfo(cryedInfoJSON.encryptAESString);
 }
-export async function testCry() {
 
-    //保存秘钥对
-    const keyPair = await Cry.getRSAKeyPair();
-    const publicKey = await Cry.exportKey(keyPair.publicKey);
-    const privateKey = await Cry.exportKey(keyPair.privateKey);
-    const keyName = "ssh-keyTest";
-    let path = PathUtils.join(await chooseDirOrFilePath(), keyName);
-    path = await ensureNonePath(path);
-    await Cry.saveKey(publicKey, path + ".pub");
-    await Cry.saveKey(privateKey, path);
-
-    const rawKeyprivateKey = await Cry.importKey(privateKey);
-    const rawKeypublicKey = await Cry.importKey(publicKey);
-    const text = "加密解密流程测试";
-
-    const encryptedData = await Cry.encryptRSA(keyPair.publicKey, text);
-    //ArrayBuffer形式密文转为string以便传送，
-    //不使用 TextDecoder，因为转出的字符串无法被 TextEncoder 还原成原来的 Uint8Array
-    const sendString = uint8ArrayToString(new Uint8Array(encryptedData));
-    const restoreUint8Array = stringToUint8Array(sendString);
-    const decryptedText = await Cry.decryptRSA(rawKeyprivateKey, restoreUint8Array);//Uint8Array或ArrayBuffer均可
-    showInfo(["source:", text]);
-    showInfo(["decryptedText:", decryptedText]);
-
-
-    const test = "test";
-
-
-
-}
 
 
 

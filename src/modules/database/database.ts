@@ -3,6 +3,144 @@ import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecurs
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
+const newFieldvalueConfig = undefined;
+
+/* const newFieldvalueConfig: any = {
+  alterTableName: "encryptFilePaths",
+  MD5: "fileName",
+  xxx: () => { }
+}; */
+
+
+
+//读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
+export async function compareSQLUpdateDB() {
+
+  const DB = await getDB();
+  const sqlsFromDB: string[] = [];
+  const tableFromDB: string[] = [];
+  const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");
+  for (const row of rows) {
+    tableFromDB.push(row.name);
+    if (!row.sql || !row.sql.length || row.sql == " ") continue;
+    sqlsFromDB.push(row.sql.replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
+  }
+
+  const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB);
+  const allTextSqlsFromFiles = sqlsFromResourceFiles.join(';');
+  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
+  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
+  const diffsDB = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
+  const diffsFiles = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
+  const diffs = diffsFiles.concat(diffsDB).filter((e: string) => !e.startsWith("DROP "));
+
+  if (!diffs.length) {
+    ztoolkit.log("schema in database and files no diffs "); return;
+  }
+  if (!newFieldvalueConfig) {
+    window.alert("请检查并完善数据库表结构配置");
+    const confirm = window.confirm("取消：程序继续，自动配置新字段的值。\n点击确定跳过表结构修改，请完善代码，重新启动程序");
+    if (confirm) return;
+  }
+
+  await DB.executeTransaction(async () => {
+    const cache: string[] = [];
+    for (const diff of diffs) {
+      const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
+      if (!matches) continue;
+      const tableName = matches.slice(-1)[0];
+      if (cache.includes(tableName)) continue;
+      const tableType = matches[1];
+      const reg = new RegExp("CREATE\\s" + tableType + "\\s" + tableName, "i");
+      if (allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
+        const oldColumns = await DB.getColumns(tableName);
+        let sql = `SELECT COUNT(*) FROM ${tableName}`;
+        const rowsNumberOld = await DB.queryAsync(sql);
+        //如果旧表没有列或没有数据，则删除旧表建新表
+        if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
+          const sql = `DROP ${tableType} ${tableName}`;
+          await DB.queryAsync("PRAGMA foreign_keys = false");
+          await DB.queryAsync(sql);
+          await DB.queryAsync("PRAGMA foreign_keys = true");
+          await DB.queryAsync(diff);
+          cache.push(tableName);
+          ztoolkit.log(tableName + " table Created");
+          continue;
+        }
+        //旧表重命名，建新表，导入数据，删除旧表      
+        sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+        await DB.queryAsync(diff);
+        const newColumns = await DB.getColumns(tableName);
+        if (!newColumns || newColumns.length === 0) {
+          cache.push(tableName);
+          ztoolkit.log(tableName + " table Create Failure");
+          continue;
+        }
+        const oldFields: any[] = [];
+        for (const col of newColumns) {
+          // 新表新加的字段其值不能从旧表直接导入，筛选出其默认值
+          if (!oldColumns.includes(col)) {
+            //新表字段 MD5，对应旧表字段 fileName， 先将 fileName 字段的所有值复制到新表 MD5 字段
+            if (newFieldvalueConfig && newFieldvalueConfig.alterTableName == tableName) {
+              if (oldColumns.includes(newFieldvalueConfig[col])) {
+                oldFields.push(newFieldvalueConfig[col]);
+                continue;
+              } else if (typeof newFieldvalueConfig[col] == "function") {
+                continue;
+              }
+            }
+            const defaultValue = getDefaltValue(col, diff);
+            if (defaultValue !== void 0) {
+              oldFields.push(defaultValue);// 如果没有默认值该如何？
+            }
+          } else {
+            //新旧表字段名相同, 且复制原值
+            oldFields.push(col);
+          }
+        }
+        //未列出新表字段，表示所有字段均插入数据
+        if (tableName == "serviceTypes") {
+          sql = `INSERT INTO ${tableName} (serviceType) SELECT serviceType FROM ${tableName}_tempTable`;
+        } else {
+          sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
+        }
+        await DB.queryAsync(sql);
+        sql = `DROP TABLE ${tableName}_tempTable`;
+        await DB.queryAsync(sql);
+      }
+      if (allTextSqlsFromFiles.match(reg) && !tableFromDB.includes(tableName)) {
+        await DB.queryAsync(diff);
+      }
+      if (!allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
+        const sql = `DROP ${tableType} ${tableName}`;
+        await DB.queryAsync(sql);
+      }
+      cache.push(tableName);
+    }
+  });
+  return true;
+}
+function getDefaltValue(col: string, sql: string) {
+  const reg = new RegExp("\\(.*?" + `(${col}` + ".+?)[,)]");
+  const match = sql.match(reg);
+  if (!match) return "NULL";
+  const tempArr = match[1].split(/ +/);
+  const index = tempArr.indexOf("DEFAULT");
+  if (index > -1) {
+    ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
+    return tempArr[index + 1];//返回定义的默认值
+  }
+  if (tempArr.indexOf("INT") > -1) {// 如果没有 “DEFAULT”字符串 但有“INT”，返回默认值0
+    return 0;
+  }
+  if (tempArr.indexOf("TEXT") > -1) {// 如果没有 “DEFAULT”字符串 但有“TEXT”，返回默认值"no"
+    return "'no'";
+  }
+
+
+}
+
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
 export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
   [key: string]: any;
@@ -378,122 +516,6 @@ async function checkSchema() {
 } */
 
 
-//读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
-export async function compareSQLUpdateDB() {
-  const DB = await getDB();
-  const sqlsFromDB: string[] = [];
-  const tableFromDB: string[] = [];
-  const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");
-  for (const row of rows) {
-    tableFromDB.push(row.name);
-    if (!row.sql || !row.sql.length || row.sql == " ") continue;
-    sqlsFromDB.push(row.sql.replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
-  }
-
-  const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB);
-  const allTextSqlsFromFiles = sqlsFromResourceFiles.join(';');
-  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
-  //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
-  const diffsDB = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
-  const diffsFiles = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
-  const diffs = diffsFiles.concat(diffsDB).filter((e: string) => !e.startsWith("DROP "));
-
-  if (!diffs.length) {
-    ztoolkit.log("schema in database and files no diffs "); return;
-  }
-
-  await DB.executeTransaction(async () => {
-    const cache: string[] = [];
-    for (const diff of diffs) {
-      const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
-      if (!matches) continue;
-      const tableName = matches.slice(-1)[0];
-      if (cache.includes(tableName)) continue;
-      const tableType = matches[1];
-      const reg = new RegExp("CREATE\\s" + tableType + "\\s" + tableName, "i");
-      if (allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
-        const oldColumns = await DB.getColumns(tableName);
-        let sql = `SELECT COUNT(*) FROM ${tableName}`;
-        const rowsNumberOld = await DB.queryAsync(sql);
-        //如果旧表没有列或没有数据，则删除旧表建新表
-        if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
-          const sql = `DROP ${tableType} ${tableName}`;
-          await DB.queryAsync("PRAGMA foreign_keys = false");
-          await DB.queryAsync(sql);
-          await DB.queryAsync("PRAGMA foreign_keys = true");
-          await DB.queryAsync(diff);
-          cache.push(tableName);
-          ztoolkit.log(tableName + " table Created");
-          continue;
-        }
-        //旧表重命名，建新表，导入数据，删除旧表      
-        sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
-        await DB.queryAsync(sql);
-        await DB.queryAsync(diff);
-        const newColumns = await DB.getColumns(tableName);
-        if (!newColumns || newColumns.length === 0) {
-          cache.push(tableName);
-          ztoolkit.log(tableName + " table Create Failure");
-          continue;
-        }
-        const oldFields: any[] = [];
-        for (const col of newColumns) {
-          // 新表新加的字段其值不能从旧表直接导入，筛选出其默认值
-          if (!oldColumns.includes(col)) {
-            //todo 传入临时函数
-            /* if(col=="MD5"){
-              await DB.queryAsync(`SELECT path encryptAESStringNoBuffer FROM encryptFilePaths`)
-              const valueOld= await DB.valueQueryAsync("")
-            } */
-            const defaultValue = getDefaltValue(col, diff);
-            if (defaultValue !== void 0) {
-              oldFields.push(defaultValue);// 如果没有默认值该如何？
-            }
-          } else {
-            oldFields.push(col);
-          }
-        }
-
-        if (tableName == "serviceTypes") {
-          sql = `INSERT INTO ${tableName} (serviceType) SELECT serviceType FROM ${tableName}_tempTable`;
-        } else {
-          sql = `INSERT INTO ${tableName} SELECT ${oldFields.join(",")} FROM ${tableName}_tempTable`;
-        }
-        await DB.queryAsync(sql);
-        sql = `DROP TABLE ${tableName}_tempTable`;
-        await DB.queryAsync(sql);
-      }
-      if (allTextSqlsFromFiles.match(reg) && !tableFromDB.includes(tableName)) {
-        await DB.queryAsync(diff);
-      }
-      if (!allTextSqlsFromFiles.match(reg) && tableFromDB.includes(tableName)) {
-        const sql = `DROP ${tableType} ${tableName}`;
-        await DB.queryAsync(sql);
-      }
-      cache.push(tableName);
-    }
-  });
-  return true;
-}
-function getDefaltValue(col: string, sql: string) {
-  const reg = new RegExp("\\(.*?" + `(${col}` + ".+?)[,)]");
-  const match = sql.match(reg);
-  if (!match) return "NULL";
-  const tempArr = match[1].split(/ +/);
-  const index = tempArr.indexOf("DEFAULT");
-  if (index > -1) {
-    ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
-    return tempArr[index + 1];//返回定义的默认值
-  }
-  if (tempArr.indexOf("INT") > -1) {// 如果没有 “DEFAULT”字符串 但有“INT”，返回默认值0
-    return 0;
-  }
-  if (tempArr.indexOf("TEXT") > -1) {// 如果没有 “DEFAULT”字符串 但有“TEXT”，返回默认值"no"
-    return "'no'";
-  }
-
-
-}
 
 
 

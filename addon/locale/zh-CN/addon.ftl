@@ -162,3 +162,6 @@ info-multiSelect = 选择项目
 info-decryptAllAccount = 解密所有翻译引擎账号密码
 info-decryptAllFiles = 解密所有加密文件
 info-enableEncrypt = 启用加密
+info-contiuneSelectFiles = 是否继续选择文件？\n点击确定继续选择文件。\n点击取消结束选择
+info-noPublicKey = 缺少 RSA 公钥
+info-noPrivateKey = 缺少 RSA 私钥
