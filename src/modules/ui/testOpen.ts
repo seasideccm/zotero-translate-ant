@@ -35,4 +35,10 @@ export function openSite() {
 }
 
 
+export function openDir() {
+  const path: string = "D:\\随时同步";
+  Zotero.Utilities.Internal.exec("start", [path]);
+}
+
+
 

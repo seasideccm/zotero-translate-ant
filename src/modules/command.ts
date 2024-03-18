@@ -58,6 +58,27 @@ export class Command {
             deleSourceFile.hidden = false;
             customKeysFileName.hidden = false;
             labelRun.hidden = false;
+            /*          if (labelRun) {
+                         const openCryptoDir = {
+                             type: "click",
+                             listener: () => { }
+                         };
+                         const doc = addon.data.prefs?.window.document;
+                         if (!doc) return;
+                         const buttonOpenCryptoDir = ztoolkit.UI.createElement(doc, "button", {
+                             tag: "button",
+                             id: "buttonOpenCryptoDir",
+                             namespace: 'xul',
+                             properties: {
+                                 label: getString("into-cryptoDir"),
+                             },
+                             listeners: [openCryptoDir]
+                         });
+                         const labelDir = labelRun.cloneNode(true);
+                         labelDir.textContent = getString("") 
+                         await Cry.getPathCryKey();
+                     } */
+
         }
         Command.checkStateEnableEncrypt();
 

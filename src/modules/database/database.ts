@@ -1,4 +1,5 @@
 import { config } from "../../../package.json";
+import { getString } from "../../utils/locale";
 import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecursive } from "../../utils/tools";
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
@@ -38,8 +39,8 @@ export async function compareSQLUpdateDB() {
     ztoolkit.log("schema in database and files no diffs "); return;
   }
   if (!newFieldvalueConfig) {
-    window.alert("请检查并完善数据库表结构配置");
-    const confirm = window.confirm("取消：程序继续，自动配置新字段的值。\n点击确定跳过表结构修改，请完善代码，重新启动程序");
+    window.alert(getString("tip-checkDatabaseSchema"));
+    const confirm = window.confirm("点击取消按钮：程序继续，自动配置被修改表中新字段的值。\n点击确定按钮跳过表结构修改，请完善代码，重新启动程序");
     if (confirm) return;
   }
 

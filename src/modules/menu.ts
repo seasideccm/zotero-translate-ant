@@ -6,6 +6,7 @@ import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFile, encryptFileByAESKey, testCryInfo } from './crypto';
+import { openDir } from "./ui/testOpen";
 
 
 
@@ -21,6 +22,7 @@ function getParasArrs() {
     [
       ["加密文件", encryptFileByAESKey],
       ["解密文件", decryptFile],
+      ["解密文件", openDir],
     ],
     [
       ["加密<=>解密", testCryInfo, [text]],

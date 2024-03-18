@@ -230,7 +230,7 @@ export async function replaceSecretKeysTable() {
 
 
     async function addRecordBulk(e: Event) {
-        const filePath = await chooseDirOrFilePath();//
+        const filePath = await chooseDirOrFilePath("file");//
         const extension = Zotero.File.getExtension(filePath);
         let text = '';//
         const result = Zotero.File.getContentsAsync(filePath);
@@ -252,11 +252,11 @@ export async function replaceSecretKeysTable() {
         await Cry.importCryKey();
         return;
 
-        const filePath = await chooseDirOrFilePath();
-        const publicKey = await Cry.getKey("publicKey");
-        if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
-        addon.mountPoint.crypto.path = PathUtils.parent(filePath);
-        addon.mountPoint.crypto.publicKey = publicKey;
+        /*     const filePath = await chooseDirOrFilePath();
+            const publicKey = await Cry.getKey("publicKey");
+            if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
+            addon.mountPoint.crypto.path = PathUtils.parent(filePath);
+            addon.mountPoint.crypto.publicKey = publicKey; */
 
 
     }

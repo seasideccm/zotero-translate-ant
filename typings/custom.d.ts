@@ -402,5 +402,5 @@ declare type EncryptAESInfo = {
 declare type KEYSNAME = {
   PUBLICKEY_NAME: string;
   PRIVATEKEY_NAME: string;
-  AESCBCKEY_NAME: string;
+  AESCBCKEY_NAME?: string;
 };

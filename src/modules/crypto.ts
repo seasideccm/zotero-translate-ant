@@ -308,13 +308,14 @@ export class Cry {
         }
         let path = addon.mountPoint.crypto.path;
         if (!path) return;
-        const KEYS_NAME = await Cry.getKEYS_NAME();
+        const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
         if (!KEYS_NAME) {
             showInfo(info);
             return;
         }
         if (type == "AESCBC") {
-            if (!Object.keys(KEYS_NAME).includes("AESCBCKEY_NAME")) return;
+            //if (!Object.keys(KEYS_NAME).includes("AESCBCKEY_NAME")) return;
+            if (!KEYS_NAME["AESCBCKEY_NAME"]) return;
             path = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
             const key = await IOUtils.read(path);
             verify(key);
@@ -384,11 +385,11 @@ export class Cry {
      */
     static async checkCryKey() {
         const hasKeys: string[] = [];
-        const KEYS_NAME = await Cry.getKEYS_NAME();
+        const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
         let path = addon.mountPoint.crypto?.path;
         path = path ? path : await Cry.getPathCryKey();
         for (const keyName of Object.keys(KEYS_NAME)) {
-            const keyPath = PathUtils.join(path, KEYS_NAME[keyName as keyof typeof KEYS_NAME]);
+            const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | 'PRIVATEKEY_NAME']);
             //const exist = await IOUtils.exists(keyPath);
             const existCorrectContent = await verifyKeyContent(keyPath, undefined, KEYS_NAME);
             if (!existCorrectContent) continue;
@@ -558,7 +559,7 @@ export class Cry {
         const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
         await Cry.saveKey(publicKey, PathUtils.join(path, KEYS_NAME["PUBLICKEY_NAME"]));
         await Cry.saveKey(await Cry.exportKey(keyPair.privateKey), PathUtils.join(path, KEYS_NAME["PRIVATEKEY_NAME"]));
-        await Cry.saveKey(new Uint8Array(AESKeyWraped), PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]));
+        if (KEYS_NAME["AESCBCKEY_NAME"]) await Cry.saveKey(new Uint8Array(AESKeyWraped), PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]));
         addon.mountPoint["crypto"] = {
             publicKey: publicKey,
             path: path,
@@ -585,46 +586,50 @@ export class Cry {
     static async getKEYS_NAME() {
         if (addon.mountPoint["KEYS_NAME"]) {
             const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
-            const keyNames = Object.keys(KEYS_NAME);
-            if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
-                showInfo(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
-                await Command.customKeysFileName();
-                return;
-            }
+            Cry.identifyKEYS_NAME(KEYS_NAME);
             return KEYS_NAME;
         }
         const DB = await getDB();
         const sql = `SELECT value from settings WHERE key = 'cryptoKeysName'`;
-        let jsonString = await DB.valueQueryAsync(sql);
-        if (!jsonString) Cry.setKEYS_NAME();
-        jsonString = await DB.valueQueryAsync(sql);
-        const KEYS_NAME = JSON.parse(jsonString) as KEYSNAME;
-        addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
-        return KEYS_NAME;
-    }
+        const jsonString = await DB.valueQueryAsync(sql);
+        if (!jsonString) return await Cry.setDefaultKEYS_NAME();
+        //jsonString = await DB.valueQueryAsync(sql);
 
-    static async setKEYS_NAME(KEYS_NAME?: KEYSNAME) {
-        if (!KEYS_NAME) KEYS_NAME = {
-            PUBLICKEY_NAME: `RSA-OAEP-${config.addonRef}.pub`,
-            PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
-            AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
-        };
+        const KEYS_NAME = JSON.parse(jsonString) as KEYSNAME;
+        Cry.identifyKEYS_NAME(KEYS_NAME);
+        return addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
+    }
+    static identifyKEYS_NAME(KEYS_NAME: KEYSNAME) {
         const keyNames = Object.keys(KEYS_NAME);
         if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
+            if (addon.mountPoint["KEYS_NAME"]) addon.mountPoint["KEYS_NAME"] = null;
             showInfo(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
-            return;
+            throw new Error(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
         }
+    }
+    static async setDefaultKEYS_NAME() {
+        const KEYS_NAME: KEYSNAME = {
+            PUBLICKEY_NAME: `RSA-OAEP-${config.addonRef}.pub`,
+            PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
+            //AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
+        };
+        return await Cry.setKEYS_NAME(KEYS_NAME);
+    }
+
+    static async setKEYS_NAME(KEYS_NAME: KEYSNAME) {
+        Cry.identifyKEYS_NAME(KEYS_NAME);
         const DB = await getDB();
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);
-        if (value && jsonString == value) return;
+        if (value && jsonString == value) return KEYS_NAME;
         await DB.executeTransaction(async () => {
             let sql;
             value ? sql = `UPDATE settings SET value = '${jsonString}' WHERE key = 'cryptoKeysName'`
                 : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeysName','${jsonString}')`;
             await DB.queryAsync(sql);
         });
-        addon.mountPoint["KEYS_NAME"] = null;
+        addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
+        return KEYS_NAME;
     }
 
     // todo 更换 SSHKEY 密钥轮换 保留旧秘钥解码相应密文

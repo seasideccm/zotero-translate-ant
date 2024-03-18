@@ -50,7 +50,7 @@ function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: str
 
 
 export class DataDialog {
-    #handler = {
+    /* #handler = {
         directory: () => {
 
         },
@@ -60,7 +60,7 @@ export class DataDialog {
         input: (win: Window) => {
 
         },
-    };
+    }; */
 
     static onOpenDataDialog(win: Window) {
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
@@ -70,10 +70,10 @@ export class DataDialog {
         const dialogType = io.dialogType;
         const title = io.title;
         if (title) win.document.title = title;
-
         const parent = win.document.querySelector('#input') as XUL.Box;
         if (!parent) return;
         win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
+        win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
         if (Array.isArray(fieldNames)) {
             const maxLength = Math.max(...fieldNames.map((field: string) => field.length)) + 2;
             const style = `width: ${maxLength}rem; margin-inline: 1rem`;
@@ -92,7 +92,7 @@ export class DataDialog {
                 });
             }
             if (dialogType == 'multiSelect') {
-                parent.style.marginLeft = "2em";
+                parent.style.marginLeft = "2rem";
                 const checkboxs = fieldNames.map((e: string, i: number) => ({
                     tag: "checkbox",
                     id: `fieldName-${Zotero.randomString(6)}`,
@@ -160,11 +160,9 @@ export class DataDialog {
             if (dialogType == 'input') {
                 const maxLength = Math.max(...fields.map((field: string) => field.length)) + 2;
                 const stlye = `width: ${maxLength}rem; margin-inline: 1rem`;
-                const buttonDel = (e: MouseEvent) => {
-                    //const button = win.document.querySelector('#deleteRow');
-                    const button = e.target;
-                    showInfo("click 删除吗？");//@ts-ignore xxx
-                    button?.parentElement.remove();
+                const buttonDel = (e: Event) => {
+                    const button = e.target as HTMLButtonElement;
+                    button?.parentElement?.remove();
                 };
                 const endEdit = (e: Event) => {
                     const hboxRow = win.document.querySelectorAll('#insertHbox')!;
@@ -182,7 +180,7 @@ export class DataDialog {
                     listener: buttonDel
                 };
                 fields.forEach((field: string, i: number) => {
-                    const div = ztoolkit.UI.appendElement(
+                    ztoolkit.UI.appendElement(
                         {
                             tag: "hbox",
                             namespace: "xul",
@@ -192,19 +190,19 @@ export class DataDialog {
                                     id: "deleteRow",
                                     namespace: "html",
                                     attributes: {
-                                        style: `margin-inline: 1em`
+                                        style: `margin-inline: 1rem`
                                     },
                                     properties: {
-                                        textContent: "删除",
-                                    },                                    //@ts-ignore xxx
-                                    listeners: [ondelete]
+                                        textContent: getString("info-delete"),
+                                    },
+                                    listeners: [ondelete]//删除父元素 row
                                 },
                                 {
                                     tag: "label",
                                     namespace: "html",
                                     attributes: {
                                         for: `fieldName-${'key' + i}`,
-                                        style: `margin-inline: 1em`
+                                        style: `margin-inline: 1rem`
                                     },
                                     properties: {
                                         textContent: field,
@@ -226,16 +224,44 @@ export class DataDialog {
                                     }
                                 }
                             ],
-
                         }, parent);
-
-
                 });
+                //插入，结束编辑
+                const onInsertRow = {
+                    type: "click",
+                    listener: (e: Event) => {
+                        endEdit(e);
+                        const lastRow = parent.children[parent.children.length - 2];//倒数第二行，最后一行是编辑按钮
+                        const newNode = lastRow?.cloneNode(true) as HTMLElement;
+                        if (!newNode) return;
+                        newNode.setAttribute("id", "insertHbox");
+                        const bt = newNode?.childNodes[0];
+                        bt.addEventListener("click", buttonDel);//重新添加事件，克隆元素不具有原有 addEventListener 事件
+                        const label = newNode?.childNodes[1] as HTMLLabelElement;
+                        addon.mountPoint.label = label;//标签挂载到插件挂载点上
+                        label.setAttribute("for", "rowInput");
+                        label.setAttribute("id", "rowLabel");
+                        ztoolkit.UI.replaceElement({//将 label 改为 input，以便修改字段
+                            tag: "input",
+                            id: "labelInput",
+                            namespace: "html",
+                            attributes: {
+                                placeholder: `${label.textContent}`,
+                                type: "text",
+                            },
+                        }, label);
+                        lastRow.insertAdjacentElement("afterend", newNode);
+                    }
+                };
+                const onSaveRow = {
+                    type: "click",
+                    listener: endEdit
+                };
                 const hbox = ztoolkit.UI.createElement(win.document, "hbox", {
                     tag: "hbox",
                     namespace: "xul",
                     attributes: {
-                        flex: "1",
+                        style: `display: flex; justify-Content: center; margin-inline: auto`,
                     },
                     children: [
                         {
@@ -243,144 +269,34 @@ export class DataDialog {
                             id: "insertRow",
                             namespace: "html",
                             attributes: {
-                                style: `margin-inline: 1em`
+                                style: `margin-inline: 1rem`
                             },
                             properties: {
-                                textContent: "插入",
+                                textContent: getString("info-insertRow"),
                             },
-                            listeners: [
-                                {
-                                    type: "click",
-                                    listener: (e) => {
-                                        endEdit(e);
-                                        const lastRow = parent.children[parent.children.length - 2];
-                                        const newNode = lastRow?.cloneNode(true); //@ts-ignore xxx
-                                        newNode?.setAttribute("id", "insertHbox");
-                                        const bt = newNode?.childNodes[0];//@ts-ignore xxx
-                                        bt.addEventListener("click", buttonDel);
-                                        const label = newNode?.childNodes[1];
-                                        addon.mountPoint.label = label;//@ts-ignore xxx
-                                        label.setAttribute("for", "rowInput");//@ts-ignore xxx
-                                        label.setAttribute("id", "rowLabel");
-                                        ztoolkit.UI.replaceElement({
-                                            tag: "input",
-                                            id: "labelInput",
-                                            namespace: "html",
-                                            attributes: {
-                                                placeholder: `${label?.textContent}`,
-                                                type: "text",
-                                            },
-
-                                        }, label as Element);//@ts-ignore xxx
-                                        //newNode?.childNodes[2].setAttribute("id", "rowInput");//@ts-ignore xxx
-                                        lastRow?.insertAdjacentElement("afterend", newNode);
-                                    }
-                                },
-                            ]
+                            listeners: [onInsertRow]
                         },
                         {
                             tag: "button",
                             id: "endEdit",
                             namespace: "html",
                             attributes: {
-                                style: `margin-inline: 1em`
+                                style: `margin-inline: 1rem`
                             },
                             properties: {
-                                textContent: "结束行编辑",
+                                textContent: getString("info-saveRow"),
                             },
-                            listeners: [
-                                {
-                                    type: "click",
-                                    listener: endEdit
-                                },
-
-                            ]
+                            listeners: [onSaveRow]
                         },
                     ]
                 },);
                 parent.appendChild(hbox);
-
-                /* ztoolkit.UI.appendElement(
-                    {
-                        tag: "hbox",
-                        namespace: "xul",
-                        children: [
-                            {
-                                tag: "button",
-                                id: "insertRow",
-                                namespace: "html",
-                                properties: {
-                                    textContent: "插入",
-                                },
-                                listeners: [
-
-                                    {
-                                        type: "click",
-                                        listener: () => {
-                                            const button = win.document.querySelector('#insertRow');
-                                            showInfo("click 插入吗？");//@ts-ignore xxx
-                                            const lastRow = button?.parentElement.previousSibling;
-                                            const newNode = lastRow?.cloneNode(true);
-                                            const label = newNode?.childNodes[1];
-                                            addon.mountPoint.label = label;
-
-                                            //@ts-ignore xxx
-                                            newNode?.setAttribute("id", "insertHbox");
-
-                                            //@ts-ignore xxx
-                                            //@ts-ignore xxx
-                                            newNode?.childNodes[1].setAttribute("for", "rowInput");//@ts-ignore xxx
-                                            newNode?.childNodes[1].setAttribute("id", "rowLabel");//@ts-ignore xxx
-                                            ztoolkit.UI.replaceElement({
-                                                tag: "input",
-                                                id: "labelInput",
-                                                namespace: "html",
-                                                attributes: {
-                                                    placeholder: `${label?.textContent}`,
-                                                    type: "text",
-                                                },
-
-                                            }, label);
-                                            newNode?.childNodes[2].setAttribute("id", "rowInput");//@ts-ignore xxx
-                                            lastRow?.insertAdjacentElement("afterend", newNode);
-                                        }
-                                    },
-
-                                ]
-                            },
-                            {
-                                tag: "button",
-                                id: "endEdit",
-                                namespace: "html",
-                                properties: {
-                                    textContent: "结束行编辑",
-                                },
-                                listeners: [
-
-                                    {
-                                        type: "click",
-                                        listener: () => {
-                                            const row = win.document.querySelector('#insertHbox');
-                                            const label = addon.mountPoint.label;
-                                            showInfo("结束编辑吗？");//@ts-ignore xxx
-                                            //@ts-ignore xxx
-                                            const labelInput = row?.childNodes[1];
-                                            row?.childNodes[2].setAttribute("id", `fieldName-${labelInput!.value}`);
-                                            label.textContent = labelInput!.value;
-                                            row?.childNodes[1].parentElement?.replaceChild(label, labelInput);
-                                        }
-                                    },
-
-                                ]
-                            },
-                        ]
-                    }, parent); */
             }
             if (dialogType == 'multiSelect') {
-                parent.style.marginLeft = "2em";
+                parent.style.marginLeft = "2rem";
                 const checkboxs = fields.map((e: string, i: number) => ({
                     tag: "checkbox",
-                    id: `fieldName-${Zotero.randomString(6)}`,
+                    id: `fieldName - ${Zotero.randomString(6)}`,
                     classList: ["key" + i],
                     namespace: "xul",
                     attributes: {
@@ -390,14 +306,14 @@ export class DataDialog {
                 }));
                 const multiselet = ztoolkit.UI.appendElement({
                     tag: "vbox",
-                    id: `${config.addonRef}-multiSelectDialog`,
+                    id: `${config.addonRef} - multiSelectDialog`,
                     namespace: "xul",
                     children: checkboxs,
                 }, parent);
             }
         }
         async function selectDir() {
-            const path = await chooseDirOrFilePath();
+            const path = await chooseDirOrFilePath('file');
             if (typeof path == "string") {
                 const span = win.document.querySelector("[id^='fieldName-']");
                 if (span) span.textContent = path;
@@ -418,10 +334,6 @@ export class DataDialog {
                 if (span) span.textContent = dir;
             }
         }
-
-
-
-
     }
     static handleAccept(win: Window) {
         //@ts-ignore XXX
@@ -449,7 +361,11 @@ export class DataDialog {
                         }
                         break;
                     case "input":
-                        dataOut[key] = el.value || el.placeholder;
+                        if (el.name) {
+                            dataOut[el.name] = el.value || el.placeholder;
+                        } else {
+                            dataOut[key] = el.value || el.placeholder;
+                        }
                         break;
                     default: break;
                 }
@@ -459,6 +375,10 @@ export class DataDialog {
 
         //@ts-ignore xxx win.arguments[0]即为传入的 io 对象，修改其值
         win.arguments[0].dataOut = dataOut;
+    }
+
+    static handleCancel(win: Window) {
+        showInfo("you click cancel");
     }
 
 
