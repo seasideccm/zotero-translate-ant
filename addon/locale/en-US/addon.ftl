@@ -171,3 +171,4 @@ info-noPrivateKey = No PrivateKey
 tip-checkDatabaseSchema = Please check and modify the database Schema configuration
 tip-confirmModifyDBSchema=Click the cancel button: The program will automatically configure the values of the new fields in the modified table. \nClick the OK button: Prepare to manually modify the database table structure. After completion, please restart the program
 into-cryptoDir = Crypto Directory
+info-customKeysFileName = Modify RSA public and private keys and/or AES key field names

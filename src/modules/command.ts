@@ -1,13 +1,15 @@
 import { getString } from "../utils/locale";
 import { showInfo } from "../utils/tools";
 import { Cry, decryptAllAccount, decryptAllFiles } from "./crypto";
-import { getDBSync } from "./database/database";
+import { getDB, getDBSync } from "./database/database";
 import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
 
 export class Command {
-    static async customKeysFileName() {
-        const KEYS_NAME = await Cry.getKEYS_NAME();
+    static async customKeysFileName(KEYS_NAME?: KEYSNAME) {
+        if (!KEYS_NAME) {
+            KEYS_NAME = await Cry.getKEYS_NAME();
+        }
         const win = addon.data.prefs?.window;
         const data = modifyData(KEYS_NAME, win);
         if (!data) return;

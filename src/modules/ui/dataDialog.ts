@@ -157,8 +157,9 @@ export class DataDialog {
 
         } else {
             const fields = Object.keys(fieldNames);
+            const values = Object.values(fieldNames) as string[];
             if (dialogType == 'input') {
-                const maxLength = Math.max(...fields.map((field: string) => field.length)) + 2;
+                const maxLength = Math.max(...values.map((value: string) => value.length)) + 2;
                 const stlye = `width: ${maxLength}rem; margin-inline: 1rem`;
                 const buttonDel = (e: Event) => {
                     const button = e.target as HTMLButtonElement;
@@ -168,10 +169,11 @@ export class DataDialog {
                     const hboxRow = win.document.querySelectorAll('#insertHbox')!;
                     if (!hboxRow || hboxRow.length != 1) return;
                     const row = hboxRow[0];
-                    const label = addon.mountPoint.label;//@ts-ignore xxx
-                    const labelInput = row?.children[1] as HTMLInputElement;//@ts-ignore xxx
-                    //row?.children[2].setAttribute("id", `fieldName-${labelInput!.value}`);
-                    label.textContent = labelInput!.value;
+                    const label = addon.mountPoint.label;
+                    const labelInput = row.children[1] as HTMLInputElement;
+                    label.textContent = labelInput.value;
+                    const inputfieldName = row.children[2] as HTMLInputElement;
+                    inputfieldName.name = labelInput.value;
                     row.setAttribute("id", "");
                     row.replaceChild(label, labelInput);
                 };

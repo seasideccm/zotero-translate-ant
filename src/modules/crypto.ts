@@ -586,7 +586,7 @@ export class Cry {
     static async getKEYS_NAME() {
         if (addon.mountPoint["KEYS_NAME"]) {
             const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
-            Cry.identifyKEYS_NAME(KEYS_NAME);
+            await Cry.identifyKEYS_NAME(KEYS_NAME);
             return KEYS_NAME;
         }
         const DB = await getDB();
@@ -596,15 +596,20 @@ export class Cry {
         //jsonString = await DB.valueQueryAsync(sql);
 
         const KEYS_NAME = JSON.parse(jsonString) as KEYSNAME;
-        Cry.identifyKEYS_NAME(KEYS_NAME);
+        await Cry.identifyKEYS_NAME(KEYS_NAME);
         return addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
     }
-    static identifyKEYS_NAME(KEYS_NAME: KEYSNAME) {
+    static async identifyKEYS_NAME(KEYS_NAME: KEYSNAME) {
         const keyNames = Object.keys(KEYS_NAME);
         if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
             if (addon.mountPoint["KEYS_NAME"]) addon.mountPoint["KEYS_NAME"] = null;
-            showInfo(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
-            throw new Error(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
+            showInfo(getString("info-noPrivateKey") + " OR " + getString("info-noPublicKey") + " field");
+            const confirm = window.confirm(getString("info-customKeysFileName"));
+            if (confirm) {
+                await Command.customKeysFileName(KEYS_NAME);
+            } else {
+                throw new Error(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
+            }
         }
     }
     static async setDefaultKEYS_NAME() {
@@ -617,7 +622,7 @@ export class Cry {
     }
 
     static async setKEYS_NAME(KEYS_NAME: KEYSNAME) {
-        Cry.identifyKEYS_NAME(KEYS_NAME);
+        await Cry.identifyKEYS_NAME(KEYS_NAME);
         const DB = await getDB();
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);

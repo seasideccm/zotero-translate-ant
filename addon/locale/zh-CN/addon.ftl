@@ -171,3 +171,4 @@ info-noPrivateKey = 缺少 RSA 私钥
 tip-checkDatabaseSchema = 请检查并完善数据库表结构配置
 tip-confirmModifyDBSchema=点击取消按钮：程序将会自动配置被修改表中新字段的值。\n点击确定按钮：准备手动修改数据库表结构，完成后请重新启动程序
 into-cryptoDir = 加密秘钥文件夹
+info-customKeysFileName = 修改 RSA 公私秘钥和或 AES 秘钥字段名
