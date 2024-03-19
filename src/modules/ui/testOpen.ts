@@ -73,8 +73,13 @@ export function copyImage() {
       imgPath = PathUtils.join(imgPath, "image.png");
       let imgbyte;
       const imgData = (await readImage(imgPath))?.base64 as string;
-      if (!imgData?.startsWith("data:")) return;
-      const clip = new ztoolkit.Clipboard();
+      if (!imgData || !imgData?.startsWith("data:")) return;
+      const parts = imgData.split(",");
+      if (!parts) return;
+      const match = parts[0].match(/:(.*?);/);
+      const mime = match ? match[1] : "image/png";
+
+      //const clip = new ztoolkit.Clipboard();
       //仅支持添加一张图
       //clip.addImage(imgData);
       //clip.copy();
@@ -82,14 +87,15 @@ export function copyImage() {
 
 
       const res = await IOUtils.read(imgPath);
+      imageToclip(res, mime);
       const result = res;
 
     }
     if (imgSrc.startsWith("data:")) {
-      const clip = new ztoolkit.Clipboard();
+      //const clip = new ztoolkit.Clipboard();
       //仅支持添加一张图
-      clip.addImage(imgSrc);
-      clip.copy();
+      //clip.addImage(imgSrc);
+      //clip.copy();
     }
 
 
@@ -109,10 +115,73 @@ export function copyImage() {
       img = Components.classes["@mozilla.org/supports-interface-pointer;1"].createInstance(Components.interfaces.nsISupportsInterfacePointer);
       img.data = imgTools.decodeImageFromArrayBuffer(u8arr.buffer, mimeType);
     }
+    const clipboardService = Components.classes["@mozilla.org/widget/clipboard;1"].getService(Components.interfaces.nsIClipboard);
     const transferable = Components.classes["@mozilla.org/widget/transferable;1"].createInstance(Components.interfaces.nsITransferable);
+    transferable.init(null);
     transferable.addDataFlavor(mimeType);
     transferable.setTransferData(mimeType, img, 0);
+
+    const transferable2 = Components.classes["@mozilla.org/widget/transferable;1"].createInstance(Components.interfaces.nsITransferable);
+    transferable2.init(null);
+    transferable2.addDataFlavor(mimeType);
+    transferable2.setTransferData(mimeType, img, 0);
+    //transferable.addDataFlavor(mimeType);
+    //transferable.setTransferData(mimeType, img, 0);
+    clipboardService.setData(transferable, null, Components.interfaces.nsIClipboard.kGlobalClipboard);
+    clipboardService.setData(transferable2, null, Components.interfaces.nsIClipboard.kGlobalClipboard);
   }
 }
+
+
+/* export function copyInfo(sets: any) {
+  const imgDiv = document.createElement('div');
+  imgDiv.id = '__imgDiv';
+  imgDiv.setAttribute('style', 'z-index: -1;position: fixed;');
+  let child = '';
+  if (sets.txts) {
+    if (typeof sets.txts === 'string') {
+      child += `<span>${sets.txts}</span>`;
+    } else {
+      sets.txts.forEach((item: string) => {
+        child += `<span>${item}</span>`;
+      });
+    }
+  }
+  if (sets.imgs) {
+    if (typeof sets.imgs === 'string') {
+      sets.imgs = sets.imgs.indexOf('https') > -1 ? sets.imgs.replace('https', 'http') : sets.imgs;
+      child += `<img src="${sets.imgs}" />`;
+    } else {
+      sets.imgs.forEach((item: string) => {
+        item = item.indexOf('https') > -1 ? item.replace('https', 'http') : item;
+        child += `<img src="${item}" />`;
+      });
+    }
+  }
+  imgDiv.innerHTML = child;
+  document.body.insertBefore(imgDiv, document.body.lastChild);
+  const dom = document.getElementById('__imgDiv');
+  console.log(dom);
+  if (window.getSelection) {//chrome等主流浏览器
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(dom);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else if (document.body.createTextRange) {//ie
+    const range = document.body.createTextRange();
+    range.moveToElementText(dom);
+    range.select();
+  }
+  document.execCommand('copy');
+  window.getSelection().removeAllRanges();
+  imgDiv.parentNode.removeChild(imgDiv);
+} */
+
+/* copyInfo({
+  txts: '请复制我',
+  imgs: ['https://img.shop.wusehaowu.com/20210407/da46894987254688af008a95ad121da9.png', 'https://t00img.yangkeduo.com/goods/images/2021-02-27/1e5bc93f957fefabc13d994a9f379dda.jpeg']
+}); */
+
 
 

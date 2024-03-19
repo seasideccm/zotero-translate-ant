@@ -6,7 +6,7 @@ import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFile, encryptFileByAESKey, testCryInfo } from './crypto';
-import { copyImage, openDir } from "./ui/testOpen";
+import { copyImage, copyInfo, openDir } from "./ui/testOpen";
 
 
 
@@ -26,6 +26,7 @@ function getParasArrs() {
     ],
     [
       ["复制多张图片", copyImage],
+
     ],
   ];
   return parasArrs;
