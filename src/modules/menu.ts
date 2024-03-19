@@ -26,7 +26,7 @@ function getParasArrs() {
     ],
     [
       ["复制多张图片", copyImage],
-
+      ["多张图片", copyInfo],
     ],
   ];
   return parasArrs;

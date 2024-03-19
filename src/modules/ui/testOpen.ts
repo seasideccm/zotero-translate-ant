@@ -133,7 +133,11 @@ export function copyImage() {
 }
 
 
-/* export function copyInfo(sets: any) {
+export function copyInfo(sets?: any) {
+  sets = {
+    txts: '请复制我',
+    imgs: ['https://img.shop.wusehaowu.com/20210407/da46894987254688af008a95ad121da9.png', 'https://t00img.yangkeduo.com/goods/images/2021-02-27/1e5bc93f957fefabc13d994a9f379dda.jpeg']
+  };
   const imgDiv = document.createElement('div');
   imgDiv.id = '__imgDiv';
   imgDiv.setAttribute('style', 'z-index: -1;position: fixed;');
@@ -159,29 +163,27 @@ export function copyImage() {
     }
   }
   imgDiv.innerHTML = child;
-  document.body.insertBefore(imgDiv, document.body.lastChild);
+  const bro = document.querySelector("browser");
+  if (!bro) return;
+  bro.insertBefore(imgDiv, bro.lastChild);
   const dom = document.getElementById('__imgDiv');
-  console.log(dom);
+
   if (window.getSelection) {//chrome等主流浏览器
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(dom);
     selection.removeAllRanges();
     selection.addRange(range);
-  } else if (document.body.createTextRange) {//ie
-    const range = document.body.createTextRange();
+  } else if (bro.createTextRange) {//ie
+    const range = bro.createTextRange();
     range.moveToElementText(dom);
     range.select();
   }
   document.execCommand('copy');
   window.getSelection().removeAllRanges();
   imgDiv.parentNode.removeChild(imgDiv);
-} */
+}
 
-/* copyInfo({
-  txts: '请复制我',
-  imgs: ['https://img.shop.wusehaowu.com/20210407/da46894987254688af008a95ad121da9.png', 'https://t00img.yangkeduo.com/goods/images/2021-02-27/1e5bc93f957fefabc13d994a9f379dda.jpeg']
-}); */
 
 
 
