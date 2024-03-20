@@ -657,7 +657,7 @@ export class Cry {
  * @param text 
  * @returns 
  */
-export const encryptByAESKey = async (text: string, serialNumber?: number | string) => {
+export const encryptByAESKey = async (text: string) => {
     const key = await Cry.unwrapAESKey();
     if (!key) return;
     const data = new TextEncoder().encode(text);
@@ -686,30 +686,8 @@ export const encryptByAESKey = async (text: string, serialNumber?: number | stri
     const stringEncyptAES = JSON.stringify(encryptAESInfo);
     //未传sn，为一般文本加密，返回加密结果，
     //否则为秘钥或token则写入数据库
-    if (!serialNumber) return stringEncyptAES;
-    const DB = getDBSync();
-
-
-    //let tableName = "accounts";
-    const tableName = await getAccountTableName(serialNumber);
-    if (!tableName) {
-        ztoolkit.log("accoun isn't exist: " + serialNumber);
-        return;
-    }
-    const fieldName = tableName == "accounts" ? "secretKey" : "token";
-    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
-    const content = await DB.valueQueryAsync(sql);
-    if (content) {
-        sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
-        await DB.queryAsync(sql);
-    } else {
-        sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
-    }
-
-    await DB.executeTransaction(async () => {
-        await DB.queryAsync(sql);
-    });
     return stringEncyptAES;
+
 };
 
 
