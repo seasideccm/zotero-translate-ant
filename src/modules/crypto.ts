@@ -941,8 +941,9 @@ export async function decryptFile(path: string) {
     const is = deBuffer?.constructor instanceof ArrayBuffer;
     if (!deBuffer || is) return;
     const parent = PathUtils.parent(path)!;
-    const fileName = PathUtils.filename(path);
-    const decryptFilePath = PathUtils.join(parent, "decrypt" + fileName);
+    const fileName = PathUtils.filename(path).replace(".AESEncrypt", "");
+
+    const decryptFilePath = PathUtils.join(parent, "decrypt-" + fileName);
     await IOUtils.write(decryptFilePath, new Uint8Array(deBuffer as ArrayBuffer));
     showInfo(["decryptFileSuccess", decryptFilePath]);
 }
