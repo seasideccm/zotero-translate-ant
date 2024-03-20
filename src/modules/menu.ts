@@ -22,11 +22,6 @@ function getParasArrs() {
     [
       ["加密文件", encryptFileByAESKey],
       ["解密文件", decryptFile],
-      ["打开文件夹", openDir],
-    ],
-    [
-      ["复制多张图片", copyImage],
-      ["多张图片", copyInfo],
     ],
   ];
   return parasArrs;

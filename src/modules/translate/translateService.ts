@@ -1,5 +1,6 @@
 
 import { doTryCatch, showInfo } from '../../utils/tools';
+import { encryptByAESKey } from '../crypto';
 import { getDB } from '../database/database';
 
 
@@ -9,7 +10,7 @@ export class TranslateServiceAccount {
   usable: boolean;
   charConsum: number;
   appID: string;
-  secretKey?: string;;
+  secretKey?: string;
   token?: string;
   dateMarker?: string | undefined;
   forbidden?: boolean; //用户是否禁用  
@@ -128,6 +129,35 @@ export class TranslateServiceAccount {
     });
     this.saveDeferred.resolve();
     this.changedData = null;
+  }
+
+  async encryptAccount(account: TranslateServiceAccount) {
+    const text = this.secretKey ? this.secretKey : this.token;
+    if (!text) return;
+    const stringEncyptAES = await encryptByAESKey(text);
+    const DB = getDBSync();
+
+
+    //let tableName = "accounts";
+    const tableName = await getAccountTableName(serialNumber);
+    if (!tableName) {
+      ztoolkit.log("accoun isn't exist: " + serialNumber);
+      return;
+    }
+    const fieldName = tableName == "accounts" ? "secretKey" : "token";
+    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    const content = await DB.valueQueryAsync(sql);
+    if (content) {
+      sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+      await DB.queryAsync(sql);
+    } else {
+      sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+    }
+
+    await DB.executeTransaction(async () => {
+      await DB.queryAsync(sql);
+    });
+    return stringEncyptAES;
   }
   recoverPrevious() {
     try {
@@ -401,6 +431,7 @@ export class TranslateService {
     if (!this.accounts) return;
     return this.accounts.filter((account: TranslateServiceAccount) => account.serialNumber == serialNumber)[0];
   }
+
 }
 
 /**

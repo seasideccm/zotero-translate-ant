@@ -684,19 +684,21 @@ export const encryptByAESKey = async (text: string, serialNumber?: number | stri
         wrapedSignKeyString
     };
     const stringEncyptAES = JSON.stringify(encryptAESInfo);
+    //未传sn，为一般文本加密，返回加密结果，
+    //否则为秘钥或token则写入数据库
     if (!serialNumber) return stringEncyptAES;
     const DB = getDBSync();
-    let tableName = "accounts";
-    let fieldName = "secretKey";
-    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
-    let content = await DB.valueQueryAsync(sql);
-    if (!content) {
-        tableName = "accessTokens";
-        fieldName = "token";
-        sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
-        content = await DB.valueQueryAsync(sql);
-    }
 
+
+    //let tableName = "accounts";
+    const tableName = await getAccountTableName(serialNumber);
+    if (!tableName) {
+        ztoolkit.log("accoun isn't exist: " + serialNumber);
+        return;
+    }
+    const fieldName = tableName == "accounts" ? "secretKey" : "token";
+    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    const content = await DB.valueQueryAsync(sql);
     if (content) {
         sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
         await DB.queryAsync(sql);
@@ -948,6 +950,17 @@ export async function decryptFile(path: string) {
     showInfo(["decryptFileSuccess", decryptFilePath]);
 }
 
+async function getAccountTableName(serialNumber: number | string) {
+    const DB = getDBSync();
+    let tableName = "accounts";
+    let sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    let count = await DB.valueQueryAsync(sql);
+    if (count > 0) return tableName;
+    tableName = "accessTokens";
+    sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    count = await DB.valueQueryAsync(sql);
+    if (count > 0) return tableName;
+}
 
 
 export async function testCryInfo(info: string) {
@@ -956,26 +969,3 @@ export async function testCryInfo(info: string) {
     const cryedInfoJSON = JSON.parse(cryedInfo);
     showInfo(cryedInfoJSON.encryptAESString);
 }
-
-
-
-
-
-/* const keyPair = await Cry.getRSAKeyPair();
-const publicKey = await Cry.exportKey(keyPair.publicKey);
-// ARS 公钥私钥 AES 秘钥三者保存在用户指定的同一目录下, AES 秘钥保存意义不大
-const pathRASKey = PathUtils.join(path, KEYS_NAME["PRIVATEKEY_NAME"]);
-await Cry.saveKey(publicKey, PathUtils.join(path, KEYS_NAME["PUBLICKEY_NAME"]));
-await Cry.saveKey(await Cry.exportKey(keyPair.privateKey), pathRASKey);
-const AESKey = await Cry.getAESKey();
-const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
-const AESKeyWrapedUnit8Array = new Uint8Array(AESKeyWraped);
-const pathAESKey = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
-await Cry.saveKey(AESKeyWrapedUnit8Array, pathAESKey);
-//公钥读取后留在程序中随时用来加密
-const ARSAESKeysDir = PathUtils.parent(pathRASKey);
-if (!ARSAESKeysDir) return;
-addon.mountPoint["crypto"] = {
-    publicKey: publicKey,
-    path: ARSAESKeysDir,
-}; */
