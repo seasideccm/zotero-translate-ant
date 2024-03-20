@@ -106,6 +106,10 @@ async function onCommand(cmd: string) {
     case "cmd_customKeysFileName":
       await Command.customKeysFileName();
       break;
+
+    case "cmd_openCryptoDirectory":
+      await Command.openCryptoDirectory();
+      break;
     default:
       return;
   }

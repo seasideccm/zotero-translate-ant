@@ -17,6 +17,11 @@ export class Command {
         return data;
     }
 
+    static async openCryptoDirectory() {
+        const path = await Cry.getPathCryKey();
+        await Zotero.File.reveal(path);
+    }
+
     // 打开面板时传入的参数用来设置按钮黄复选框是否显示，同时禁止弹窗
     static async showHiddenEncryptDom(checked?: boolean, onOpenPrefs: boolean = false) {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
@@ -29,6 +34,7 @@ export class Command {
         const addOldCryKey = getDom('addOldCryKey') as XUL.Button;
         const customKeysFileName = getDom('customKeysFileName') as XUL.Button;
         const labelRun = getDom('cryptoProtectRun') as XUL.Label;
+        const openCryptoDirectory = getDom('openCryptoDirectory') as XUL.Button;
 
 
         if (checked !== void 0 && checked !== null) enableEncrypt.checked = checked;
@@ -46,6 +52,7 @@ export class Command {
             deleSourceFile.hidden = true;
             customKeysFileName.hidden = true;
             labelRun.hidden = true;
+            openCryptoDirectory.hidden = true;
         } else {
             if (!onOpenPrefs) {
                 win?.alert(getString('info-encryptTip'));
@@ -60,6 +67,7 @@ export class Command {
             deleSourceFile.hidden = false;
             customKeysFileName.hidden = false;
             labelRun.hidden = false;
+            openCryptoDirectory.hidden = false;
             /*          if (labelRun) {
                          const openCryptoDir = {
                              type: "click",

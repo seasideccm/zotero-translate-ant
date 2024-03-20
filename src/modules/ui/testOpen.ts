@@ -132,7 +132,7 @@ export function copyImage() {
   }
 }
 
-
+//失败
 export function copyInfo(sets?: any) {
   sets = {
     txts: '请复制我',

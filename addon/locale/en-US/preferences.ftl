@@ -116,3 +116,4 @@ pref-deleSourceFileTip = Please choose carefully and make a backup. Once deleted
 pref-customKeysFileName = Custom Crypto Keys File Name
 pref-customKeysFileNameTip = Click the button, then modify the corresponding file name. After confirming the modification, the records in the addon database will be modified. If there is a key that is already in use in the encryption key storage directory, the file name will be modified at the same time, and the file name of the unused key will not be changed.
 pref-cryptoProtectRun = Crypto Protect Is Runing. RSA Private And Public Keys Has Already.
+pref-openCryptoDirectory = Open Crypto Directory

@@ -10,6 +10,10 @@
     id="cmd_customKeysFileName"
     oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_customKeysFileName')"
   />
+  <command
+    id="cmd_openCryptoDirectory"
+    oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_openCryptoDirectory')"
+  />
 </commandset>
 
 <vbox
@@ -197,11 +201,20 @@
   <label>
     <html:h3 data-l10n-id="pref-cryProtect"></html:h3>
   </label>
-  <label
-    id="__addonRef__-cryptoProtectRun"
-    data-l10n-id="pref-cryptoProtectRun"
-    hidden="true"
-  />
+
+  <hbox>
+    <label
+      id="__addonRef__-cryptoProtectRun"
+      data-l10n-id="pref-cryptoProtectRun"
+      hidden="true"
+    />
+    <button
+      id="__addonRef__-openCryptoDirectory"
+      data-l10n-id="pref-openCryptoDirectory"
+      command="cmd_openCryptoDirectory"
+      hidden="true"
+    ></button>
+  </hbox>
   <hbox>
     <checkbox
       id="__addonRef__-setEnableEncrypt"
