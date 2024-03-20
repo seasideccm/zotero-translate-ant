@@ -645,6 +645,14 @@ export class Cry {
 }
 
 
+export async function encryptState() {
+    const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
+    const DB = await getDB();
+    const dbValue = await DB.valueQueryAsync(sqlSELECT);
+    return Boolean(Number(dbValue));////undefined转NaN转false，null转0转false
+}
+
+
 /**
  * - 返回 json 字符串
  * - 含有：

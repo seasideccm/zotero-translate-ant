@@ -4,6 +4,8 @@ import { addonDatabaseDir, addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 import { getString } from "./locale";
 
+
+
 export function requireModule(moduleName: string) {
   let require = ztoolkit.getGlobal("window").require;
   if (typeof require == "undefined") {

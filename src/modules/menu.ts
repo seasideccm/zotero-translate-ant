@@ -1,12 +1,13 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
-import { arrToObj } from "../utils/tools";
+import { arrToObj, readOffice } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFile, encryptFileByAESKey, testCryInfo } from './crypto';
 import { copyImage, copyInfo, openDir } from "./ui/testOpen";
+import { readTextFromFiles } from "./ui/tableSecretKeys";
 
 
 
@@ -22,6 +23,9 @@ function getParasArrs() {
     [
       ["加密文件", encryptFileByAESKey],
       ["解密文件", decryptFile],
+    ],
+    [
+      ["读取文件内容", readTextFromFiles],
     ],
   ];
   return parasArrs;

@@ -10,6 +10,30 @@ import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 import { Cry } from '../crypto';
 
 
+
+
+
+export async function readTextFiles(filePaths: string[]) {
+    if (!filePaths) filePaths = await chooseDirOrFilePath("files");
+
+    let text = '';
+    for (let i = 0; i < filePaths.length; i++) {
+
+        const file = filePaths[i];//
+        const extension = Zotero.File.getExtension(file);
+        if (extension != ".txt") {
+            showInfo("not Txt file");
+            return;
+        }
+        const result = await Zotero.File.getContentsAsync(file);// 读取拖拽文件内容
+        if (typeof result != "string") continue;
+        text += result;
+    }
+    return text;
+
+}
+
+
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
 export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
     if (!containerId) {
@@ -329,6 +353,7 @@ export async function replaceSecretKeysTable() {
     }
 
     function handleDrop(e: DragEvent) {
+        // 文件拖拽
         if (!e.dataTransfer) return false;//
         const dragData = Zotero.DragDrop.getDataFromDataTransfer(e.dataTransfer);
         if (!dragData) {//
@@ -341,7 +366,7 @@ export async function replaceSecretKeysTable() {
         for (let i = 0; i < data.length; i++) {
             const file = data[i];//
             const extension = Zotero.File.getExtension(file);//
-            const result = Zotero.File.getContentsAsync(file);
+            const result = Zotero.File.getContentsAsync(file);// 读取拖拽文件内容
             if (typeof result == "string") {
                 text += result;
             } else if (!(result instanceof Uint8Array)) {//
@@ -362,6 +387,8 @@ export async function replaceSecretKeysTable() {
         });
         return false;
     }
+
+
 
 
 
