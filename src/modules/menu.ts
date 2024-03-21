@@ -7,7 +7,7 @@ import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFile, encryptFileByAESKey, testCryInfo } from './crypto';
 import { copyImage, copyInfo, openDir } from "./ui/testOpen";
-import { readTextFromFiles } from "./ui/tableSecretKeys";
+import { readTextFiles, readTextFromFiles } from "./ui/tableSecretKeys";
 
 
 
@@ -25,7 +25,7 @@ function getParasArrs() {
       ["解密文件", decryptFile],
     ],
     [
-      ["读取文件内容", readTextFromFiles],
+      ["读取文件内容", readTextFiles],
     ],
   ];
   return parasArrs;
