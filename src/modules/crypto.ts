@@ -1,4 +1,4 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, confirmWin, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
@@ -226,7 +226,8 @@ export class Cry {
     }
 
     static async saveKey(key: any, path: string) {
-        path = await ensureNonePath(path);
+        path = await ensureNonePath(path, addon.data.prefs?.window);
+        if (!path) return;
         if (!key || !path || await IOUtils.exists(path)) { showInfo("not save"); return; }
         //btoa 字节转字母
         //const keyBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(key) as any));
@@ -436,9 +437,15 @@ export class Cry {
         if (!filePaths || filePaths.length === 0) {
             //参数没有指定文件时，用户选择秘钥存储目录下已有的秘钥
             const temp = await collectFilesRecursive(directoryCryptoKeys);
+            if (!temp.length) {
+                showInfo("文件夹为空");
+                return;
+            }
             const fileNames = temp.map(file => file.name);
+
             const files = temp.map(file => file.path) as string[];
             const win = addon.data.prefs?.window;
+
             const dataOut = selectData(fileNames, win);
             if (!dataOut) return;
             //const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
@@ -447,17 +454,6 @@ export class Cry {
             if (!filePaths) return;
         }
         if (await isRechooseFiles(filePaths)) {
-            /* const TIP = "Has Invalid File, Please Reselect Files, Click Cancle When Finished";
-            const temp = [];
-            while (TIP) {
-                const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
-                if (!path || !path.length) break;
-                typeof path == "string" ? temp.push(path) : temp.push(...path);//undefine 无法 ... 解构
-                showInfo(temp.join('\n'));
-                const confirm = window.confirm("是否继续选择文件？点击取消结束选择");
-                if (!confirm) break;
-
-            } */
             const temp = await chooseFiles();
             if (await isRechooseFiles(temp)) {
                 showInfo("所选文件不是有效秘钥，请重新选择");
@@ -466,7 +462,13 @@ export class Cry {
             filePaths = temp;
         }
         showInfo(filePaths.join('\n'));
-        return;
+        //return;
+        const cryPath = await Cry.getPathCryKey();
+        for (const path of filePaths) {
+            const fileName = PathUtils.filename(path);
+            await IOUtils.copy(path, cryPath + fileName);
+        }
+        //await Cry.setPathCryKey(directoryCryptoKeys);加密路径不变，文件名不变，除非人为指定
 
 
 
@@ -497,61 +499,80 @@ export class Cry {
 
     static async addCryKey() {
         //选择文件，确认并验证文件有效
-        const path = await chooseDirOrFilePath("dir", addonDatabaseDir);
+
+        let path = await Cry.getPathCryKey();
+        if (path) {
+            const cf = confirmWin("是否使用默认路径？\n" + path, addon.data.prefs?.window);
+            if (!cf) path = null;
+        }
+        if (!path) {
+            path = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
+        }
+
         if (!path) return;
         const temp = await collectFilesRecursive(path);
         let fileNames = temp.map(file => file.name);
-        const files = temp.map(file => file.path) as string[];
-        const dataOut = selectData(fileNames);
-        if (!dataOut) return;
-        const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
-        const filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
-        if (await isRechooseFiles(filesSelected)) {
-            const TIP = "Please Select Files, Click Cancle When Finished";
-            while (TIP) {
-                const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
-                filesSelected.push(...path);
-                showInfo(filesSelected.join('\n'));
-                if (!path) break;
-            }
-            if (await isRechooseFiles(filesSelected)) return;
-        }
-
-        // 是否导入原有秘钥
-        fileNames = filesSelected.map(e => OS.Path.basename(e));
-        const promptService = getPS();
-        const title = getString("info-addOldCryKey");
-        const info = getString("info-has") + fileNames.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
-        let confirm = promptService.confirm(window, title, info);
-        if (confirm) {
-            let info = filesSelected.join('\n');
-            const title = "Check FilePaths";
-            confirm = promptService.confirm(window, title, info);
+        if (fileNames.length) {
+            const win = addon.data.prefs?.window || window;
+            let confirm = win.confirm("所选目录非空，是否仍选择该目录");
             if (!confirm) {
-                const fs = await chooseDirOrFilePath("files", path);
-                info = fs.join('\n');
-                confirm = promptService.confirm(window, title, info);
-                if (!confirm) {
-                    showInfo(getString('info-cancle') + ': ' + getString("info-addOldCryKey"));
+                showInfo(getString("info-userCancle"));
+                return;
+            }
+            confirm = win.confirm("是否选择文件");
+            if (confirm) {
+                const files = temp.map(file => file.path) as string[];
+                const dataOut = selectData(fileNames);
+                if (!dataOut) return;
+                const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
+                const filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
+                if (await isRechooseFiles(filesSelected)) {
+                    const TIP = "Please Select Files, Click Cancle When Finished";
+                    while (TIP) {
+                        const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
+                        filesSelected.push(...path);
+                        showInfo(filesSelected.join('\n'));
+                        if (!path) break;
+                    }
+                    if (await isRechooseFiles(filesSelected)) return;
+                }
+                // 是否导入原有秘钥
+                fileNames = filesSelected.map(e => OS.Path.basename(e));
+                const promptService = getPS();
+                const title = getString("info-addOldCryKey");
+                const info = getString("info-has") + fileNames.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
+                let confirm = promptService.confirm(window, title, info);
+                if (confirm) {
+                    let info = filesSelected.join('\n');
+                    const title = "Check FilePaths";
+                    confirm = promptService.confirm(window, title, info);
+                    if (!confirm) {
+                        const fs = await chooseDirOrFilePath("files", path);
+                        info = fs.join('\n');
+                        confirm = promptService.confirm(window, title, info);
+                        if (!confirm) {
+                            showInfo(getString('info-cancle') + ': ' + getString("info-addOldCryKey"));
+                            return;
+                        }
+                    }
+                    Cry.importCryKey(filesSelected);
                     return;
+                } else {
+                    confirm = promptService.confirm(window, "Are You Shoure", "create new AES RSA keys?");
+                    if (!confirm) return;
+
                 }
             }
-            Cry.importCryKey(filesSelected);
-            return;
-        } else {
-            confirm = promptService.confirm(window, "Are You Shoure", "create new AES RSA keys?");
-            if (!confirm) return;
-            showInfo("create new AES RSA keys...");
         }
 
-        const pathSave = await Cry.getPathCryKey() || await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
-        if (!pathSave) return;
-        await Cry.makeNewRASAESKeys(pathSave);
-        await Cry.setPathCryKey(pathSave);
+        showInfo("create new AES RSA keys...");
+        await Cry.makeNewRASAESKeys(path);
+        await Cry.setPathCryKey(path);
     }
 
+
+
     static async makeNewRASAESKeys(path: string) {
-        if (!path) return;
         const KEYS_NAME = await Cry.getKEYS_NAME();
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
@@ -571,6 +592,12 @@ export class Cry {
         return await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeyPath'`);
     }
 
+    /**
+     * 插件数据库存储秘钥路径
+     * 没有记录则添加，有变化则更新
+     * @param path 
+     * @returns 
+     */
     static async setPathCryKey(path: string) {
         const DB = await getDB();
         let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;

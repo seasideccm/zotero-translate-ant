@@ -1,3 +1,4 @@
+import { validata } from './translateServices';
 
 import { doTryCatch, showInfo } from '../../utils/tools';
 import { encryptByAESKey } from '../crypto';
@@ -22,6 +23,7 @@ export class TranslateServiceAccount {
   version?: number;
   saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
   savePromise?: Promise<any>;
+
 
   constructor(option: any) {
     this.serialNumber = Number(option.serialNumber);

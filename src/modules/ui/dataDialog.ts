@@ -1,4 +1,5 @@
 import { config } from "../../../package.json";
+import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
 import { OS, chooseDirOrFilePath, showInfo } from "../../utils/tools";
 import { makeTagElementProps } from "./uiTools";
@@ -15,6 +16,7 @@ export function modifyData(fieldNames: string[] | any, win?: Window) {
 }
 
 export function selectData(fieldNames: string[], win?: Window) {
+    if (!fieldNames.length) return;
     const dialogType = 'multiSelect';
     const title = getString('info-multiSelect');
     const io = onOpenDialog(fieldNames, dialogType, title, win);
@@ -123,22 +125,24 @@ export class DataDialog {
                         textContent: fieldNames[0],
                     }
                 });
-
-                const filepicker = makeTagElementProps({
-                    tag: "input",
-                    id: "filepicker",
+                const filepickerButton = makeTagElementProps({
+                    tag: "button",
+                    id: "filepickerButton",
                     namespace: "html",
                     attributes: {
-                        type: "file",
-                        webkitdirectory: true,
-                        multiple: true,
+                        style: `margin-inline: 1rem`
                     },
-                    listeners: [{
-                        type: "change",
-                        listener: selectDirectory
-                    }]
-                });
+                    properties: {
+                        textContent: getString("info-selectDirectory"),
+                    },
+                    listeners: [
+                        {
+                            type: "click",
+                            listener: onFilepicker
+                        },
+                    ]
 
+                });
                 ztoolkit.UI.appendElement(
                     {
                         tag: "div",
@@ -150,7 +154,7 @@ export class DataDialog {
                     {
                         tag: "div",
                         namespace: "html",
-                        children: [filepicker]
+                        children: [filepickerButton]
 
                     }, parent);
             }
@@ -322,19 +326,16 @@ export class DataDialog {
             }
         }
 
-        function selectDirectory(event: Event) {
-            if (!event.target) return;
-            const files = (event.target as HTMLInputElement).files;
-            //@ts-ignore xxx
-            const path2 = this.files[0];
-            if (!files || !files.length) return;
-            //@ts-ignore xxx
-            const path = files[0].mozFullPath;
+
+
+        async function onFilepicker(event: Event) {
+            const path = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
+            (event.target as HTMLElement).ownerDocument.defaultView?.focus();
             if (path) {
-                const dir = OS.Path.dirname(path);
                 const span = win.document.querySelector("[id^='fieldName-']");
-                if (span) span.textContent = dir;
+                if (span) span.textContent = path;
             }
+
         }
     }
     static handleAccept(win: Window) {

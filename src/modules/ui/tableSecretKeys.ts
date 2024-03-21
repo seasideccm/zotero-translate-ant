@@ -1,11 +1,11 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, chooseFilePath, deepClone, differObject, objOrder, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, chooseFilePath, deepClone, differObject, getPS, objOrder, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getDom, getElementValue } from "./uiTools";
-import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB, validata } from "../translate/translateServices";
+import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 import { Cry } from '../crypto';
 
@@ -29,7 +29,30 @@ export async function readTextFiles(filePaths?: string[]) {
     }
     return text;
 }
+function baiduVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^\d{17}$/m,
+        "secretKey": /^[A-Za-z\d]{20}$/m,
+        "usable": /\d/,
+        "charConsum": /^\d+$/m,
+    };
+    function regRes(value: string, reg: RegExp) {
+        const match = value.match(reg);
+        if (match) {
+            if (match[0] == value) return true;
+        }
+    }
 
+    for (let i = 0; i < values.length; i++) {
+        // @ts-ignore xxx
+        if (!regRes(values[i], reg[keys[i]])) return false;
+    }
+    return true;
+}
+
+const dataVerify: any = {
+    baidu: baiduVerify
+};
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
 export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
@@ -251,18 +274,8 @@ export async function replaceSecretKeysTable() {
 
 
     async function addRecordBulk(e: Event) {
-        const text = await readTextFiles();
-        /* const filePath = await chooseDirOrFilePath("file");//
-        const extension = Zotero.File.getExtension(filePath);
-        let text = '';//
-        const result = Zotero.File.getContentsAsync(filePath);
-        if (typeof result == "string") {
-            text += result;
-        } else if (!(result instanceof Uint8Array)) {
-            text += await result;
-
-        } */
-        //showInfo([text, extension]);
+        let text = await readTextFiles() as string;
+        text = verigyServiceID(text) as string;
         batchAddAccount(text);
         tableHelper.render();
     }
@@ -349,40 +362,30 @@ export async function replaceSecretKeysTable() {
         }
         return false;
     }
+    function verigyServiceID(text: string) {
+        if (!text) return;
+        const reg = new RegExp(`^[^\S\r\n]*${serviceID}[^\S\r\n]*$[\r\n]+`, "m");
+        const match = text.match(reg);
+        const info = "翻译引擎不匹配，请确保文件第一行翻译引擎名字和账号对应的翻译引擎一致";
+        if (!match) {
+            showInfo(info);
+            return;
+        }
+        const serviceIDFromFile = match[0].trim();
+        if (serviceID != serviceIDFromFile) {
+            showInfo(info);
+            //throw new Error("翻译引擎不匹配，请确保文件第一行翻译引擎名字和账号对应的翻译引擎一致")
+        }
+        return text.replace(match[0], '');
 
+    }
     async function handleDrop(e: DragEvent) {
         // 文件拖拽
-        if (!e.dataTransfer) return false;//
-        const dragData = Zotero.DragDrop.getDataFromDataTransfer(e.dataTransfer);
-        if (!dragData) {//
-            Zotero.debug("No drag data");
-            return false;
-        }
-        const data = dragData.data;
-        const text2 = await readTextFiles(data);
-        let text: string = '';
-        const allPromise = [];
-        for (let i = 0; i < data.length; i++) {
-            const file = data[i];//
-            const result = Zotero.File.getContentsAsync(file);// 读取拖拽文件内容
-            if (typeof result == "string") {
-                text += result;
-            } else if (!(result instanceof Uint8Array)) {//
-                const readerLock = Zotero.Promise.defer();
-                allPromise.push(readerLock);
-                result.then((str: any) => {
-                    if (typeof str == "string") text += str;
-                    readerLock.resolve();
-                });
+        let text = await readTextFilesDroped(e) as string;
+        text = verigyServiceID(text) as string;
 
-            }
-            //showInfo("drop file extension:" + extension);
-        }        //@ts-ignore has
-        Zotero.Promise.all(allPromise).then(() => {
-            batchAddAccount(text);
-            tableHelper.render();
-            return false;
-        });
+        batchAddAccount(text);
+        tableHelper.render();
         return false;
     }
 
@@ -1072,6 +1075,8 @@ export async function replaceSecretKeysTable() {
             .readText()
             .then((v) => {
                 const text: string = v;
+                const confirm = win?.confirm("账号信息将要添加到翻译引擎：" + serviceID + " 中。请确认。");
+                if (!confirm) return;
                 batchAddAccount(text);
                 tableHelper.render();
             })
@@ -1081,9 +1086,25 @@ export async function replaceSecretKeysTable() {
     }
 
     function batchAddAccount(text: string) {
+        if (!text) return;
+        if (!dataVerify[serviceID]) {
+            showInfo("无法验证数据");
+            throw new Error("无法验证数据");
+        }
         const textArr = text.split(/\r?\n/).filter(e => e);
         const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
         const keys = Object.keys(rows[0]);
+        for (const values of valuesArr) {
+            if (!dataVerify[serviceID](keys, values)) {
+                showInfo(serviceID + "：数据格式未通过验证");
+                const dataFormat: any = {
+                    baidu: "2222222#g8g8g8g8g8#0#800"
+                };
+                showInfo(serviceID + " 数据格式样例：" + dataFormat[serviceID]);
+                throw new Error(serviceID + "：数据格式未通过验证");
+            }
+        }
+
         const pasteRows = valuesArr.map((values: string[]) => {
             const row: any = kvArrsToObject(keys)(values);
             Object.keys(row).filter((key: string, i: number) => {
@@ -1097,10 +1118,13 @@ export async function replaceSecretKeysTable() {
         if (newRows && pasteRows && newRows.length != pasteRows.length) {
             ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
         }
+        if (pasteRows.length - newRows.length) {
+            showInfo(pasteRows.length - newRows.length + " 条记录被过滤掉了");
+            if (!newRows.length) throw new Error("没有新记录");
+            showInfo("添加了 " + newRows.length + " 条记录");
+        }
         rows.push(...newRows);
         saveNewAccounts(newRows);
-
-
     }
 
 
@@ -1300,10 +1324,26 @@ function makeTableProps(options: VTableProps, rows: any[]) {
 
 /**
  * 有无效数据则返回false
+ * 尚未细化至引擎
  * @param row 
  * @returns 
  */
 function validateRowData(row: any) {
+    const vboolean = (value: string) => {
+        return ["0", '1', "true", "false"].includes(value.toLocaleLowerCase());
+    };
+    const vNumber = (value: string) => {
+        return !isNaN(Number(value));
+    };
+    const vSecretKey = (value: string) => {
+        return !value.match(/[\W_]/);
+    };
+    const validata = {
+        "appID": vNumber,
+        "secretKey": vSecretKey,
+        "usable": vboolean,
+        "charConsum": vNumber,
+    };
     const keys = Object.keys(row);
     //数据无效时返回key值
     const res = keys.find((key) => {
@@ -1334,3 +1374,16 @@ async function deleteRecord(e: Event) { }
 async function editRecord(e: Event) { }
 
 async function searchRecord(e: Event) { }
+
+
+async function readTextFilesDroped(e: DragEvent) {
+    // 文件拖拽
+    if (!e.dataTransfer) return false;//
+    const dragData = Zotero.DragDrop.getDataFromDataTransfer(e.dataTransfer);
+    if (!dragData) {//
+        Zotero.debug("No drag data");
+        return false;
+    }
+    const data = dragData.data;
+    return await readTextFiles(data);
+}

@@ -53,13 +53,18 @@ export function arrayBufferTOstring(buffer: ArrayBuffer) {
 }
 /**
  * - 添加时间戳确保路径可用 
- * - 没有点且没有扩展名
- * - 或最后一个点之后还有目录分割符，返回path+timeStamp
+ * - 时间戳添加在文件名末尾
  * @param path 
  * @returns 
  */
-export async function ensureNonePath(path: string) {
+export async function ensureNonePath(path: string, win?: Window) {
   if (!await IOUtils.exists(path)) return path;
+  const cf = confirmWin(path + "\n文件已存在，是否为文件名添加时间戳？", win);
+  if (!cf) {
+    showInfo(getString("info-userCancle"));
+    throw new Error(getString("info-userCancle") + '为文件名添加时间戳？');
+  }
+
   const timeStamp = "_" + Date.now();
   const lastIndexOfDot = path.lastIndexOf(".");
 
@@ -67,6 +72,12 @@ export async function ensureNonePath(path: string) {
   return path.substring(0, lastIndexOfDot) + timeStamp + path.substring(lastIndexOfDot);
 
 }
+export function confirmWin(tip: string, win?: Window) {
+  win = win ? win : window;
+  return win.confirm(tip);
+
+}
+
 export async function getFilePath(choose: boolean = false) {
   let filePath: string;
   if (choose) return await chooseFilePath();

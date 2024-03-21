@@ -32,24 +32,10 @@ export async function servicesToDB(keys: string[], parasArr: any[]) {
     return services;
 }
 
-const vstring = (value: string) => {
-    if (typeof value != "string") return false;
-    const reg = /^\s+$/m;
-    if (value.match(reg)) return false;
-    return true;
-};
-const vboolean = (value: string) => {
-    return ["0", '1', "true", "false"].includes(value.toLocaleLowerCase());
-};
-const vNumber = (value: string) => {
-    return !isNaN(Number(value));
-};
-export const validata = {
-    "appID": vstring,
-    "secretKey": vstring,
-    "usable": vboolean,
-    "charConsum": vNumber,
-};
+
+
+
+
 
 
 

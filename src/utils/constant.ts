@@ -29,15 +29,14 @@ export const parasArrTranslateService = [
   ["baiduModify", 5000, 10, "month", 1000000, true, true, false,],
   ["baidufieldModify", 5000, 10, "month", 500000, true, true, false,],
   ["tencentTransmart", 5000, 20, "noLimit", 0, false, false, false,],
+  ["tencent", 2000, 5, "month", 5000000, true, true, false,],
   ["haici", 600, 10, "noLimit", 0, false, false, false,],
   ["youdao", 2000, 5, "noLimit", 0, false, false, false,],
 
 ];
 
-/* parasArrTranslateService.filter(e=>{if(e.length != keysTranslateService.length){
-  console.log(e[0],e.length)
-}}) */
 
+//有新增时加入 example:= [["tencent", 2000, 5, "month", 5000000, true, true, false,]];
 export const parasArrTranslateServiceAdd = [];
 
 export const syncConfig = {
