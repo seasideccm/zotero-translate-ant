@@ -71,6 +71,7 @@ async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYS
         KEYS_NAME = await Cry.getKEYS_NAME();
         if (!KEYS_NAME) return false;
     }
+    //if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
     if (typeof ctx == "string" && name == KEYS_NAME.PUBLICKEY_NAME) {
         if ((!ctx.startsWith(BEGIN_PUBLIC) || !ctx.endsWith(END_PUBLIC))) {
             showInfo("文件不是有效的 pem 格式 RSA 公钥");
@@ -127,6 +128,84 @@ async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYS
     else {
         return true;
     }
+}
+
+async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
+    const name = PathUtils.filename(path);
+    if (!await IOUtils.exists(path)) {
+        showInfo(name + " 文件无法读取");
+        return false;
+    }
+    let ctx;
+    try {
+        ctx = await IOUtils.readUTF8(path);
+    } catch (e: any) {
+        ctx = await IOUtils.read(path);
+    }
+
+    if (!ctx) {
+        showInfo(name + " 文件读取失败");
+        return false;
+    }
+    //ctx = await Zotero.File.getContentsAsync(path);
+    if (!KEYS_NAME) {
+        KEYS_NAME = await Cry.getKEYS_NAME();
+        if (!KEYS_NAME) return false;
+    }
+
+    if (typeof ctx == "string") {
+        if ((ctx.startsWith(BEGIN_PUBLIC) && ctx.endsWith(END_PUBLIC))) {
+            showInfo("文件为 pem 格式 RSA 公钥");
+            return KEYS_NAME.PUBLICKEY_NAME;
+        } else if ((ctx.startsWith(BEGIN_PRIVATE) && ctx.endsWith(END_PRIVATE))) {
+            showInfo("文件为 pem 格式 RSA 私钥");
+            return KEYS_NAME.PRIVATEKEY_NAME;
+        }
+        else {
+            showInfo("文件不是有效的 pem 格式 RSA 公钥或私钥");
+            return false;
+        }
+    }
+
+    if (ctx.constructor == Uint8Array) {
+        let privatePath;
+        if (!files) {
+            const dirName = PathUtils.parent(path);
+            if (!dirName) return;
+            privatePath = PathUtils.join(dirName, KEYS_NAME!.PRIVATEKEY_NAME);
+        } else {
+            privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME!.PRIVATEKEY_NAME)[0];
+        }
+        if (!privatePath) return false;
+        const privateStirng = await Zotero.File.getContentsAsync(privatePath);
+
+        if (typeof privateStirng != "string") {
+            showInfo("无 RSA 私钥，无法验证AES秘钥");
+            return false;
+        }
+        const privateKey = await Cry.importKey(privateStirng);
+        if (!privateKey) {
+            showInfo("无 RSA 私钥，无法验证AES秘钥");
+            return false;
+        }
+        const AESKey = await window.crypto.subtle.unwrapKey(
+            "raw",
+            ctx,//.buffer
+            privateKey,
+            { name: "RSA-OAEP" },
+            { name: 'AES-CBC' },
+            true,
+            ["encrypt", "decrypt"]
+        );
+        if (AESKey) {
+            showInfo("文件为 AES 秘钥");
+            return KEYS_NAME.AESCBCKEY_NAME;
+        } else {
+            return false;
+        }
+    }
+    return true;
+
 }
 
 
@@ -430,19 +509,18 @@ export class Cry {
     }
 
     static async importCryKey(filePaths?: string[]) {
-        //确认存储目录
-        const directoryCryptoKeys = await identifyPathCryKey();
+        //确认要导入的秘钥所在目录
+        const directoryCryptoKeys = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
         if (!directoryCryptoKeys) return;
-
         if (!filePaths || filePaths.length === 0) {
             //参数没有指定文件时，用户选择秘钥存储目录下已有的秘钥
             const temp = await collectFilesRecursive(directoryCryptoKeys);
             if (!temp.length) {
-                showInfo("文件夹为空");
+                showInfo(getString("info-emptyDirectory"));
                 return;
             }
+            showInfo(getString("info-selectKey"));
             const fileNames = temp.map(file => file.name);
-
             const files = temp.map(file => file.path) as string[];
             const win = addon.data.prefs?.window;
 
@@ -453,21 +531,33 @@ export class Cry {
             filePaths = files.filter((file: string) => fileNamesSelected.includes(PathUtils.filename(file)));
             if (!filePaths) return;
         }
-        if (await isRechooseFiles(filePaths)) {
-            const temp = await chooseFiles();
-            if (await isRechooseFiles(temp)) {
-                showInfo("所选文件不是有效秘钥，请重新选择");
-                return;
-            }
-            filePaths = temp;
-        }
-        showInfo(filePaths.join('\n'));
+        /*  if (await isRechooseFiles(filePaths)) {
+             const temp = await chooseFiles();
+             if (await isRechooseFiles(temp)) {
+                 showInfo("所选文件不是有效秘钥，请重新选择");
+                 return;
+             }
+             filePaths = temp;
+         }
+  */
         //return;
         const cryPath = await Cry.getPathCryKey();
+        showInfo([filePaths.join('\n'), getString("info-copyFilesTo") + cryPath]);
+        const pairPaths = [];
         for (const path of filePaths) {
-            const fileName = PathUtils.filename(path);
-            await IOUtils.copy(path, cryPath + fileName);
+            const fileName = await getKeyNameByContent(path) as string;
+            if (!fileName) {
+                showInfo(getString("info-hasErrorKey"));
+                return;
+            }
+            pairPaths.push([path, PathUtils.join(cryPath, fileName)]);
+
         }
+        for (const pair of pairPaths) {
+            await IOUtils.copy(pair[0], pair[1]);
+
+        }
+
         //await Cry.setPathCryKey(directoryCryptoKeys);加密路径不变，文件名不变，除非人为指定
 
 
@@ -483,9 +573,9 @@ export class Cry {
 
         //|| await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
 
-        showInfo("TODO");
+
         async function identifyPathCryKey() {
-            const pathSelect = await Cry.getPathCryKey() || await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
+            const pathSelect = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
             const res = directorySaveCryptoKeys(pathSelect);
             if (!res) return;
             if (typeof res == "object" && !Object.values(res).length) return;
@@ -494,7 +584,6 @@ export class Cry {
             showInfo(["加密秘钥存储目录已确定", directoryCryptoKeys, "该选择文件了"]);
             return directoryCryptoKeys;
         }
-
     }
 
     static async addCryKey() {

@@ -1,13 +1,12 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
-import { arrToObj, readOffice } from "../utils/tools";
+import { arrToObj } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { decryptFile, encryptFileByAESKey, testCryInfo } from './crypto';
-import { copyImage, copyInfo, openDir } from "./ui/testOpen";
-import { readTextFiles, readTextFromFiles } from "./ui/tableSecretKeys";
+import { decryptFile, encryptFileByAESKey } from './crypto';
+import { readTextFiles } from "./ui/tableSecretKeys";
 
 
 

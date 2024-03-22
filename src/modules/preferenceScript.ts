@@ -9,6 +9,7 @@ import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
 import { Command } from "./command";
+import { Cry, encryptState } from "./crypto";
 
 
 
@@ -186,9 +187,8 @@ async function buildPrefsPane() {
     }
   }
   // 安全设置   
-  const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
-  const dbValue = await DB.valueQueryAsync(sqlSELECT);
-  Command.showHiddenEncryptDom(Boolean(Number(dbValue)), true);//undefined转NaN转false，null转0转false
+  const dbValue = await encryptState();
+  Command.showHiddenEncryptDom(dbValue, true);//undefined转NaN转false，null转0转false
 
   //多账户管理
   const services = await getServices();

@@ -16,7 +16,7 @@ import {
 } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
-import { Cry } from "./modules/crypto";
+import { Cry, encryptState } from "./modules/crypto";
 import { Command } from "./modules/command";
 
 async function onStartup() {
@@ -46,11 +46,20 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
   win.addEventListener("mouseover", listenImageCallback, false);
+
+
   monitorImageItem();
   //XXX addon.mountPoint['TranslateServices'] = TranslateServices;
   registerShortcutsCache();
   showInfo(getString("startup-begin"));
   await getDB();
+  if (__env__ === "production" && await encryptState()) {
+    const condition = Services.prefs.getBoolPref('devtools.debugger.enabled') || Services.prefs.getBoolPref('devtools.debugger.remote-enabled');
+    if (condition) {
+      window.alert(getString("info-debugger"));
+      return;
+    }
+  }
   await Cry.getKEYS_NAME();
   if (addon.data.env == "development") {
     await compareSQLUpdateDB();
