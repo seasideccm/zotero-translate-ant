@@ -11,7 +11,7 @@ export class Command {
             KEYS_NAME = await Cry.getKEYS_NAME();
         }
         const win = addon.data.prefs?.window;
-        const data = modifyData(KEYS_NAME, win);
+        const data = await modifyData(KEYS_NAME, win);
         if (!data) return;
         await Cry.setKEYS_NAME(data);
         return data;
@@ -41,7 +41,7 @@ export class Command {
         if (!enableEncrypt.checked) {
             if (!onOpenPrefs) {
                 win?.alert(getString("info-disableEncrypt"));
-                const confirm = win?.confirm(getString("info-disableEncrypt") + "\n" + getString("info-Confirm") + "?");
+                const confirm = win?.confirm(getString("info-Confirm") + "?" + "\n\n" + getString("info-disableEncrypt"));
                 if (!confirm) {
                     enableEncrypt.checked = true;
                     return;
@@ -55,7 +55,7 @@ export class Command {
             openCryptoDirectory.hidden = true;
         } else {
             if (!onOpenPrefs) {
-                win?.alert(getString('info-encryptTip'));
+                win?.alert(getString('info-encryptTip') + "\n" + getString('info-encryptTip1') + "\n" + getString('info-encryptTip2') + "\n" + getString('info-encryptTip3'));
                 const confirm = win?.confirm(getString("info-Confirm") + "?\n" + getString("info-enableEncrypt") + "?");
                 if (!confirm) {
                     enableEncrypt.checked = false;

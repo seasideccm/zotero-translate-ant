@@ -284,7 +284,7 @@ export async function replaceSecretKeysTable() {
         await Cry.addCryKey();
     }
     async function addOldCryKey(e: Event) {
-        await Cry.importCryKey();
+        await Cry.importCryptoKey();
         return;
 
         /*     const filePath = await chooseDirOrFilePath();

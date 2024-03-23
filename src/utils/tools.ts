@@ -59,7 +59,7 @@ export function arrayBufferTOstring(buffer: ArrayBuffer) {
  */
 export async function ensureNonePath(path: string, win?: Window) {
   if (!await IOUtils.exists(path)) return path;
-  const cf = confirmWin(path + "\n文件已存在，是否为文件名添加时间戳？", win);
+  const cf = confirmWin(path + "\n文件已存在，是否为文件名添加时间戳？", "win");
   if (!cf) {
     showInfo(getString("info-userCancle"));
     throw new Error(getString("info-userCancle") + '为文件名添加时间戳？');
@@ -72,19 +72,14 @@ export async function ensureNonePath(path: string, win?: Window) {
   return path.substring(0, lastIndexOfDot) + timeStamp + path.substring(lastIndexOfDot);
 
 }
-export function confirmWin(tip: string, win?: Window) {
-  win = win ? win : window;
-  return win.confirm(tip);
+export function confirmWin(tip: string, win: "win" | "window" = "window") {
+  const winPref = addon.data.prefs?.window;
+  const winToShow = win ? (winPref ? winPref : window) : window;
+  return winToShow.confirm(tip);
 
 }
 
-export async function getFilePath(choose: boolean = false) {
-  let filePath: string;
-  if (choose) return await chooseFilePath();
-  return;
 
-
-}
 
 export function getAddonDir() {
   return PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
@@ -555,44 +550,90 @@ function isObject(object: any) {
   return object != null && typeof object === 'object';
 }
 
+/**
+ * 递归获取文件路径
+ * @param dirPath 
+ * @param parents 
+ * @param files 
+ * @returns 
+ */
+export async function collectFilesRecursive(dirPath: string, files: any[] = []) {
+  const onEntry = async ({ isDir, _isSymlink, name, path }: { isDir: boolean, _isSymlink: boolean, name: string, path: string; }) => {
+    if (isDir) {
+      //parents.push(name)
+      await collectFilesRecursive(path, files);
+    }
+    // TODO: Also check for hidden file attribute on windows?
+    else if (!name.startsWith('.')) {
+      //@ts-ignore has
+      files.push({ path, name });
+    }
+  };
+  await Zotero.File.iterateDirectory(dirPath, onEntry);
+  ztoolkit.log(files);
+  return files;
+}
 
 
 /**
- * 获取文件夹中的文件名
+ * 获取文件夹中的文件名或路径
  * @param dir
- * @param option 是否包含子文件夹、是否保留扩展名
+ * @param option 
  * @returns
  */
-export async function getFilesPathOrName(
+
+/**
+ * 
+ * @param dir 
+ * @param pathOrName 默认 "path"
+ * @param subDirectory 默认 false
+ * @param extension 默认 false
+ * @returns 
+ */
+export async function getFiles(
   dir: string,
-  option: any = { subDirectory: true, extension: false },
+  pathOrName: "path" | "name" = "path",
+  subDirectory: boolean = false,
+  extension: boolean = false
+
 ) {
-  const filesPathOrName: string[] = [];
+  const filesName: string[] = [];
+  const filesPath: string[] = [];
   async function onOntry(entry: any) {
-    if (entry.isDir && option.subDirectory) {
-      //
-      await Zotero.File.iterateDirectory(entry.path, onOntry);
-    } else if (entry.isDir && !option.subDirectory) {
-      return;
+    if (entry.isDir) {
+      if (subDirectory) {
+        await Zotero.File.iterateDirectory(entry.path, onOntry);
+      }
     } else {
       if (!entry.name) return;
-      if (option.extension) {
-        filesPathOrName.push(entry.name);
+      filesPath.push(entry.path);
+
+      if (extension) {
+        filesName.push(entry.name);
       } else {
         const nameNoExt = fileNameNoExt(entry.name);
-        nameNoExt && filesPathOrName.push(nameNoExt);
-
+        nameNoExt && filesName.push(nameNoExt);
       }
+
+
     }
   }
-
-
-
-  //
   await Zotero.File.iterateDirectory(dir, onOntry);
-  ztoolkit.log(filesPathOrName);
-  return filesPathOrName;
+  if (pathOrName == "path") {
+    return filesPath;
+  } else {
+    return filesName;
+  }
+
 }
+export async function testIO() {
+  const path = await chooseDirOrFilePath("dir");
+  const childs = await IOUtils.getChildren(path, { ignoreAbsent: true });
+  ztoolkit.log(childs);
+}
+
+
+
 
 /**
  * 文件路径格式转换 win2Unix
@@ -945,21 +986,7 @@ export async function getFilesRecursive(dir: string, ext?: string) {
 }
 
 
-export async function collectFilesRecursive(dirPath: string, parents: any[] = [], files: any[] = []) {
-  //@ts-ignore has
-  await Zotero.File.iterateDirectory(dirPath, async ({ isDir, _isSymlink, name, path }: { isDir: boolean, _isSymlink: boolean, name: string, path: string; }) => {
-    if (isDir) {
-      await collectFilesRecursive(path, [...parents, name], files);
-    }
-    // TODO: Also check for hidden file attribute on windows?
-    else if (!name.startsWith('.')) {
-      //@ts-ignore has
-      files.push({ parents, path, name });
-    }
-  });
-  ztoolkit.log(files);
-  return files;
-}
+
 
 
 export async function resourceFilesRecursive(url: string = `chrome://${config.addonRef}/content/schema/`, files: any[] = [], ext?: string) {
@@ -1095,12 +1122,12 @@ export function batchAddEventListener2(optins: {
 /**
  * 自动打开选中文件的上级目录，等待再次选择
  */
-export async function chooseFiles() {
+export async function chooseFiles(dir?: string) {
   const TIP = "Please select Files. Click Cancle will return files already selected.";
   const temp: string[] = [];
   while (TIP) {
     let defaultDir = temp.length ? PathUtils.parent(temp.slice(-1)[0]) : undefined;
-    if (!defaultDir) defaultDir = addonDatabaseDir;
+    if (!defaultDir) defaultDir = dir ? dir : addonDatabaseDir;
     const paths = await chooseDirOrFilePath("files", defaultDir, TIP);
     if (!paths || !paths.length) break;
     typeof paths == "string" ? temp.push(paths) : temp.push(...paths);//undefine 无法 ... 解构

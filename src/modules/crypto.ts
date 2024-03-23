@@ -1,4 +1,4 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, confirmWin, ensureNonePath, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, confirmWin, ensureNonePath, getFiles, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
@@ -6,8 +6,9 @@ import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
-import { selectData, directorySaveCryptoKeys } from './ui/dataDialog';
+import { selectData } from './ui/dataDialog';
 import { Command } from './command';
+import { warn } from 'console';
 
 
 
@@ -52,7 +53,7 @@ async function isRechooseFiles(files: string[]) {
 async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
     const name = PathUtils.filename(path);
     if (!await IOUtils.exists(path)) {
-        showInfo(name + " 文件无法读取");
+        showInfo(name + getString("info-notExist"));
         return false;
     }
     let ctx;
@@ -130,10 +131,27 @@ async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYS
     }
 }
 
+async function isRSAKey(path: string) {
+    if (!await IOUtils.exists(path)) return false;
+    let ctx;
+    try {
+        ctx = await IOUtils.readUTF8(path);
+    } catch (e: any) {
+        return false;
+    }
+    if ((ctx.startsWith(BEGIN_PUBLIC) && ctx.endsWith(END_PUBLIC))) {
+        return "PUBLIC";
+    }
+    if ((ctx.startsWith(BEGIN_PRIVATE) && ctx.endsWith(END_PRIVATE))) {
+        return "PRIVATE";
+    }
+    return false;
+}
+
 async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
     const name = PathUtils.filename(path);
     if (!await IOUtils.exists(path)) {
-        showInfo(name + " 文件无法读取");
+        showInfo(name + getString("info-notExist"));
         return false;
     }
     let ctx;
@@ -305,9 +323,13 @@ export class Cry {
     }
 
     static async saveKey(key: any, path: string) {
-        path = await ensureNonePath(path, addon.data.prefs?.window);
+        if (await IOUtils.exists(path)) {
+            if (!confirmWin(path + "\n" + getString("info-overwrite"), "win")) {
+                showInfo(getString("info-userCancle"));
+                throw new Error(getString("info-userCancle"));
+            }
+        }
         if (!path) return;
-        if (!key || !path || await IOUtils.exists(path)) { showInfo("not save"); return; }
         //btoa 字节转字母
         //const keyBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(key) as any));
         if (typeof key == "string") {
@@ -405,6 +427,7 @@ export class Cry {
         if (type == "publicKey") path = PathUtils.join(path, KEYS_NAME['PUBLICKEY_NAME']);
         if (type == 'privateKey') path = PathUtils.join(path, KEYS_NAME['PRIVATEKEY_NAME']);
         const key = await Zotero.File.getContentsAsync(path);
+        await Cry.verifyMD5CryKey();
         verify(key);
         if (typeof key == 'string') {
             if (type == "publicKey") addon.mountPoint.crypto[type] = key;
@@ -505,16 +528,21 @@ export class Cry {
             title = getString("info-replaceOldKey");
         }
         const promptService = getPS();
-        return promptService.confirm(window, title, info);
+        return promptService.confirm(addon.data.prefs?.window, title, info);
     }
 
-    static async importCryKey(filePaths?: string[]) {
-        //确认要导入的秘钥所在目录
-        const directoryCryptoKeys = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
-        if (!directoryCryptoKeys) return;
+    static async importCryptoKey(filePaths?: string[]) {
+        //确认要导入的秘钥所在目录，上次导入的路径保存在db中
+        const importDirectory = await chooseDirOrFilePath(
+            "dir",
+            await Cry.getImportDir(),
+            getString("info-importDir"));
+        if (!importDirectory) return;
         if (!filePaths || filePaths.length === 0) {
             //参数没有指定文件时，用户选择秘钥存储目录下已有的秘钥
-            const temp = await collectFilesRecursive(directoryCryptoKeys);
+            //const temp = (await IOUtils.getChildren(importDirectory)).filter((path: string) =>);
+
+            const temp = await collectFilesRecursive(importDirectory);
             if (!temp.length) {
                 showInfo(getString("info-emptyDirectory"));
                 return;
@@ -522,27 +550,15 @@ export class Cry {
             showInfo(getString("info-selectKey"));
             const fileNames = temp.map(file => file.name);
             const files = temp.map(file => file.path) as string[];
-            const win = addon.data.prefs?.window;
-
-            const dataOut = selectData(fileNames, win);
+            const dataOut = await selectData(fileNames, addon.data.prefs?.window);
             if (!dataOut) return;
-            //const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
             const fileNamesSelected = Object.values(dataOut);
             filePaths = files.filter((file: string) => fileNamesSelected.includes(PathUtils.filename(file)));
             if (!filePaths) return;
         }
-        /*  if (await isRechooseFiles(filePaths)) {
-             const temp = await chooseFiles();
-             if (await isRechooseFiles(temp)) {
-                 showInfo("所选文件不是有效秘钥，请重新选择");
-                 return;
-             }
-             filePaths = temp;
-         }
-  */
-        //return;
         const cryPath = await Cry.getPathCryKey();
-        showInfo([filePaths.join('\n'), getString("info-copyFilesTo") + cryPath]);
+        showInfo(filePaths);
+        showInfo([getString("info-copyFilesTo"), cryPath]);
         const pairPaths = [];
         for (const path of filePaths) {
             const fileName = await getKeyNameByContent(path) as string;
@@ -551,47 +567,18 @@ export class Cry {
                 return;
             }
             pairPaths.push([path, PathUtils.join(cryPath, fileName)]);
-
         }
         for (const pair of pairPaths) {
             await IOUtils.copy(pair[0], pair[1]);
-
         }
-
-        //await Cry.setPathCryKey(directoryCryptoKeys);加密路径不变，文件名不变，除非人为指定
-
-
-
-
-        //const selectedPaths = res.filePaths;
-
-
-        //await Cry.makeNewRASAESKeys(pathSave);
-        // await Cry.setPathCryKey(pathSave);
-
-        //const dirHandle = await window.showDirectoryPicker();
-
-        //|| await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
-
-
-        async function identifyPathCryKey() {
-            const pathSelect = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
-            const res = directorySaveCryptoKeys(pathSelect);
-            if (!res) return;
-            if (typeof res == "object" && !Object.values(res).length) return;
-            const directoryCryptoKeys = Object.values(res)[0];
-            if (!directoryCryptoKeys || typeof directoryCryptoKeys !== 'string' || !await IOUtils.exists(directoryCryptoKeys)) return;
-            showInfo(["加密秘钥存储目录已确定", directoryCryptoKeys, "该选择文件了"]);
-            return directoryCryptoKeys;
-        }
+        await Cry.setImportDir(importDirectory);
+        await Cry.setMD5CryKey();
     }
 
     static async addCryKey() {
-        //选择文件，确认并验证文件有效
-
         let path = await Cry.getPathCryKey();
         if (path) {
-            const cf = confirmWin("是否使用默认路径？\n" + path, addon.data.prefs?.window);
+            const cf = confirmWin(getString("info-useDefaultDirectory") + "\n" + path, "win");
             if (!cf) path = null;
         }
         if (!path) {
@@ -599,24 +586,42 @@ export class Cry {
         }
 
         if (!path) return;
-        const temp = await collectFilesRecursive(path);
-        let fileNames = temp.map(file => file.name);
-        if (fileNames.length) {
+        //const temp = await collectFilesRecursive(path);//包含子文件夹
+        //let fileNames = temp.map(file => file.name);
+        showInfo("Decrypt The Encrypted Contents...");
+        await decryptAllAccount();
+        await decryptAllFiles();
+
+        showInfo("create new RSA keys...");
+        await Cry.creatRASKeys(path);
+        await Cry.setPathCryKey(path);
+        await Cry.setMD5CryKey();
+    }
+
+    static async chooseARSKeys(path: string) {
+        const temp = await getFiles(path);//不含子文件夹    
+        const files = [];
+        for (const path of temp) {
+            if (await isRSAKey(path)) files.push(path);
+        }
+
+        if (files.length) {
             const win = addon.data.prefs?.window || window;
-            let confirm = win.confirm("所选目录非空，是否仍选择该目录");
+            let confirm = win.confirm(getString("info-dirNotEmpty"));
             if (!confirm) {
                 showInfo(getString("info-userCancle"));
                 return;
             }
-            confirm = win.confirm("是否选择文件");
+            confirm = win.confirm(getString("info-selectFile"));
             if (confirm) {
-                const files = temp.map(file => file.path) as string[];
-                const dataOut = selectData(fileNames);
+                //const files = temp.map(file => file.path) as string[];
+                let fileNames = files.map(path => PathUtils.filename(path));
+                const dataOut = await selectData(fileNames, win);
                 if (!dataOut) return;
                 const fileNamesSelected = Object.keys(dataOut).filter(key => dataOut[key] === true);
                 const filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
                 if (await isRechooseFiles(filesSelected)) {
-                    const TIP = "Please Select Files, Click Cancle When Finished";
+                    const TIP = getString("info-selectOrCancle");
                     while (TIP) {
                         const path = await chooseDirOrFilePath("files", addonDatabaseDir, TIP);
                         filesSelected.push(...path);
@@ -626,14 +631,14 @@ export class Cry {
                     if (await isRechooseFiles(filesSelected)) return;
                 }
                 // 是否导入原有秘钥
-                fileNames = filesSelected.map(e => OS.Path.basename(e));
+                fileNames = filesSelected.map(e => PathUtils.filename(e));
                 const promptService = getPS();
                 const title = getString("info-addOldCryKey");
                 const info = getString("info-has") + fileNames.join(', ') + "\n" + getString("info-Confirm") + getString("info-addOldCryKey") + "?";
                 let confirm = promptService.confirm(window, title, info);
                 if (confirm) {
                     let info = filesSelected.join('\n');
-                    const title = "Check FilePaths";
+                    const title = getString("info-checkPath");
                     confirm = promptService.confirm(window, title, info);
                     if (!confirm) {
                         const fs = await chooseDirOrFilePath("files", path);
@@ -644,7 +649,7 @@ export class Cry {
                             return;
                         }
                     }
-                    Cry.importCryKey(filesSelected);
+                    Cry.importCryptoKey(filesSelected);
                     return;
                 } else {
                     confirm = promptService.confirm(window, "Are You Shoure", "create new AES RSA keys?");
@@ -653,23 +658,18 @@ export class Cry {
                 }
             }
         }
-
-        showInfo("create new AES RSA keys...");
-        await Cry.makeNewRASAESKeys(path);
-        await Cry.setPathCryKey(path);
     }
 
 
-
-    static async makeNewRASAESKeys(path: string) {
+    static async creatRASKeys(path: string) {
         const KEYS_NAME = await Cry.getKEYS_NAME();
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
-        const AESKey = await Cry.getAESKey();
-        const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
+        //const AESKey = await Cry.getAESKey();
+        //const AESKeyWraped = await window.crypto.subtle.wrapKey("raw", AESKey, keyPair.publicKey, { name: "RSA-OAEP" });
         await Cry.saveKey(publicKey, PathUtils.join(path, KEYS_NAME["PUBLICKEY_NAME"]));
         await Cry.saveKey(await Cry.exportKey(keyPair.privateKey), PathUtils.join(path, KEYS_NAME["PRIVATEKEY_NAME"]));
-        if (KEYS_NAME["AESCBCKEY_NAME"]) await Cry.saveKey(new Uint8Array(AESKeyWraped), PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]));
+        //if (KEYS_NAME["AESCBCKEY_NAME"]) await Cry.saveKey(new Uint8Array(AESKeyWraped), PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]));
         addon.mountPoint["crypto"] = {
             publicKey: publicKey,
             path: path,
@@ -699,6 +699,77 @@ export class Cry {
         });
     }
 
+    /*     static async setMD5CryKey() {
+            const mapDB = {
+                PUBLICKEY_NAME: "publicKey",
+                PRIVATEKEY_NAME: "privateKey",
+            };
+            const KEYS_NAME = await Cry.getKEYS_NAME();
+            let path = await this.getPathCryKey();
+            for (const key of Object.keys(KEYS_NAME)) {
+                path = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+                const md5 = await Zotero.Utilities.Internal.md5Async(path);
+                if (!md5) return;
+                const tableName = "settings";
+                const target: DBKV = { field: "value", value: md5 };
+                const condition: DBKV = {
+                    field: "key",
+                    value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
+                };
+                const others = [{ field: "setting", value: "addon" }];
+                await modifyValue(tableName, target, condition, ...others);
+            }
+    
+        } */
+    static async setMD5CryKey() {
+        await md5CryKey(modifyValue);
+    }
+
+    static async verifyMD5CryKey() {
+        await md5CryKey(verifyValueDB);
+    }
+    /* static async verifyMD5CryKey() {
+        const mapDB = {
+            PUBLICKEY_NAME: "publicKey",
+            PRIVATEKEY_NAME: "privateKey",
+        };
+        const KEYS_NAME = await Cry.getKEYS_NAME();
+        let path = await this.getPathCryKey();
+        for (const key of Object.keys(KEYS_NAME)) {
+            path = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+            const md5 = await Zotero.Utilities.Internal.md5Async(path);
+            if (!md5) false;
+            const tableName = "settings";
+            const target: DBKV = { field: "value", value: md5 };
+            const condition: DBKV = {
+                field: "key",
+                value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
+            };
+            if(!await verifyValueDB(tableName, target, condition)) {
+                throw new Error(key + " MD5 faild verify with record of database.")
+                return false;}
+        }
+        return true    
+    } */
+
+    static async getImportDir() {
+        const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='importDirectory'`;
+        const DB = await getDB();
+        return await DB.valueQueryAsync(sqlSELECT);
+    }
+    static async setImportDir(importDirectory: string) {
+        if (!await IOUtils.exists(importDirectory)) return;
+        if (!PathUtils.isAbsolute(importDirectory)) return;
+        const DB = await getDB();
+        const old = await Cry.getImportDir();
+        if (importDirectory == old) return;
+        await DB.executeTransaction(async () => {
+            let sql;
+            old ? sql = `UPDATE settings SET value = '${importDirectory}' WHERE key = 'importDirectory'`
+                : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','importDirectory','${importDirectory}')`;
+            await DB.queryAsync(sql);
+        });
+    }
     static async getKEYS_NAME() {
         if (addon.mountPoint["KEYS_NAME"]) {
             const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
@@ -832,7 +903,13 @@ export const encryptFileByAESKey = async (path?: string) => {
     const encrypedFilePath = path + ".AESEncrypt";
     const res = await IOUtils.write(encrypedFilePath, new Uint8Array(encryptAESBuffer));
     if (!res) return;
-    const fileMD5 = await Zotero.Utilities.Internal.md5Async(encrypedFilePath);
+    let fileMD5;
+    try {
+        fileMD5 = await Zotero.Utilities.Internal.md5Async(encrypedFilePath);
+    } catch (e: any) {
+        showInfo(['get md5 faild.', path]);
+        throw e;
+    }
     if (!fileMD5) return;
     const deleSourceFile = (getDom("deleSourceFile") as XUL.Checkbox)?.checked;
     if (deleSourceFile) {
@@ -953,11 +1030,11 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
 
 export async function decryptAllAccount() {
     const encryptSerialNumbers = await getAllEncryptAccounts();
-    const DB = getDBSync();
     if (!encryptSerialNumbers?.length) return;
+    const DB = getDBSync();
     if (!window.confirm(getString("info-decryptAllAccount") + "?")) {
-        showInfo("info-userCancle");
-        return;
+        showInfo(getString("info-userCancle"));
+        throw getString("info-userCancle");
     }
     const decryptedAccounts = await DB.executeTransaction(async () => {
         const snTokens = [];
@@ -1001,6 +1078,10 @@ export async function decryptAllAccount() {
 async function getAllEncryptAccounts() {
     const DB = await getDB();
     const rows = await DB.queryAsync(`SELECT serialNumber FROM encryptAccounts`);
+    if (!rows.length) {
+        showInfo("No encrypted account");
+        return;
+    }
     return dbRowsToArray(rows, ['serialNumber'])?.flat(Infinity) as string[];
 }
 
@@ -1008,22 +1089,35 @@ async function getAllEncryptAccounts() {
 export async function decryptAllFiles() {
     //文件不在原来目录下？
     const DB = await getDB();
-    const rows = await DB.queryAsync(`SELECT MD5 path encryptAESStringNoBuffer FROM encryptFilePaths`);
-    const fileEncryptInfos = dbRowsToObjs(rows, ['MD5,path,encryptAESStringNoBuffer']);
-    if (!fileEncryptInfos || !fileEncryptInfos.length) return;
-    if (!window.confirm(getString("info-decryptAllFiles") + "?")) {
-        showInfo("info-userCancle");
+    const rows = await DB.queryAsync(`SELECT MD5, path, encryptAESStringNoBuffer FROM encryptFilePaths`);
+    const fileEncryptInfos = dbRowsToObjs(rows, ["MD5", "path", "encryptAESStringNoBuffer"]);
+    if (!fileEncryptInfos || !fileEncryptInfos.length) {
+        showInfo("No encrypted file");
         return;
     }
+
+    if (!confirmWin(getString("info-decryptAllFiles") + "?", "win")) {
+        showInfo("info-userCancle");
+        throw getString("info-userCancle");
+    }
+    /* if (!window.confirm(getString("info-decryptAllFiles") + "?")) {
+        showInfo("info-userCancle");
+        return;
+    } */
+    const pathNotExists = [];
     let decryptedFileNumbers = 0;
     for (const info of fileEncryptInfos) {
         const path = info.path;
+        if (!await IOUtils.exists(path)) {
+            pathNotExists.push(path);
+            continue;
+        }
         const encryptAESStringNoBuffer = info.encryptAESStringNoBuffer;
         const fileUint8Array = await IOUtils.read(path);
         const res = await decryptByAESKey(encryptAESStringNoBuffer, fileUint8Array, path);
         if (res) decryptedFileNumbers++;
     }
-    return decryptedFileNumbers;
+    return { decryptedFileNumbers, pathNotExists };
 }
 
 export async function decryptFile(path: string) {
@@ -1034,7 +1128,14 @@ export async function decryptFile(path: string) {
     }
     //let fileName = PathUtils.filename(path).split(".").shift()!;
     //fileName = fileName.substring(0, fileName?.length - 3);
-    const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
+    let fileMD5;
+    try {
+        fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
+    } catch (e: any) {
+        showInfo(['get md5 faild.', path]);
+        throw e;
+    }
+
     const DB = await getDB();
     const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 LIKE ?`;
     const args = `%${fileMD5}%`;//LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
@@ -1071,3 +1172,63 @@ export async function testCryInfo(info: string) {
     const cryedInfoJSON = JSON.parse(cryedInfo);
     showInfo(cryedInfoJSON.encryptAESString);
 }
+
+declare type DBKV = {
+    field: string;
+    value: string;
+};
+async function modifyValue(tableName: string, target: DBKV, condition: DBKV, ...others: DBKV[]) {
+    const DB = await getDB();
+    let sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
+    const oldValue = await DB.valueQueryAsync(sql);
+    if (oldValue && oldValue == target.value) return true;
+    await DB.executeTransaction(async () => {
+        if (oldValue) {
+            sql = `UPDATE ${tableName} SET ${target.field} = '${target.value}' WHERE ${condition.field} = '${condition.value}'`;
+            await DB.queryAsync(sql);
+        } else {
+            others.push(target);
+            others.push(condition);
+            const sqlColumns = others.map(kv => kv.field);
+            const sqlValues = others.map(kv => kv.value);
+            sql = `INSERT INTO ${tableName} (${sqlColumns.join(",")}) VALUES (${sqlValues.map(() => "?").join()})`;
+            await DB.queryAsync(sql, sqlValues);
+        }
+        //sql = `INSERT INTO ${tableName}  VALUES (${sqlValues.map(() => "?").join()})`;
+    });
+    return true;
+}
+
+async function verifyValueDB(tableName: string, target: DBKV, condition: DBKV) {
+    const DB = await getDB();
+    const sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
+    const oldValue = await DB.valueQueryAsync(sql);
+    if (!oldValue) return false;
+    if (oldValue && oldValue == target.value) return true;
+    throw new Error(condition.value + " MD5 faild verify with record of database.");
+}
+
+async function md5CryKey(fn: any) {
+    const mapDB = {
+        PUBLICKEY_NAME: "publicKeyMD5",
+        PRIVATEKEY_NAME: "privateKeyMD5",
+    };
+    const KEYS_NAME = await Cry.getKEYS_NAME();
+    const path = await Cry.getPathCryKey();
+    for (const key of Object.keys(KEYS_NAME)) {
+        const keypath = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+        if (!await IOUtils.exists(keypath)) return false;
+        const md5 = await Zotero.Utilities.Internal.md5Async(keypath);
+        if (!md5) return false;
+        const tableName = "settings";
+        const target: DBKV = { field: "value", value: md5 };
+        const condition: DBKV = {
+            field: "key",
+            value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
+        };
+        const others = [{ field: "setting", value: "addon" }];
+        await fn(tableName, target, condition, ...others);
+    }
+    return true;
+}
+

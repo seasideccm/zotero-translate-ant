@@ -8,34 +8,34 @@ import { makeTagElementProps } from "./uiTools";
  * @param fieldNames 
  * @returns 
  */
-export function modifyData(fieldNames: string[] | any, win?: Window) {
+export async function modifyData(fieldNames: string[] | any, win?: Window) {
     const dialogType = 'input';
     const title = getString('info-modifyData');
-    const io = onOpenDialog(fieldNames, dialogType, title, win);
+    const io = await onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 }
 
-export function selectData(fieldNames: string[], win?: Window) {
+export async function selectData(fieldNames: string[], win?: Window) {
     if (!fieldNames.length) return;
     const dialogType = 'multiSelect';
     const title = getString('info-multiSelect');
-    const io = onOpenDialog(fieldNames, dialogType, title, win);
+    const io = await onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 
 }
 
-export function directorySaveCryptoKeys(fieldNames?: string[] | string) {
+export async function directorySaveCryptoKeys(fieldNames?: string[] | string) {
     if (!fieldNames) return;
     if (!Array.isArray(fieldNames)) fieldNames = [fieldNames];
     const dialogType = 'directory';
     const title = getString('info-selectSavePath');
     const win = addon.data.prefs?.window;
-    const io = onOpenDialog(fieldNames, dialogType, title, win);
+    const io = await onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 }
 
 
-function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string, win?: Window) {
+async function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string, win?: Window) {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
     //fieldNames.push(name);
     const io: any = { fieldNames, dialogType, title };
@@ -43,28 +43,21 @@ function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: str
     //window.openDialog chrome,modal，等待用户操作，完成后给 io 赋值
 
     if (!win) win = window;
-    const dialog = win.openDialog(url, "dataDialog", "chrome,modal,centerscreen,fitContent=true,resizable=yes", io);
+    //,modal,fitContent=true,
+    const dialog = win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes", io);
+
     addon.mountPoint.dialog = dialog;
     return io;
+
+
 }
 
 
 
 
 export class DataDialog {
-    /* #handler = {
-        directory: () => {
-
-        },
-        multiSelect: (win: Window) => {
-
-        },
-        input: (win: Window) => {
-
-        },
-    }; */
-
-    static onOpenDataDialog(win: Window) {
+    static async onOpenDataDialog(win: Window) {
+        const style = `min-width: 300px; max-width: 1200px; margin-inline: 1rem`;
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
         //@ts-ignore xxx
         const io = win.arguments[0];
@@ -77,8 +70,6 @@ export class DataDialog {
         win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
         win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
         if (Array.isArray(fieldNames)) {
-            const maxLength = Math.max(...fieldNames.map((field: string) => field.length)) + 2;
-            const style = `width: ${maxLength}rem; margin-inline: 1rem`;
             if (dialogType == 'input') {
                 fieldNames.forEach((field: string, i: number) => {
                     ztoolkit.UI.appendElement({
@@ -103,6 +94,7 @@ export class DataDialog {
                     attributes: {
                         label: e,
                         native: true,
+                        style: style,
                     }
                 }));
                 const multiselet = ztoolkit.UI.appendElement({
@@ -121,6 +113,9 @@ export class DataDialog {
                     tag: "label",
                     id: "fieldName-" + basename,
                     namespace: "html",
+                    attributes: {
+                        style: style,
+                    },
                     properties: {
                         textContent: fieldNames[0],
                     }
@@ -163,8 +158,6 @@ export class DataDialog {
             const fields = Object.keys(fieldNames);
             const values = Object.values(fieldNames) as string[];
             if (dialogType == 'input') {
-                const maxLength = Math.max(...values.map((value: string) => value.length)) + 2;
-                const stlye = `width: ${maxLength}rem; margin-inline: 1rem`;
                 const buttonDel = (e: Event) => {
                     const button = e.target as HTMLButtonElement;
                     button?.parentElement?.remove();
@@ -223,7 +216,7 @@ export class DataDialog {
                                         placeholder: `${fieldNames[field]}`,
                                         type: "text",
                                         name: field,
-                                        style: stlye,
+                                        style: style,
                                     },
                                     properties: {
                                         value: `${fieldNames[field]}`,
@@ -254,6 +247,7 @@ export class DataDialog {
                             attributes: {
                                 placeholder: `${label.textContent}`,
                                 type: "text",
+                                style: style,
                             },
                         }, label);
                         lastRow.insertAdjacentElement("afterend", newNode);
@@ -308,6 +302,7 @@ export class DataDialog {
                     attributes: {
                         label: fieldNames[e],
                         native: true,
+                        style: style,
                     }
                 }));
                 const multiselet = ztoolkit.UI.appendElement({
@@ -318,6 +313,14 @@ export class DataDialog {
                 }, parent);
             }
         }
+
+        if (parent.clientHeight > win.screen.availHeight) {
+            parent.style.height = (win.screen.availHeight * 2 / 3) + "px";
+        }
+        if (parent.clientWidth > win.screen.availWidth) {
+            parent.style.width = (win.screen.availWidth * 2 / 3) + "px";
+        }
+        //await windowFitSize(win);
         async function selectDir() {
             const path = await chooseDirOrFilePath('file');
             if (typeof path == "string") {
@@ -325,9 +328,6 @@ export class DataDialog {
                 if (span) span.textContent = path;
             }
         }
-
-
-
         async function onFilepicker(event: Event) {
             const path = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
             (event.target as HTMLElement).ownerDocument.defaultView?.focus();
@@ -336,6 +336,35 @@ export class DataDialog {
                 if (span) span.textContent = path;
             }
 
+        }
+
+        async function windowFitSize(dialogWin: Window) {
+            let n = 0;
+            while (dialogWin.window.document?.readyState != "complete" && n++ < 50) {
+                await Zotero.Promise.delay(100);
+            }
+            while (dialogWin.document.documentElement.scrollHeight == 0) {
+                await Zotero.Promise.delay(100);
+            }
+            while ((dialogWin.document.documentElement.scrollWidth) == 0) {
+                await Zotero.Promise.delay(100);
+            }
+            let contentHeight = dialogWin.document.documentElement.scrollHeight;
+            let contentWidth = dialogWin.document.documentElement.scrollWidth;
+            if (contentHeight + 37 > window.screen.height) {
+                contentHeight = window.screen.height - 37;
+            }
+            if (contentWidth + 14 > window.screen.width) {
+                contentWidth = window.screen.width - 14;
+            }
+            dialogWin.resizeTo(contentWidth, contentHeight);
+            const screenCenterX = window.screen.width / 2;
+            const screenCenterY = window.screen.height / 2;
+            const dialogWinCenterXscreenX = dialogWin.outerWidth / 2 + dialogWin.screenX;
+            const dialogWinCenterYscreenY = dialogWin.outerHeight / 2 + dialogWin.screenY;
+            const moveX = screenCenterX - dialogWinCenterXscreenX;
+            const moveY = screenCenterY - dialogWinCenterYscreenY;
+            dialogWin.moveBy(moveX, moveY);
         }
     }
     static handleAccept(win: Window) {

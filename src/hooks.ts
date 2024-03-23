@@ -147,7 +147,9 @@ function onDialogEvents(type: string) {
 // Add your hooks here. For element click, etc.
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
 // Otherwise the code would be hard to read and maintain.
-const onOpenDataDialog = DataDialog.onOpenDataDialog;
+async function onOpenDataDialog(win: Window) {
+  await DataDialog.onOpenDataDialog(win);
+}
 
 export default {
   onStartup,
