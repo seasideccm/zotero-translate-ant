@@ -1,6 +1,6 @@
 import { getString } from "../utils/locale";
 import { showInfo } from "../utils/tools";
-import { Cry, decryptAllAccount, decryptAllFiles } from "./crypto";
+import { Cry, decryptAll, decryptAllAccount, decryptAllFiles, deleteRecords } from "./crypto";
 import { getDB, getDBSync } from "./database/database";
 import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
@@ -27,10 +27,10 @@ export class Command {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
         const win = enableEncrypt.ownerDocument.defaultView;
         if (!enableEncrypt) return;
-        //const idsufix=['deleSourceFile','addNewCryKey','addOldCryKey','customKeysFileName']
+        //const idsufix=['deleSourceFile','updateCryptoKey','addOldCryKey','customKeysFileName']
 
         const deleSourceFile = getDom('deleSourceFile') as XUL.Checkbox;
-        const addNewCryKey = getDom('addNewCryKey') as XUL.Button;
+        const updateCryptoKey = getDom('updateCryptoKey') as XUL.Button;
         const addOldCryKey = getDom('addOldCryKey') as XUL.Button;
         const customKeysFileName = getDom('customKeysFileName') as XUL.Button;
         const labelRun = getDom('cryptoProtectRun') as XUL.Label;
@@ -47,7 +47,7 @@ export class Command {
                     return;
                 }
             }
-            addNewCryKey.hidden = true;
+            updateCryptoKey.hidden = true;
             addOldCryKey.hidden = true;
             deleSourceFile.hidden = true;
             customKeysFileName.hidden = true;
@@ -62,29 +62,29 @@ export class Command {
                     return;
                 }
             }
-            addNewCryKey.hidden = false;
+            updateCryptoKey.hidden = false;
             addOldCryKey.hidden = false;
             deleSourceFile.hidden = false;
             customKeysFileName.hidden = false;
             labelRun.hidden = false;
             openCryptoDirectory.hidden = false;
         }
-        Command.checkStateEnableEncrypt();
+        Command.checkEnableEncrypt();
 
     }
-    static async checkStateEnableEncrypt() {
+    static async checkEnableEncrypt() {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
         const deleSourceFile = getDom('deleSourceFile') as XUL.Checkbox;
-        const win = enableEncrypt.ownerDocument.defaultView;
-        if (!enableEncrypt || !win || !deleSourceFile) return;
+        if (!enableEncrypt) return;
         if (!enableEncrypt.checked) {
-            const numberAccount = await decryptAllAccount();
-            let numbers = await decryptAllFiles();
-            if (numberAccount != void 0) numbers = numberAccount.length + (numbers || 0);
-            if (numbers) showInfo(getString("info-finishedDecrypt"));
+            await decryptAll();
         } else {
             const validKeys = await Cry.checkCryKey();
-            await Cry.replaceConfirm(validKeys) && await Cry.addCryKey();
+            if (await Cry.replaceConfirm(validKeys)) {
+                await Cry.importCryptoKey();
+            } else {
+                await Cry.createCryKey();
+            }
         }
         //更新本插件数据库中的加密设置项
         const DB = getDBSync();
@@ -92,6 +92,7 @@ export class Command {
             await updateDBSettings(enableEncrypt.checked, 'enableEncrypt');
             await updateDBSettings(deleSourceFile.checked, 'deleSourceFile');
         });
+
         async function updateDBSettings(elementChecked: boolean, key: string) {
             const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='${key}'`;
             const dbValue = await DB.valueQueryAsync(sqlSELECT);

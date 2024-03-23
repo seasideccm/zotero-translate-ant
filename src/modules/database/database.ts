@@ -347,6 +347,7 @@ export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
     const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
     return await this.valueQueryAsync(sql);
   }
+
 }
 
 /**

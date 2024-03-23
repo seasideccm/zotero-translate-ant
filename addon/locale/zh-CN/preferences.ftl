@@ -102,10 +102,10 @@ pref-addRecordBulkTooltip = 第一行为翻译引擎名字，然后每行一条�
 pref-enableEncrypt =
     .label = 启用加密
 pref-cryProtect = 安全设置
-pref-addNewCryKey = 更新 RSA 公钥私钥
-pref-addNewCryKey1 = RSA 公钥和私钥保存在同一目录下使用，请妥善保管。
-pref-addNewCryKey2 = RSA 公钥私钥用来对 AES 秘钥加解密。
-pref-addNewCryKey3 = 更新 RSA 公钥私钥，将会先解密已经加密的内容，然后重新加密。
+pref-updateCryptoKey = 更新 RSA 公钥私钥
+pref-updateCryptoKey1 = RSA 公钥和私钥保存在同一目录下使用，请妥善保管。
+pref-updateCryptoKey2 = RSA 公钥私钥用来对 AES 秘钥加解密。
+pref-updateCryptoKey3 = 更新 RSA 公钥私钥，将会先解密已经加密的内容，然后重新加密。
 
 pref-addOldCryKey = 导入 RSA 公钥私钥
 pref-addOldCryKey1 = RSA 公钥和私钥需要在同一目录下

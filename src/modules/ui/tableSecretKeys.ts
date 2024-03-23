@@ -119,22 +119,16 @@ export async function replaceSecretKeysTable() {
     };
 
     const tableHelper = await tableFactory(options);
-    const tableTreeInstance = tableHelper.treeInstance as VTable;
-    //tableTreeInstance.invalidateRow(rows.length - 1);
-    //@ts-ignore has
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
     tableTreeInstance.scrollToRow(rows.length - 1);
-    //win.resizeBy(200, 200);
-    //win.resizeBy(-200, -200);
     tableTreeInstance.rows = rows;
 
-    //绑定事件，增删改查
+    //绑定事件，增删改查    
     getDom("addRecord")!.addEventListener("command", addRecord);
     getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
-    getDom("addNewCryKey")!.addEventListener("command", addNewCryKey);
+    getDom("updateCryptoKey")!.addEventListener("command", Cry.updateCryptoKey);
     getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
-    win.addEventListener("beforeunload", () => {
-        saveAccounts();
-    });
+    win.addEventListener("beforeunload", saveAccounts);
     win.addEventListener("click", clickTableOutsideCommit);
 
     //@ts-ignore has//切换选项标签
@@ -245,56 +239,9 @@ export async function replaceSecretKeysTable() {
         }
         return colums as any[][];
     }
-    async function addRecord(e: Event) {
-        // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
-        if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
-            tableTreeInstance.commitEditingRow();
-        }
-        const rows = tableTreeInstance.rows || [];
-        const emptyrows = await secretKeysTableRowsData(serviceID, true) || [];
-        if (emptyrows.length == 0) {
-            const keys = Object.keys(rows[0]);
-            const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
-            emptyrows.push(row);
-        }
-        rows.push(emptyrows[0]);
-        tableTreeInstance.render();
-        tableTreeInstance.selection.select(rows.length - 1);//@ts-ignore has        
-        const seletedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
-        if (!seletedRow) {
-            showInfo("No seletedRow");
-            return;
-        }
-        const dblClickEvent = new window.MouseEvent('dblclick', {
-            bubbles: true,
-            cancelable: true,
-        });
-        seletedRow.dispatchEvent(dblClickEvent);//发送鼠标双击，模拟激活节点，直接开始编辑
-    }
 
 
-    async function addRecordBulk(e: Event) {
-        let text = await readTextFiles() as string;
-        text = verigyServiceID(text) as string;
-        batchAddAccount(text);
-        tableHelper.render();
-    }
 
-    async function addNewCryKey(e: Event) {
-        await Cry.addCryKey();
-    }
-    async function addOldCryKey(e: Event) {
-        await Cry.importCryptoKey();
-        return;
-
-        /*     const filePath = await chooseDirOrFilePath();
-            const publicKey = await Cry.getKey("publicKey");
-            if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
-            addon.mountPoint.crypto.path = PathUtils.parent(filePath);
-            addon.mountPoint.crypto.publicKey = publicKey; */
-
-
-    }
 
 
 
@@ -364,6 +311,7 @@ export async function replaceSecretKeysTable() {
     }
     function verigyServiceID(text: string) {
         if (!text) return;
+        // eslint-disable-next-line no-useless-escape
         const reg = new RegExp(`^[^\S\r\n]*${serviceID}[^\S\r\n]*$[\r\n]+`, "m");
         const match = text.match(reg);
         const info = "翻译引擎不匹配，请确保文件第一行翻译引擎名字和账号对应的翻译引擎一致";
@@ -379,22 +327,14 @@ export async function replaceSecretKeysTable() {
         return text.replace(match[0], '');
 
     }
-    async function handleDrop(e: DragEvent) {
-        // 文件拖拽
-        let text = await readTextFilesDroped(e) as string;
-        text = verigyServiceID(text) as string;
-
-        batchAddAccount(text);
-        tableHelper.render();
+    function handleDrop(e: DragEvent) {
+        readTextFilesDroped(e).then(text => {
+            if (!text) return false;
+            batchAddAccount(text);
+            tableHelper.render();
+        });
         return false;
     }
-
-
-
-
-
-
-
     function handleGetRowString(index: number) {
         const rowCellsString = Object.values(rows[index]).filter(e => typeof e === "string") as string[];
         if (rowCellsString.length === 0) return "";//@ts-ignore has
@@ -1249,7 +1189,42 @@ export async function replaceSecretKeysTable() {
         // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
     }
 
-
+    async function addRecord(e: Event) {
+        // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+        if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
+            tableTreeInstance.commitEditingRow();
+        }
+        const rows = tableTreeInstance.rows || [];
+        const emptyrows = await secretKeysTableRowsData(serviceID, true) || [];
+        if (emptyrows.length == 0) {
+            const keys = Object.keys(rows[0]);
+            const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
+            emptyrows.push(row);
+        }
+        rows.push(emptyrows[0]);
+        tableTreeInstance.render();
+        tableTreeInstance.selection.select(rows.length - 1);//@ts-ignore has        
+        const seletedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
+        if (!seletedRow) {
+            showInfo("No seletedRow");
+            return;
+        }
+        const dblClickEvent = new window.MouseEvent('dblclick', {
+            bubbles: true,
+            cancelable: true,
+        });
+        seletedRow.dispatchEvent(dblClickEvent);//发送鼠标双击，模拟激活节点，直接开始编辑
+    }
+    async function addRecordBulk(e: Event) {
+        let text = await readTextFiles() as string;
+        text = verigyServiceID(text) as string;
+        batchAddAccount(text);
+        tableHelper.render();
+    }
+    async function addOldCryKey(e: Event) {
+        await Cry.importCryptoKey();
+        return;
+    }
 
 
 }

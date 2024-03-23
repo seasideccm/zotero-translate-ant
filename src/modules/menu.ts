@@ -5,7 +5,7 @@ import { arrToObj } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { decryptFile, encryptFileByAESKey } from './crypto';
+import { decryptFileSelected, encryptFileByAESKey } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
 
 
@@ -21,7 +21,7 @@ function getParasArrs() {
     ],
     [
       ["加密文件", encryptFileByAESKey],
-      ["解密文件", decryptFile],
+      ["解密文件", decryptFileSelected],
     ],
     [
       ["读取文件内容", readTextFiles],

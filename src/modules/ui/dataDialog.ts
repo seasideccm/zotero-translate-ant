@@ -15,11 +15,11 @@ export async function modifyData(fieldNames: string[] | any, win?: Window) {
     return io.dataOut;
 }
 
-export async function selectData(fieldNames: string[], win?: Window) {
+export function selectData(fieldNames: string[], win?: Window) {
     if (!fieldNames.length) return;
     const dialogType = 'multiSelect';
     const title = getString('info-multiSelect');
-    const io = await onOpenDialog(fieldNames, dialogType, title, win);
+    const io = onOpenDialog(fieldNames, dialogType, title, win);
     return io.dataOut;
 
 }
@@ -35,7 +35,7 @@ export async function directorySaveCryptoKeys(fieldNames?: string[] | string) {
 }
 
 
-async function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string, win?: Window) {
+function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string, win?: Window) {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
     //fieldNames.push(name);
     const io: any = { fieldNames, dialogType, title };
@@ -43,8 +43,8 @@ async function onOpenDialog(fieldNames: string[] | any, dialogType: string, titl
     //window.openDialog chrome,modal，等待用户操作，完成后给 io 赋值
 
     if (!win) win = window;
-    //,modal,fitContent=true,
-    const dialog = win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes", io);
+    //modal 模态窗口，等待用户关闭或做出选择后才能继续，fitContent=true,
+    const dialog = window.openDialog(url, "dataDialog", "chrome,modal,centerscreen,resizable=yes,scroll=yes", io);
 
     addon.mountPoint.dialog = dialog;
     return io;
@@ -56,7 +56,7 @@ async function onOpenDialog(fieldNames: string[] | any, dialogType: string, titl
 
 
 export class DataDialog {
-    static async onOpenDataDialog(win: Window) {
+    static onOpenDataDialog(win: Window) {
         const style = `min-width: 300px; max-width: 1200px; margin-inline: 1rem`;
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
         //@ts-ignore xxx
@@ -338,34 +338,7 @@ export class DataDialog {
 
         }
 
-        async function windowFitSize(dialogWin: Window) {
-            let n = 0;
-            while (dialogWin.window.document?.readyState != "complete" && n++ < 50) {
-                await Zotero.Promise.delay(100);
-            }
-            while (dialogWin.document.documentElement.scrollHeight == 0) {
-                await Zotero.Promise.delay(100);
-            }
-            while ((dialogWin.document.documentElement.scrollWidth) == 0) {
-                await Zotero.Promise.delay(100);
-            }
-            let contentHeight = dialogWin.document.documentElement.scrollHeight;
-            let contentWidth = dialogWin.document.documentElement.scrollWidth;
-            if (contentHeight + 37 > window.screen.height) {
-                contentHeight = window.screen.height - 37;
-            }
-            if (contentWidth + 14 > window.screen.width) {
-                contentWidth = window.screen.width - 14;
-            }
-            dialogWin.resizeTo(contentWidth, contentHeight);
-            const screenCenterX = window.screen.width / 2;
-            const screenCenterY = window.screen.height / 2;
-            const dialogWinCenterXscreenX = dialogWin.outerWidth / 2 + dialogWin.screenX;
-            const dialogWinCenterYscreenY = dialogWin.outerHeight / 2 + dialogWin.screenY;
-            const moveX = screenCenterX - dialogWinCenterXscreenX;
-            const moveY = screenCenterY - dialogWinCenterYscreenY;
-            dialogWin.moveBy(moveX, moveY);
-        }
+
     }
     static handleAccept(win: Window) {
         //@ts-ignore XXX

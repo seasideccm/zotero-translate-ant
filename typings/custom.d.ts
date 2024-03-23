@@ -96,7 +96,7 @@ declare type VTableProps = {
   showHeader?: boolean;
   columns?: Array<ColumnOptions>;
   onColumnPickerMenu?: (event: Event) => void;
-  onColumnSort?: (event: Event) => void;
+  onColumnSort?: (columnIndex: number, ascending: 1 | -1) => void;
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
@@ -151,7 +151,7 @@ interface VirtualizedTableProps {
   showHeader?: boolean;
   columns?: Array<ColumnOptions>;
   onColumnPickerMenu?: (event: Event) => void;
-  onColumnSort?: (event: Event) => void;
+  onColumnSort?: (columnIndex: number, ascending: 1 | -1) => void;
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
