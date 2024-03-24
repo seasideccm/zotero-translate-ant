@@ -206,6 +206,18 @@
     <html:h3 data-l10n-id="pref-cryProtect"></html:h3>
   </label>
 
+  <checkbox
+    id="__addonRef__-setEnableEncrypt"
+    native="true"
+    checked="false"
+    data-l10n-id="pref-enableEncrypt"
+    command="cmd_setEnableEncrypt"
+    tooltip="setEnableEncryptTip"
+  />
+  <tooltip id="setEnableEncryptTip" orient="vertical">
+    <label data-l10n-id="pref-setEnableEncryptTip" />
+  </tooltip>
+
   <hbox>
     <label
       id="__addonRef__-cryptoProtectRun"
@@ -226,18 +238,6 @@
     ></button>
   </hbox>
   <hbox>
-    <checkbox
-      id="__addonRef__-setEnableEncrypt"
-      native="true"
-      checked="false"
-      data-l10n-id="pref-enableEncrypt"
-      command="cmd_setEnableEncrypt"
-      tooltip="setEnableEncryptTip"
-    />
-    <tooltip id="setEnableEncryptTip" orient="vertical">
-      <label data-l10n-id="pref-setEnableEncryptTip" />
-    </tooltip>
-
     <button
       id="__addonRef__-updateCryptoKey"
       data-l10n-id="pref-updateCryptoKey"

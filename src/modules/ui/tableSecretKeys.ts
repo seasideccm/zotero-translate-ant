@@ -7,7 +7,7 @@ import { TranslateService, TranslateServiceAccount } from "../translate/translat
 import { getDom, getElementValue } from "./uiTools";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
-import { Cry } from '../crypto';
+import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from '../crypto';
 
 
 
@@ -100,7 +100,7 @@ export async function replaceSecretKeysTable() {
         showHeader: true,
         multiSelect: true,
         getRowCount: () => rows.length,
-        getRowData: (index: number) => rows[index],
+        getRowData: handleGetRowData,//(index: number) => rows[index],
         getRowString: handleGetRowString,
         onKeyDown: handleKeyDown,
         onSelectionChange: handleSelectionChange,
@@ -135,7 +135,18 @@ export async function replaceSecretKeysTable() {
     const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
     adjustWidth(rows, visibleKeys);
 
-
+    function handleGetRowData(index: number) {
+        // 如果加密开启，secretKey、token 字段显示为 ******
+        const row: any = deepClone(rows[index]);
+        const enableEncrypt = (getDom('setEnableEncrypt') as XUL.Checkbox).checked;
+        if (!enableEncrypt) return row;
+        for (const key of Object.keys(row)) {
+            if (!["secretKey", "token"].includes(key)) continue;
+            if (row[key as keyof typeof row] == DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE]) continue;
+            row[key as keyof typeof row] = "******";
+        }
+        return row;
+    }
     function adjustWidth(rows: any[], visibleKeys?: string[]) {
 
         const onResizeData: any = {};
@@ -347,8 +358,10 @@ export async function replaceSecretKeysTable() {
         }
     }
 
-    function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
-        if (tableTreeInstance.dataChangedCache) saveAccounts();
+    async function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
+        if (tableTreeInstance.dataChangedCache) {
+            await saveAccounts();
+        }
         //@ts-ignore has
         const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
         adjustWidth(rows, visibleKeys);
@@ -509,7 +522,7 @@ export async function replaceSecretKeysTable() {
         //@ts-ignore has
         tableTreeInstance.OriginRow = { ...rows[indices[0]] };
         const cell = editingRow.children[cellIndex] as HTMLSpanElement;
-        const inputCell = cellChangeToInput(cell);
+        const inputCell = await cellChangeToInput(cell);
         setTimeout(() => {
             inputCell.focus();
             inputCell.select();
@@ -536,13 +549,29 @@ export async function replaceSecretKeysTable() {
         });
     }
 
-    function cellChangeToInput(cell: HTMLElement) {
-        //const match = cell.parentElement?.id.match(/row-\d+$/);
-        const inputCell = document.createElement('input');
-        inputCell.placeholder = cell.textContent || "";
-        inputCell.value = cell.textContent ? cell.textContent : "";
-        //将行号作为class，作为编辑行的标志（blur时行号可能已经改变）
+    async function cellChangeToInput(cell: HTMLElement) {
+        //解密
         const selectedRow = tableTreeInstance.selection.focused;
+        const originRow = rows[selectedRow];
+        const state = await encryptState();
+        const key = cell.classList[1];
+        let cellValue = originRow[key];
+        if (state && ["secretKey", "token"].includes(key)) {
+            if (cellValue && cellValue != "") {
+                try {
+                    cellValue = await decryptByAESKey(cellValue);
+                } catch (e: any) {
+                    showInfo("不是加密数据");
+                    throw e;
+                }
+            }
+        }
+        const inputCell = document.createElement('input');
+        //inputCell.placeholder = cellValue==""?cellValue
+
+        inputCell.value = cellValue || '';
+        //将行号作为class，作为编辑行的标志（blur时行号可能已经改变）
+
         inputCell.className = cell.classList[1];
         inputCell.classList.add(String(selectedRow));
         inputCell.dir = 'auto';
@@ -790,9 +819,9 @@ export async function replaceSecretKeysTable() {
 
 
 
-    function clickTableOutsideCommit(e: MouseEvent) {
+    async function clickTableOutsideCommit(e: MouseEvent) {
         if (!outside(e, tableTreeInstance._topDiv!)) return;
-        saveAccounts();
+        await saveAccounts();
     }
 
 
@@ -838,7 +867,6 @@ export async function replaceSecretKeysTable() {
         } */
         for (let i = 0; i < currentCells.length; i++) {
             if (oldCells[i].textContent != currentCells[i].value) {
-
                 changeCellIndices.push(i);
             }
             if (currentCells[i].value.includes(EmptyValue) && [keys[0], keys[1]].includes(keys[i])) {
@@ -862,7 +890,7 @@ export async function replaceSecretKeysTable() {
     //@ts-ignore has
     tableTreeInstance.commitEditingRow = commitEditingRow;
     //更新翻译引擎账号，清除编辑标志，重新渲染表格
-    function saveAccounts() {
+    async function saveAccounts() {
         const dc = tableTreeInstance.dataChangedCache;
         if (!dc) return;
         const indices = Object.keys(dc);
@@ -875,6 +903,8 @@ export async function replaceSecretKeysTable() {
             if (index == void 0) return;
             const changedKeys = Object.keys(dc[index]);
             const rowData = rows[Number(index)];
+            // 加密
+            //await encryptSecretKeyOrToken(rowData);
             const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
             //比较false==0的结果为true
             //if (typeof serialNumber != "boolean" && serialNumber != void 0) {
@@ -1025,7 +1055,7 @@ export async function replaceSecretKeysTable() {
             });
     }
 
-    function batchAddAccount(text: string) {
+    async function batchAddAccount(text: string) {
         if (!text) return;
         if (!dataVerify[serviceID]) {
             showInfo("无法验证数据");
@@ -1054,6 +1084,10 @@ export async function replaceSecretKeysTable() {
             });
             return row;
         });
+        //加密 pasteRows ，数组元素改变
+        //await encryptSecretKeyOrToken(pasteRows);
+
+
         const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
         if (newRows && pasteRows && newRows.length != pasteRows.length) {
             ztoolkit.log(pasteRows.length - newRows.length + ' ' + getString("info-filtered"));
@@ -1361,4 +1395,17 @@ async function readTextFilesDroped(e: DragEvent) {
     }
     const data = dragData.data;
     return await readTextFiles(data);
+}
+
+export async function encryptSecretKeyOrToken(rows: any[]) {
+    if (!await encryptState()) return;
+    if (!Array.isArray(rows)) rows = [rows];
+    for (const row of rows) {
+        for (const key of Object.keys(row)) {
+            if (!["secretKey", "token"].includes(key)) continue;
+            if (row[key] == DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE]) continue;
+            row[key] = await encryptByAESKey(row[key]);
+        }
+
+    }
 }

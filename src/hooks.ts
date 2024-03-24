@@ -46,10 +46,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
   win.addEventListener("mouseover", listenImageCallback, false);
-
-
   monitorImageItem();
-  //XXX addon.mountPoint['TranslateServices'] = TranslateServices;
   registerShortcutsCache();
   showInfo(getString("startup-begin"));
   await getDB();

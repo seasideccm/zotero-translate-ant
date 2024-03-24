@@ -63,17 +63,13 @@ export class Command {
         }
         await setSettingsValue('cryptoKeyPath', directory);
         await Cry.setKEYS_NAME(KEYS_NAME);
-
     }
 
     static async showHiddenEncryptDom() {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
-
         Command.approveChange(enableEncrypt);
         await Command.checkEnableEncrypt();
         setHiddenState(enableEncrypt.checked);
-
-
     }
     static approveChange(element: XUL.Checkbox) {
         const win = element.ownerDocument.defaultView;
@@ -126,11 +122,6 @@ export class Command {
                 } else {
                     switch (selectResult.value) {
                         case 0:
-                            /* if(!await Cry.getPathCryKey()){
-                                showInfo(getString("info-noDir"));
-                                enableEncrypt.checked = !checked;
-                                throw showInfo(getString("info-noDir"));
-                            } */
                             try {
                                 await Command.openCryptoDirectory();
                             } catch (e: any) {

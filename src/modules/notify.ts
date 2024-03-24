@@ -1,3 +1,5 @@
+import { encryptState } from "./crypto";
+
 export function registerNotifier() {
     const callback = {
         notify: async (
@@ -48,6 +50,12 @@ async function onNotify(
         for (const account of extraData.data) {
             if (account && account["save"] && typeof account["save"] == "function") {
                 await account["save"]();
+                if (!await encryptState()) continue;
+                if (account["encryptAccount"] && typeof account["encryptAccount"] == "function") {
+                    await account["encryptAccount"]();
+                }
+
+
             }
 
         }

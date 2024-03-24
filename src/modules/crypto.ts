@@ -946,6 +946,10 @@ export const encryptFileByAESKey = async (path?: string) => {
     return encrypedFilePath;
 };
 
+
+export async function decryptByAESKey(encryptAESInfoString: string): Promise<string>;
+export async function decryptByAESKey(encryptAESInfoString: string, fileBuffer: Buffer | Uint8Array): Promise<ArrayBuffer>;
+
 /**
  * - 字符串参数至少含有密文和向量
  * - 其他参数参见 {@link EncryptAESInfo}
@@ -953,9 +957,9 @@ export const encryptFileByAESKey = async (path?: string) => {
  * @param encryptAESInfoString 
  * @returns 
  */
-export const decryptByAESKey = async (encryptAESInfoString: string,
+export async function decryptByAESKey(encryptAESInfoString: string,
     fileBuffer?: Buffer | Uint8Array,
-    path?: string) => {
+    path?: string) {
     const encryptAESInfo = JSON.parse(encryptAESInfoString!);    //@ts-ignore XXX
     if (!encryptAESInfo.ivString) return;
     Object.keys(encryptAESInfo).forEach(key => {
@@ -1028,9 +1032,31 @@ export const decryptByAESKey = async (encryptAESInfoString: string,
     const decryptContent = arrayBufferTOstring(deBuffer);
     showInfo(["decryptContent:", decryptContent]);
     return decryptContent;
-};
+}
 
-
+export async function decryptAccount(sn: number | string) {
+    const DB = getDBSync();
+    const SK_TK_FIELD = {
+        accounts: "secretKey",
+        accessTokens: "token"
+    };
+    const tableName = await getTableBySN(sn);
+    if (!tableName) return;
+    let sql = `SELECT ${SK_TK_FIELD[tableName]} FROM ${tableName} WHERE serialNumber = ${sn}`;
+    let value = await DB.valueQueryAsync(sql);
+    if (!value) return;
+    value = await decryptByAESKey(value);
+    if (!value) {
+        const info = "decryptAccount error: " + tableName + " - " + sn;
+        showInfo(info);
+        throw new Error(info);
+    }
+    sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
+    await DB.queryAsync(sql);
+    showInfo(`${sn} has decrypted`);
+    sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${sn}`;
+    await DB.queryAsync(sql);
+}
 export async function decryptAllAccount() {
     showInfo("Decrypt The Encrypted Accounts...");
     const encryptSerialNumbers = await getAllEncryptAccounts();
@@ -1068,8 +1094,12 @@ export async function decryptAllAccount() {
             }
             sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
             await DB.queryAsync(sql);
+
             decryptAccounts.push(sn);
             showInfo(`${sn} has decrypted`);
+            //删除记录
+            sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${sn}`;
+            await DB.queryAsync(sql);
 
         }
         if (decryptFaildSN.length) {
@@ -1132,9 +1162,10 @@ export async function decryptAllFiles() {
     }
     return DecryptedMD5;
 }
-export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAccounts", feild: string, values: any[]) {
+export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAccounts", feild: string, values: any[] | any) {
     const DB = await getDB();
     await DB.executeTransaction(async () => {
+        if (!Array.isArray(values)) values = [values];
         for (const value of values) {
             const sql = `DELETE FROM ${tableName} WHERE ${feild} = ?`;
             await DB.queryAsync(sql, value);
@@ -1165,14 +1196,25 @@ export async function getEncryptFileString(path: string) {
 export async function decryptFileSelected() {
     const path = await chooseDirOrFilePath('file');
     if (!path) return;
-    await decryptAndWrite(path, await getEncryptFileString(path));
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
+    if (!fileMD5) return;
+    const DB = await getDB();
+    let sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
+    const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, fileMD5);
+    await decryptAndWrite(path, encryptAESStringNoBuffer);
+    const deleteRecord = 0;
+    if (!deleteRecord) return;
+    sql = `DELETE FROM encryptFilePaths WHERE MD5 = 'fileMD5'`;
+    await DB.queryAsync(sql);
+
+
 }
 
 async function decryptAndWrite(path: string, encryptFileString: string) {
     if (!path || !encryptFileString) return;
     const fileUint8Array = await IOUtils.read(path);
     if (!fileUint8Array) return;
-    const deBuffer = await decryptByAESKey(encryptFileString, fileUint8Array, path) as ArrayBuffer;
+    const deBuffer = await decryptByAESKey(encryptFileString, fileUint8Array) as ArrayBuffer;
     if (!(deBuffer?.constructor instanceof ArrayBuffer)) return;
     const parent = PathUtils.parent(path)!;
     const fileName = PathUtils.filename(path).replace(".AESEncrypt", "");
@@ -1185,7 +1227,7 @@ async function decryptAndWrite(path: string, encryptFileString: string) {
 
 
 
-async function getAccountTableName(serialNumber: number | string) {
+export async function getAccountTableName(serialNumber: number | string) {
     const DB = getDBSync();
     let tableName = "accounts";
     let sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;

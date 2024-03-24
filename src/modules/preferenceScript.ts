@@ -36,6 +36,7 @@ export async function registerPrefsScripts(_window: Window) {
   }
   await buildPrefsPane();
   await replaceSecretKeysTable();
+
   bindPrefEvents();
   addonSetting();
 }
@@ -186,9 +187,8 @@ async function buildPrefsPane() {
       });
     }
   }
-  // 安全设置   
+  // 安全设置   在账号表格前设置，以便控制 secretKey 和 token 字段内容
   const state = await encryptState();
-
   await setHiddenState();
 
   //多账户管理

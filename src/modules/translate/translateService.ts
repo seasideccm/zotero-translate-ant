@@ -1,8 +1,8 @@
-import { validata } from './translateServices';
+
 
 import { doTryCatch, showInfo } from '../../utils/tools';
-import { encryptByAESKey } from '../crypto';
-import { getDB } from '../database/database';
+import { encryptByAESKey, encryptState, getAccountTableName } from '../crypto';
+import { getDB, getDBSync } from '../database/database';
 
 
 export class TranslateServiceAccount {
@@ -133,30 +133,31 @@ export class TranslateServiceAccount {
     this.changedData = null;
   }
 
-  async encryptAccount(account: TranslateServiceAccount) {
+  async encryptAccount() {
+    const DB = getDBSync();
     const text = this.secretKey ? this.secretKey : this.token;
     if (!text) return;
     const stringEncyptAES = await encryptByAESKey(text);
-    const DB = getDBSync();
-
-
     //let tableName = "accounts";
-    const tableName = await getAccountTableName(serialNumber);
+    const tableName = await getAccountTableName(this.serialNumber);
     if (!tableName) {
-      ztoolkit.log("accoun isn't exist: " + serialNumber);
+      ztoolkit.log("accoun isn't exist: " + this.serialNumber);
       return;
     }
     const fieldName = tableName == "accounts" ? "secretKey" : "token";
-    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${this.serialNumber}`;
     const content = await DB.valueQueryAsync(sql);
     if (content) {
-      sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+      sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${this.serialNumber}`;
       await DB.queryAsync(sql);
     } else {
-      sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+      sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${this.serialNumber}`;
     }
 
     await DB.executeTransaction(async () => {
+      await DB.queryAsync(sql);
+      //记录加密条目`SELECT serialNumber FROM encryptAccounts`
+      sql = `INSERT INTO encryptAccounts (serialNumber) VALUES ('${this.serialNumber}')`;
       await DB.queryAsync(sql);
     });
     return stringEncyptAES;
