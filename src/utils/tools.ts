@@ -75,6 +75,7 @@ export async function ensureNonePath(path: string, win?: Window) {
 export function confirmWin(tip: string, win: "win" | "window" = "window") {
   const winPref = addon.data.prefs?.window;
   const winToShow = win ? (winPref ? winPref : window) : window;
+  winToShow.focus();
   return winToShow.confirm(tip);
 
 }

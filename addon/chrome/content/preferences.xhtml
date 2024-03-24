@@ -14,6 +14,10 @@
     id="cmd_openCryptoDirectory"
     oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_openCryptoDirectory')"
   />
+  <command
+    id="cmd_selectRSADirectory"
+    oncommand="Zotero.__addonInstance__.hooks.onCommand('cmd_selectRSADirectory')"
+  />
 </commandset>
 
 <vbox
@@ -212,6 +216,12 @@
       id="__addonRef__-openCryptoDirectory"
       data-l10n-id="pref-openCryptoDirectory"
       command="cmd_openCryptoDirectory"
+      hidden="true"
+    ></button>
+    <button
+      id="__addonRef__-selectRSADirectory"
+      data-l10n-id="pref-selectRSADirectory"
+      command="cmd_selectRSADirectory"
       hidden="true"
     ></button>
   </hbox>

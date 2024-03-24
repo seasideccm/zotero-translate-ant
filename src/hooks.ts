@@ -119,6 +119,10 @@ async function onCommand(cmd: string) {
     case "cmd_openCryptoDirectory":
       await Command.openCryptoDirectory();
       break;
+    case "cmd_selectRSADirectory":
+      await Command.selectRSADirectory();
+      break;
+
     default:
       return;
   }

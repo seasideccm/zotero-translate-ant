@@ -8,7 +8,7 @@ import { mountMenu } from "./menu";
 import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
-import { Command } from "./command";
+import { Command, setHiddenState } from "./command";
 import { Cry, encryptState } from "./crypto";
 
 
@@ -187,8 +187,7 @@ async function buildPrefsPane() {
     }
   }
   // 安全设置   
-  const dbValue = await encryptState();
-  Command.showHiddenEncryptDom(dbValue, true);//undefined转NaN转false，null转0转false
+  setHiddenState(await encryptState());//undefined转NaN转false，null转0转false
 
   //多账户管理
   const services = await getServices();

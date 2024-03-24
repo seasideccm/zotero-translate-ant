@@ -7,7 +7,7 @@ import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs, getTableBySN } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
 import { selectData } from './ui/dataDialog';
-import { Command } from './command';
+import { Command, setEncryptState, updateDBSettings } from './command';
 import { warn } from 'console';
 
 
@@ -133,7 +133,7 @@ async function verifyKeyContent(path: string, files?: string[], KEYS_NAME?: KEYS
     }
 }
 
-async function isRSAKey(path: string) {
+export async function isRSAKey(path: string) {
     if (!await IOUtils.exists(path)) return false;
     let ctx;
     try {
@@ -150,7 +150,7 @@ async function isRSAKey(path: string) {
     return false;
 }
 
-async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
+export async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: KEYSNAME) {
     const name = PathUtils.filename(path);
     if (!await IOUtils.exists(path)) {
         showInfo(name + getString("info-notExist"));
@@ -160,13 +160,10 @@ async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: K
     try {
         ctx = await IOUtils.readUTF8(path);
     } catch (e: any) {
-        ctx = await IOUtils.read(path);
+        showInfo(name + getString("info-readFailure "));
     }
 
-    if (!ctx) {
-        showInfo(name + getString("info-readFailure "));
-        return false;
-    }
+    if (!ctx) return false;
     //ctx = await Zotero.File.getContentsAsync(path);
     if (!KEYS_NAME) {
         KEYS_NAME = await Cry.getKEYS_NAME();
@@ -175,9 +172,9 @@ async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: K
 
     if (typeof ctx == "string") {
         if ((ctx.startsWith(BEGIN_PUBLIC) && ctx.endsWith(END_PUBLIC))) {
-            return KEYS_NAME.PUBLICKEY_NAME;
+            return 'PUBLICKEY_NAME';
         } else if ((ctx.startsWith(BEGIN_PRIVATE) && ctx.endsWith(END_PRIVATE))) {
-            return KEYS_NAME.PRIVATEKEY_NAME;
+            return 'PRIVATEKEY_NAME';
         }
         else {
             showInfo(getString("info-formatInvalid"));
@@ -185,42 +182,42 @@ async function getKeyNameByContent(path: string, files?: string[], KEYS_NAME?: K
         }
     }
 
-    if (ctx.constructor == Uint8Array) {
-        let privatePath;
-        if (!files) {
-            const dirName = PathUtils.parent(path);
-            if (!dirName) return;
-            privatePath = PathUtils.join(dirName, KEYS_NAME!.PRIVATEKEY_NAME);
-        } else {
-            privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME!.PRIVATEKEY_NAME)[0];
-        }
-        if (!privatePath) return false;
-        const privateStirng = await Zotero.File.getContentsAsync(privatePath);
-        const info = getString("info-hasNot") + getString("info-privateKey") + getString("info-unableVerifyAES");
-        if (typeof privateStirng != "string") {
-            showInfo(info);
-            return false;
-        }
-        const privateKey = await Cry.importKey(privateStirng);
-        if (!privateKey) {
-            showInfo(info);
-            return false;
-        }
-        const AESKey = await window.crypto.subtle.unwrapKey(
-            "raw",
-            ctx,//.buffer
-            privateKey,
-            { name: "RSA-OAEP" },
-            { name: 'AES-CBC' },
-            true,
-            ["encrypt", "decrypt"]
-        );
-        if (AESKey) {
-            return KEYS_NAME.AESCBCKEY_NAME;
-        } else {
-            return false;
-        }
-    }
+    /*  if (ctx.constructor == Uint8Array) {
+         let privatePath;
+         if (!files) {
+             const dirName = PathUtils.parent(path);
+             if (!dirName) return;
+             privatePath = PathUtils.join(dirName, KEYS_NAME!.PRIVATEKEY_NAME);
+         } else {
+             privatePath = files.filter(path => PathUtils.filename(path) == KEYS_NAME!.PRIVATEKEY_NAME)[0];
+         }
+         if (!privatePath) return false;
+         const privateStirng = await Zotero.File.getContentsAsync(privatePath);
+         const info = getString("info-hasNot") + getString("info-privateKey") + getString("info-unableVerifyAES");
+         if (typeof privateStirng != "string") {
+             showInfo(info);
+             return false;
+         }
+         const privateKey = await Cry.importKey(privateStirng);
+         if (!privateKey) {
+             showInfo(info);
+             return false;
+         }
+         const AESKey = await window.crypto.subtle.unwrapKey(
+             "raw",
+             ctx,//.buffer
+             privateKey,
+             { name: "RSA-OAEP" },
+             { name: 'AES-CBC' },
+             true,
+             ["encrypt", "decrypt"]
+         );
+         if (AESKey) {
+             return KEYS_NAME.AESCBCKEY_NAME;
+         } else {
+             return false;
+         }
+     } */
     return true;
 
 }
@@ -481,19 +478,19 @@ export class Cry {
         const encryptedData = stringToUint8Array(value).buffer;
         return await Cry.decryptRSA(Cry.getKey("privateKey"), encryptedData);
     }
+
     /**
-     * 
-     * @param needUserConfirm 
+     * 从数据库获取 RSA 秘钥信息并验证是否存在
      * @returns 
      */
     static async checkCryKey() {
         const hasKeys: string[] = [];
         const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
-        let path = addon.mountPoint.crypto?.path;
-        path = path ? path : await Cry.getPathCryKey();
+        const path = await Cry.getPathCryKey();
+        if (!path) return;
         for (const keyName of Object.keys(KEYS_NAME)) {
             const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | 'PRIVATEKEY_NAME']);
-            if (!await isRSAKey(keyPath)) continue;
+            if (!await isRSAKey(keyPath)) return;
             hasKeys.push(keyName);
         }
         return hasKeys;
@@ -506,9 +503,21 @@ export class Cry {
      */
     static async replaceConfirm(hasKeys: string[]) {
         let info = '', title = '';
+        const promptService = getPS();
         if (hasKeys.length == 0) {
-            info = getString("info-hasNot") + " AES ARS " + getString("prefs-table-secretKey") + "\n" + getString("info-Confirm") + getString("info-updateCryptoKey") + "?";
+            info = getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + "\n" + getString("info-Confirm") + getString("info-updateCryptoKey") + "?";
             title = getString("info-updateCryptoKey");
+
+            const win = addon.data.prefs?.window;
+            const options = ["不选择", "选择文件夹", "创建新的秘钥"];
+            const selectResult = {};
+            const cf = promptService.select(win, title, info, options, selectResult);
+            if (cf) {
+                return selectResult;
+            } else {
+                return;
+            }
+
         } else if (hasKeys.includes("PRIVATEKEY_NAME") && hasKeys.includes("PUBLICKEY_NAME")) {
             return false;
         } else {
@@ -525,8 +534,9 @@ export class Cry {
             info = getString("info-has") + ":\n" + infokeys.join(", ") + "\n" + getString("info-Confirm") + getString("info-replaceOldKey") + "\n" + getString("info-decrypThenEncrypt");
             title = getString("info-replaceOldKey");
         }
-        const promptService = getPS();
-        return promptService.confirm(addon.data.prefs?.window, title, info);
+
+        //return promptService.confirm(addon.data.prefs?.window, title, info);
+
     }
 
     static async importCryptoKey(filePaths?: string[]) {
@@ -544,7 +554,7 @@ export class Cry {
                 showInfo(getString("info-sameDirectory"));
                 return;
             }
-            filePaths = await Cry.chooseARSKeys(importDirectory);
+            filePaths = await Cry.chooseRSAKeys(importDirectory);
             if (!filePaths) return;
         } else {
             //确保文件是同一个目录
@@ -601,9 +611,14 @@ export class Cry {
         showInfo(getString("info-importSuccess"));
     }
     static async createCryKey(path?: string) {
-        showInfo(getString("info-createRSAKeys"));
+        const state = await encryptState();
+        if (state) {
+            const tip = getString("info-offCrypto") + "\n" + getString("info-exit");
+            confirmWin(tip, "win");
+            return;
+        }
         if (!path) path = await Cry.getPathCryKey() || PathUtils.join(addonDatabaseDir, "cryptoKeys");
-        if (path) return;
+        if (!path) return;
         await Cry.creatRASKeys(path);
         await Cry.setPathCryKey(path);
         await Cry.setMD5CryKey();
@@ -624,7 +639,7 @@ export class Cry {
         showInfo(getString("info-updated"));
     }
 
-    static async chooseARSKeys(path: string) {
+    static async chooseRSAKeys(path: string) {
         const temp = await getFiles(path);//不含子文件夹    
         const files = [];
         for (const path of temp) {
@@ -701,9 +716,10 @@ export class Cry {
         };
     }
 
-    static async getPathCryKey() {
+    static async getPathCryKey(keyName?: string) {
         const DB = await getDB();
-        return await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeyPath'`) as string;
+        keyName = keyName ? keyName : 'cryptoKeyPath';
+        return await DB.valueQueryAsync(`SELECT value from settings WHERE key = '${keyName}'`) as string;
     }
 
     /**
@@ -724,28 +740,21 @@ export class Cry {
         });
     }
 
-    /*     static async setMD5CryKey() {
-            const mapDB = {
-                PUBLICKEY_NAME: "publicKey",
-                PRIVATEKEY_NAME: "privateKey",
-            };
-            const KEYS_NAME = await Cry.getKEYS_NAME();
-            let path = await this.getPathCryKey();
-            for (const key of Object.keys(KEYS_NAME)) {
-                path = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
-                const md5 = await Zotero.Utilities.Internal.md5Async(path);
-                if (!md5) return;
-                const tableName = "settings";
-                const target: DBKV = { field: "value", value: md5 };
-                const condition: DBKV = {
-                    field: "key",
-                    value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
-                };
-                const others = [{ field: "setting", value: "addon" }];
-                await modifyValue(tableName, target, condition, ...others);
-            }
-    
-        } */
+
+    static async setPathRSAKeys(path: string[]) {
+        const DB = await getDB();
+
+        let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
+        const value = await DB.valueQueryAsync(sql);
+        if (value && path == value) return;
+        await DB.executeTransaction(async () => {
+            value ? sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`
+                : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`;
+            await DB.queryAsync(sql);
+        });
+    }
+
+
     static async setMD5CryKey() {
         await md5CryKey(modifyValue);
     }
@@ -753,29 +762,6 @@ export class Cry {
     static async verifyMD5CryKey() {
         await md5CryKey(verifyValueDB);
     }
-    /* static async verifyMD5CryKey() {
-        const mapDB = {
-            PUBLICKEY_NAME: "publicKey",
-            PRIVATEKEY_NAME: "privateKey",
-        };
-        const KEYS_NAME = await Cry.getKEYS_NAME();
-        let path = await this.getPathCryKey();
-        for (const key of Object.keys(KEYS_NAME)) {
-            path = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
-            const md5 = await Zotero.Utilities.Internal.md5Async(path);
-            if (!md5) false;
-            const tableName = "settings";
-            const target: DBKV = { field: "value", value: md5 };
-            const condition: DBKV = {
-                field: "key",
-                value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
-            };
-            if(!await verifyValueDB(tableName, target, condition)) {
-                throw new Error(key + " MD5 faild verify with record of database.")
-                return false;}
-        }
-        return true    
-    } */
 
     static async getImportDir() {
         const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='importDirectory'`;
@@ -813,16 +799,11 @@ export class Cry {
     }
     static async identifyKEYS_NAME(KEYS_NAME: KEYSNAME) {
         const keyNames = Object.keys(KEYS_NAME);
-        if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME")) {
-            if (addon.mountPoint["KEYS_NAME"]) addon.mountPoint["KEYS_NAME"] = null;
-            showInfo(getString("info-noPrivateKey") + " OR " + getString("info-noPublicKey") + " field");
-            const confirm = window.confirm(getString("info-customKeysFileName"));
-            if (confirm) {
-                await Command.customKeysFileName(KEYS_NAME);
-            } else {
-                throw new Error(getString("info-noPrivateKey") + "OR" + getString("info-noPublicKey") + " field");
-            }
+        if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME") || (keyNames.length != 2)) {
+            showInfo(getString("info-incorrectRSAName"));
+            await Command.customKeysFileName(KEYS_NAME);
         }
+
     }
     static async setDefaultKEYS_NAME() {
         const KEYS_NAME: KEYSNAME = {
@@ -863,6 +844,8 @@ export async function encryptState() {
     const dbValue = await DB.valueQueryAsync(sqlSELECT);
     return Boolean(Number(dbValue));////undefined转NaN转false，null转0转false
 }
+
+
 
 
 /**
@@ -928,7 +911,6 @@ export const encryptFileByAESKey = async (path?: string) => {
     const res = await IOUtils.write(encrypedFilePath, new Uint8Array(encryptAESBuffer));
     if (!res) return;
     const fileMD5 = await Zotero.Utilities.Internal.md5Async(encrypedFilePath);
-    if (!(getDom("deleSourceFile") as XUL.Checkbox)?.checked) return;
     if ((getDom("deleSourceFile") as XUL.Checkbox)?.checked) {
         await Zotero.File.removeIfExists(path);
     }
@@ -1091,6 +1073,8 @@ export async function decryptAllAccount() {
             showInfo("decrypt Faild SerialNumber: ");
             showInfo(decryptFaildSN);
             addon.mountPoint.decryptFaildSN = decryptFaildSN;
+            confirmWin(getString("info-correct") + getString("info-then") + getString("info-retry"));
+            return;
         }
         return decryptAccounts;
     }) as string[];
@@ -1155,6 +1139,9 @@ export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAcco
     });
 }
 
+/**
+ * 更新秘钥和关闭加密功能时
+ */
 export async function decryptAll() {
     const decryptAccounts = await decryptAllAccount();
     if (decryptAccounts?.length) await deleteRecords("encryptAccounts", "serialNumber", decryptAccounts);
@@ -1250,11 +1237,20 @@ async function verifyValueDB(tableName: string, target: DBKV, condition: DBKV) {
     throw new Error(condition.value + " MD5 faild verify with record of database.");
 }
 
+
+
+export async function getSettingValue(value: string) {
+    const DB = await getDB();
+    const sql = `SELECT value from settings WHERE key = '${value}'`;
+    return await DB.valueQueryAsync(sql) as string;
+
+}
+const mapDB = {
+    PUBLICKEY_NAME: "publicKeyMD5",
+    PRIVATEKEY_NAME: "privateKeyMD5",
+};
 async function md5CryKey(fn: any) {
-    const mapDB = {
-        PUBLICKEY_NAME: "publicKeyMD5",
-        PRIVATEKEY_NAME: "privateKeyMD5",
-    };
+
     const KEYS_NAME = await Cry.getKEYS_NAME();
     const path = await Cry.getPathCryKey();
     for (const key of Object.keys(KEYS_NAME)) {
@@ -1273,4 +1269,6 @@ async function md5CryKey(fn: any) {
     }
     return true;
 }
+
+
 
