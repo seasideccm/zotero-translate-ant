@@ -187,7 +187,9 @@ async function buildPrefsPane() {
     }
   }
   // 安全设置   
-  setHiddenState(await encryptState());//undefined转NaN转false，null转0转false
+  const state = await encryptState();
+
+  await setHiddenState();
 
   //多账户管理
   const services = await getServices();

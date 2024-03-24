@@ -487,7 +487,10 @@ export class Cry {
         const hasKeys: string[] = [];
         const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
         const path = await Cry.getPathCryKey();
-        if (!path) return;
+        if (!path) {
+            showInfo(getString("info-noDir"));
+            return;
+        }
         for (const keyName of Object.keys(KEYS_NAME)) {
             const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | 'PRIVATEKEY_NAME']);
             if (!await isRSAKey(keyPath)) return;

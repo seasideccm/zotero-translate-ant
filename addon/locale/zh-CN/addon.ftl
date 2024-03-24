@@ -212,3 +212,4 @@ info-correct= 请排查解决问题
 info-then = 然后，
 info-incorrectRSAName = 秘钥文件名有误
 info-clearCryptoRecord = 你确定要删除数据库中的所有加密相关记录吗
+info-noDir = 数据库没有加密秘钥目录的记录

@@ -1,5 +1,5 @@
 import { getString } from "../utils/locale";
-import { chooseDirOrFilePath, confirmWin, getPS } from "../utils/tools";
+import { chooseDirOrFilePath, confirmWin, getPS, showInfo, showThrowInfo } from "../utils/tools";
 import { clearSettingsRecord, setSettingsValue, verifyKeyMD5 } from "./addonSetting";
 import { Cry, decryptAll, encryptState, getKeyNameByContent } from "./crypto";
 import { DB, getDBSync } from "./database/database";
@@ -66,65 +66,79 @@ export class Command {
 
     }
 
-    // 打开面板时传入的参数用来设置按钮黄复选框是否显示，同时禁止弹窗
-    static async showHiddenEncryptDom(checked?: boolean) {
+    static async showHiddenEncryptDom() {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
-        if (!enableEncrypt) return;
-        const win = enableEncrypt.ownerDocument.defaultView;
+
+        Command.approveChange(enableEncrypt);
+        await Command.checkEnableEncrypt();
+        setHiddenState(enableEncrypt.checked);
 
 
-        if (checked !== void 0 && checked !== null) enableEncrypt.checked = checked;
-        if (!enableEncrypt.checked) {
-            if (!onOpenPrefs) {
-                win?.alert(getString("info-disableEncrypt"));
-                const confirm = win?.confirm(getString("info-Confirm") + "?" + "\n\n" + getString("info-disableEncrypt"));
-                if (!confirm) {
-                    enableEncrypt.checked = true;
-                    return;
-                }
-            }
-            setHiddenState(true);
-        } else {
-            if (!onOpenPrefs) {
-                win?.alert(getString('info-encryptTip') + "\n" + getString('info-encryptTip1') + "\n" + getString('info-encryptTip2') + "\n" + getString('info-encryptTip3'));
-                const confirm = win?.confirm(getString("info-Confirm") + "?\n" + getString("info-enableEncrypt") + "?");
-                if (!confirm) {
-                    enableEncrypt.checked = false;
-                    return;
-                }
-            }
-            setHiddenState(false);
-        }
-        Command.checkEnableEncrypt(onOpenPrefs);
     }
-    static async checkEnableEncrypt(onOpenPrefs: boolean = false) {
+    static approveChange(element: XUL.Checkbox) {
+        const win = element.ownerDocument.defaultView;
+        let info1, info2;
+        const checked = element.checked;
+        if (!checked) {
+            info1 = getString("info-disableEncrypt");
+            info2 = getString("info-Confirm") + "?" + "\n\n" + getString("info-disableEncrypt");
+        } else {
+            info1 = getString('info-encryptTip') + "\n" + getString('info-encryptTip1') + "\n" + getString('info-encryptTip2') + "\n" + getString('info-encryptTip3');
+            info2 = getString("info-Confirm") + "?\n" + getString("info-enableEncrypt") + "?";
+
+        }
+        win?.alert(info1);
+        const confirm = win?.confirm(info2);
+        if (!confirm) {
+            element.checked = !checked;
+            info1 = getString("info-userCancle");
+            showInfo(info1);
+            throw info1;
+        }
+    }
+    static async checkEnableEncrypt() {
         const state = await encryptState();
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
         const deleSourceFile = getDom('deleSourceFile') as XUL.Checkbox;
-        if (!enableEncrypt) return;
-        if (!enableEncrypt.checked) {
-            if (!onOpenPrefs) await decryptAll();
+        const checked = enableEncrypt.checked;
+        if (checked == state) return;
+        if (!checked) {
+            await decryptAll();
         } else {
-            const validKeys = await Cry.checkCryKey();//没有有效秘钥，或 RSA 公钥私钥
+            const validKeys = await Cry.checkCryKey();//要么没有有效秘钥，要么 RSA 公钥私钥均有效
             if (!validKeys?.length) {
-                const info = getString("into-cryptoDir") + ", " + getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + ", " + getString("info-disableCrypto");
+                const info = getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + ", " + getString("info-disableCrypto");
                 const title = getString("info-multiSelect");
                 const opt1 = getString("info-openDirectory");
                 const opt2 = getString("info-addOldCryKey");
                 const opt3 = getString('info-selectRSADirectory');
                 const opt4 = getString("info-createRSAKeys");
-
                 const win = addon.data.prefs?.window;
                 const options = [opt1, opt2, opt3, opt4];
                 const selectResult: any = {};
                 const promptService = getPS();
                 const cf = promptService.select(win, title, info, options, selectResult);
                 if (!cf) {
-                    return;
+                    enableEncrypt.checked = !checked;
+                    const info1 = getString("info-userCancle");
+                    showInfo(info1);
+                    throw info1;
                 } else {
                     switch (selectResult.value) {
                         case 0:
-                            await Command.openCryptoDirectory();
+                            /* if(!await Cry.getPathCryKey()){
+                                showInfo(getString("info-noDir"));
+                                enableEncrypt.checked = !checked;
+                                throw showInfo(getString("info-noDir"));
+                            } */
+                            try {
+                                await Command.openCryptoDirectory();
+                            } catch (e: any) {
+                                enableEncrypt.checked = !checked;
+                                showInfo(getString("info-noDir"));
+                                throw e;
+                            }
+
                             break;
                         case 1:
                             await Cry.importCryptoKey();
@@ -142,6 +156,11 @@ export class Command {
             }
         }
         //更新本插件数据库中的加密设置项
+        const validKeys = await Cry.checkCryKey();
+        if (!validKeys?.length) {
+            enableEncrypt.checked = !checked;
+            showThrowInfo("info-correct");
+        }
         await setEncryptState(enableEncrypt.checked);
         await setDeleSourceFileState(deleSourceFile.checked);
     }
@@ -179,10 +198,16 @@ async function setDeleSourceFileState(state: boolean) {
     });
 }
 
-export function setHiddenState(state: boolean) {
-    const idsufixs = ['setEnableEncrypt', 'deleSourceFile', 'updateCryptoKey', 'addOldCryKey', 'customKeysFileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
+export async function setHiddenState(state?: boolean) {
+    if (!state) {
+        state = await encryptState();
+        const domItem = getDom('setEnableEncrypt') as XUL.Checkbox;
+        if (domItem) domItem.checked = state;
+    }
+    //'setEnableEncrypt', 始终显示    
+    const idsufixs = ['deleSourceFile', 'updateCryptoKey', 'addOldCryKey', 'customKeysFileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
     idsufixs.forEach(idsufix => {
         const domItem = getDom(idsufix) as HTMLElement;
-        if (domItem) domItem.hidden = state;
+        if (domItem) domItem.hidden = !state;//未启用加密则隐鲹其他按钮
     });
 }
