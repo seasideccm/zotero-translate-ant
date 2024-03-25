@@ -1,4 +1,4 @@
-import { arrayDiffer, getFiles, showInfo } from "../utils/tools";
+import { arrayUtils, getFiles, showInfo } from "../utils/tools";
 import { Cry, deleteRecords, isRSAKey } from "./crypto";
 import { getDB } from './database/database';
 import { getElementValueByElement } from "./ui/uiTools";
@@ -18,7 +18,7 @@ export async function addonSetting() {
     if (!addon.mountPoint.settings) addon.mountPoint.settings = {};
     const settings = addon.mountPoint.settings;
     const oldKeys = Object.keys(settings);
-    if (!arrayDiffer(keys, oldKeys)) return;    // 判断插件面板是否有新增设置项目
+    if (!arrayUtils.isDiffer(keys, oldKeys)) return;    // 判断插件面板是否有新增设置项目
     await setAddon(keys);
 
 }

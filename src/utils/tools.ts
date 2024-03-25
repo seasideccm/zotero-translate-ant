@@ -493,19 +493,74 @@ export function test1() {
 //数组不含对象、集合、字典，函数
 /**
  * 不同返回 true
- * @param keys1 
- * @param keys2 
+ * @param array1 
+ * @param array2 
  * @returns 
  */
-export function arrayDiffer(keys1: any[], keys2: any[]) {
-  if (keys1.length != keys2.length) return true;
-  let allKeys = keys1.concat(keys2);
+function isDiffer(array1: any[], array2: any[]) {
+  if (array1.length != array2.length) return true;
+  if (minus(array1, array2).length) return true;
+  let allKeys = array1.concat(array2);
   allKeys = [...new Set(allKeys)];
-  const diffKeys = allKeys.filter((e: any) => !keys1.includes(e) || !keys2.includes(e));
-  if (diffKeys.length) return true;
-  const sameKeys = allKeys.filter(e => !diffKeys.includes(e));
+  const diffKeys = allKeys.filter((e: any) => !array1.includes(e) || !array2.includes(e));
+  if (diffKeys.length) return diffKeys;
   return false;
 }
+
+/**
+ * 交集
+ * @param a 
+ * @param b 
+ * @returns 
+ */
+function intersect(a: any[], b: any[]) {
+  const sb = new Set(b);
+  return a.filter(x => sb.has(x));
+}
+
+/**
+ * 差集
+ * @param a 
+ * @param b 
+ * @returns 
+ */
+function minus(a: any[], b: any[]) {
+  const sb = new Set(b);
+  return a.filter(x => !sb.has(x));
+}
+
+/**
+ * 补集
+ * @param a 
+ * @param b 
+ * @returns 
+ */
+function complement(a: any[], b: any[]) {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  return [...a.filter(x => !sb.has(x)), ...b.filter(x => !sa.has(x))];
+}
+/**
+ * 并集
+ * @param a 
+ * @param b 
+ * @returns 
+ */
+function union(a: any[], b: any[]) {
+  return Array.from(new Set([...a, ...b]));
+}
+
+
+export const arrayUtils = {
+  intersect,
+  minus,
+  complement,
+  union,
+  isDiffer,
+};
+
+
+
 
 function arrayRemoveDuplicate(arr: any[]) {
   arr = [...new Set(arr)];
@@ -1252,3 +1307,35 @@ export const getFileInfo = async (path: string) => {
   return await OS.File.stat(path);
 
 };
+
+/**
+ * 
+ * @param type 默认"active"
+ * @returns 
+ */
+export function getWindow(type: "pref" | "zoteroPane" | "active" | "recent" = "active") {
+  let winSelected;
+
+  switch (type) {
+    case "pref":
+      winSelected = addon.data.prefs?.window;
+      break;
+    case "zoteroPane":
+      winSelected = window;
+      break;
+    case "active":
+      winSelected = Services.ww.activeWindow;
+      break;
+    case "recent":
+      winSelected = Services.wm.getMostRecentWindow("navigator:browser");
+      break;
+  }
+
+  if (!winSelected) {
+    winSelected = Services.appShell.hiddenDOMWindow;
+  }
+  if (!winSelected) {
+    ztoolkit.log("Parent window not available");
+  }
+  return winSelected as Window;
+}

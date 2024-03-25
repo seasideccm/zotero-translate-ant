@@ -1,4 +1,4 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, confirmWin, getFiles, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, arrayUtils, chooseDirOrFilePath, confirmWin, getFiles, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
@@ -656,7 +656,7 @@ export class Cry {
 
             //const files = temp.map(file => file.path) as string[];
             let fileNames = files.map(path => PathUtils.filename(path));
-            const dataOut = selectData(fileNames, win);
+            const dataOut = selectData(fileNames);
             if (!dataOut) return;
             const fileNamesSelected = Object.keys(dataOut).map(key => dataOut[key]);
             const filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
@@ -785,7 +785,7 @@ export class Cry {
     static async getKEYS_NAME() {
         if (addon.mountPoint["KEYS_NAME"]) {
             const KEYS_NAME = addon.mountPoint["KEYS_NAME"] as KEYSNAME;
-            await Cry.identifyKEYS_NAME(KEYS_NAME);
+            await Cry.verifyRSAfileName(KEYS_NAME);
             return KEYS_NAME;
         }
         const DB = await getDB();
@@ -795,14 +795,13 @@ export class Cry {
         //jsonString = await DB.valueQueryAsync(sql);
 
         const KEYS_NAME = JSON.parse(jsonString) as KEYSNAME;
-        await Cry.identifyKEYS_NAME(KEYS_NAME);
+        await Cry.verifyRSAfileName(KEYS_NAME);
         return addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
     }
-    static async identifyKEYS_NAME(KEYS_NAME: KEYSNAME) {
-        const keyNames = Object.keys(KEYS_NAME);
-        if (!keyNames.includes("PUBLICKEY_NAME") || !keyNames.includes("PRIVATEKEY_NAME") || (keyNames.length != 2)) {
+    static async verifyRSAfileName(KEYS_NAME: KEYSNAME) {
+        if (arrayUtils.isDiffer(["PUBLICKEY_NAME", "PRIVATEKEY_NAME"], Object.keys(KEYS_NAME))) {
             showInfo(getString("info-incorrectRSAName"));
-            await Command.customKeysFileName(KEYS_NAME);
+            throw "verify RSA fileName failure";
         }
 
     }
@@ -812,20 +811,20 @@ export class Cry {
             PRIVATEKEY_NAME: `RSA-OAEP-${config.addonRef}`,
             //AESCBCKEY_NAME: `AES-CBC-Wraped-${config.addonRef}`
         };
-        return await Cry.setKEYS_NAME(KEYS_NAME);
+        return await Cry.setRSAfileName(KEYS_NAME);
     }
 
-    static async setKEYS_NAME(KEYS_NAME: KEYSNAME) {
-        await Cry.identifyKEYS_NAME(KEYS_NAME);
+    static async setRSAfileName(KEYS_NAME: KEYSNAME) {
+        await Cry.verifyRSAfileName(KEYS_NAME);
         const DB = await getDB();
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);
         if (value && jsonString == value) return KEYS_NAME;
         await DB.executeTransaction(async () => {
             let sql;
-            value ? sql = `UPDATE settings SET value = '${jsonString}' WHERE key = 'cryptoKeysName'`
-                : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeysName','${jsonString}')`;
-            await DB.queryAsync(sql);
+            value ? sql = `UPDATE settings SET value = ? WHERE key = 'cryptoKeysName'`
+                : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeysName',?)`;
+            await DB.queryAsync(sql, jsonString);
         });
         addon.mountPoint["KEYS_NAME"] = KEYS_NAME;
         return KEYS_NAME;

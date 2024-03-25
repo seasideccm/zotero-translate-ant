@@ -7,15 +7,10 @@ import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
 
 export class Command {
-    static async customKeysFileName(KEYS_NAME?: KEYSNAME) {
-        if (!KEYS_NAME) {
-            KEYS_NAME = await Cry.getKEYS_NAME();
-        }
-        const win = addon.data.prefs?.window;
-        const data = await modifyData(KEYS_NAME, win);
-        if (!data) return;
-        await Cry.setKEYS_NAME(data);
-        return data;
+    static async editRSAfileName(KEYS_NAME?: KEYSNAME) {
+        if (!KEYS_NAME) KEYS_NAME = await Cry.getKEYS_NAME();
+        const data = await modifyData(KEYS_NAME);
+        if (data) await Cry.setRSAfileName(data);
     }
 
     static async openCryptoDirectory() {
@@ -62,7 +57,7 @@ export class Command {
             await setSettingsValue(queryValue, keyPath);
         }
         await setSettingsValue('cryptoKeyPath', directory);
-        await Cry.setKEYS_NAME(KEYS_NAME);
+        await Cry.setRSAfileName(KEYS_NAME);
     }
 
     static async showHiddenEncryptDom() {
@@ -202,7 +197,7 @@ export async function setHiddenState(state?: boolean) {
         if (domItem) domItem.checked = state;
     }
     //'setEnableEncrypt', 始终显示    
-    const idsufixs = ['deleteSourceFile', 'updateCryptoKey', 'addOldCryKey', 'customKeysFileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
+    const idsufixs = ['deleteSourceFile', 'updateCryptoKey', 'addOldCryKey', 'editRSAfileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
     idsufixs.forEach(idsufix => {
         const domItem = getDom(idsufix) as HTMLElement;
         if (domItem) domItem.hidden = !state;//未启用加密则隐鲹其他按钮

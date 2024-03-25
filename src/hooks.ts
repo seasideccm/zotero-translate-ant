@@ -16,7 +16,7 @@ import {
 } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
-import { Cry, checkEncryptAccounts, encryptState } from "./modules/crypto";
+import { checkEncryptAccounts, encryptState } from "./modules/crypto";
 import { Command } from "./modules/command";
 
 async function onStartup() {
@@ -109,8 +109,8 @@ async function onCommand(cmd: string) {
     case "cmd_setEnableEncrypt":
       await Command.showHiddenEncryptDom();
       break;
-    case "cmd_customKeysFileName":
-      await Command.customKeysFileName();
+    case "cmd_editRSAfileName":
+      await Command.editRSAfileName();
       break;
 
     case "cmd_openCryptoDirectory":

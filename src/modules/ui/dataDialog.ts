@@ -1,57 +1,45 @@
 import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
-import { OS, chooseDirOrFilePath, showInfo } from "../../utils/tools";
+import { OS, chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
 import { makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
  * @param fieldNames 
  * @returns 
  */
-export async function modifyData(fieldNames: string[] | any, win?: Window) {
+export async function modifyData(fieldNames: string[] | any) {
     const dialogType = 'input';
     const title = getString('info-modifyData');
-    const io = await onOpenDialog(fieldNames, dialogType, title, win);
-    return io.dataOut;
+    return await onOpenDialog(fieldNames, dialogType, title);
 }
 
-export function selectData(fieldNames: string[], win?: Window) {
-    if (!fieldNames.length) return;
+export function selectData(fieldNames: string[]) {
     const dialogType = 'multiSelect';
     const title = getString('info-multiSelect');
-    const io = onOpenDialog(fieldNames, dialogType, title, win);
-    return io.dataOut;
-
+    return onOpenDialog(fieldNames, dialogType, title);
 }
 
-export async function directorySaveCryptoKeys(fieldNames?: string[] | string) {
-    if (!fieldNames) return;
+export async function directorySaveCryptoKeys(fieldNames: string[] | string) {
     if (!Array.isArray(fieldNames)) fieldNames = [fieldNames];
     const dialogType = 'directory';
     const title = getString('info-selectSavePath');
-    const win = addon.data.prefs?.window;
-    const io = await onOpenDialog(fieldNames, dialogType, title, win);
-    return io.dataOut;
+    return await onOpenDialog(fieldNames, dialogType, title);
+
 }
 
 
-function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string, win?: Window) {
+function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string) {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
-    //fieldNames.push(name);
     const io: any = { fieldNames, dialogType, title };
+    const win = getWindow();
+    const dialog = win.openDialog(url, "dataDialog", "chrome,modal,centerscreen,resizable=yes,scroll=yes", io);
+    addon.mountPoint.dialog = dialog;
+    return io.dataOut;
     //io负责对话框窗口数据通信
     //window.openDialog chrome,modal，等待用户操作，完成后给 io 赋值
-
-    if (!win) win = window;
     //modal 模态窗口，等待用户关闭或做出选择后才能继续，fitContent=true,
-    const dialog = window.openDialog(url, "dataDialog", "chrome,modal,centerscreen,resizable=yes,scroll=yes", io);
-
-    addon.mountPoint.dialog = dialog;
-    return io;
-
-
 }
-
 
 
 
@@ -340,6 +328,7 @@ export class DataDialog {
 
 
     }
+
     static handleAccept(win: Window) {
         //@ts-ignore XXX
         const io = win.arguments[0];
@@ -385,11 +374,6 @@ export class DataDialog {
     static handleCancel(win: Window) {
         showInfo("you click cancel");
     }
-
-
-
-
-
 }
 
 
