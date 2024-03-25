@@ -8,8 +8,8 @@ import { mountMenu } from "./menu";
 import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
-import { Command, setHiddenState } from "./command";
-import { Cry, encryptState } from "./crypto";
+import { setHiddenState } from "./command";
+import { encryptState } from "./crypto";
 
 
 

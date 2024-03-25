@@ -1,7 +1,7 @@
 import { getString } from "../utils/locale";
 import { chooseDirOrFilePath, confirmWin, getPS, showInfo, showThrowInfo } from "../utils/tools";
 import { clearSettingsRecord, setSettingsValue, verifyKeyMD5 } from "./addonSetting";
-import { Cry, decryptAll, encryptState, getKeyNameByContent } from "./crypto";
+import { Cry, checkEncryptAccounts, decryptAll, encryptAllAccount, encryptState, getKeyNameByContent } from "./crypto";
 import { DB, getDBSync } from "./database/database";
 import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
@@ -100,60 +100,64 @@ export class Command {
         if (checked == state) return;
         if (!checked) {
             await decryptAll(true);
+            await Cry.deleteCryKeys();
         } else {
-            const validKeys = await Cry.checkCryKey();//要么没有有效秘钥，要么 RSA 公钥私钥均有效
-            if (!validKeys?.length) {
-                const info = getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + ", " + getString("info-disableCrypto");
-                const title = getString("info-multiSelect");
-                const opt1 = getString("info-createRSAKeys");
-                const opt2 = getString("info-addOldCryKey");
-                const opt3 = getString('info-selectRSADirectory');
-                const opt4 = getString("info-openDirectory");
-                const win = addon.data.prefs?.window;
-                const options = [opt1, opt2, opt3, opt4];
-                const selectResult: any = {};
-                const promptService = getPS();
-                const cf = promptService.select(win, title, info, options, selectResult);
-                if (!cf) {
-                    enableEncrypt.checked = !checked;
-                    const info1 = getString("info-userCancle");
-                    showInfo(info1);
-                    throw info1;
-                } else {
-                    switch (selectResult.value) {
-                        case 0:
-                            await Cry.createCryKey();
-                            break;
-                        case 1:
-                            await Cry.importCryptoKey();
-                            break;
-                        case 2:
-                            await Command.selectRSADirectory();
-                            break;
-                        case 3:
-                            try {
-                                await Command.openCryptoDirectory();
-                            } catch (e: any) {
-                                enableEncrypt.checked = !checked;
-                                showInfo(getString("info-noDir"));
-                                throw e;
-                            }
-                            break;
-                        default:
-                            return;
-                    }
+            /* const validKeys = await Cry.checkCryKey();//要么没有有效秘钥，要么 RSA 公钥私钥均有效
+            if (!validKeys?.length) { */
+            const info = getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + ", " + getString("info-disableCrypto");
+            const title = getString("info-multiSelect");
+            const opt1 = getString("info-createRSAKeys");
+            const opt2 = getString("info-addOldCryKey");
+            const opt3 = getString('info-selectRSADirectory');
+            const opt4 = getString("info-openDirectory");
+            const win = addon.data.prefs?.window;
+            const options = [opt1, opt2, opt3, opt4];
+            const selectResult: any = {};
+            const promptService = getPS();
+            const cf = promptService.select(win, title, info, options, selectResult);
+            if (!cf) {
+                enableEncrypt.checked = !checked;
+                const info1 = getString("info-userCancle");
+                showInfo(info1);
+                throw info1;
+            } else {
+                switch (selectResult.value) {
+                    case 0:
+                        await Cry.createCryKey();
+                        break;
+                    case 1:
+                        await Cry.importCryptoKey();
+                        break;
+                    case 2:
+                        await Command.selectRSADirectory();
+                        break;
+                    case 3:
+                        try {
+                            await Command.openCryptoDirectory();
+                        } catch (e: any) {
+                            enableEncrypt.checked = !checked;
+                            showInfo(getString("info-noDir"));
+                            throw e;
+                        }
+                        break;
+                    default:
+                        return;
                 }
             }
+            const validKeys = await Cry.checkCryKey();
+            if (!validKeys?.length) {
+                //创建导入秘钥失败，切换加密开关
+                enableEncrypt.checked = !checked;
+                showThrowInfo("info-correct");
+            }
         }
+
         //更新本插件数据库中的加密设置项
-        const validKeys = await Cry.checkCryKey();
-        if (!validKeys?.length) {
-            enableEncrypt.checked = !checked;
-            showThrowInfo("info-correct");
-        }
+
         await setEncryptState(enableEncrypt.checked);
-        await setDeleSourceFileState(deleteSourceFile.checked);
+        await setDeleteSourceFileState(deleteSourceFile.checked);
         addon.mountPoint?.tables["translateAnt-secretKeysTable"]?.treeInstance.invalidate();
+        await checkEncryptAccounts();
         //render(); rerender()
 
     }
@@ -184,7 +188,7 @@ export async function setEncryptState(state: boolean) {
     }
 }
 
-async function setDeleSourceFileState(state: boolean) {
+async function setDeleteSourceFileState(state: boolean) {
     const DB = getDBSync();
     await DB.executeTransaction(async () => {
         await updateDBSettings(state, 'deleteSourceFile', DB);

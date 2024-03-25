@@ -9,9 +9,6 @@ import { getDom } from './ui/uiTools';
 import { selectData } from './ui/dataDialog';
 import { Command } from './command';
 
-
-
-
 const BEGIN_PUBLIC = `-----BEGIN PUBLIC KEY-----\n`;
 const END_PUBLIC = `\n-----END PUBLIC KEY-----`;
 const BEGIN_PRIVATE = `-----BEGIN PRIVATE KEY-----\n`;
@@ -225,7 +222,6 @@ export async function getKeyNameByContent(path: string, files?: string[], KEYS_N
 
 export class Cry {
     [key: string]: any;
-
     static async encryptRSA(publicKey: any, data: any) {
         const encodedData = new TextEncoder().encode(data);
         const encryptedData = await window.crypto.subtle.encrypt(
@@ -392,66 +388,29 @@ export class Cry {
     }
 
     static async getKey(type: "publicKey" | 'privateKey' | "AESCBC") {
-        if (addon.mountPoint.crypto && addon.mountPoint.crypto.publicKey && type == "publicKey") {
-            const key = addon.mountPoint.crypto[type];
-            return await Cry.importKey(key);
-        }
-        if (!addon.mountPoint.crypto) addon.mountPoint.crypto = {};
-        const info = getString("info-hasNot") + " crypto " + getString("prefs-table-secretKey") + "\n" + getString("info-updateCryptoKey");
-        if (!addon.mountPoint.crypto?.path) {
-            const res = await Cry.getPathCryKey();
-            if (!res) {
-                showInfo(info);
-                return;
-            }
-            addon.mountPoint["crypto"]["path"] = res;
-        }
-        let path = addon.mountPoint.crypto.path;
+
+        let path = await Cry.getPathCryKey();
         if (!path) return;
         const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
         if (!KEYS_NAME) {
+            const info = getString("info-hasNot") + " crypto " + getString("prefs-table-secretKey") + "\n" + getString("info-updateCryptoKey");
             showInfo(info);
             return;
-        }
-        if (type == "AESCBC") {
-            //if (!Object.keys(KEYS_NAME).includes("AESCBCKEY_NAME")) return;
-            if (!KEYS_NAME["AESCBCKEY_NAME"]) return;
-            path = PathUtils.join(path, KEYS_NAME["AESCBCKEY_NAME"]);
-            const key = await IOUtils.read(path);
-            verify(key);
-            return key;
         }
 
         if (type == "publicKey") path = PathUtils.join(path, KEYS_NAME['PUBLICKEY_NAME']);
         if (type == 'privateKey') path = PathUtils.join(path, KEYS_NAME['PRIVATEKEY_NAME']);
         const key = await Zotero.File.getContentsAsync(path);
-        await Cry.verifyMD5CryKey();
-        verify(key);
+        if (! await Cry.checkCryKey()) return;
+
         if (typeof key == 'string') {
-            if (type == "publicKey") addon.mountPoint.crypto[type] = key;
+            // if (type == "publicKey") addon.mountPoint.crypto[type] = key;
             return await Cry.importKey(key);
         }
 
-        /**
-         * key 为空显示消息，然后抛出错误
-         * @param key 
-         * @returns 
-         */
-        function verify(key: any) {
-            if (!key) {
-                showInfo("Please check: " + path);
-                showInfo(info);
-                showInfo(`argument ${key} is null`);
-                //throw new Error(`argument ${key} is null`);
-            }
-        }
     }
 
-    static async unwrapAESKey(wrapedAESKey?: Uint8Array,) {
-        if (!wrapedAESKey) {
-            wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;
-            if (!wrapedAESKey) return;
-        }
+    static async unwrapAESKey(wrapedAESKey: Uint8Array,) {
         const privateKey = await Cry.getKey("privateKey") as CryptoKey;
         const AESKey = await window.crypto.subtle.unwrapKey(
             "raw",
@@ -483,23 +442,26 @@ export class Cry {
     }
 
     /**
-     * 从数据库获取 RSA 秘钥信息并验证是否存在
+     * 从数据库获取 RSA 秘钥信息
+     * 并验证是否存在，MD5 是否正确
      * @returns 
      */
     static async checkCryKey() {
-        const hasKeys: string[] = [];
-        const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
-        const path = await Cry.getPathCryKey();
-        if (!path) {
-            showInfo(getString("info-noDir"));
-            return;
-        }
-        for (const keyName of Object.keys(KEYS_NAME)) {
-            const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | 'PRIVATEKEY_NAME']);
-            if (!await isRSAKey(keyPath)) return;
-            hasKeys.push(keyName);
-        }
-        return hasKeys;
+        return await md5CryKey(verifyValueDB);
+        /*  const hasKeys: string[] = [];
+         const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
+         const path = await Cry.getPathCryKey();
+         if (!path) {
+             showInfo(getString("info-noDir"));
+             return;
+         }
+         for (const keyName of Object.keys(KEYS_NAME)) {
+             const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | 'PRIVATEKEY_NAME']);
+             if (!await isRSAKey(keyPath)) return;
+            //await  Cry.verifyMD5CryKey()
+             hasKeys.push(keyName);
+         }
+         return hasKeys; */
     }
 
 
@@ -630,6 +592,17 @@ export class Cry {
         await Cry.creatRASKeys(path);
         await Cry.setPathCryKey(path);
         await Cry.setMD5CryKey();
+    }
+    static async deleteCryKeys() {
+        const cf = confirmWin(getString("info-delete-secretKey") + "\n" + getString("info-delete-confirm"), "win");
+        if (!cf) return;
+        const path = await Cry.getPathCryKey();
+        if (!path) return;
+        const KEYS_NAME = await Cry.getKEYS_NAME();
+        for (const keyName of Object.keys(KEYS_NAME)) {
+            const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+            await IOUtils.remove(keyPath, { ignoreAbsent: true });
+        }
     }
 
     static async updateCryptoKey() {
@@ -787,9 +760,9 @@ export class Cry {
         await md5CryKey(modifyValue);
     }
 
-    static async verifyMD5CryKey() {
-        await md5CryKey(verifyValueDB);
-    }
+    /*  static async verifyMD5CryKey() {
+         await md5CryKey(verifyValueDB);
+     } */
 
     static async getImportDir() {
         const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='importDirectory'`;
@@ -889,7 +862,7 @@ export async function encryptState() {
  * @returns 
  */
 export const encryptByAESKey = async (text: string) => {
-    const key = await Cry.unwrapAESKey();
+    const key = await Cry.getAESKey();
     if (!key) return;
     const data = new TextEncoder().encode(text);
     const signKey = await Cry.getSignKey();
@@ -900,10 +873,11 @@ export const encryptByAESKey = async (text: string) => {
     const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
     const signatureString = arrayBufferTOstring(signature); //签名转字符串 
     const publicKey = await Cry.getKey("publicKey") as CryptoKey;
-    const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;//wrapedAESKey可以是储存的和当前包裹的key
+    //const wrapedAESKey = await Cry.getKey("AESCBC") as Uint8Array;
+    const wrapedAESKey = await window.crypto.subtle.wrapKey("raw", key, publicKey, { name: "RSA-OAEP" });//wrapedAESKey可以是储存的和当前包裹的key
     const wrapedSignKey = await window.crypto.subtle.wrapKey("raw", signKey, publicKey, { name: "RSA-OAEP" });
     const wrapedSignKeyString = arrayBufferTOstring(wrapedSignKey);
-    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey.buffer);
+    const wrapedAESKeyString = arrayBufferTOstring(wrapedAESKey);
     const decryptAlgorithm = { name: 'AES-CBC' };
     const ivString = arrayBufferTOstring(iv);//向量转字符串
     const encryptAESInfo = {
@@ -1086,6 +1060,7 @@ export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAcco
  */
 export async function decryptAll(isDeleteEncyptedFile: boolean = false) {
     const decryptAccounts = await decryptAllAccount();
+    //如果删除秘钥，一并删除加密文件和记录
     const DecryptedMD5Arr = await decryptAllFiles(isDeleteEncyptedFile);
     const numbers = (decryptAccounts?.length || 0) + (DecryptedMD5Arr?.length || 0);
     if (numbers) showInfo(getString("info-finishedDecrypt") + ": " + numbers);
@@ -1094,7 +1069,6 @@ export async function decryptAll(isDeleteEncyptedFile: boolean = false) {
         DecryptedMD5Arr
     };
 }
-
 
 export async function decryptAllFiles(isDeleteEncyptedFile: boolean = false) {
     showInfo("Decrypt The Encrypted Files...");
@@ -1122,6 +1096,7 @@ export async function decryptAllFiles(isDeleteEncyptedFile: boolean = false) {
         await decryptAndWrite(path, encryptAESStringNoBuffer);
         DecryptedPaths.push(path);
         if (!isDeleteEncyptedFile) continue;
+        //加密文件和数据库记录一并删除
         await deleteEncyptedFile(DB, md5, path);
     }
     if (notExistFileEncrypted.length) {
@@ -1131,7 +1106,6 @@ export async function decryptAllFiles(isDeleteEncyptedFile: boolean = false) {
     }
     return DecryptedPaths;
 }
-
 
 export async function decryptFileSelected(path?: string, isDeleteEncyptedFile: boolean = false) {
     if (!path) path = await chooseDirOrFilePath('file');
@@ -1239,24 +1213,24 @@ const mapDB = {
     PRIVATEKEY_NAME: "privateKeyMD5",
 };
 async function md5CryKey(fn: any) {
-
     const KEYS_NAME = await Cry.getKEYS_NAME();
     const path = await Cry.getPathCryKey();
-    for (const key of Object.keys(KEYS_NAME)) {
-        const keypath = PathUtils.join(path, KEYS_NAME[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
-        if (!await IOUtils.exists(keypath)) return false;
-        const md5 = await Zotero.Utilities.Internal.md5Async(keypath);
-        if (!md5) return false;
+    for (const keyName of Object.keys(KEYS_NAME)) {
+        const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+        if (!await IOUtils.exists(keyPath)) return;
+        if (!await isRSAKey(keyPath)) return;
+        const md5 = await Zotero.Utilities.Internal.md5Async(keyPath);
+        if (!md5) return;
         const tableName = "settings";
         const target: DBKV = { field: "value", value: md5 };
         const condition: DBKV = {
             field: "key",
-            value: mapDB[key as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
+            value: mapDB[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
         };
         const others = [{ field: "setting", value: "addon" }];
         await fn(tableName, target, condition, ...others);
     }
-    return true;
+    return Object.keys(KEYS_NAME);
 }
 
 
@@ -1383,11 +1357,13 @@ async function encryptAccountCore(DB: any, serialNumber: number | string, value?
     if (!value) value = content;
     const stringEncyptAES = await encryptByAESKey(value);
     if (content) {
-        sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+        // sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+        sql = `UPDATE ${tableName} SET ${fieldName} = ? WHERE serialNumber = ${serialNumber}`;
     } else {
-        sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+        // sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+        sql = `INSERT INTO ${tableName} (${fieldName}) VALUES (?) WHERE serialNumber = ${serialNumber}`;
     }
-    await DB.queryAsync(sql);
+    await DB.queryAsync(sql, stringEncyptAES);
     //记录加密条目`SELECT serialNumber FROM encryptAccounts`
     sql = `INSERT INTO encryptAccounts (serialNumber) VALUES ('${serialNumber}')`;
     await DB.queryAsync(sql);
@@ -1442,11 +1418,11 @@ export async function getTableBySN(serialNumber: number | string) {
 
 export async function checkEncryptAccounts() {
     if (!await encryptState()) return;
+    if (!await Cry.checkCryKey()) return;
     const encryptAccounts = await getAllEncryptAccounts();
-    if (!encryptAccounts?.length) return;
     const serialNumbers = await getSerialNumberAllAccounts();
     for (const serialNumber of serialNumbers) {
-        if (encryptAccounts.includes(serialNumber)) continue;
+        if (encryptAccounts?.length && encryptAccounts.includes(serialNumber)) continue;
         await encryptAccount(serialNumber);
     }
 }
