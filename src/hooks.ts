@@ -16,7 +16,7 @@ import {
 } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
-import { Cry, encryptState } from "./modules/crypto";
+import { Cry, checkEncryptAccounts, encryptState } from "./modules/crypto";
 import { Command } from "./modules/command";
 
 async function onStartup() {
@@ -57,7 +57,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
       return;
     }
   }
-  await Cry.getKEYS_NAME();
+  await checkEncryptAccounts();
   if (addon.data.env == "development") {
     await compareSQLUpdateDB();
   }

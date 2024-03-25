@@ -213,3 +213,4 @@ info-then = Then,
 info-incorrectRSAName = The key file name is incorrect
 info-clearCryptoRecord = Are you sure you want to delete all encrypted related records in the database.
 info-noDir = There is no record of encrypted key directory in the database
+info-noEncryptAccount = No Encrypted Account

@@ -188,15 +188,7 @@ async function getCommonProperty(serviceID: string) {
     return tempObj;
 }
 
-export async function getTableBySN(serialNumber: number | string) {
-    const DB = await getDB();
-    let sql = `SELECT secretKey FROM accounts WHERE serialNumber = ${serialNumber}`;
-    let value = await DB.valueQueryAsync(sql);
-    if (value) return "accounts";
-    sql = `SELECT token FROM accessTokens WHERE serialNumber = ${serialNumber}`;
-    value = await DB.valueQueryAsync(sql);
-    if (value) return "accessTokens";
-}
+
 async function getAccounts(serviceID: string, tableName: string) {
     const DB = await getDB();
     const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];

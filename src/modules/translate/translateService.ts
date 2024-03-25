@@ -1,7 +1,7 @@
 
 
-import { doTryCatch, showInfo } from '../../utils/tools';
-import { encryptByAESKey, encryptState, getAccountTableName } from '../crypto';
+import { showInfo } from '../../utils/tools';
+import { encryptByAESKey, getTableBySN } from '../crypto';
 import { getDB, getDBSync } from '../database/database';
 
 
@@ -139,7 +139,7 @@ export class TranslateServiceAccount {
     if (!text) return;
     const stringEncyptAES = await encryptByAESKey(text);
     //let tableName = "accounts";
-    const tableName = await getAccountTableName(this.serialNumber);
+    const tableName = await getTableBySN(this.serialNumber);
     if (!tableName) {
       ztoolkit.log("accoun isn't exist: " + this.serialNumber);
       return;

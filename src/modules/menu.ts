@@ -5,7 +5,7 @@ import { arrToObj } from "../utils/tools";
 import { clearAllTable } from './database/database';
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { decryptFileSelected, encryptFileByAESKey } from './crypto';
+import { decryptFileSelected, encryptFile } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
 
 
@@ -20,7 +20,7 @@ function getParasArrs() {
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
     [
-      ["加密文件", encryptFileByAESKey],
+      ["加密文件", encryptFile],
       ["解密文件", decryptFileSelected],
     ],
     [

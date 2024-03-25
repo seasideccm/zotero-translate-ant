@@ -69,7 +69,7 @@ export class Command {
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
         Command.approveChange(enableEncrypt);
         await Command.checkEnableEncrypt();
-        setHiddenState(enableEncrypt.checked);
+        await setHiddenState(enableEncrypt.checked);
     }
     static approveChange(element: XUL.Checkbox) {
         const win = element.ownerDocument.defaultView;
@@ -95,20 +95,20 @@ export class Command {
     static async checkEnableEncrypt() {
         const state = await encryptState();
         const enableEncrypt = getDom('setEnableEncrypt') as XUL.Checkbox;
-        const deleSourceFile = getDom('deleSourceFile') as XUL.Checkbox;
+        const deleteSourceFile = getDom('deleteSourceFile') as XUL.Checkbox;
         const checked = enableEncrypt.checked;
         if (checked == state) return;
         if (!checked) {
-            await decryptAll();
+            await decryptAll(true);
         } else {
             const validKeys = await Cry.checkCryKey();//要么没有有效秘钥，要么 RSA 公钥私钥均有效
             if (!validKeys?.length) {
                 const info = getString("info-hasNot") + " ARS " + getString("prefs-table-secretKey") + ", " + getString("info-disableCrypto");
                 const title = getString("info-multiSelect");
-                const opt1 = getString("info-openDirectory");
+                const opt1 = getString("info-createRSAKeys");
                 const opt2 = getString("info-addOldCryKey");
                 const opt3 = getString('info-selectRSADirectory');
-                const opt4 = getString("info-createRSAKeys");
+                const opt4 = getString("info-openDirectory");
                 const win = addon.data.prefs?.window;
                 const options = [opt1, opt2, opt3, opt4];
                 const selectResult: any = {};
@@ -122,14 +122,7 @@ export class Command {
                 } else {
                     switch (selectResult.value) {
                         case 0:
-                            try {
-                                await Command.openCryptoDirectory();
-                            } catch (e: any) {
-                                enableEncrypt.checked = !checked;
-                                showInfo(getString("info-noDir"));
-                                throw e;
-                            }
-
+                            await Cry.createCryKey();
                             break;
                         case 1:
                             await Cry.importCryptoKey();
@@ -138,7 +131,13 @@ export class Command {
                             await Command.selectRSADirectory();
                             break;
                         case 3:
-                            await Cry.createCryKey();
+                            try {
+                                await Command.openCryptoDirectory();
+                            } catch (e: any) {
+                                enableEncrypt.checked = !checked;
+                                showInfo(getString("info-noDir"));
+                                throw e;
+                            }
                             break;
                         default:
                             return;
@@ -153,7 +152,10 @@ export class Command {
             showThrowInfo("info-correct");
         }
         await setEncryptState(enableEncrypt.checked);
-        await setDeleSourceFileState(deleSourceFile.checked);
+        await setDeleSourceFileState(deleteSourceFile.checked);
+        addon.mountPoint?.tables["translateAnt-secretKeysTable"]?.treeInstance.invalidate();
+        //render(); rerender()
+
     }
 }
 
@@ -185,7 +187,7 @@ export async function setEncryptState(state: boolean) {
 async function setDeleSourceFileState(state: boolean) {
     const DB = getDBSync();
     await DB.executeTransaction(async () => {
-        await updateDBSettings(state, 'deleSourceFile', DB);
+        await updateDBSettings(state, 'deleteSourceFile', DB);
     });
 }
 
@@ -196,7 +198,7 @@ export async function setHiddenState(state?: boolean) {
         if (domItem) domItem.checked = state;
     }
     //'setEnableEncrypt', 始终显示    
-    const idsufixs = ['deleSourceFile', 'updateCryptoKey', 'addOldCryKey', 'customKeysFileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
+    const idsufixs = ['deleteSourceFile', 'updateCryptoKey', 'addOldCryKey', 'customKeysFileName', 'cryptoProtectRun', "openCryptoDirectory", "selectRSADirectory"];
     idsufixs.forEach(idsufix => {
         const domItem = getDom(idsufix) as HTMLElement;
         if (domItem) domItem.hidden = !state;//未启用加密则隐鲹其他按钮

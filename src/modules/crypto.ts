@@ -1,14 +1,14 @@
-import { arrayBufferTOstring, chooseDirOrFilePath, chooseFiles, collectFilesRecursive, confirmWin, ensureNonePath, getFiles, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
+import { arrayBufferTOstring, chooseDirOrFilePath, confirmWin, getFiles, getPS, showInfo, stringToArrayBuffer, stringToUint8Array, uint8ArrayToString } from '../utils/tools';
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
 import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
-import { dbRowsToArray, dbRowsToObjs, getTableBySN } from './translate/translateServices';
+import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
 import { selectData } from './ui/dataDialog';
-import { Command, setEncryptState, updateDBSettings } from './command';
-import { warn } from 'console';
+import { Command } from './command';
+
 
 
 
@@ -224,6 +224,7 @@ export async function getKeyNameByContent(path: string, files?: string[], KEYS_N
 
 
 export class Cry {
+    [key: string]: any;
 
     static async encryptRSA(publicKey: any, data: any) {
         const encodedData = new TextEncoder().encode(data);
@@ -473,6 +474,8 @@ export class Cry {
         return uint8ArrayToString(new Uint8Array(encryptedData));
     }
 
+
+
     static async decryptAccount(value: string) {
         //读取私钥，加密的对称秘钥
         const encryptedData = stringToUint8Array(value).buffer;
@@ -498,6 +501,8 @@ export class Cry {
         }
         return hasKeys;
     }
+
+
     /**
      * RAS 公钥私钥均存在则直接返回 false
      * 否则请用户决定
@@ -628,6 +633,11 @@ export class Cry {
     }
 
     static async updateCryptoKey() {
+        const cf = confirmWin(getString("info-decrypThenEncrypt"), "win");
+        if (!cf) {
+            showInfo(getString("info-userCancle"));
+            return;
+        }
         let path;
         path = await Cry.getPathCryKey();
         if (path) {
@@ -637,9 +647,24 @@ export class Cry {
         }
         if (!path) path = await chooseDirOrFilePath("dir", addonDatabaseDir, getString("info-selectSavePath"));
         if (!path) return;
-        await decryptAll();
-        await Cry.createCryKey(path);
+        const decryptRecords = await decryptAll(true);
+        await Cry.creatRASKeys(path);
+        await Cry.setPathCryKey(path);
+        await Cry.setMD5CryKey();
+        await Cry.encryptAll(decryptRecords);
         showInfo(getString("info-updated"));
+    }
+    static async encryptAll(decryptRecords: {
+        decryptAccounts: string[] | undefined,
+        DecryptedMD5Arr: string[] | undefined;
+    }) {
+        const { decryptAccounts, DecryptedMD5Arr } = decryptRecords;
+        if (decryptAccounts && decryptAccounts.length) {
+            await encryptAllAccount(decryptAccounts);
+        }
+        if (DecryptedMD5Arr && DecryptedMD5Arr.length) {
+            await encryptFiles(DecryptedMD5Arr);
+        }
     }
 
     static async chooseRSAKeys(path: string) {
@@ -897,11 +922,9 @@ export const encryptByAESKey = async (text: string) => {
 };
 
 
-export const encryptFileByAESKey = async (path?: string) => {
-    if (!path) {
-        path = await chooseDirOrFilePath('file');
-        if (!path) return;
-    }
+export const encryptFile = async (path: string) => {
+    if (!path) path = await chooseDirOrFilePath("file");
+    if (!path) return;
     const fileUint8Array = await IOUtils.read(path);
     if (!fileUint8Array) return;
     const signKey = await Cry.getSignKey();
@@ -914,7 +937,7 @@ export const encryptFileByAESKey = async (path?: string) => {
     const res = await IOUtils.write(encrypedFilePath, new Uint8Array(encryptAESBuffer));
     if (!res) return;
     const fileMD5 = await Zotero.Utilities.Internal.md5Async(encrypedFilePath);
-    if ((getDom("deleSourceFile") as XUL.Checkbox)?.checked) {
+    if ((getDom("deleteSourceFile") as XUL.Checkbox)?.checked) {
         await Zotero.File.removeIfExists(path);
     }
     const signature = await Cry.signInfo(encryptAESBuffer, signKey);//密文签名
@@ -946,6 +969,11 @@ export const encryptFileByAESKey = async (path?: string) => {
     return encrypedFilePath;
 };
 
+export async function encryptFiles(paths: string[]) {
+    for (const path of paths) {
+        await encryptFile(path);
+    }
+}
 
 export async function decryptByAESKey(encryptAESInfoString: string): Promise<string>;
 export async function decryptByAESKey(encryptAESInfoString: string, fileBuffer: Buffer | Uint8Array): Promise<ArrayBuffer>;
@@ -1034,102 +1062,41 @@ export async function decryptByAESKey(encryptAESInfoString: string,
     return decryptContent;
 }
 
-export async function decryptAccount(sn: number | string) {
-    const DB = getDBSync();
-    const SK_TK_FIELD = {
-        accounts: "secretKey",
-        accessTokens: "token"
-    };
-    const tableName = await getTableBySN(sn);
-    if (!tableName) return;
-    let sql = `SELECT ${SK_TK_FIELD[tableName]} FROM ${tableName} WHERE serialNumber = ${sn}`;
-    let value = await DB.valueQueryAsync(sql);
-    if (!value) return;
-    value = await decryptByAESKey(value);
-    if (!value) {
-        const info = "decryptAccount error: " + tableName + " - " + sn;
-        showInfo(info);
-        throw new Error(info);
-    }
-    sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
-    await DB.queryAsync(sql);
-    showInfo(`${sn} has decrypted`);
-    sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${sn}`;
-    await DB.queryAsync(sql);
-}
-export async function decryptAllAccount() {
-    showInfo("Decrypt The Encrypted Accounts...");
-    const encryptSerialNumbers = await getAllEncryptAccounts();
-    if (!encryptSerialNumbers?.length) return;
-    const DB = getDBSync();
-    if (!window.confirm(getString("info-decryptAllAccount") + "?")) {
-        showInfo(getString("info-userCancle"));
-        throw getString("info-userCancle");
-    }
-    return await DB.executeTransaction(async () => {
-        const decryptFaildSN = [];
-        const decryptAccounts = [];
-        const SK_TK_FIELD = {
-            accounts: "secretKey",
-            accessTokens: "token"
-        };
-        for (const sn of encryptSerialNumbers) {
-            const tableName = await getTableBySN(sn);
-            if (!tableName) {
-                decryptFaildSN.push(sn);
-                continue;
-            }
-            let sql = `SELECT ${SK_TK_FIELD[tableName]} FROM ${tableName} WHERE serialNumber = ${sn}`;
-            let value = await DB.valueQueryAsync(sql);
-            if (!value) {
-                decryptFaildSN.push(sn);
-                continue;
-            }
-            value = await decryptByAESKey(value);
-            if (!value) {
-                decryptFaildSN.push(sn);
-                const info = "decryptAccount error: " + tableName + " - " + sn;
-                showInfo(info);
-                throw new Error(info);
-            }
-            sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
-            await DB.queryAsync(sql);
 
-            decryptAccounts.push(sn);
-            showInfo(`${sn} has decrypted`);
-            //删除记录
-            sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${sn}`;
-            await DB.queryAsync(sql);
-
+export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAccounts", values: any[] | any) {
+    const DB = await getDB();
+    await DB.executeTransaction(async () => {
+        if (!Array.isArray(values)) values = [values];
+        for (let value of values) {
+            let feild = "serialNumber";
+            if (tableName == "encryptFilePaths") {
+                feild = "MD5";
+                value = await Zotero.Utilities.Internal.md5Async(value);
+            }
+            const sql = `DELETE FROM ${tableName} WHERE ${feild} = ?`;
+            await DB.queryAsync(sql, value);
         }
-        if (decryptFaildSN.length) {
-            showInfo("decrypt Faild SerialNumber: ");
-            showInfo(decryptFaildSN);
-            addon.mountPoint.decryptFaildSN = decryptFaildSN;
-            confirmWin(getString("info-correct") + getString("info-then") + getString("info-retry"));
-            return;
-        }
-        return decryptAccounts;
-    }) as string[];
-
+    });
 }
+//if (DecryptedMD5Arr?.length) await deleteRecords("encryptFilePaths", "MD5", DecryptedMD5Arr);
+//if (decryptAccounts?.length) await deleteRecords("encryptAccounts", "serialNumber", decryptAccounts);
 
 /**
-   * @returns encryptSerialNumbers
-   */
-async function getAllEncryptAccounts() {
-    const DB = await getDB();
-    const rows = await DB.queryAsync(`SELECT serialNumber FROM encryptAccounts`);
-    if (!rows.length) {
-        showInfo("No encrypted account");
-        return;
-    }
-    return dbRowsToArray(rows, ['serialNumber'])?.flat(Infinity) as string[];
+ * 更新秘钥和关闭加密功能时
+ */
+export async function decryptAll(isDeleteEncyptedFile: boolean = false) {
+    const decryptAccounts = await decryptAllAccount();
+    const DecryptedMD5Arr = await decryptAllFiles(isDeleteEncyptedFile);
+    const numbers = (decryptAccounts?.length || 0) + (DecryptedMD5Arr?.length || 0);
+    if (numbers) showInfo(getString("info-finishedDecrypt") + ": " + numbers);
+    return {
+        decryptAccounts,
+        DecryptedMD5Arr
+    };
 }
 
 
-
-export async function decryptAllFiles() {
+export async function decryptAllFiles(isDeleteEncyptedFile: boolean = false) {
     showInfo("Decrypt The Encrypted Files...");
     const DB = await getDB();
     const rows = await DB.queryAsync(`SELECT MD5, path, encryptAESStringNoBuffer FROM encryptFilePaths`);
@@ -1143,7 +1110,7 @@ export async function decryptAllFiles() {
         throw getString("info-userCancle");
     }
     const notExistFileEncrypted = [];
-    const DecryptedMD5 = [];
+    const DecryptedPaths = [];
     for (const info of fileEncryptInfos) {
         const path = info.path;
         const md5 = await Zotero.Utilities.Internal.md5Async(path);
@@ -1153,36 +1120,39 @@ export async function decryptAllFiles() {
             continue;
         }
         await decryptAndWrite(path, encryptAESStringNoBuffer);
-        DecryptedMD5.push(info.MD5);
+        DecryptedPaths.push(path);
+        if (!isDeleteEncyptedFile) continue;
+        await deleteEncyptedFile(DB, md5, path);
     }
     if (notExistFileEncrypted.length) {
         addon.mountPoint.notExistFileEncrypted = notExistFileEncrypted;
         showInfo("not Exist File Encrypted");
         showInfo(notExistFileEncrypted);
     }
-    return DecryptedMD5;
-}
-export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAccounts", feild: string, values: any[] | any) {
-    const DB = await getDB();
-    await DB.executeTransaction(async () => {
-        if (!Array.isArray(values)) values = [values];
-        for (const value of values) {
-            const sql = `DELETE FROM ${tableName} WHERE ${feild} = ?`;
-            await DB.queryAsync(sql, value);
-        }
-    });
+    return DecryptedPaths;
 }
 
-/**
- * 更新秘钥和关闭加密功能时
- */
-export async function decryptAll() {
-    const decryptAccounts = await decryptAllAccount();
-    if (decryptAccounts?.length) await deleteRecords("encryptAccounts", "serialNumber", decryptAccounts);
-    const DecryptedMD5 = await decryptAllFiles();
-    if (DecryptedMD5?.length) await deleteRecords("encryptFilePaths", "MD5", DecryptedMD5);
-    const numbers = (decryptAccounts?.length || 0) + (DecryptedMD5?.length || 0);
-    if (numbers) showInfo(getString("info-finishedDecrypt") + ": " + numbers);
+
+export async function decryptFileSelected(path?: string, isDeleteEncyptedFile: boolean = false) {
+    if (!path) path = await chooseDirOrFilePath('file');
+    if (!path) return;
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
+    if (!fileMD5) return;
+    const DB = await getDB();
+    const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
+    const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, fileMD5);
+    await decryptAndWrite(path, encryptAESStringNoBuffer);
+    if (!isDeleteEncyptedFile) return true;
+    await deleteEncyptedFile(DB, fileMD5, path);
+    return true;
+}
+async function deleteEncyptedFile(db: any, MD5: string, path: string) {
+    await db.executeTransaction(async () => {
+        const sql = `DELETE FROM encryptFilePaths WHERE MD5 = '${MD5}'`;
+        await db.queryAsync(sql);
+    });
+    await IOUtils.remove(path, { ignoreAbsent: true });
+    return true;
 }
 
 export async function getEncryptFileString(path: string) {
@@ -1192,22 +1162,6 @@ export async function getEncryptFileString(path: string) {
     const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
     //LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
     return await DB.valueQueryAsync(sql, fileMD5);
-}
-export async function decryptFileSelected() {
-    const path = await chooseDirOrFilePath('file');
-    if (!path) return;
-    const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
-    if (!fileMD5) return;
-    const DB = await getDB();
-    let sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
-    const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, fileMD5);
-    await decryptAndWrite(path, encryptAESStringNoBuffer);
-    const deleteRecord = 0;
-    if (!deleteRecord) return;
-    sql = `DELETE FROM encryptFilePaths WHERE MD5 = 'fileMD5'`;
-    await DB.queryAsync(sql);
-
-
 }
 
 async function decryptAndWrite(path: string, encryptFileString: string) {
@@ -1227,17 +1181,7 @@ async function decryptAndWrite(path: string, encryptFileString: string) {
 
 
 
-export async function getAccountTableName(serialNumber: number | string) {
-    const DB = getDBSync();
-    let tableName = "accounts";
-    let sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
-    let count = await DB.valueQueryAsync(sql);
-    if (count > 0) return tableName;
-    tableName = "accessTokens";
-    sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
-    count = await DB.valueQueryAsync(sql);
-    if (count > 0) return tableName;
-}
+
 
 
 export async function testCryInfo(info: string) {
@@ -1316,4 +1260,208 @@ async function md5CryKey(fn: any) {
 }
 
 
+const SK_TK_FIELD = {
+    accounts: "secretKey",
+    accessTokens: "token"
+};
 
+/**
+ * 单账号解密，删除加密记录
+ * @param serialNumber 
+ * @returns boolean
+ */
+export async function decryptAccount(serialNumber: number | string) {
+    const DB = getDBSync();
+    return await DB.executeTransaction(async () => {
+        const SK_TK_FIELD = {
+            accounts: "secretKey",
+            accessTokens: "token"
+        };
+        const tableName = await getTableBySN(serialNumber);
+        if (!tableName) return false;
+        let sql = `SELECT ${SK_TK_FIELD[tableName]} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+        let value = await DB.valueQueryAsync(sql);
+        if (!value) return false;
+        value = await decryptByAESKey(value);
+        if (!value) {
+            const info = "decryptAccount error: " + tableName + " - " + serialNumber;
+            showInfo(info);
+            return false;
+        }
+        sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${serialNumber}`;
+
+        await DB.queryAsync(sql);
+        showInfo(`${serialNumber} has decrypted`);
+        //删除账号加密记录
+        sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${serialNumber}`;
+        await DB.queryAsync(sql);
+        return true;
+    });
+}
+
+/**
+ * 账号全部解密，删除加密记录
+ * @returns 返回成功解密的账号
+ */
+export async function decryptAllAccount() {
+    showInfo("Decrypt The Encrypted Accounts...");
+    const encryptSerialNumbers = await getAllEncryptAccounts();
+    if (!encryptSerialNumbers?.length) {
+        showInfo(getString("info-noEncryptAccount"));
+        return;
+    }
+    if (!window.confirm(getString("info-decryptAllAccount") + "?")) {
+        showInfo(getString("info-userCancle"));
+        throw getString("info-userCancle");
+    }
+    const DB = getDBSync();
+    return await DB.executeTransaction(async () => {
+        const decryptFaildSN = [];
+        const decryptAccounts = [];
+
+        for (const sn of encryptSerialNumbers) {
+            const tableName = await getTableBySN(sn);
+            if (!tableName) {
+                decryptFaildSN.push(sn);
+                continue;
+            }
+            let sql = `SELECT ${SK_TK_FIELD[tableName]} FROM ${tableName} WHERE serialNumber = ${sn}`;
+            let value = await DB.valueQueryAsync(sql);
+            if (!value) {
+                decryptFaildSN.push(sn);
+                continue;
+            }
+            value = await decryptByAESKey(value);
+            if (!value) {
+                decryptFaildSN.push(sn);
+                const info = "decryptAccount error: " + tableName + " - " + sn;
+                showInfo(info);
+                throw new Error(info);
+            }
+            sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
+            await DB.queryAsync(sql);
+
+            decryptAccounts.push(sn);
+            showInfo(`${sn} has decrypted`);
+            //删除记录
+            sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${sn}`;
+            await DB.queryAsync(sql);
+
+        }
+        if (decryptFaildSN.length) {
+            showInfo("decrypt Faild SerialNumber: ");
+            showInfo(decryptFaildSN);
+            addon.mountPoint.decryptFaildSN = decryptFaildSN;
+            confirmWin(getString("info-correct") + getString("info-then") + getString("info-retry"));
+            return;
+        }
+        return decryptAccounts;
+    }) as string[];
+
+}
+
+/**
+   * @returns encryptSerialNumbers
+   */
+async function getAllEncryptAccounts() {
+    const DB = await getDB();
+    const rows = await DB.queryAsync(`SELECT serialNumber FROM encryptAccounts`);
+    if (!rows.length) {
+        showInfo("No encrypted account");
+        return;
+    }
+    return dbRowsToArray(rows, ['serialNumber'])?.flat(Infinity) as string[];
+}
+
+async function encryptAccountCore(DB: any, serialNumber: number | string, value?: string) {
+    const tableName = await getTableBySN(serialNumber);
+    if (!tableName) return;
+    const fieldName = tableName == "accounts" ? "secretKey" : "token";
+    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    const content = await DB.valueQueryAsync(sql) as string;
+    if (!value && !content) return;
+    if (!value) value = content;
+    const stringEncyptAES = await encryptByAESKey(value);
+    if (content) {
+        sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${serialNumber}`;
+    } else {
+        sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${serialNumber}`;
+    }
+    await DB.queryAsync(sql);
+    //记录加密条目`SELECT serialNumber FROM encryptAccounts`
+    sql = `INSERT INTO encryptAccounts (serialNumber) VALUES ('${serialNumber}')`;
+    await DB.queryAsync(sql);
+    return stringEncyptAES;
+}
+
+export async function encryptAccount(serialNumber: number | string, value?: string,) {
+    const DB = getDBSync();
+    return await DB.executeTransaction(async () => {
+        return await encryptAccountCore(DB, serialNumber, value);
+    });
+
+}
+
+export async function encryptAllAccount(serialNumbers: number[] | string[], values?: string[]) {
+    const DB = getDBSync();
+    return await DB.executeTransaction(async () => {
+        if (!Array.isArray(serialNumbers)) serialNumbers = [serialNumbers];
+        for (let i = 0; i < serialNumbers.length; i++) {
+            const serialNumber = serialNumbers[i];
+            const value = values?.[i] || undefined;
+            await encryptAccountCore(DB, serialNumber, value);
+        }
+        return true;
+    });
+}
+
+
+export async function getTableBySN(serialNumber: number | string) {
+    const DB = await getDB();
+    let sql = `SELECT secretKey FROM accounts WHERE serialNumber = ${serialNumber}`;
+    let value = await DB.valueQueryAsync(sql);
+    if (value) return "accounts";
+    sql = `SELECT token FROM accessTokens WHERE serialNumber = ${serialNumber}`;
+    value = await DB.valueQueryAsync(sql);
+    if (value) return "accessTokens";
+}
+
+
+/* export async function getAccountTableName(serialNumber: number | string) {
+    const DB = getDBSync();
+    let tableName = "accounts";
+    let sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    let count = await DB.valueQueryAsync(sql);
+    if (count > 0) return tableName;
+    tableName = "accessTokens";
+    sql = `SELECT COUNT(*) FROM ${tableName} WHERE serialNumber = ${serialNumber}`;
+    count = await DB.valueQueryAsync(sql);
+    if (count > 0) return tableName;
+} */
+
+
+export async function checkEncryptAccounts() {
+    if (!await encryptState()) return;
+    const encryptAccounts = await getAllEncryptAccounts();
+    if (!encryptAccounts?.length) return;
+    const serialNumbers = await getSerialNumberAllAccounts();
+    for (const serialNumber of serialNumbers) {
+        if (encryptAccounts.includes(serialNumber)) continue;
+        await encryptAccount(serialNumber);
+    }
+}
+
+
+async function getSerialNumberAllAccounts() {
+    const tables = ["accounts", "accessTokens"];
+    const DB = await getDB();
+    const serialNumbers = [];
+    for (const table of tables) {
+        const rows = await DB.queryAsync(`SELECT serialNumber FROM ${table}`);
+        if (rows.length) {
+            const arr1 = dbRowsToArray(rows, ['serialNumber'])?.flat(Infinity) as string[];
+            serialNumbers.push(...arr1);
+        }
+    }
+    return serialNumbers;
+}
