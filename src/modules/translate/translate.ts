@@ -22,42 +22,42 @@ export class Translator {
     constructor() {
         this.worker = tencentTransmart;
         this.translateConfig = { sourceLang: "en", targetLang: "zh" };
+        this.registerTranslatePromot(this.polo);
     }
     async workerRun(sourceText: string) {
         const { sourceLang, targetLang } = this.translateConfig;
         return await this.worker(sourceText, sourceLang, targetLang);
     }
-}
+
+    registerTranslatePromot(fn: any) {
 
 
-
-export function translate() {
-
-
-    ztoolkit.Prompt.register([
-        {
-            name: "Conditional Command Test",
-            label: "Plugin Template",
-            // The when function is executed when Prompt UI is woken up by `Shift + P`, and this command does not display when false is returned.
-            when: () => {
-                //const items = ZoteroPane.getSelectedItems();
-                // return items.length > 0;
-                return true;
+        ztoolkit.Prompt.register([
+            {
+                name: "Conditional Command Test",
+                label: "Plugin Template",
+                // The when function is executed when Prompt UI is woken up by `Shift + P`, and this command does not display when false is returned.
+                when: () => {
+                    //const items = ZoteroPane.getSelectedItems();
+                    // return items.length > 0;
+                    return true;
+                },
+                callback(prompt) {
+                    prompt.inputNode.placeholder = "Hello World!";
+                    prompt.inputNode.addEventListener("blur", fn);
+                },
             },
-            callback(prompt) {
-                prompt.inputNode.placeholder = "Hello World!";
-                prompt.inputNode.addEventListener("blur", polo);
-            },
-        },
-    ]);
+        ]);
 
-    const translator = new Translator();
-    async function polo(e: Event) {
+
+    }
+
+    async polo(e: Event) {
         //@ts-ignore has
         const content = e.target?.value;
         let result;
         try {
-            result = await translator.workerRun(content);
+            result = await this.workerRun(content);
             showInfo(result.result);
             return result;
         } catch (e: any) {
@@ -66,11 +66,10 @@ export function translate() {
 
         }
     }
-};
+
+}
 
 
-
-export const translateContent = () => { };
 
 const OptionsPDFTranslate: OptionsPDFTranslate = {
     service: "baidu",

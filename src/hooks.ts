@@ -3,7 +3,7 @@ import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImage, listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
-import { translate } from "./modules/translate/translate";
+import { Translator } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
 import { DataDialog } from "./modules/ui/dataDialog";
 import { mountMenu } from "./modules/menu";
@@ -59,7 +59,8 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   }
   await initTranslateServices();
   mountMenu();
-  translate();
+  //translate();
+  addon.mountPoint.transator = new Translator();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
