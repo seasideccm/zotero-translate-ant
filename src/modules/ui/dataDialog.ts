@@ -28,6 +28,13 @@ export async function directorySaveCryptoKeys(fieldNames: string[] | string) {
 
 }
 
+export function showTrans() {
+    const dialogType = 'showTrans';
+    const title = "showTrans";
+    onOpenDialog([""], dialogType, title);
+
+}
+
 
 function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string) {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
@@ -51,12 +58,47 @@ export class DataDialog {
         const io = win.arguments[0];
         let fieldNames = io.fieldNames;
         const dialogType = io.dialogType;
+
         const title = io.title;
         if (title) win.document.title = title;
         const parent = win.document.querySelector('#input') as XUL.Box;
         if (!parent) return;
         win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
         win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
+        if (dialogType == 'showTrans') {
+            const originTextStyle = `min-height: 100px; `;
+            const originText = ztoolkit.UI.appendElement(
+                {
+
+                    tag: "textarea",
+                    attributes: {
+                        placeholder: "原文",
+                        rows: "10",
+                        cols: "80",
+                        style: originTextStyle
+                    },
+                    listeners: [
+                        {
+                            type: "change",
+                            listener: async (e) => {
+                                const res = await addon.mountPoint.transator.polo(e);
+                                const sp = parent.querySelector("span");
+                                if (sp) sp.innerText = res;
+                            }
+                        }
+                    ],
+
+
+                }, parent);
+            const showText = ztoolkit.UI.appendElement(
+                {
+                    tag: "div",
+                    children: [
+                        { tag: "span", }
+                    ]
+                }, parent);
+        }
+
         if (Array.isArray(fieldNames)) {
             if (dialogType == 'input') {
                 fieldNames.forEach((field: string, i: number) => {

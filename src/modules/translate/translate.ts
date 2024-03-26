@@ -6,14 +6,7 @@ import { showInfo } from "../../utils/tools";
 import { pdf2document } from "../pdf/pdfFullText";
 import { serviceManage } from "./serviceManage";
 import { tencentTransmart } from "../webApi/tencentTransmart";
-
-
-
-
-
-
-
-
+import { showTrans } from "../ui/dataDialog";
 
 
 export class Translator {
@@ -22,7 +15,7 @@ export class Translator {
     constructor() {
         this.worker = tencentTransmart;
         this.translateConfig = { sourceLang: "en", targetLang: "zh" };
-        this.registerTranslatePromot(this.polo);
+        this.registerTranslatePromot(this.polo.bind(this));
     }
     async workerRun(sourceText: string) {
         const { sourceLang, targetLang } = this.translateConfig;
@@ -30,12 +23,10 @@ export class Translator {
     }
 
     registerTranslatePromot(fn: any) {
-
-
         ztoolkit.Prompt.register([
             {
-                name: "Conditional Command Test",
-                label: "Plugin Template",
+                name: "trans",
+                label: "trans En > Zh",
                 // The when function is executed when Prompt UI is woken up by `Shift + P`, and this command does not display when false is returned.
                 when: () => {
                     //const items = ZoteroPane.getSelectedItems();
@@ -43,10 +34,32 @@ export class Translator {
                     return true;
                 },
                 callback(prompt) {
-                    prompt.inputNode.placeholder = "Hello World!";
-                    prompt.inputNode.addEventListener("blur", fn);
+                    //ztoolkit.getGlobal("alert")("翻译!" + prompt.inputNode.value);
+                    //prompt.inputNode.placeholder = "Hello World!";
+                    //const parent = prompt.promptNode.querySelector("#zotero-plugin-toolkit-prompt");
+                    showTrans();
+
+                    const escape = new window.KeyboardEvent('keyup', {
+                        key: "Escape",
+
+                    });
+
+                    const ev = new KeyboardEvent('keyup', {
+                        keyCode: 65
+                    });
+                    document.dispatchEvent(ev);
+                    document.addEventListener('keyup', function (event) {
+                        ztoolkit.log(event.key);
+                    }, false);
+
+                    prompt.exit();
+
+
+
+
+
                 },
-            },
+            }
         ]);
 
 
@@ -59,12 +72,13 @@ export class Translator {
         try {
             result = await this.workerRun(content);
             showInfo(result.result);
-            return result;
+            return result.result;
         } catch (e: any) {
             showInfo(e.message);
             throw e;
 
         }
+
     }
 
 }
