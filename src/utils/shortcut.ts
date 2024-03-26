@@ -15,6 +15,7 @@ export function registerPrefsShortcut() {
     label: getString("info-shortcut"),
     defaultXUL: true,
   });
+  registerShortcutsCache();
 }
 
 export function onShortcutPan() {

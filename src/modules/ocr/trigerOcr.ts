@@ -3,6 +3,12 @@ import { config } from "../../../package.json";
 import { ocrIconSvg } from "../../utils/constant";
 import { makeTagElementProps } from "../ui/uiTools";
 
+
+export function listenImage(win: Window) {
+  win.addEventListener("mouseover", listenImageCallback, false);
+}
+
+
 export function listenImageCallback(e: MouseEvent) {
   Zotero.Utilities.throttle(trigerByImage, 300)(e);
 }

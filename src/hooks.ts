@@ -1,7 +1,7 @@
 import { config } from "../package.json";
 import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
-import { listenImageCallback } from "./modules/ocr/trigerOcr";
+import { listenImage, listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { translate } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
@@ -35,19 +35,15 @@ async function onStartup() {
 
   initLocale();
   registerNotifier();
-  //registerShortcuts();  
   registerPrefs();
-  //失败
-  registerPrefsShortcut();
   await onMainWindowLoad(window);
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
-  // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
-  win.addEventListener("mouseover", listenImageCallback, false);
+  registerPrefsShortcut();
+  listenImage(win);
   monitorImageItem();
-  registerShortcutsCache();
   showInfo(getString("startup-begin"));
   await getDB();
   if (__env__ === "production" && await encryptState()) {
@@ -85,8 +81,6 @@ async function onShutdown(): Promise<void> {
 
 
 /**
- * This function is just an example of dispatcher for Preference UI events.
- * Any operations should be placed in a function to keep this funcion clear.
  * @param type event type
  * @param data event data
  */
@@ -149,7 +143,7 @@ function onDialogEvents(type: string) {
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
 // Otherwise the code would be hard to read and maintain.
 async function onOpenDataDialog(win: Window) {
-  await DataDialog.onOpenDataDialog(win);
+  DataDialog.onOpenDataDialog(win);
 }
 
 export default {
