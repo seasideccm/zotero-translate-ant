@@ -30,8 +30,12 @@ export async function directorySaveCryptoKeys(fieldNames: string[] | string) {
 
 export function showTrans() {
     const dialogType = 'showTrans';
-    const title = "showTrans";
-    onOpenDialog([""], dialogType, title);
+    const title = getString('info-showTrans');
+    const fieldNames = ["fieldNames"];
+    const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
+    const io: any = { fieldNames, dialogType, title };
+    const win = getWindow();
+    win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,", io);
 
 }
 
@@ -63,10 +67,55 @@ export class DataDialog {
         if (title) win.document.title = title;
         const parent = win.document.querySelector('#input') as XUL.Box;
         if (!parent) return;
-        win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
+        function adjustHeight() {
+            const originText = parent.children[0] as HTMLTextAreaElement;
+            const transText = parent.children[1] as HTMLDivElement;
+            let oHeight = originText.scrollHeight;
+            oHeight = oHeight > 400 ? 400 : oHeight;
+            originText.style.height = oHeight + 10 + "px";
+            let tHeight = transText.scrollHeight;
+            tHeight = tHeight > 400 ? 400 : tHeight;
+            transText.style.height = tHeight + 10 + "px";
+            let h = oHeight + tHeight + 40;
+            h = h > 800 ? 800 : h;
+            parent.style.height = h + 40 + "px";
+        }
+
+        //win.document.addEventListener('dialogaccept', () =>  DataDialog.handleAccept(win));
         win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
         if (dialogType == 'showTrans') {
-            const originTextStyle = `min-height: 100px; `;
+            const dialog = win.document.documentElement.children[2] as any;
+            const acceptButton = dialog.getButton("accept");
+            acceptButton.label = "Enter 翻译";
+            acceptButton.onclick = () => false;//防止窗口关闭，文本区域失焦开始翻译
+            const tran = async (e: Event) => {
+                if (!addon.mountPoint.translateCache) addon.mountPoint.translateCache = new WeakMap();
+                const cache = addon.mountPoint.translateCache;
+                const textarea = e.target as HTMLTextAreaElement;
+                if (!textarea) return;
+                const value = textarea.value;
+                const taskTran = { service: "tencent", value: value };
+                let res;
+                if (cache.has(taskTran)) {
+                    res = cache.get(value);
+                } else {
+                    res = await addon.mountPoint.transator.polo(e);
+                    cache.set(taskTran, res);
+                }
+                const sp = parent.querySelector("span");
+                if (!sp) return;
+                if (sp.innerText != res) {
+                    sp.innerText = res;
+                    adjustHeight();
+                }
+            };
+            const tranThrottle = Zotero.Utilities.throttle(
+                tran,
+                1000,
+                { leading: false, trailing: false }
+            );
+
+            const originTextStyle = `height: 150px; margin-inline: 2rem`;
             const originText = ztoolkit.UI.appendElement(
                 {
 
@@ -79,24 +128,36 @@ export class DataDialog {
                     },
                     listeners: [
                         {
-                            type: "change",
-                            listener: async (e) => {
-                                const res = await addon.mountPoint.transator.polo(e);
-                                const sp = parent.querySelector("span");
-                                if (sp) sp.innerText = res;
-                            }
+                            type: "change",//内容没有变化不会翻译
+                            listener: tran
+                        },
+                        {
+                            type: "input",
+                            listener: (e) => tranThrottle(e)
                         }
                     ],
 
 
                 }, parent);
+            const divStyle = `min-height: 50px; margin-inline: 2rem`;
             const showText = ztoolkit.UI.appendElement(
                 {
                     tag: "div",
+                    attributes: {
+                        style: divStyle
+                    },
                     children: [
-                        { tag: "span", }
+                        {
+                            tag: "span",
+                            properties: {
+                                innerText: "译文"
+                            }
+                        }
                     ]
                 }, parent);
+
+            return;
+
         }
 
         if (Array.isArray(fieldNames)) {

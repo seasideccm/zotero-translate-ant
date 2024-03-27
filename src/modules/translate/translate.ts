@@ -34,30 +34,9 @@ export class Translator {
                     return true;
                 },
                 callback(prompt) {
-                    //ztoolkit.getGlobal("alert")("翻译!" + prompt.inputNode.value);
-                    //prompt.inputNode.placeholder = "Hello World!";
-                    //const parent = prompt.promptNode.querySelector("#zotero-plugin-toolkit-prompt");
                     showTrans();
-
-                    const escape = new window.KeyboardEvent('keyup', {
-                        key: "Escape",
-
-                    });
-
-                    const ev = new KeyboardEvent('keyup', {
-                        keyCode: 65
-                    });
-                    document.dispatchEvent(ev);
-                    document.addEventListener('keyup', function (event) {
-                        ztoolkit.log(event.key);
-                    }, false);
-
+                    //@ts-ignore XXX
                     prompt.exit();
-
-
-
-
-
                 },
             }
         ]);
