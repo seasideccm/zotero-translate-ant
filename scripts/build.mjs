@@ -186,11 +186,13 @@ export const esbuildOptions = {
     __env__: `"${env.NODE_ENV}"`,
   },
   bundle: true,
+  //platform: "node",
   target: "firefox102",
   outfile: path.join(
     buildDir,
     `addon/chrome/content/scripts/${config.addonRef}.js`,
   ),
+
   // Don't turn minify on
   minify: env.NODE_ENV === "production",
 };
