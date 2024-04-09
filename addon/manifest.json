@@ -16,5 +16,6 @@
       "strict_min_version": "6.999",
       "strict_max_version": "7.0.*"
     }
-  }
+  },
+  "experiment_apis": {}
 }

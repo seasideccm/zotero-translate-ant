@@ -59,9 +59,6 @@ export const addonDatabaseDir = PathUtils.join(
   Zotero.DataDirectory.dir,
   config.addonRef,
 );
-export const { OS } = Components.utils.import(
-  "resource://gre/modules/osfile.jsm",
-);
 
 //@ts-ignore has
 /* export const schemaConfig = {

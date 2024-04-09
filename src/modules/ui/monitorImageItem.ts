@@ -1,4 +1,3 @@
-import { OS } from "../../utils/tools";
 export async function monitorImageItem() {
   let itemsTree;
   while (!(itemsTree = document.getElementById("zotero-items-tree"))) {
@@ -22,13 +21,14 @@ function overImageItem(e: MouseEvent) {
     const index = id.replace(/.+-row-/m, "");
     //const item = Zotero.getActiveZoteroPane().itemsView._getRowData(index);
     const zp = Zotero.getActiveZoteroPane();
+    //@ts-ignore xxx
     const row = zp.itemsView.getRow(index);
     //@ts-ignore has id
     const itemByRow = Zotero.Items.get(row.id);
     if (itemByRow && itemByRow.attachmentContentType?.includes("image")) {
       let path = itemByRow.getFilePath() as string;
-      path = OS.Path.normalize(path!);
-      if (!OS.File.exists(path)) return;
+      path = PathUtils.normalize(path!);
+      if (!IOUtils.exists(path)) return;
       const srcPath = "file:///" + path!;
       const position = {
         x: e.screenX,

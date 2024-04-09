@@ -1131,15 +1131,15 @@ export async function replaceSecretKeysTable() {
     function getcellIndex(e: Event) {
         //@ts-ignore has
         //如果代码触发双击，则返回 0
-        let x = e.x;
+        const x = e.x;
         if (!x) {
             return 0;
-            const clickEvent = new window.MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-            });
-            e.target!.dispatchEvent(clickEvent);
-            x = clickEvent.x;
+            /*  const clickEvent = new window.MouseEvent('click', {
+                 bubbles: true,
+                 cancelable: true,
+             });
+             e.target!.dispatchEvent(clickEvent);
+             x = clickEvent.x; */
         }
         if (!e.target) return 0;
         const parent = e.target as HTMLElement;

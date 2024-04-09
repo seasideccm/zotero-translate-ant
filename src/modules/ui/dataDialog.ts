@@ -1,7 +1,7 @@
 import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
-import { OS, chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
+import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
 import { makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
@@ -199,7 +199,7 @@ export class DataDialog {
             }
             if (dialogType == 'directory') {
                 if (!fieldNames) fieldNames = ["none"];
-                const basename = OS.Path.basename(fieldNames[0]);
+                const basename = PathUtils.join(fieldNames[0]);
                 const labelProps = makeTagElementProps({
                     tag: "label",
                     id: "fieldName-" + basename,

@@ -4,9 +4,8 @@ adapted from Zotero
 
 //import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
-import { compareObj, fileNameNoExt, getPS, promptService, resourceFilesRecursive, showInfo } from "../../utils/tools";
+import { compareObj, fileNameNoExt, getPS, resourceFilesRecursive, showInfo } from "../../utils/tools";
 import { DB, compareSQLUpdateDB } from "./database";
-import { OS } from "../../utils/tools";
 import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
 
 export class Schema {
@@ -350,9 +349,8 @@ export class Schema {
       // 日志
       if (updated || updated === undefined) {
         Zotero.getSystemInfo().then(async function (sysInfo) {
-          const logDir = OS.Path.join(Zotero.DataDirectory.dir, "logs");
+          const logDir = PathUtils.join(Zotero.DataDirectory.dir, "logs");
           Zotero.File.createDirectoryIfMissing(logDir);
-          await OS.Path;
           const output =
             Zotero.getErrors(true).join("\n\n") +
             "\n\n" +
@@ -361,7 +359,7 @@ export class Schema {
             "=========================================================\n\n" +
             logLines.join("\n\n");
           return Zotero.File.putContentsAsync(
-            OS.Path.join(logDir, "upgrade.log"),
+            PathUtils.join(logDir, "upgrade.log"),
             output,
           );
         });

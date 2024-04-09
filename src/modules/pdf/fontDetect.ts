@@ -110,8 +110,8 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     fontSimpleInfo.redPointNumbers = charImgData.data.filter((e: number, i: number) => i % 4 == 0).filter((e: number) => e > 0).length;
     const charPath = getPathDir(fontName, PathUtils.join(addonStorageDir, "fontImg.png")).path;
     //图片不存在则绘制，已存在则读取
-    if (!await OS.File.exists(charPath)) {
-        //确定绘制的字符边界
+    if (!await IOUtils.exists(charPath)) {
+        //确定绘制的字符边界        
         const charBorder = findRedsBorder(charImgData);
         if (charBorder) {
             charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);

@@ -2,12 +2,10 @@ import { arrayBufferTOstring, arrayUtils, chooseDirOrFilePath, confirmWin, getFi
 import { config } from "../../package.json";
 import { addonDatabaseDir } from "../utils/constant";
 import { getDB, getDBSync } from "./database/database";
-import { OS } from "../utils/tools";
 import { getString } from '../utils/locale';
 import { dbRowsToArray, dbRowsToObjs } from './translate/translateServices';
 import { getDom } from './ui/uiTools';
 import { selectData } from './ui/dataDialog';
-import { Command } from './command';
 
 const BEGIN_PUBLIC = `-----BEGIN PUBLIC KEY-----\n`;
 const END_PUBLIC = `\n-----END PUBLIC KEY-----`;
@@ -23,7 +21,7 @@ async function isRechooseFiles(files: string[]) {
     const KEYS_NAME = await Cry.getKEYS_NAME();
     if (!KEYS_NAME) return true;
     if (!Array.isArray(files) || typeof files[0] != "string") return;
-    const fileNames = files.map(path => OS.Path.basename(path));
+    const fileNames = files.map(path => PathUtils.filename(path));
     if (!fileNames.includes(KEYS_NAME.PUBLICKEY_NAME)) {
         showInfo(getString("info-noPublicKey"));
         return true;
@@ -659,7 +657,7 @@ export class Cry {
             const dataOut = selectData(fileNames);
             if (!dataOut) return;
             const fileNamesSelected = Object.keys(dataOut).map(key => dataOut[key]);
-            const filesSelected = files.filter((file: string) => fileNamesSelected.includes(OS.Path.basename(file)));
+            const filesSelected = files.filter((file: string) => fileNamesSelected.includes(PathUtils.filename(file)));
             if (await isRechooseFiles(filesSelected)) {
                 const TIP = getString("info-selectOrCancle");
                 while (TIP) {

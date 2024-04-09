@@ -762,17 +762,16 @@ export async function fileToblob(path: string) {
   return new Blob([buf]);
 }
 
-export const { OS } = Components.utils.import(
-  "resource://gre/modules/osfile.jsm",
-);
+
 export async function readImage(path: string) {
-  if (!(await OS.File.exists(path))) {
+  if (!(await IOUtils.exists(path))) {
     return;
   }
-  const buf = await OS.File.read(path, {});
+  const buf = await IOUtils.read(path);
+
   const imgWidthHeight = ReadPNG(buf);
   const blob = new Blob([buf]);
-  const temp = OS.Path.basename(path).split(".");
+  const temp = PathUtils.filename(path).split(".");
   const fileType = "image/" + temp.pop();
   const fileName = temp.join("");
   const file = new File([blob], fileName, {
@@ -810,7 +809,7 @@ export function getExt(fileNameOrPath: string) {
 }
 
 export function getDir(fileNameOrPath: string) {
-  return OS.Path.dirname(fileNameOrPath);
+  return PathUtils.parent(fileNameOrPath);
 }
 
 export async function saveImage(dataURL: string, outputPath: string) {
@@ -820,10 +819,12 @@ export async function saveImage(dataURL: string, outputPath: string) {
   const mime = temp.mime;
   //事先建好目录可以保存，图片大小适中
   const dir = outputPath.replace(/[^/\\]+$/m, "");
-  if (!(await OS.File.exists(dir))) {
-    await OS.File.makeDir(dir);
+  if (!(await IOUtils.exists(dir))) {
+    await IOUtils.makeDirectory(dir);
   }
-  await OS.File.writeAtomic(outputPath, u8arr);
+
+  await IOUtils.write(outputPath, u8arr);
+
   return {
     u8arr: u8arr,
     mime: mime,
@@ -953,14 +954,14 @@ export async function saveJsonToDisk(
   dir?: string,
   ext?: string,
 ) {
-  const objJson = JSON.stringify(obj);
+  //const objJson = JSON.stringify(obj);
   const tempObj = getPathDir(filename, dir, ext);
   const path = tempObj.path;
   dir = tempObj.dir;
-  if (!(await OS.File.exists(dir))) {
-    await OS.File.makeDir(dir);
+  if (!(await IOUtils.exists(dir))) {
+    await IOUtils.makeDirectory(dir);
   }
-  await OS.File.writeAtomic(path, objJson);
+  await IOUtils.writeJSON(path, obj);
   return path;
 }
 
@@ -986,8 +987,8 @@ export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   if (!ext.startsWith(".")) {
     ext = "." + ext;
   }
-  dir = OS.Path.normalize(dir);
-  const path = OS.Path.join(dir, (filename + ext));
+  dir = PathUtils.normalize(dir);
+  const path = PathUtils.join(dir, (filename + ext));
   return {
     path: path,
     dir: dir,
@@ -1019,7 +1020,7 @@ export async function getFilesRecursive(dir: string, ext?: string) {
 
   }
   try {
-    if (!await OS.File.exists(dir)) {
+    if (!await IOUtils.exists(dir)) {
       ztoolkit.log(`${dir} does not exist`);
       return files;
     }
@@ -1033,6 +1034,7 @@ export async function getFilesRecursive(dir: string, ext?: string) {
   }
   for (let i = 0; i < files.length; i++) {
     const info = await OS.File.stat(files[i].path);
+
     files[i].size = info.size;
     files[i].lastModified = info.lastModificationDate;
   }
@@ -1282,8 +1284,8 @@ export function fileSizeFormat(fileSize: number, idx = 0) {
 
 export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
   const path = getPathDir(filename, dir, ext).path;
-  if (!await OS.File.exists(path)) { return; }
-  const buf = await OS.File.read(path, {});
+  if (!await IOUtils.exists(path)) { return; }
+  const buf = await IOUtils.read(path);
   const blob = new Blob([buf]);
   const response = await new Promise((resolve, reject) => {
     const reader = new FileReader();
