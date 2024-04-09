@@ -8,10 +8,12 @@ import {
 } from "./utils.mjs";
 import { zip } from "compressing";
 import { build } from "esbuild";
+import { polyfillNode } from "esbuild-plugin-polyfill-node";
 import { existsSync, readdirSync, renameSync } from "fs";
 import path from "path";
 import { env, exit } from "process";
 import replaceInFile from "replace-in-file";
+
 //import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
 const { replaceInFileSync } = replaceInFile;
@@ -184,6 +186,18 @@ export const esbuildOptions = {
   entryPoints: ["src/index.ts"],
   define: {
     __env__: `"${env.NODE_ENV}"`,
+    global: "globalThis",
+    navigator: '"globalThis.navigator"',
+    self: '"this"',
+
+    // process: '"development"',
+    // "process.env": '""',
+    // "process.env.NODE_ENV": '""',
+    // "process.env.REACT_APP_FLAGS_CTX_APP_NAME": '""',
+    // "process.env.REACT_APP_FLAGS_CTX_INSTANCE_ID": '""',
+    // "process.env.REACT_APP_FLAGS_CTX_HOST": '""',
+    // "process.env.REACT_APP_FLAGS_CTX_URL": '""',
+    // "process.env.REACT_APP_FLAGS_CTX_URI": '""',
   },
   bundle: true,
   //platform: "node",
@@ -192,6 +206,11 @@ export const esbuildOptions = {
     buildDir,
     `addon/chrome/content/scripts/${config.addonRef}.js`,
   ),
+  plugins: [
+    polyfillNode({
+      // Options (optional)
+    }),
+  ],
 
   // Don't turn minify on
   minify: env.NODE_ENV === "production",

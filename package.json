@@ -38,11 +38,17 @@
   "dependencies": {
     "@zilliz/milvus2-sdk-node": "^2.3.5",
     "event-source-polyfill": "^1.0.31",
+    "events": "^3.3.0",
+    "events-browserify": "^0.0.1",
     "franc-min": "^6.2.0",
+    "http-browserify": "^1.7.0",
+    "https-browserify": "^1.0.0",
     "iso-639-3": "^3.0.1",
     "litellm": "^0.12.0",
+    "navigator": "^1.0.1",
     "ollama": "^0.5.0",
     "pdf-parse": "^1.1.1",
+    "stream-browserify": "^3.0.0",
     "zotero-plugin-toolkit": "^2.3.28"
   },
   "devDependencies": {
@@ -56,6 +62,7 @@
     "cross-env": "^7.0.3",
     "cz-conventional-changelog": "^3.3.0",
     "esbuild": "^0.19.12",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",

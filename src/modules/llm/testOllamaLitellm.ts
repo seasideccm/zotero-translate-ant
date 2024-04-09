@@ -1,9 +1,11 @@
 import { completion } from 'litellm';
 process.env['OPENAI_API_KEY'] = 'NULL';
+process.env['baseUrl'] = 'http://192.168.50.106:11434';
 
-export function responseOllam() {
-    const response = completion({
+export async function responseOllam() {
+    const response = await completion({
         model: "ollama/qwen",
+        baseUrl: 'http://192.168.50.106:11434',
         messages: [{ "content": "Hello, how are you?", "role": "user" }],
         //api_base: "http://localhost:11434"
     });
