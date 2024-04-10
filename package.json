@@ -36,12 +36,12 @@
   },
   "homepage": "https://github.com/seasideccm/zotero-translate-ant#readme",
   "dependencies": {
-    "events": "^3.3.0",
+    "abortcontroller-polyfill": "^1.7.5",
     "franc-min": "^6.2.0",
     "iso-639-3": "^3.0.1",
+    "ollama": "^0.5.0",
     "openai": "^4.33.0",
     "pdf-parse": "^1.1.1",
-    "portkey-ai": "^1.2.1",
     "zotero-plugin-toolkit": "^2.3.28"
   },
   "devDependencies": {

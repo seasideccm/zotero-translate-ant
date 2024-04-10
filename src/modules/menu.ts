@@ -7,7 +7,7 @@ import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
-import { ollama } from "./llm/testOllamaLitellm";
+import { llm } from "./llm/ollama";
 
 
 
@@ -26,7 +26,7 @@ function getParasArrs() {
     ],
     [
       ["读取文件内容", readTextFiles],
-      ["ollama", ollama],
+      ["ollama", llm],
 
 
     ],
