@@ -214,5 +214,8 @@ info-incorrectRSAName = 秘钥文件名有误
 info-clearCryptoRecord = 你确定要删除数据库中的所有加密相关记录吗
 info-noDir = 数据库没有加密秘钥目录的记录
 info-noEncryptAccount = 没有加密账号
-
+info-send = 发送
+info-user = 用户：
+info-assistant = 助手：
+info-pleaseChooseModel = 请选择一个模型
 info-showTrans = 翻译

@@ -2,6 +2,7 @@ import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
 import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
+import { aiCHat, getModels } from "../llm/ollama";
 import { makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
@@ -39,6 +40,17 @@ export function showTrans() {
 
 }
 
+export function aITransUI() {
+    const dialogType = 'aiTrans';
+    const title = getString('info-aiTrans');
+    const fieldNames = ["fieldNames"];
+    const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
+    const io: any = { fieldNames, dialogType, title };
+    const win = getWindow();
+    win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,", io);
+
+}
+
 
 function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: string) {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
@@ -52,10 +64,149 @@ function onOpenDialog(fieldNames: string[] | any, dialogType: string, title: str
     //modal 模态窗口，等待用户关闭或做出选择后才能继续，fitContent=true,
 }
 
+async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
+    if (dialogType != 'aiTrans') return;
+    const dialog = win.document.documentElement.children[2] as any;
+    const acceptButton = dialog.getButton("accept");
+    acceptButton.label = "Enter " + getString("info-send");
+    acceptButton.onclick = () => false;//防止窗口关闭，文本区域失焦发送给ai
+    const divStyle = `height: 400px; margin-inline: 2rem; overflow: auto`;
+    const showText = ztoolkit.UI.appendElement(
+        {
+            tag: "div",
+            id: "chatShowText",
+            attributes: {
+                style: divStyle
+            },
+            children: [
+                {
+                    tag: "span",
+                    properties: {
+                        innerText: "聊天内容"
+                    }
+                }
+            ]
+        }, parent);
+    const originTextStyle = `margin-inline: 2rem`;
+    const originText = ztoolkit.UI.appendElement(
+        {
+            tag: "textarea",
+            attributes: {
+                placeholder: "请发送消息",
+                rows: "2",
+                cols: "80",
+                style: originTextStyle
+            }
+        }, parent) as HTMLTextAreaElement;
+
+    originText.onkeydown = async function send(event: KeyboardEvent) {
+        //var msgInput=$(this).val()
+        //兼容Chrome和Firefox
+        const keyCode = event.keyCode ? event.keyCode : (event.which ? event.which : event.charCode);
+        const altKey = event.ctrlKey || event.metaKey;
+        if (keyCode == 13 && altKey) { //ctrl+enter换行
+            const newDope = originText.value + "\n";// 获取textarea数据进行 换行
+            originText.value = newDope;
+        } else if (keyCode == 13) { //enter发送
+            await runModel(originText);
+            event.preventDefault();//禁止回车的默认换行
+        }
+
+    };
+    const models = await getModels();
+    const childrenProps: any[] = models.map((model: string) => ({
+        tag: "option",
+        properties: {
+            value: model,
+            innerText: model
+        }
+    }));
+    childrenProps.unshift(
+        {
+            tag: "option",
+            properties: {
+                value: "",
+                innerText: "--Please choose an model--"
+            }
+        },
+    );
+    const modelSelect = ztoolkit.UI.insertElementBefore({
+        tag: "select",
+        namespace: 'html',
+        id: "modelSelect",
+        children: childrenProps,
+        listeners: [
+            {
+                type: "change",
+                listener: (e: Event) => {
+                    if (modelSelect.value != "") {
+                        if (originText.value == getString("info-pleaseChooseModel")) {
+                            originText.value = "";
+                        }
+                    }
+                }
+            },
+        ]
+    }, acceptButton) as HTMLSelectElement;
+    async function runChat(e: Event) {
+        //缓存 todo 本地存储
+        const textarea = e.target as HTMLTextAreaElement;
+        if (!textarea) return;
+        await runModel(textarea);
+
+    }
+
+    async function runModel(textarea: HTMLTextAreaElement) {
+        const value = textarea.value;
+        const model = modelSelect.value;
+        if (model.length == 0) {
+            textarea.value = getString("info-pleaseChooseModel");
+            return;
+        }
+
+        ztoolkit.UI.appendElement(
+            {
+                tag: "span",
+                properties: {
+                    innerText: getString("info-user") + value
+                }
+
+            }, showText);
+        textarea.value = '';
+        const res = await aiCHat(value, model);
+        ztoolkit.UI.appendElement(
+            {
+                tag: "span",
+                properties: {
+                    innerText: getString("info-assistant") + res
+                }
+
+            }, showText);
+
+        adjustHeight(parent);
+
+    }
+
+    return;
+
+}
 
 
+function adjustHeight(parent: XUL.Box) {
+    const originText = parent.children[0] as HTMLTextAreaElement;
+    const transText = parent.children[1] as HTMLDivElement;
+    let oHeight = originText.scrollHeight;
+    oHeight = oHeight > 400 ? 400 : oHeight;
+    originText.style.height = oHeight + 10 + "px";
+    let tHeight = transText.scrollHeight;
+    tHeight = tHeight > 400 ? 400 : tHeight;
+    transText.style.height = tHeight + 10 + "px";
+    let h = oHeight + tHeight + 40;
+    h = h > 800 ? 800 : h;
+    parent.style.height = h + 40 + "px";
+}
 export class DataDialog {
-    static onOpenDataDialog(win: Window) {
+    static async onOpenDataDialog(win: Window) {
         const style = `min-width: 300px; max-width: 1200px; margin-inline: 1rem`;
         if (!addon.mountPoint.inputDialog) addon.mountPoint.inputDialog = win;
         //@ts-ignore xxx
@@ -67,19 +218,7 @@ export class DataDialog {
         if (title) win.document.title = title;
         const parent = win.document.querySelector('#input') as XUL.Box;
         if (!parent) return;
-        function adjustHeight() {
-            const originText = parent.children[0] as HTMLTextAreaElement;
-            const transText = parent.children[1] as HTMLDivElement;
-            let oHeight = originText.scrollHeight;
-            oHeight = oHeight > 400 ? 400 : oHeight;
-            originText.style.height = oHeight + 10 + "px";
-            let tHeight = transText.scrollHeight;
-            tHeight = tHeight > 400 ? 400 : tHeight;
-            transText.style.height = tHeight + 10 + "px";
-            let h = oHeight + tHeight + 40;
-            h = h > 800 ? 800 : h;
-            parent.style.height = h + 40 + "px";
-        }
+
 
         //win.document.addEventListener('dialogaccept', () =>  DataDialog.handleAccept(win));
         win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
@@ -89,8 +228,8 @@ export class DataDialog {
             acceptButton.label = "Enter 翻译";
             acceptButton.onclick = () => false;//防止窗口关闭，文本区域失焦开始翻译
             const tran = async (e: Event) => {
-                if (!addon.mountPoint.translateCache) addon.mountPoint.translateCache = new WeakMap();
-                const cache = addon.mountPoint.translateCache;
+                if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
+                const cache = addon.mountPoint.chatCache;
                 const textarea = e.target as HTMLTextAreaElement;
                 if (!textarea) return;
                 const value = textarea.value;
@@ -106,7 +245,7 @@ export class DataDialog {
                 if (!sp) return;
                 if (sp.innerText != res) {
                     sp.innerText = res;
-                    adjustHeight();
+                    adjustHeight(parent);
                 }
             };
             const tranThrottle = Zotero.Utilities.throttle(
@@ -159,6 +298,7 @@ export class DataDialog {
             return;
 
         }
+        await aiTrans(dialogType, win, parent);
 
         if (Array.isArray(fieldNames)) {
             if (dialogType == 'input') {

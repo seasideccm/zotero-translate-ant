@@ -144,7 +144,7 @@ function onDialogEvents(type: string) {
 // Keep in mind hooks only do dispatch. Don't add code that does real jobs in hooks.
 // Otherwise the code would be hard to read and maintain.
 async function onOpenDataDialog(win: Window) {
-  DataDialog.onOpenDataDialog(win);
+  await DataDialog.onOpenDataDialog(win);
 }
 
 export default {
