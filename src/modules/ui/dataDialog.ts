@@ -165,14 +165,6 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             attributes: {
                 style: divStyle
             },
-            children: [
-                {
-                    tag: "p",
-                    properties: {
-                        innerText: "聊天内容"
-                    }
-                }
-            ]
         }, parent);
     const originTextStyle = `margin-inline: 1rem; height: auto`;
     const originText = ztoolkit.UI.appendElement(
@@ -180,7 +172,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             tag: "textarea",
             attributes: {
                 placeholder: getString("dialog-inputDialog"),
-                rows: 1,
+                rows: 2,
                 cols: 80,
                 style: originTextStyle
             },
@@ -276,6 +268,84 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
     }, acceptButton) as HTMLSelectElement;
 
 
+    //聊天内容
+
+
+    function addChatContent(role: "AI" | "user", value: string, container: Element) {
+        const buttonListener =
+        {
+            type: "click",
+            listener: (e: Event) => {
+                const button = e.target as HTMLButtonElement;
+                if (button) {
+                    const clip = new ztoolkit.Clipboard();
+                    //@ts-ignore has
+                    const source = button.previousElementSibling.innerText;
+                    clip.addText(source, 'text/unicode');
+                    clip.copy();
+                    //button.style.display="none"
+                    const newButton;
+                    button.style.width = button.clientWidth * 1.3 + "px";
+                    button.innerText = getString("info-copyed");
+                }
+            }
+        };
+        let roleLabel, chatStyle;
+        if (role == "AI") {
+            roleLabel = getString("info-assistant");
+            chatStyle = "display:flex; justify-content: left; margin:1rem";
+        } else {
+            roleLabel = getString("info-user");
+            chatStyle = "display:flex; justify-content: right; margin:1rem";
+        }
+        ztoolkit.UI.appendElement(
+            {
+                tag: "div",
+                namespace: "html",
+                attributes: {
+                    style: chatStyle
+                },
+
+                children: [
+                    {
+                        tag: "span",
+                        properties: {
+                            innerText: roleLabel
+                        },
+                    },
+                ]
+            }, container);
+
+        ztoolkit.UI.appendElement(
+            {
+                tag: "div",
+                namespace: "html",
+                attributes: {
+                    style: chatStyle
+                },
+
+                children: [
+                    {
+                        tag: "span",
+                        properties: {
+                            innerText: value.trim()
+                        },
+                        //children: []
+                    },
+                    {
+                        tag: "button",
+                        namespace: 'html',
+                        properties: {
+                            innerText: getString("info-copy")
+                        },
+                        listeners: [buttonListener]
+                    }
+
+                ]
+
+            }, container);
+    }
+
     async function runModel(textarea: HTMLTextAreaElement) {
         const value = textarea.value;
         if (!value || value == "") {
@@ -289,55 +359,12 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             textarea.value = getString("info-pleaseChooseModel");
             return;
         }
-        ztoolkit.UI.appendElement(
-            {
-                tag: "div",
-                namespace: "html",
-                children: [
-                    {
-                        tag: "span",
-                        properties: {
-                            innerText: getString("info-user")
-                        },
-                    },
-                    {
-                        tag: "span",
-                        properties: {
-                            innerText: value
-                        },
-                    },
-                    {
-                        tag: "button",
-                        namespace: 'html',
-                        properties: {
-                            innerText: getString("info-copy")
-                        },
-                        listeners: [
-                            {
-                                type: "click",
-                                listener: (e: Event) => {
-                                    if (e.target) {
-                                        const clip = new ztoolkit.Clipboard();
-                                        clip.addText(e.target?.previousElementSibling.innerText, "text/html");
-                                        clip.copy();
-                                        e.target.innerText = getString("info-copyed");
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }, showText);
+        addChatContent("user", value, showText);
         showText.scrollIntoView(false);
         textarea.value = '';
+        adjustHeight(parent);
         const res = await aiCHat(value, model);
-        ztoolkit.UI.appendElement(
-            {
-                tag: "p",
-                properties: {
-                    innerText: getString("info-assistant") + res
-                }
-            }, showText);
+        addChatContent("AI", res, showText);
         adjustHeight(parent);
     }
     return;
