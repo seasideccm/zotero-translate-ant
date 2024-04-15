@@ -219,3 +219,5 @@ info-user = 用户：
 info-assistant = 助手：
 info-pleaseChooseModel = 请选择一个模型
 info-showTrans = 翻译
+info-chooseModel = --请选择模型--
+info-aiTrans = AI 翻译

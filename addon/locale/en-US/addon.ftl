@@ -219,3 +219,5 @@ info-user = user:
 info-assistant = assistant: 
 info-pleaseChooseModel = Please Choose a Model
 info-showTrans = Translate
+info-chooseModel = --Please choose an model--
+info-aiTrans = AI Translate

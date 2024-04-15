@@ -44,7 +44,7 @@ export class Translator {
 
     }
 
-    async polo(e: Event) {
+    /* async polo(e: Event) {
         //@ts-ignore has
         const content = e.target?.value;
         let result;
@@ -58,8 +58,18 @@ export class Translator {
 
         }
 
+    } */
+    async polo(content: string) {
+        let result;
+        try {
+            result = await this.workerRun(content);
+            showInfo(result.result);
+            return result.result;
+        } catch (e: any) {
+            showInfo(e.message);
+            throw e;
+        }
     }
-
 }
 
 

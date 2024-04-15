@@ -37,8 +37,114 @@ export function showTrans() {
     const io: any = { fieldNames, dialogType, title };
     const win = getWindow();
     win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,", io);
+}
+
+function trans(dialogType: string, win: Window, parent: XUL.Box) {
+    if (dialogType != 'showTrans') return;
+    const dialog = win.document.documentElement.children[2] as any;
+    const acceptButton = dialog.getButton("accept");
+    acceptButton.label = "Enter 翻译";
+    const originTextStyle = `height: 150px; margin-inline: 2rem`;
+    const originText = ztoolkit.UI.appendElement(
+        {
+
+            tag: "textarea",
+            attributes: {
+                placeholder: "原文",
+                rows: "10",
+                cols: "80",
+                style: originTextStyle
+            },
+            listeners: [
+                {
+                    type: "change",//内容没有变化不会翻译
+                    listener: tran
+                },
+                {
+                    type: "input",
+                    //listener: (e) => tranThrottle(e)
+                    listener: () => tranThrottle()
+                }
+            ],
+
+
+        }, parent) as HTMLTextAreaElement;
+    const divStyle = `min-height: 50px; margin-inline: 2rem`;
+    const showText = ztoolkit.UI.appendElement(
+        {
+            tag: "div",
+            attributes: {
+                style: divStyle
+            },
+            children: [
+                {
+                    tag: "span",
+                    properties: {
+                        innerText: "译文"
+                    }
+                }
+            ]
+        }, parent);
+    //防止窗口关闭，文本区域失焦开始翻译
+    /* const tran = async (e: Event) => {
+        if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
+        const cache = addon.mountPoint.chatCache;
+        const textarea = e.target as HTMLTextAreaElement;
+        if (!textarea) return;
+        const value = textarea.value;
+        const taskTran = { service: "tencent", value: value };
+        let res;
+        if (cache.has(taskTran)) {
+            res = cache.get(value);
+        } else {
+            res = await addon.mountPoint.transator.polo(value);
+            cache.set(taskTran, res);
+        }
+        const sp = parent.querySelector("span");
+        if (!sp) return;
+        if (sp.innerText != res) {
+            sp.innerText = res;
+            adjustHeight(parent);
+        }
+    }; */
+
+    async function tran() {
+        if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
+        const cache = addon.mountPoint.chatCache;
+        const value = originText.value;
+        if (!value || value == '') return;
+        const taskTran = { service: "tencent", value: value };
+        let res;
+        if (cache.has(taskTran)) {
+            res = cache.get(value);
+        } else {
+            res = await addon.mountPoint.transator.polo(value);
+            cache.set(taskTran, res);
+        }
+        const sp = parent.querySelector("span");
+        if (!sp) return;
+        if (sp.innerText != res) {
+            sp.innerText = res;
+            adjustHeight(parent);
+        }
+    }
+    //throttle
+    const tranThrottle = Zotero.Utilities.debounce(
+        tran,
+        1500
+        //{ leading: false, trailing: false }
+    );
+
+    // 同步返回false，对话框不关闭，异步则会关闭
+    acceptButton.onclick = () => {
+        tran();
+        return false;
+    };
+
+    return;
 
 }
+
 
 export function aITransUI() {
     const dialogType = 'aiTrans';
@@ -68,9 +174,9 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
     if (dialogType != 'aiTrans') return;
     const dialog = win.document.documentElement.children[2] as any;
     const acceptButton = dialog.getButton("accept");
+    const backgroundColor = window.getComputedStyle(acceptButton).getPropertyValue('--color-background');
     acceptButton.label = "Enter " + getString("info-send");
-    acceptButton.onclick = () => false;//防止窗口关闭，文本区域失焦发送给ai
-    const divStyle = `height: 400px; margin-inline: 2rem; overflow: auto`;
+    const divStyle = `margin-inline: 2rem; overflow: auto`;
     const showText = ztoolkit.UI.appendElement(
         {
             tag: "div",
@@ -80,7 +186,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             },
             children: [
                 {
-                    tag: "span",
+                    tag: "p",
                     properties: {
                         innerText: "聊天内容"
                     }
@@ -92,7 +198,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         {
             tag: "textarea",
             attributes: {
-                placeholder: "请发送消息",
+                placeholder: getString("dialog-inputDialog"),
                 rows: "2",
                 cols: "80",
                 style: originTextStyle
@@ -111,30 +217,44 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             await runModel(originText);
             event.preventDefault();//禁止回车的默认换行
         }
-
+    };
+    acceptButton.onclick = () => {
+        runModel(originText);
+        return false;
     };
     const models = await getModels();
     const childrenProps: any[] = models.map((model: string) => ({
-        tag: "option",
+        tag: "menuitem",
         properties: {
             value: model,
-            innerText: model
+            label: model
         }
     }));
     childrenProps.unshift(
         {
-            tag: "option",
+            tag: "menuitem",
             properties: {
                 value: "",
-                innerText: "--Please choose an model--"
+                label: getString("info-chooseModel")
             }
         },
     );
+
     const modelSelect = ztoolkit.UI.insertElementBefore({
-        tag: "select",
-        namespace: 'html',
+        tag: "menulist",
+        namespace: 'xul',
         id: "modelSelect",
-        children: childrenProps,
+        children: [
+            {
+                tag: "menupopup",
+                namespace: 'xul',
+                children: childrenProps,
+                styles: {
+                    backgroundColor: backgroundColor,
+                    marginInline: '1rem',
+                }
+            }
+        ],
         listeners: [
             {
                 type: "change",
@@ -148,16 +268,14 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             },
         ]
     }, acceptButton) as HTMLSelectElement;
-    async function runChat(e: Event) {
-        //缓存 todo 本地存储
-        const textarea = e.target as HTMLTextAreaElement;
-        if (!textarea) return;
-        await runModel(textarea);
 
-    }
 
     async function runModel(textarea: HTMLTextAreaElement) {
         const value = textarea.value;
+        if (!value || value == "") {
+            textarea.value = getString("info-empty");
+            return;
+        }
         const model = modelSelect.value;
         if (model.length == 0) {
             textarea.value = getString("info-pleaseChooseModel");
@@ -166,29 +284,23 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
 
         ztoolkit.UI.appendElement(
             {
-                tag: "span",
+                tag: "p",
                 properties: {
                     innerText: getString("info-user") + value
                 }
-
             }, showText);
         textarea.value = '';
         const res = await aiCHat(value, model);
         ztoolkit.UI.appendElement(
             {
-                tag: "span",
+                tag: "p",
                 properties: {
                     innerText: getString("info-assistant") + res
                 }
-
             }, showText);
-
         adjustHeight(parent);
-
     }
-
     return;
-
 }
 
 
@@ -205,6 +317,8 @@ function adjustHeight(parent: XUL.Box) {
     h = h > 800 ? 800 : h;
     parent.style.height = h + 40 + "px";
 }
+
+
 export class DataDialog {
     static async onOpenDataDialog(win: Window) {
         const style = `min-width: 300px; max-width: 1200px; margin-inline: 1rem`;
@@ -220,84 +334,10 @@ export class DataDialog {
         if (!parent) return;
 
 
-        //win.document.addEventListener('dialogaccept', () =>  DataDialog.handleAccept(win));
+        win.document.addEventListener('dialogaccept', () => DataDialog.handleAccept(win));
         win.document.addEventListener('dialogcancel', () => DataDialog.handleCancel(win));
-        if (dialogType == 'showTrans') {
-            const dialog = win.document.documentElement.children[2] as any;
-            const acceptButton = dialog.getButton("accept");
-            acceptButton.label = "Enter 翻译";
-            acceptButton.onclick = () => false;//防止窗口关闭，文本区域失焦开始翻译
-            const tran = async (e: Event) => {
-                if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
-                const cache = addon.mountPoint.chatCache;
-                const textarea = e.target as HTMLTextAreaElement;
-                if (!textarea) return;
-                const value = textarea.value;
-                const taskTran = { service: "tencent", value: value };
-                let res;
-                if (cache.has(taskTran)) {
-                    res = cache.get(value);
-                } else {
-                    res = await addon.mountPoint.transator.polo(e);
-                    cache.set(taskTran, res);
-                }
-                const sp = parent.querySelector("span");
-                if (!sp) return;
-                if (sp.innerText != res) {
-                    sp.innerText = res;
-                    adjustHeight(parent);
-                }
-            };
-            const tranThrottle = Zotero.Utilities.throttle(
-                tran,
-                1000,
-                { leading: false, trailing: false }
-            );
 
-            const originTextStyle = `height: 150px; margin-inline: 2rem`;
-            const originText = ztoolkit.UI.appendElement(
-                {
-
-                    tag: "textarea",
-                    attributes: {
-                        placeholder: "原文",
-                        rows: "10",
-                        cols: "80",
-                        style: originTextStyle
-                    },
-                    listeners: [
-                        {
-                            type: "change",//内容没有变化不会翻译
-                            listener: tran
-                        },
-                        {
-                            type: "input",
-                            listener: (e) => tranThrottle(e)
-                        }
-                    ],
-
-
-                }, parent);
-            const divStyle = `min-height: 50px; margin-inline: 2rem`;
-            const showText = ztoolkit.UI.appendElement(
-                {
-                    tag: "div",
-                    attributes: {
-                        style: divStyle
-                    },
-                    children: [
-                        {
-                            tag: "span",
-                            properties: {
-                                innerText: "译文"
-                            }
-                        }
-                    ]
-                }, parent);
-
-            return;
-
-        }
+        trans(dialogType, win, parent);
         await aiTrans(dialogType, win, parent);
 
         if (Array.isArray(fieldNames)) {
@@ -576,6 +616,9 @@ export class DataDialog {
         //@ts-ignore XXX
         const io = win.arguments[0];
         const dialogType = io.dialogType;
+        if (dialogType == 'aiTrans') {
+            return false;
+        }
         const elements = win.document.querySelectorAll('[id^="fieldName"]');
         const dataOut: any = {};
         if (elements.length) {
