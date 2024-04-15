@@ -55,7 +55,7 @@
     "cz-conventional-changelog": "^3.3.0",
     "esbuild": "^0.19.12",
     "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
     "release-it": "^17.1.1",
