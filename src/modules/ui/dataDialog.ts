@@ -44,7 +44,7 @@ function trans(dialogType: string, win: Window, parent: XUL.Box) {
     const dialog = win.document.documentElement.children[2] as any;
     const acceptButton = dialog.getButton("accept");
     acceptButton.label = "Enter 翻译";
-    const originTextStyle = `height: 150px; margin-inline: 2rem`;
+    const originTextStyle = `height: 150px; margin-inline: 1rem`;
     const originText = ztoolkit.UI.appendElement(
         {
 
@@ -69,7 +69,7 @@ function trans(dialogType: string, win: Window, parent: XUL.Box) {
 
 
         }, parent) as HTMLTextAreaElement;
-    const divStyle = `min-height: 50px; margin-inline: 2rem`;
+    const divStyle = `min-height: 50px; margin-inline: 1rem`;
     const showText = ztoolkit.UI.appendElement(
         {
             tag: "div",
@@ -157,7 +157,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
     const acceptButton = dialog.getButton("accept");
     const backgroundColor = window.getComputedStyle(acceptButton).getPropertyValue('--color-background');
     acceptButton.label = "Enter " + getString("info-send");
-    const divStyle = `margin-inline: 2rem; overflow: auto`;
+    const divStyle = `margin-inline: 1rem; overflow: auto; user-select: text;`;
     const showText = ztoolkit.UI.appendElement(
         {
             tag: "div",
@@ -174,17 +174,38 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                 }
             ]
         }, parent);
-    const originTextStyle = `margin-inline: 2rem`;
+    const originTextStyle = `margin-inline: 1rem; height: auto`;
     const originText = ztoolkit.UI.appendElement(
         {
             tag: "textarea",
             attributes: {
                 placeholder: getString("dialog-inputDialog"),
-                rows: "2",
-                cols: "80",
+                rows: 1,
+                cols: 80,
                 style: originTextStyle
-            }
+            },
+            listeners: [
+                {
+                    type: "change",
+                    listener: originTextAutoHeight
+                },
+                {
+                    type: "input",
+                    listener: (e: Event) => {
+                        originTextAutoHeightDebounce(e);
+                    }
+                },
+            ]
         }, parent) as HTMLTextAreaElement;
+
+    function originTextAutoHeight(e: Event) {
+        if (!e.target) return;
+        const elem = e.target as HTMLTextAreaElement;
+        elem.style.height = "auto";
+        elem.style.height = elem.scrollHeight + "px";
+        adjustHeight(parent);
+    }
+    const originTextAutoHeightDebounce = Zotero.Utilities.debounce(originTextAutoHeight, 1000);
 
     originText.onkeydown = async function send(event: KeyboardEvent) {
         //var msgInput=$(this).val()
@@ -238,10 +259,14 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         ],
         listeners: [
             {
-                type: "change",
+                type: "command",
                 listener: (e: Event) => {
                     if (modelSelect.value != "") {
                         if (originText.value == getString("info-pleaseChooseModel")) {
+                            if (addon.mountPoint?.textareaCache) {
+                                originText.value = addon.mountPoint.textareaCache;
+                                return;
+                            }
                             originText.value = "";
                         }
                     }
@@ -260,16 +285,48 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         textarea.scrollIntoView(false);//底端对齐
         const model = modelSelect.value;
         if (model.length == 0) {
+            addon.mountPoint.textareaCache = textarea.value;
             textarea.value = getString("info-pleaseChooseModel");
             return;
         }
-
         ztoolkit.UI.appendElement(
             {
-                tag: "p",
-                properties: {
-                    innerText: getString("info-user") + value
-                }
+                tag: "div",
+                namespace: "html",
+                children: [
+                    {
+                        tag: "span",
+                        properties: {
+                            innerText: getString("info-user")
+                        },
+                    },
+                    {
+                        tag: "span",
+                        properties: {
+                            innerText: value
+                        },
+                    },
+                    {
+                        tag: "button",
+                        namespace: 'html',
+                        properties: {
+                            innerText: getString("info-copy")
+                        },
+                        listeners: [
+                            {
+                                type: "click",
+                                listener: (e: Event) => {
+                                    if (e.target) {
+                                        const clip = new ztoolkit.Clipboard();
+                                        clip.addText(e.target?.previousElementSibling.innerText, "text/html");
+                                        clip.copy();
+                                        e.target.innerText = getString("info-copyed");
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
             }, showText);
         showText.scrollIntoView(false);
         textarea.value = '';
@@ -294,15 +351,16 @@ function adjustHeight(parent: XUL.Box) {
     oHeight = oHeight > 400 ? 400 : oHeight;
     originText.style.height = oHeight + "px";
     let tHeight = transText.scrollHeight;
-    tHeight = tHeight > 400 ? 400 : tHeight;
+    tHeight = tHeight > 200 ? 200 : tHeight;
     transText.style.height = tHeight + "px";
     let h = oHeight + tHeight;
-    h = h > 800 ? 800 : h;
+    h = h > 600 ? 600 : h;
     parent.style.height = h + "px";
     //@ts-ignore xxx
     const win = parent.ownerGlobal;
-    if (win.innerHeight < parent.clientHeight) {
-        const yDelta = parent.clientHeight - win.innerHeight;
+    const totalHeight = parent.ownerDocument.documentElement.scrollHeight;
+    if (win.innerHeight < totalHeight) {
+        const yDelta = totalHeight - win.innerHeight;
         win.resizeBy(0, yDelta);
     }
 
@@ -347,7 +405,7 @@ export class DataDialog {
                 });
             }
             if (dialogType == 'multiSelect') {
-                parent.style.marginLeft = "2rem";
+                parent.style.marginLeft = "1rem";
                 const checkboxs = fieldNames.map((e: string, i: number) => ({
                     tag: "checkbox",
                     id: `fieldName-${Zotero.randomString(6)}`,
@@ -555,7 +613,7 @@ export class DataDialog {
                 parent.appendChild(hbox);
             }
             if (dialogType == 'multiSelect') {
-                parent.style.marginLeft = "2rem";
+                parent.style.marginLeft = "1rem";
                 const checkboxs = fields.map((e: string, i: number) => ({
                     tag: "checkbox",
                     id: `fieldName - ${Zotero.randomString(6)}`,
