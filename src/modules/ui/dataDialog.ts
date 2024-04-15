@@ -86,27 +86,6 @@ function trans(dialogType: string, win: Window, parent: XUL.Box) {
             ]
         }, parent);
     //防止窗口关闭，文本区域失焦开始翻译
-    /* const tran = async (e: Event) => {
-        if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
-        const cache = addon.mountPoint.chatCache;
-        const textarea = e.target as HTMLTextAreaElement;
-        if (!textarea) return;
-        const value = textarea.value;
-        const taskTran = { service: "tencent", value: value };
-        let res;
-        if (cache.has(taskTran)) {
-            res = cache.get(value);
-        } else {
-            res = await addon.mountPoint.transator.polo(value);
-            cache.set(taskTran, res);
-        }
-        const sp = parent.querySelector("span");
-        if (!sp) return;
-        if (sp.innerText != res) {
-            sp.innerText = res;
-            adjustHeight(parent);
-        }
-    }; */
 
     async function tran() {
         if (!addon.mountPoint.chatCache) addon.mountPoint.chatCache = new WeakMap();
@@ -153,7 +132,9 @@ export function aITransUI() {
     const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
     const io: any = { fieldNames, dialogType, title };
     const win = getWindow();
-    win.openDialog(url, "dataDialog", "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,", io);
+    const features = "chrome,centerscreen,scrollbars,resizable";
+    //"chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,scrollbars, menubar,toolbar,status"
+    win.openDialog(url, "dataDialog", features, io);
 
 }
 
@@ -276,6 +257,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             textarea.value = getString("info-empty");
             return;
         }
+        textarea.scrollIntoView(false);//底端对齐
         const model = modelSelect.value;
         if (model.length == 0) {
             textarea.value = getString("info-pleaseChooseModel");
@@ -289,6 +271,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                     innerText: getString("info-user") + value
                 }
             }, showText);
+        showText.scrollIntoView(false);
         textarea.value = '';
         const res = await aiCHat(value, model);
         ztoolkit.UI.appendElement(
@@ -309,13 +292,21 @@ function adjustHeight(parent: XUL.Box) {
     const transText = parent.children[1] as HTMLDivElement;
     let oHeight = originText.scrollHeight;
     oHeight = oHeight > 400 ? 400 : oHeight;
-    originText.style.height = oHeight + 10 + "px";
+    originText.style.height = oHeight + "px";
     let tHeight = transText.scrollHeight;
     tHeight = tHeight > 400 ? 400 : tHeight;
-    transText.style.height = tHeight + 10 + "px";
-    let h = oHeight + tHeight + 40;
+    transText.style.height = tHeight + "px";
+    let h = oHeight + tHeight;
     h = h > 800 ? 800 : h;
-    parent.style.height = h + 40 + "px";
+    parent.style.height = h + "px";
+    //@ts-ignore xxx
+    const win = parent.ownerGlobal;
+    if (win.innerHeight < parent.clientHeight) {
+        const yDelta = parent.clientHeight - win.innerHeight;
+        win.resizeBy(0, yDelta);
+    }
+
+
 }
 
 
