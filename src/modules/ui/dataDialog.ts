@@ -217,25 +217,20 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         return false;
     };
     const defaultModel = "qwen:latest";
-    const models = await getModels();
+    const models = await getModels() as string[];
+    if (models.indexOf(defaultModel)) {
+        models.splice(models.indexOf(defaultModel), 1);
+        models.unshift(defaultModel);
+    } else {
+        models.unshift('');
+    }
     const childrenProps: any[] = models.map((model: string) => ({
         tag: "menuitem",
         properties: {
             value: model,
-            label: model,
-            checked: model == defaultModel
+            label: model == "" ? getString("info-chooseModel") : model,
         }
     }));
-    childrenProps.unshift(
-        {
-            tag: "menuitem",
-            properties: {
-                value: "",
-                label: getString("info-chooseModel"),
-                checked: false
-            }
-        },
-    );
 
     const modelSelect = ztoolkit.UI.insertElementBefore({
         tag: "menulist",
@@ -374,6 +369,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         addChatContent("user", value, showText);
         showText.scrollIntoView(false);
         textarea.value = '';
+        textarea.style.height = '';
         adjustHeight(parent);
         const res = await aiCHat(value, model);
         addChatContent("AI", res, showText);
@@ -401,6 +397,7 @@ function adjustHeight(parent: XUL.Box) {
     if (win.innerHeight < totalHeight) {
         const yDelta = totalHeight - win.innerHeight;
         win.resizeBy(0, yDelta);
+        win.moveBy(0, yDelta);
     }
 
 
