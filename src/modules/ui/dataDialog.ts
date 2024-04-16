@@ -216,12 +216,14 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         runModel(originText);
         return false;
     };
+    const defaultModel = "qwen:latest";
     const models = await getModels();
     const childrenProps: any[] = models.map((model: string) => ({
         tag: "menuitem",
         properties: {
             value: model,
-            label: model
+            label: model,
+            checked: model == defaultModel
         }
     }));
     childrenProps.unshift(
@@ -229,7 +231,8 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             tag: "menuitem",
             properties: {
                 value: "",
-                label: getString("info-chooseModel")
+                label: getString("info-chooseModel"),
+                checked: false
             }
         },
     );
@@ -272,6 +275,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
 
 
     function addChatContent(role: "AI" | "user", value: string, container: Element) {
+
         const buttonListener =
         {
             type: "click",
