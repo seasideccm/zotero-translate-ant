@@ -275,18 +275,29 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
         const buttonListener =
         {
             type: "click",
-            listener: (e: Event) => {
+            listener: async (e: Event) => {
                 const button = e.target as HTMLButtonElement;
-                if (button) {
-                    const clip = new ztoolkit.Clipboard();
-                    //@ts-ignore has
-                    const source = button.previousElementSibling.innerText;
-                    clip.addText(source, 'text/unicode');
-                    clip.copy();
+                const parentNode = button.parentNode;
+                if (button && parentNode) {
+                    const source = parentNode.childNodes[0].nodeValue;
+                    if (!source) return;
+                    const navigator = ztoolkit.getGlobal("navigator");
+                    await navigator.clipboard.writeText(source);
                     //button.style.display="none"
-                    const newButton;
-                    button.style.width = button.clientWidth * 1.3 + "px";
-                    button.innerText = getString("info-copyed");
+                    const newButton = ztoolkit.UI.replaceElement(
+                        {
+                            tag: "button",
+                            namespace: 'html',
+                            properties: {
+                                innerText: getString("info-copyed")
+                            },
+                            listeners: [buttonListener]
+                        }, button
+                    ) as HTMLButtonElement;
+                    setTimeout(() => {
+                        parentNode?.replaceChild(button, parentNode.children[0]);
+                        //parentNode?.childNodes[1].replaceWith(button);
+                    }, 1000);
                 }
             }
         };
@@ -330,19 +341,16 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                         properties: {
                             innerText: value.trim()
                         },
-                        //children: []
+                        children: [{
+                            tag: "button",
+                            namespace: 'html',
+                            properties: {
+                                innerText: getString("info-copy")
+                            },
+                            listeners: [buttonListener]
+                        }]
                     },
-                    {
-                        tag: "button",
-                        namespace: 'html',
-                        properties: {
-                            innerText: getString("info-copy")
-                        },
-                        listeners: [buttonListener]
-                    }
-
                 ]
-
             }, container);
     }
 
