@@ -8,6 +8,7 @@ import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
 import { aITransUI, showTrans } from "./ui/dataDialog";
+import { openAIOllama } from "./llm/oneApi";
 
 
 
@@ -27,7 +28,8 @@ function getParasArrs() {
     [
       ["读取文件内容", readTextFiles],
       ["AI 翻译", aITransUI],
-      ["翻译", showTrans]
+      ["翻译", showTrans],
+      ["测试openai兼容", openAIOllama]
 
 
     ],

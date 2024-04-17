@@ -81,3 +81,14 @@ CREATE TABLE serviceTypes(
     serviceTypeID INTEGER PRIMARY KEY,
     serviceType TEXT NOT NULL --serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"]
 );
+
+-- LLM
+CREATE TABLE largeLanguageModels(
+    serialNumber INT NOT NULL PRIMARY KEY,
+    provider TEXT NOT NULL,
+    apikey TEXT NOT NULL DEFAULT "null",
+    baseurl TEXT NOT NULL,
+    models TEXT NOT NULL,
+    defaultModel TEXT NOT NULL,
+    UNIQUE(provider, apikey)
+);

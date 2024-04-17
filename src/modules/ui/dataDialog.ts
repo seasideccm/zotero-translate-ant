@@ -434,7 +434,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                 }
                 else {
                     if (streamContain) {
-                        streamContain.childNodes[0].nodeValue += part.message.content;
+                        streamContain.childNodes[0].childNodes[0].nodeValue += part.message.content;
                     }
                 }
             }

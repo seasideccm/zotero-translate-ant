@@ -18,6 +18,7 @@ const newFieldvalueConfig = undefined;
 export async function compareSQLUpdateDB() {
 
   const DB = await getDB();
+  if (!DB) return;
   const sqlsFromDB: string[] = [];
   const tableFromDB: string[] = [];
   const rows = await DB.queryAsync("SELECT name,sql FROM sqlite_master");
@@ -83,7 +84,7 @@ export async function compareSQLUpdateDB() {
           // 新表新加的字段其值不能从旧表直接导入，筛选出其默认值
           if (!oldColumns.includes(col)) {
             //新表字段 MD5，对应旧表字段 fileName， 先将 fileName 字段的所有值复制到新表 MD5 字段
-            if (newFieldvalueConfig && newFieldvalueConfig.alterTableName == tableName) {
+            if (newFieldvalueConfig && newFieldvalueConfig?.alterTableName == tableName) {
               if (oldColumns.includes(newFieldvalueConfig[col])) {
                 oldFields.push(newFieldvalueConfig[col]);
                 continue;
@@ -375,6 +376,7 @@ export async function getDB(dbName?: string) {
   // 若 addonDB 尚未定义则创建实例然后初始化
   if (!addonDB) {
     const DBPath = await makeDBPath();
+    if (!DBPath) return;
     addonDB = new DB(DBPath);
   }
   // 若 addonDB 存在则检查
@@ -400,6 +402,7 @@ export async function getDB(dbName?: string) {
 }
 export async function clearTable(tableNames: string[]) {
   const DB = await getDB();
+  if (!DB) return;
   for (const tableName of tableNames) {
     const sql = `DELETE FROM ${tableName}`;
     await DB.queryAsync(sql);
@@ -423,6 +426,7 @@ export async function makeDBPath(dbName?: string) {
   } else {
     dir = getDir(dbName);
   }
+  if (!dir) return;
 
   if (!(await IOUtils.exists(dir))) {
     try {
@@ -559,6 +563,7 @@ export async function getSQLFilesContent() {
 
 export async function fillServiceTypes() {
   const DB = await getDB();
+  if (!DB) return;
   const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
   const tableName = "serviceTypes";
   await DB.executeTransaction(async () => {
@@ -574,6 +579,7 @@ export async function fillServiceTypes() {
 
 export async function getTableNamesFromSqlFile(fileName: string) {
   const DB = await getDB();
+  if (!DB) return;
   const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB, fileName);
   const diffs = sqlsFromResourceFiles.join(';');
   const tableNames = [];

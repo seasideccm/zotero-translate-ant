@@ -400,6 +400,76 @@
   </vbox>
 </vbox>
 
+<!--LLM 设置-->
+<separator class="groove" />
+<vbox>
+  <label>
+    <html:h3 data-l10n-id="pref-LLM-settings"></html:h3>
+  </label>
+
+  <hbox>
+    <label data-l10n-id="pref-LLM-provider"></label>
+    <!-- Replace -->
+    <box id="__addonRef__-LLMProvider-placeholder"></box>
+    <spacer width="20px" height="20px" />
+
+    <label data-l10n-id="pref-providerCustom"></label>
+    <html:input
+      size="10"
+      value=""
+      type="text"
+      id="__addonRef__-providerCustom"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <!-- 接口代理地址 -->
+    <label data-l10n-id="pref-baseURL"></label>
+    <html:input
+      size="40"
+      value=""
+      type="text"
+      id="__addonRef__-baseURL"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <!-- 接口代理地址 -->
+    <label data-l10n-id="pref-modelsList"></label>
+    <html:input
+      size="40"
+      value=""
+      type="text"
+      id="__addonRef__-modelsList"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <!-- 接口代理地址 -->
+    <label data-l10n-id="pref-defaultModel"></label>
+    <html:input
+      size="40"
+      value=""
+      type="text"
+      id="__addonRef__-defaultModel"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <!-- API Key -->
+    <label>API Key</label>
+    <html:input
+      size="60"
+      value=""
+      type="text"
+      id="__addonRef__-APIKey"
+    ></html:input>
+  </hbox>
+
+  <hbox>
+    <button
+      id="__addonRef__-connectivityCheck"
+      data-l10n-id="pref-connectivityCheck"
+      width="5rem"
+    ></button>
+  </hbox>
+</vbox>
 <!--看图-->
 <vbox>
   <separator class="groove" />

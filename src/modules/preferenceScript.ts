@@ -10,6 +10,7 @@ import { getServices } from "./translate/translateServices";
 import { addonSetting } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { encryptState } from "./crypto";
+import { llmSettings } from "./ui/llmSettings";
 
 
 
@@ -36,6 +37,7 @@ export async function registerPrefsScripts(_window: Window) {
   }
   await buildPrefsPane();
   await replaceSecretKeysTable();
+  await llmSettings();
 
   bindPrefEvents();
   addonSetting();
@@ -216,18 +218,7 @@ async function buildPrefsPane() {
         {
           type: "command",
           listener: (e: Event) => {
-            /* const serviceID = getElementValue("serviceID")!;
-            serviceManage.syncBaiduSecretKey(serviceID);
-            serviceManage.mergeAndRemoveDuplicates(serviceID);
-            addon.data.prefs!.rows = getRows(serviceID);
-            updatePrefsUI();
-            onPrefsEvents("update-QPS");
-            onPrefsEvents("update-charasPerTime");
-            onPrefsEvents("update-hasSecretKey");
-            onPrefsEvents("update-charasLimit");
-            onPrefsEvents("update-limitMode");
-            onPrefsEvents("update-isMultiParas");
-            onPrefsEvents("update-secretKeyInfo"); */
+
           },
         },
       ],
@@ -297,6 +288,9 @@ async function buildPrefsPane() {
     doc.querySelector(`#${makeId("limitMode-placeholder")}`)!
   );
 
+
+
+
 }
 
 function bindPrefEvents() {
@@ -311,6 +305,17 @@ function bindPrefEvents() {
   skipLangsHideShow();
   getDom("sourceLang")!.addEventListener("command", (e) => {
     skipLangsHideShow();
+  });
+
+  getDom("providerCustom")!.addEventListener("change", (e) => {
+    //@ts-ignore xxx
+    const custom = e.target?.value as string;
+    if (custom != "") {
+      const p = getDom("providers");
+      p?.setAttribute('value', custom);
+      p?.setAttribute('label', custom);
+
+    }
   });
   //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has

@@ -10,15 +10,12 @@ export async function aiCHat(content: string, model: string, role: "user" | "ass
     };
   }
 
-  //const content = 'Why is the sky blue? Please response in Chinese.';
   const response = await ollama.chat({
-    // model: 'hermis',
     model: model,
     messages: [{ role: role, content: content }],
     stream: stream
   });
   if (stream) return response;
-  ztoolkit.log(response.message.content);
   return response.message.content;
 
 }
