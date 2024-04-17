@@ -223,3 +223,5 @@ info-chooseModel = --请选择模型--
 info-aiTrans = AI 翻译
 info-copy = 复制
 info-copyed = 已复制
+info-welcome = 欢迎使用AI翻译功能。
+info-stream = 流式输出

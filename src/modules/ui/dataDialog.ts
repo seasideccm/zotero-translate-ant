@@ -165,14 +165,17 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             attributes: {
                 style: divStyle
             },
+            properties: {
+                innerText: getString("info-welcome")
+            }
         }, parent);
-    const originTextStyle = `margin-inline: 1rem; height: auto`;
+    const originTextStyle = `margin-inline: 1rem; height: auto, min-height: 100px`;
     const originText = ztoolkit.UI.appendElement(
         {
             tag: "textarea",
             attributes: {
                 placeholder: getString("dialog-inputDialog"),
-                rows: 2,
+                rows: 1,
                 cols: 80,
                 style: originTextStyle
             },
@@ -264,8 +267,49 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             },
         ]
     }, acceptButton) as HTMLSelectElement;
+    const providrs = ["ollama", "openAI"];
+    const providerProps: any[] = providrs.map((model: string) => ({
+        tag: "menuitem",
+        properties: {
+            value: model,
+            label: model
+        }
+    }));
+    const providerSelect = ztoolkit.UI.insertElementBefore({
+        tag: "menulist",
+        namespace: 'xul',
+        id: "providerSelect",
+        children: [
+            {
+                tag: "menupopup",
+                namespace: 'xul',
+                children: providerProps,
+                styles: {
+                    backgroundColor: backgroundColor,
+                    marginInline: '1rem',
+                }
+            }
+        ],
+        listeners: [
+            {
+                type: "command",
+                listener: (e: Event) => {
+                }
+            },
+        ]
+    }, modelSelect) as HTMLSelectElement;
 
-
+    const streamChecker = ztoolkit.UI.insertElementBefore({
+        tag: "checkbox",
+        namespace: 'xul',
+        properties: {
+            label: getString("info-stream"),
+            checked: true
+        },
+        styles: {
+            marginInline: '1rem',
+        }
+    }, modelSelect) as XUL.Checkbox;
     //聊天内容
 
 
@@ -326,7 +370,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                 ]
             }, container);
 
-        ztoolkit.UI.appendElement(
+        const chatConten = ztoolkit.UI.appendElement(
             {
                 tag: "div",
                 namespace: "html",
@@ -351,7 +395,10 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
                     },
                 ]
             }, container);
+        return chatConten;
     }
+
+
 
     async function runModel(textarea: HTMLTextAreaElement) {
         const value = textarea.value;
@@ -359,7 +406,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             textarea.value = getString("info-empty");
             return;
         }
-        textarea.scrollIntoView(false);//底端对齐
+        textarea.scrollBy(0, textarea.scrollHeight);//底端对齐
         const model = modelSelect.value;
         if (model.length == 0) {
             addon.mountPoint.textareaCache = textarea.value;
@@ -367,12 +414,35 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
             return;
         }
         addChatContent("user", value, showText);
-        showText.scrollIntoView(false);
+        showText.scrollBy(0, showText.scrollHeight);
         textarea.value = '';
         textarea.style.height = '';
         adjustHeight(parent);
-        const res = await aiCHat(value, model);
+        const role = undefined;
+        const stream = streamChecker?.checked;
+
+        const res = await aiCHat(value, model, role, stream);
+        if (stream) {
+            let first = true;
+            let streamContain;
+            for await (const part of res) {
+                if (first) {
+                    streamContain = addChatContent("AI", part.message.content, showText);
+                    showText.scrollBy(0, showText.scrollHeight);
+                    adjustHeight(parent);
+                    first = false;
+                }
+                else {
+                    if (streamContain) {
+                        streamContain.childNodes[0].nodeValue += part.message.content;
+                    }
+                }
+            }
+            return;
+
+        }
         addChatContent("AI", res, showText);
+        showText.scrollBy(0, showText.scrollHeight);
         adjustHeight(parent);
     }
     return;
@@ -397,7 +467,18 @@ function adjustHeight(parent: XUL.Box) {
     if (win.innerHeight < totalHeight) {
         const yDelta = totalHeight - win.innerHeight;
         win.resizeBy(0, yDelta);
-        win.moveBy(0, yDelta);
+        const winYDelta = win.screenY - yDelta;
+
+        if (winYDelta > 0) {
+            win.moveBy(0, -winYDelta);
+        }
+        if (winYDelta <= 0 && win.screenY > 0) {
+            win.moveBy(0, -win.screenY);
+        }
+
+    }
+    if (win.outerHeight > win.screen.availHeight) {
+        win.resizeBy(0, win.screen.availHeight - win.outerHeight);
     }
 
 

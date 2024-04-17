@@ -304,4 +304,4 @@ let Ollama$1 = class Ollama {
 };
 const browser = new Ollama$1();
 
-export { Ollama$1 as O, browser as default, head as h, post as p };
+export { Ollama$1 as Ollama, browser as default, head as h, post as p };

@@ -1,7 +1,7 @@
 import ollama from './ollamajs.mjs';
 import { showInfo } from '../../utils/tools';
 
-export async function aiCHat(content: string, model: string) {
+export async function aiCHat(content: string, model: string, role: "user" | "assistant" | "system" = "user", stream: boolean = false) {
   if (window?.AbortController) {
     ollama.abortController = new window.AbortController();
     ollama.abort = () => {
@@ -14,8 +14,10 @@ export async function aiCHat(content: string, model: string) {
   const response = await ollama.chat({
     // model: 'hermis',
     model: model,
-    messages: [{ role: 'user', content: content }],
+    messages: [{ role: role, content: content }],
+    stream: stream
   });
+  if (stream) return response;
   ztoolkit.log(response.message.content);
   return response.message.content;
 

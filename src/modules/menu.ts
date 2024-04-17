@@ -26,7 +26,7 @@ function getParasArrs() {
     ],
     [
       ["读取文件内容", readTextFiles],
-      ["chat", aITransUI],
+      ["AI 翻译", aITransUI],
       ["翻译", showTrans]
 
 
