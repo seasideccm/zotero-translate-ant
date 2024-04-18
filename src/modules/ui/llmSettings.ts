@@ -125,22 +125,33 @@ async function llmToDatabase(sqlValues: string[]) {
     if (!DB) return;
     const tableName = "largeLanguageModels";
     const sqlColumns = ["provider", "apikey", "baseurl", "models", "defaultModel"];
-    let sql = `SELECT COUNT(*) FROM ${tableName} WHERE provider='${sqlValues[0]}'`;
-    const result = await DB.valueQueryAsync(sql);
-    if (result === 0) {
+    let sql = `SELECT * FROM ${tableName} WHERE provider='${sqlValues[0]}'`;
+    const result = await DB.queryAsync(sql);
+    if (result.length === 0) {
         const serialNumber = await DB.getNextID(tableName, "serialNumber");
         sqlColumns.unshift('serialNumber');
         sqlValues.unshift(serialNumber);
         sql = `INSERT INTO ${tableName} (${sqlColumns.join(",")}) VALUES (${sqlValues.map(() => "?").join()})`;
+        await DB.executeTransaction(async () => {
+            await DB.queryAsync(sql, sqlValues);
+        });
     } else {
-        sql = `INSERT INTO ${tableName} (${sqlColumns.join(",")}) VALUES (${sqlValues.map(() => "?").join()})`;
-        `UPDATE ${tableName} SET ${target.field} = '${target.value}' WHERE ${condition.field} = '${condition.value}'`;
+        sql = `UPDATE ${tableName} SET`;
+        let hasChange = false;
+        for (let i = 1; i < sqlColumns.length; i++) {
+            if (result[sqlColumns[i]] == sqlValues[i]) continue;
+            sql = sql + `${sqlColumns[i]} = ${sqlValues[i]}, `;
+            hasChange = true;
+        }
+        if (!hasChange) return;
+        sql = sql + ` WHERE provider='${sqlValues[0]}'`;
+        await DB.executeTransaction(async () => {
+            await DB.queryAsync(sql);
+        });
     }
 
 
-    await DB.executeTransaction(async () => {
-        await DB.queryAsync(sql, sqlValues);
-    });
+
 }
 
 async function fillModel() {

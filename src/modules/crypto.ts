@@ -1070,6 +1070,7 @@ export async function decryptAll(isDeleteEncyptedFile: boolean = false) {
 export async function decryptAllFiles(isDeleteEncyptedFile: boolean = false) {
     showInfo("Decrypt The Encrypted Files...");
     const DB = await getDB();
+    if (!DB) return;
     const rows = await DB.queryAsync(`SELECT MD5, path, encryptAESStringNoBuffer FROM encryptFilePaths`);
     const fileEncryptInfos = dbRowsToObjs(rows, ["MD5", "path", "encryptAESStringNoBuffer"]);
     if (!fileEncryptInfos || !fileEncryptInfos.length) {
