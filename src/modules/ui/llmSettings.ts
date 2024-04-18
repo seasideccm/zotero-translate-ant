@@ -1,6 +1,8 @@
-import { arrsToObjs } from "../../utils/tools";
+import { getString } from "../../utils/locale";
+import { arrayUtils, arrsToObjs } from "../../utils/tools";
 import { getDB } from "../database/database";
-import { dbRowsToObjs } from "../translate/translateServices";
+import { connectivityCheck } from "../llm/oneApi";
+import { dbRowsToArray, dbRowsToObjs } from "../translate/translateServices";
 import { getDom, makeId } from "./uiTools";
 
 export async function llmSettings() {
@@ -67,10 +69,31 @@ export async function llmSettings() {
             clearInput();
         }
     });
+    getDom("connectivityCheck")!.addEventListener("command", async (e: Event) => {
+        const llm = await getCurrenLLM();
+        if (await connectivityCheck(llm)) {
+            ztoolkit.UI.insertElementBefore({
+                tag: "button",
+                namespace: "html",
+                id: "pass",
+                properties: {
+                    innerHeight: getString("info-pass"),
+                }
+            }, e.target as HTMLElement);
+        }
+    });
 
-    win.addEventListener("click", (e: Event) => {
+    win.addEventListener("click", async (e: Event) => {
+
+        const idsufixs = ["providers", "providerCustom", "apikey", "baseurl", "models", "defaultModel"];
+        //@ts-ignore has
+        const id = e.target?.id;
+        if (id) {
+            const condition = idsufixs.some((sufix: string) => id.endsWith(sufix));
+            if (condition) return;
+        }
         if (isAllInputFilled()) {
-            saveLLMData();
+            await saveLLMData();
         }
     });
     win.addEventListener("beforeunload", (e: Event) => {
@@ -78,6 +101,7 @@ export async function llmSettings() {
             saveLLMData();
         }
     });
+
 
 }
 async function saveLLMData() {
@@ -126,7 +150,7 @@ async function llmToDatabase(sqlValues: string[]) {
     const tableName = "largeLanguageModels";
     const sqlColumns = ["provider", "apikey", "baseurl", "models", "defaultModel"];
     let sql = `SELECT * FROM ${tableName} WHERE provider='${sqlValues[0]}'`;
-    const result = await DB.queryAsync(sql);
+    const result: any[] = await DB.queryAsync(sql);
     if (result.length === 0) {
         const serialNumber = await DB.getNextID(tableName, "serialNumber");
         sqlColumns.unshift('serialNumber');
@@ -136,15 +160,16 @@ async function llmToDatabase(sqlValues: string[]) {
             await DB.queryAsync(sql, sqlValues);
         });
     } else {
-        sql = `UPDATE ${tableName} SET`;
-        let hasChange = false;
+        //假设每个厂家一个秘钥
+        const resultArr = dbRowsToArray(result, sqlColumns)[0];
+        if (!arrayUtils.isDiffer(resultArr, sqlValues)) return;//数据均相同则返回，否则更新变化的数据
+        sql = `UPDATE ${tableName} SET `;
+        const tempArr: string[] = [];
         for (let i = 1; i < sqlColumns.length; i++) {
-            if (result[sqlColumns[i]] == sqlValues[i]) continue;
-            sql = sql + `${sqlColumns[i]} = ${sqlValues[i]}, `;
-            hasChange = true;
+            if (result[i] == sqlValues[i]) continue;
+            tempArr.push(`${sqlColumns[i]} = '${sqlValues[i]}'`);
         }
-        if (!hasChange) return;
-        sql = sql + ` WHERE provider='${sqlValues[0]}'`;
+        sql = sql + tempArr.join(', ') + ` WHERE provider='${sqlValues[0]}'`;
         await DB.executeTransaction(async () => {
             await DB.queryAsync(sql);
         });

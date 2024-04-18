@@ -4,7 +4,7 @@ import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecurs
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
-const newFieldvalueConfig = undefined;
+const newFieldvalueConfig: any = undefined;
 
 /* const newFieldvalueConfig: any = {
   alterTableName: "encryptFilePaths",

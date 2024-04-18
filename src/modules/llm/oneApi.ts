@@ -17,6 +17,7 @@ export async function openAIOllama() {
 
 export async function openAICustom(baseURL: string, apiKey: string = 'null') {
     //baseURL: 'http://localhost:11434/v1',
+
     const openai = new OpenAI({
         baseURL: baseURL,
         apiKey: apiKey, // required but unused
@@ -40,6 +41,30 @@ export function prepairLLM(provider: string = "ollama") {
 
 function getApikey(provider: string) {
     return "apiKey";
+}
+
+
+export async function connectivityCheck(llm: any) {
+    let baseurl = llm.baseurl;
+    if (!baseurl.match(/\/v\d$/m)) {
+        const sufix = baseurl.endsWith('/') ? "v1" : '/v1';
+        baseurl = baseurl + sufix;
+    }
+
+
+    const openai = new OpenAI({
+        baseURL: baseurl,
+        apiKey: llm.apikey, // required but unused
+    });
+    const completion = await openai.chat.completions.create({
+        model: llm.defaultModel,
+        messages: [{ role: 'user', content: '介绍一下你自己' }],
+    });
+    if (completion && completion.choices) {
+        return true;
+    }
+    return false;
+
 }
 
 //, model: string = "qwen", role: "user" | "assistant" | "system" = "user", stream: boolean = false,content: string,

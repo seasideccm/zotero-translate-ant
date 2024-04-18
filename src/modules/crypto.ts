@@ -389,7 +389,7 @@ export class Cry {
 
         let path = await Cry.getPathCryKey();
         if (!path) return;
-        const KEYS_NAME: KEYSNAME = await Cry.getKEYS_NAME();
+        const KEYS_NAME: KEYSNAME | undefined = await Cry.getKEYS_NAME();
         if (!KEYS_NAME) {
             const info = getString("info-hasNot") + " crypto " + getString("prefs-table-secretKey") + "\n" + getString("info-updateCryptoKey");
             showInfo(info);
@@ -559,7 +559,7 @@ export class Cry {
             if (!filePaths) return;
         } */
         showInfo(filePaths);
-        showInfo([getString("info-copyFilesTo"), cryPath]);
+        showInfo([getString("info-copyFilesTo"), cryPath || '']);
         const pairPaths = [];
         for (const path of filePaths) {
 
@@ -568,7 +568,7 @@ export class Cry {
                 showInfo(getString("info-hasErrorKey"));
                 return;
             }
-            pairPaths.push([path, PathUtils.join(cryPath, fileName)]);
+            pairPaths.push([path, PathUtils.join(cryPath || '', fileName)]);
         }
         for (const pair of pairPaths) {
             await IOUtils.copy(pair[0], pair[1]);
@@ -597,6 +597,7 @@ export class Cry {
         const path = await Cry.getPathCryKey();
         if (!path) return;
         const KEYS_NAME = await Cry.getKEYS_NAME();
+        if (!KEYS_NAME) return;
         for (const keyName of Object.keys(KEYS_NAME)) {
             const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
             await IOUtils.remove(keyPath, { ignoreAbsent: true });
@@ -702,6 +703,7 @@ export class Cry {
 
     static async creatRASKeys(path: string) {
         const KEYS_NAME = await Cry.getKEYS_NAME();
+        if (!KEYS_NAME) return;
         const keyPair = await Cry.getRSAKeyPair();
         const publicKey = await Cry.exportKey(keyPair.publicKey);
         //const AESKey = await Cry.getAESKey();
@@ -717,6 +719,7 @@ export class Cry {
 
     static async getPathCryKey(keyName?: string) {
         const DB = await getDB();
+        if (!DB) return;
         keyName = keyName ? keyName : 'cryptoKeyPath';
         return await DB.valueQueryAsync(`SELECT value from settings WHERE key = '${keyName}'`) as string;
     }
@@ -729,6 +732,7 @@ export class Cry {
      */
     static async setPathCryKey(path: string) {
         const DB = await getDB();
+        if (!DB) return;
         let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
         const value = await DB.valueQueryAsync(sql);
         if (value && path == value) return;
@@ -742,7 +746,7 @@ export class Cry {
 
     static async setPathRSAKeys(path: string[]) {
         const DB = await getDB();
-
+        if (!DB) return;
         let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
         const value = await DB.valueQueryAsync(sql);
         if (value && path == value) return;
@@ -765,12 +769,14 @@ export class Cry {
     static async getImportDir() {
         const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='importDirectory'`;
         const DB = await getDB();
+        if (!DB) return;
         return await DB.valueQueryAsync(sqlSELECT);
     }
     static async setImportDir(importDirectory: string) {
         if (!await IOUtils.exists(importDirectory)) return;
         if (!PathUtils.isAbsolute(importDirectory)) return;
         const DB = await getDB();
+        if (!DB) return;
         const old = await Cry.getImportDir();
         if (importDirectory == old) return;
         await DB.executeTransaction(async () => {
@@ -787,6 +793,7 @@ export class Cry {
             return KEYS_NAME;
         }
         const DB = await getDB();
+        if (!DB) return;
         const sql = `SELECT value from settings WHERE key = 'cryptoKeysName'`;
         const jsonString = await DB.valueQueryAsync(sql);
         if (!jsonString) return await Cry.setDefaultKEYS_NAME();
@@ -815,6 +822,7 @@ export class Cry {
     static async setRSAfileName(KEYS_NAME: KEYSNAME) {
         await Cry.verifyRSAfileName(KEYS_NAME);
         const DB = await getDB();
+        if (!DB) return;
         const jsonString = JSON.stringify(KEYS_NAME);
         const value = await DB.valueQueryAsync(`SELECT value from settings WHERE key = 'cryptoKeysName'`);
         if (value && jsonString == value) return KEYS_NAME;
@@ -839,6 +847,7 @@ export class Cry {
 export async function encryptState() {
     const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='enableEncrypt'`;
     const DB = await getDB();
+    if (!DB) return;
     const dbValue = await DB.valueQueryAsync(sqlSELECT);
     return Boolean(Number(dbValue));////undefined转NaN转false，null转0转false
 }
@@ -1036,6 +1045,7 @@ export async function decryptByAESKey(encryptAESInfoString: string,
 
 export async function deleteRecords(tableName: "encryptFilePaths" | "encryptAccounts", values: any[] | any) {
     const DB = await getDB();
+    if (!DB) return;
     await DB.executeTransaction(async () => {
         if (!Array.isArray(values)) values = [values];
         for (let value of values) {
@@ -1111,6 +1121,7 @@ export async function decryptFileSelected(path?: string, isDeleteEncyptedFile: b
     const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
     if (!fileMD5) return;
     const DB = await getDB();
+    if (!DB) return;
     const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
     const encryptAESStringNoBuffer = await DB.valueQueryAsync(sql, fileMD5);
     await decryptAndWrite(path, encryptAESStringNoBuffer);
@@ -1131,6 +1142,7 @@ export async function getEncryptFileString(path: string) {
     const fileMD5 = await Zotero.Utilities.Internal.md5Async(path);
     if (!fileMD5) return;
     const DB = await getDB();
+    if (!DB) return;
     const sql = `SELECT encryptAESStringNoBuffer FROM encryptFilePaths WHERE MD5 = ?`;
     //LIKE 模糊匹配为了防止脚本注入，必须以参数传递，此时不能加单引号
     return await DB.valueQueryAsync(sql, fileMD5);
@@ -1192,6 +1204,7 @@ async function modifyValue(tableName: string, target: DBKV, condition: DBKV, ...
 
 async function verifyValueDB(tableName: string, target: DBKV, condition: DBKV) {
     const DB = await getDB();
+    if (!DB) return;
     const sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
     const oldValue = await DB.valueQueryAsync(sql);
     if (!oldValue) return false;
@@ -1203,6 +1216,7 @@ async function verifyValueDB(tableName: string, target: DBKV, condition: DBKV) {
 
 export async function getSettingValue(value: string) {
     const DB = await getDB();
+    if (!DB) return;
     const sql = `SELECT value from settings WHERE key = '${value}'`;
     return await DB.valueQueryAsync(sql) as string;
 
@@ -1213,9 +1227,10 @@ const mapDB = {
 };
 async function md5CryKey(fn: any) {
     const KEYS_NAME = await Cry.getKEYS_NAME();
+    if (!KEYS_NAME) return;
     const path = await Cry.getPathCryKey();
     for (const keyName of Object.keys(KEYS_NAME)) {
-        const keyPath = PathUtils.join(path, KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
+        const keyPath = PathUtils.join(path || '', KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]);
         if (!await IOUtils.exists(keyPath)) return;
         if (!await isRSAKey(keyPath)) return;
         const md5 = await Zotero.Utilities.Internal.md5Async(keyPath);
@@ -1338,6 +1353,7 @@ export async function decryptAllAccount() {
    */
 async function getAllEncryptAccounts() {
     const DB = await getDB();
+    if (!DB) return;
     const rows = await DB.queryAsync(`SELECT serialNumber FROM encryptAccounts`);
     if (!rows.length) {
         showInfo("No encrypted account");
@@ -1393,6 +1409,7 @@ export async function encryptAllAccount(serialNumbers: number[] | string[], valu
 
 export async function getTableBySN(serialNumber: number | string) {
     const DB = await getDB();
+    if (!DB) return;
     let sql = `SELECT secretKey FROM accounts WHERE serialNumber = ${serialNumber}`;
     let value = await DB.valueQueryAsync(sql);
     if (value) return "accounts";
@@ -1420,6 +1437,7 @@ export async function checkEncryptAccounts() {
     if (!await Cry.checkCryKey()) return;
     const encryptAccounts = await getAllEncryptAccounts();
     const serialNumbers = await getSerialNumberAllAccounts();
+    if (!serialNumbers) return;
     for (const serialNumber of serialNumbers) {
         if (encryptAccounts?.length && encryptAccounts.includes(serialNumber)) continue;
         await encryptAccount(serialNumber);
@@ -1430,6 +1448,7 @@ export async function checkEncryptAccounts() {
 async function getSerialNumberAllAccounts() {
     const tables = ["accounts", "accessTokens"];
     const DB = await getDB();
+    if (!DB) return;
     const serialNumbers = [];
     for (const table of tables) {
         const rows = await DB.queryAsync(`SELECT serialNumber FROM ${table}`);

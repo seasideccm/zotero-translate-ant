@@ -225,6 +225,7 @@ async function getAccounts(serviceID: string, tableName: string) {
 
 async function getAccessTokens(serviceID: string) {
     const DB = await getDB();
+    if (!DB) return;
     const sqlColumns = ["accessTokens.serialNumber", "accessTokens.appID", "token", "usable", "charConsum", "dateMarker"];
     const tableName = "accessTokens";
     const tableName2 = "translateServiceSN";
@@ -246,7 +247,6 @@ export function dbRowsToObjs(rows: any[], sqlColumns: string[]) {
 }
 
 export function dbRowsToArray(rows: any[], sqlColumns: string[]) {
-    if (!rows.length) return;
     const keys = sqlColumns.map((colum) => colum.split(".").pop()) as string[];
     const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
     return valuesArr;

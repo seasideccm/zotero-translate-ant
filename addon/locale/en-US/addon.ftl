@@ -225,3 +225,4 @@ info-copy = copy
 info-copyed = info-copyed
 info-welcome = Welcome to use AI translation function.
 info-stream = stream
+info-pass = connect narmal
