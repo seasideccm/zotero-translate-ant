@@ -34,9 +34,10 @@ async function setAddon(keys: string[]) {
     const doc = addon.data.prefs?.window.document;
     if (!doc) return;
     const DB = await getDB();
+    if (!DB) return;
     const settings = addon.mountPoint.settings;
     const newSettings: string[] = [];
-    DB.executeTransaction(async () => {
+    await DB.executeTransaction(async () => {
         for (const key of keys) {
             const sql = "SELECT value FROM settings WHERE key='" + key + "'";
             const value = await DB.valueQueryAsync(sql);
@@ -48,7 +49,7 @@ async function setAddon(keys: string[]) {
             settings[key] = value;
         }
     });
-    DB.executeTransaction(async () => {
+    await DB.executeTransaction(async () => {
         for (const key of newSettings) {
             const settingItem = doc.querySelector(`[id$="-setting-${key}"]`);
             if (!settingItem) continue;

@@ -307,16 +307,7 @@ function bindPrefEvents() {
     skipLangsHideShow();
   });
 
-  getDom("providerCustom")!.addEventListener("change", (e) => {
-    //@ts-ignore xxx
-    const custom = e.target?.value as string;
-    if (custom != "") {
-      const p = getDom("providers");
-      p?.setAttribute('value', custom);
-      p?.setAttribute('label', custom);
 
-    }
-  });
   //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has
   const mutationObserver = new win.MutationObserver(mountMenu);

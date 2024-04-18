@@ -85,10 +85,10 @@ CREATE TABLE serviceTypes(
 -- LLM
 CREATE TABLE largeLanguageModels(
     serialNumber INT NOT NULL PRIMARY KEY,
-    provider TEXT NOT NULL,
-    apikey TEXT NOT NULL DEFAULT "null",
-    baseurl TEXT NOT NULL,
-    models TEXT NOT NULL,
-    defaultModel TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT "",
+    apikey TEXT NOT NULL DEFAULT "",
+    baseurl TEXT NOT NULL DEFAULT "",
+    models TEXT NOT NULL DEFAULT "",
+    defaultModel TEXT NOT NULL DEFAULT "",
     UNIQUE(provider, apikey)
 );

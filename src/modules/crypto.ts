@@ -1168,6 +1168,7 @@ declare type DBKV = {
 };
 async function modifyValue(tableName: string, target: DBKV, condition: DBKV, ...others: DBKV[]) {
     const DB = await getDB();
+    if (!DB) return;
     let sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
     const oldValue = await DB.valueQueryAsync(sql);
     if (oldValue && oldValue == target.value) return true;
