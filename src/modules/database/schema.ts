@@ -20,7 +20,7 @@ export class Schema {
   isCompatible: boolean | null;
   versionsFromBD: { [key: string]: number; };
   versionsFromFile: { [key: string]: number; };
-  DB: DB;
+  DB: DataBase;
 
   constructor() {
     this.initialized = false;

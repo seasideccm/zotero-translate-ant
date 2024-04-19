@@ -164,7 +164,7 @@ let Ollama$1 = class Ollama {
   constructor(config) {
     __publicField(this, "config");
     __publicField(this, "fetch");
-    //__publicField(this, "abortController");
+    __publicField(this, "abortController");
     this.config = {
       host: "",
     };
@@ -176,13 +176,13 @@ let Ollama$1 = class Ollama {
       this.fetch = config.fetch;
     }
 
-    //this.abortController = new globalThis.AbortController();
+    this.abortController = new AbortController();
   }
   //  Abort any ongoing requests to Ollama
-  //abort() {
-  //  this.abortController.abort();
-  //  this.abortController = new globalThis.AbortController();
-  //}
+  abort() {
+    this.abortController.abort();
+    this.abortController = new AbortController();
+  }
   async processStreamableRequest(endpoint, request) {
     request.stream = request.stream ?? false;
     const response = await post(

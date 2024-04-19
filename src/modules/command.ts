@@ -158,7 +158,7 @@ export class Command {
     }
 }
 
-export async function updateDBSettings(elementChecked: boolean, key: string, DB: DB) {
+export async function updateDBSettings(elementChecked: boolean, key: string, DB: DataBase) {
     const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='${key}'`;
     const dbValue = await DB.valueQueryAsync(sqlSELECT);
     const sqlINSERT = `INSERT INTO settings (setting,key,value) VALUES ('addon','${key}',${elementChecked})`;

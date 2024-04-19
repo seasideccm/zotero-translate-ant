@@ -8,7 +8,7 @@ import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
 import { aITransUI, showTrans } from "./ui/dataDialog";
-import { openAIOllama } from "./llm/oneApi";
+import { openAIOllama } from "./largeLanguageModels/oneApi";
 
 
 

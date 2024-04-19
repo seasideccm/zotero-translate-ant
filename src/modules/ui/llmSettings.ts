@@ -1,7 +1,7 @@
 import { getString } from "../../utils/locale";
 import { arrayUtils, arrsToObjs } from "../../utils/tools";
 import { getDB } from "../database/database";
-import { connectivityCheck } from "../llm/oneApi";
+import { connectivityCheck } from "../largeLanguageModels/oneApi";
 import { dbRowsToArray, dbRowsToObjs } from "../translate/translateServices";
 import { getDom, makeId } from "./uiTools";
 

@@ -2,7 +2,7 @@ import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
 import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
-import { aiCHat, getModels } from "../llm/ollama";
+import { aiCHat, getModels } from "../largeLanguageModels/ollama";
 import { makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号

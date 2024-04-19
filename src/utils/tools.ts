@@ -1212,7 +1212,8 @@ export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" =
   //FilePicker.prototype.modeSave = 1;
   //FilePicker.prototype.modeGetFolder = 2;
   //FilePicker.prototype.modeOpenMultiple = 3;
-  const FilePicker = window.require("zotero/modules/filePicker").default;
+  //const FilePicker = window.require("zotero/modules/filePicker").default;
+  const { FilePicker } = ChromeUtils.importESModule('chrome://zotero/content/modules/filePicker.mjs');
   const fp = new FilePicker();
   windowTip = windowTip ? windowTip : (filesOrDir == "dir" ? getString("info-SelectDirectory") : "Select Directory");
   if (filesOrDir == "dir") {

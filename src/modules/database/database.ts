@@ -144,7 +144,7 @@ function getDefaltValue(col: string, sql: string) {
 }
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
-export class DB extends (Zotero.DBConnection as Zotero.DBConnection) {
+export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
   [key: string]: any;
   accessibility: boolean | null;
   initPromise: Promise<void>;
@@ -372,12 +372,12 @@ export async function getDB(dbName?: string) {
     ztoolkit.log("waiting for addon: " + n);
     n++;
   }
-  let addonDB: DB | undefined = addon.mountPoint.database;
+  let addonDB: DataBase = addon.mountPoint.database;
   // 若 addonDB 尚未定义则创建实例然后初始化
   if (!addonDB) {
     const DBPath = await makeDBPath();
-    if (!DBPath) return;
-    addonDB = new DB(DBPath);
+    //if (!DBPath) return;
+    addonDB = new DataBase(DBPath);
   }
   // 若 addonDB 存在则检查
   try {
@@ -415,18 +415,18 @@ export async function clearAllTable() {
 }
 
 export function getDBSync() {
-  return addon.mountPoint.database as DB;
+  return addon.mountPoint.database as DataBase;
 }
 
 export async function makeDBPath(dbName?: string) {
   //dir.replace(/\/|\\$/gm, '')
-  let dir;
+  let dir: string;
   if (dbName == void 0 || (dbName && getDir(dbName) == ".")) {
     dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
   } else {
-    dir = getDir(dbName);
+    dir = getDir(dbName) || '';
   }
-  if (!dir) return;
+  //if (!dir) return;
 
   if (!(await IOUtils.exists(dir))) {
     try {
@@ -525,7 +525,7 @@ async function checkSchema() {
 
 
 
-export async function getSQLFromResourceFiles(DB: DB, filterFilename?: string) {
+export async function getSQLFromResourceFiles(DB: DataBase, filterFilename?: string) {
   const sqlsFromResourceFiles = [];
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {

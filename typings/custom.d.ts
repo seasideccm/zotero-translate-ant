@@ -1,3 +1,10 @@
+// 未能解决问题
+// declare const _globalThis: {
+//   AbortController: window.AbortController;
+// };
+
+declare type DataBase = typeof import("../src/modules/database/database").DataBase;
+
 declare type OptionsPDFTranslate = {
   /**
    * The caller identifier.

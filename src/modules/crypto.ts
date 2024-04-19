@@ -1179,7 +1179,7 @@ declare type DBKV = {
     field: string;
     value: string;
 };
-async function modifyValue(tableName: string, target: DBKV, condition: DBKV, ...others: DBKV[]) {
+async function modifyValue(tableName: string, target: DataBaseKV, condition: DataBaseKV, ...others: DataBaseKV[]) {
     const DB = await getDB();
     if (!DB) return;
     let sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
@@ -1202,7 +1202,7 @@ async function modifyValue(tableName: string, target: DBKV, condition: DBKV, ...
     return true;
 }
 
-async function verifyValueDB(tableName: string, target: DBKV, condition: DBKV) {
+async function verifyValueDB(tableName: string, target: DataBaseKV, condition: DataBaseKV) {
     const DB = await getDB();
     if (!DB) return;
     const sql = `SELECT ${target.field} from ${tableName} WHERE ${condition.field} = '${condition.value}'`;
@@ -1236,8 +1236,8 @@ async function md5CryKey(fn: any) {
         const md5 = await Zotero.Utilities.Internal.md5Async(keyPath);
         if (!md5) return;
         const tableName = "settings";
-        const target: DBKV = { field: "value", value: md5 };
-        const condition: DBKV = {
+        const target: DataBaseKV = { field: "value", value: md5 };
+        const condition: DataBaseKV = {
             field: "key",
             value: mapDB[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"]
         };

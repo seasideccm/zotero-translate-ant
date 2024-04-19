@@ -1,5 +1,5 @@
 import { config } from "../package.json";
-import { DB, compareSQLUpdateDB, getDB } from "./modules/database/database";
+import { compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImage, listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
@@ -73,7 +73,7 @@ async function onShutdown(): Promise<void> {
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
   if (addon.mountPoint.database) {
-    await (addon.mountPoint.database as DB).closeDatabase();
+    await (addon.mountPoint.database as DataBase).closeDatabase();
   }
   // Remove addon object
   addon.data.alive = false;
