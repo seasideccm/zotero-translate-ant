@@ -64,9 +64,7 @@ export async function getServices() {
     return services;
 }
 
-export function getServicesSync() {
-    return addon.mountPoint.services as ServiceMap;
-}
+
 export async function getTranslateService(serviceID: string) {
     const services = await getServices();
     if (services) return services[serviceID];

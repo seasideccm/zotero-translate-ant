@@ -176,6 +176,23 @@ export class TranslateServiceAccount {
 
 }
 //Zotero.extendClass(DataObject, TranslateServiceItem);
+export declare type options = {
+  serviceID: string,
+  charasPerTime: number,
+  QPS: number,
+  limitMode: string,
+  charasLimit: number,
+  supportMultiParas: boolean,
+  hasSecretKey: boolean,
+  hasToken: boolean,
+  //secretKeys?: SecretKey[],
+  //accessTokens?: AccessToken[],
+  accounts?: TranslateServiceAccount[],
+  forbidden?: boolean,
+  serialNumber?: number,
+  configID?: number | undefined,
+
+};
 
 export class TranslateService {
   serviceID: string;
@@ -211,8 +228,6 @@ export class TranslateService {
     supportMultiParas: boolean,
     hasSecretKey: boolean,
     hasToken: boolean,
-    //secretKeys?: SecretKey[],
-    //accessTokens?: AccessToken[],
     accounts?: TranslateServiceAccount[],
     forbidden?: boolean,
     serialNumber?: number,

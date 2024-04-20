@@ -18,6 +18,7 @@ import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 import { checkEncryptAccounts, encryptState } from "./modules/crypto";
 import { Command } from "./modules/command";
+import { fullTextTranslate } from "./modules/translate/fullTextTranslate";
 
 async function onStartup() {
   await Promise.all([
@@ -61,6 +62,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountMenu();
   //translate();
   addon.mountPoint.transator = new Translator();
+  fullTextTranslate.rightClickMenuItem();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

@@ -1,14 +1,16 @@
 import { config } from "../../../package.json";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
-import { pdf2document } from "../pdf/pdfFullText";
+import { frequency, pdf2document } from "../pdf/pdfFullText";
 import { showInfo } from "../../utils/tools";
 import { getSingleServiceUnderUse, serviceManage } from "./serviceManage";
-import { getServicesSync } from "./translateServices";
 import { baiduModify } from "../webApi/baiduModify";
 import { baidufieldModify } from "../webApi/baidufieldModify";
 import { tencentTransmart } from "../webApi/tencentTransmart";
-import { html2md } from "../../utils/mdHtmlConvert";
+import { html2md, md2html } from "../../utils/mdHtmlConvert";
+import { ServiceMap, getServices } from "./translateServices";
+import { langCodeNameSpeakers, langCode_francVsZotero } from "../../utils/constant";
+import { franc } from "franc-min";
 
 
 
@@ -19,6 +21,8 @@ let charConsumRecoder = 0;
   ztoolkit.log("open pdf");
 } */
 export class fullTextTranslate {
+
+
 
   static rightClickMenuItem() {
     const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
@@ -154,9 +158,9 @@ export class fullTextTranslate {
     this.updateCharConsum();
   }
 
-  static updateCharConsum() {
+  static async updateCharConsum() {
     const serviceID = getSingleServiceUnderUse().serviceID as string;
-    const services = getServicesSync();
+    const services = await getServices();
     if (services[serviceID].hasSecretKey) {
       const service = services[serviceID];
       service.updateCharConsum(charConsumRecoder, service);
@@ -296,7 +300,7 @@ export class fullTextTranslate {
     /*     }
       } */
     const fullTextTranslateInfoTxt = langArr.toString();
-    showInfo(fullTextTranslateInfoTxt, 3000);
+    showInfo(fullTextTranslateInfoTxt);
     return isTran;
   }
 
@@ -952,7 +956,7 @@ export class fullTextTranslate {
         }
       }
       tranedStr = fullTextTranslate.modifySubSupHeading(tranedStr);
-      const result = await mdToHtml(tranedStr);
+      const result = await md2html(tranedStr);
       if (result !== undefined) {
         docCell.result = result;
       } else { return; }
@@ -1115,13 +1119,14 @@ export class fullTextTranslate {
    * @param num 
    * @returns 
    */
-  static checkQuotaSwitch(num: number) {
+  static async checkQuotaSwitch(num: number) {
     let onSwitchResult;
+    const services = await getServices();
     /* eslint-disable no-constant-condition */
     while (true) {
       const serviceID = getSingleServiceUnderUse().serviceID as string;
       const secretKey = getSingleServiceUnderUse().key as string;
-      const services = getServicesSync();
+
       const charasPerTime = services[serviceID].charasPerTime;
       /* if (services[serviceID].charasPerTime === undefined) {
         recoverDefaultLimit(serviceID, "charasPerTime");
@@ -1131,7 +1136,7 @@ export class fullTextTranslate {
         recoverDefaultLimit(serviceID, "hasSecretKey");
       } */
       if (services[serviceID].hasSecretKey) {
-        const secretKeyObj = serviceManage.getAccount(serviceID, secretKey);
+        const secretKeyObj = await serviceManage.getAccount(serviceID, secretKey);
         // 如果有秘钥，则检查该秘钥的余额情况
         if (secretKeyObj) {
           let factor = Number(getPref('charasLimitFactor'));
@@ -1233,19 +1238,19 @@ export class fullTextTranslate {
     let toTran = '';
     let loopTimes = 0;
     let lastServiceID = '';
-    const services = getServicesSync();
+    const services = await getServices();
     while (leftArr.length) {
       //翻译引擎支持多段翻译,合并后翻译提高效率
       loopTimes += 1;
       let charasPerTime: number;
       const num = leftArr[0].length;
-      const check = this.checkQuotaSwitch(num);
+      const check = await this.checkQuotaSwitch(num);
       const serviceID = getSingleServiceUnderUse().serviceID as string;
       if (loopTimes != 0 && lastServiceID == serviceID) {
         if (services[serviceID].hasSecretKey) {
           const key = getSingleServiceUnderUse().key;
           if (key !== undefined) {
-            const singleAccount = serviceManage.getAccount(serviceID, key);
+            const singleAccount = await serviceManage.getAccount(serviceID, key);
             if (singleAccount?.charConsum == 0) {
               showInfo("error: characters record failure");
               break;
@@ -1370,7 +1375,7 @@ export class fullTextTranslate {
 
   static translateGo = async (sourceSegment: string) => {
     let onSwitchResult;
-    const services = getServicesSync();
+    const services = await getServices();
     const serviceID = getSingleServiceUnderUse().serviceID as string;
     const secretKey = getSingleServiceUnderUse().key as string;
     let secretKeyObj;
@@ -1380,7 +1385,7 @@ export class fullTextTranslate {
       return paraResult["result"] = `[请求错误]：${serviceID}`;
     }
     if (services[serviceID].hasSecretKey) {
-      secretKeyObj = serviceManage.getAccount(serviceID, secretKey);
+      secretKeyObj = await serviceManage.getAccount(serviceID, secretKey);
       if (secretKeyObj) {
         const charactersTotranslate = sourceSegment.length;
         let factor = Number(getPref('charasLimitFactor'));

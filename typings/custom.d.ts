@@ -1,4 +1,5 @@
 
+
 declare type DataBase = typeof import("../src/modules/database/database").DataBase;
 
 declare type DocItem = {

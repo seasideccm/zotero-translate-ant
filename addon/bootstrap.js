@@ -35,6 +35,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
   const ctx = {
     rootURI,
     AbortController: Zotero.getMainWindow().AbortController,
+    document: Zotero.getMainWindow().document,
   };
   ctx._globalThis = ctx;
 
