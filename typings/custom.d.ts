@@ -1,9 +1,32 @@
-// 未能解决问题
-// declare const _globalThis: {
-//   AbortController: window.AbortController;
-// };
 
 declare type DataBase = typeof import("../src/modules/database/database").DataBase;
+
+declare type DocItem = {
+  itemID?: number;
+  newItemID?: number;
+  key?: string;
+  content: DocCell[];
+  status?: "error" | "success";
+};
+
+declare type DocCell = {
+  id: string;
+  type: "img" | "table" | "paragraph" | "title" | "headMarker" | "tailMarker" | "contentEnd" | "citation" | "header" | "footer";
+  rawContent: string;
+  rawToTranslate?: string | string[];
+  translation?: string | string[];
+  result?: string;
+  status?: string;
+  serviceID?: string | string[];
+  itemID?: number;
+  imgsInLine?: string | string[];
+};
+
+declare type TransResult = {
+  translation: string;
+  serviceID: string;
+  status: "error" | "success";
+};
 
 declare type OptionsPDFTranslate = {
   /**

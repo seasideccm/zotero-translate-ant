@@ -53,7 +53,7 @@ CREATE TABLE freeLoginServices (
 CREATE TABLE charConsum(
     serialNumber INT NOT NULL PRIMARY KEY,
     charConsum INT NOT NULL DEFAULT 0,
-    dataMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 根据限额模式，用于恢复额度
+    dateMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 根据限额模式，用于恢复额度，被调用的时间记录
     dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (serialNumber) REFERENCES translateServiceSN (serialNumber) ON DELETE CASCADE ON UPDATE CASCADE
 );

@@ -3,17 +3,23 @@ import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { fillServiceTypes, getDB, getDBSync } from "../database/database";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 
-
+/**
+ * 初始化翻译引擎
+ * 
+ */
 export async function initTranslateServices() {
-    const keys = keysTranslateService;
     const DB = await getDB();
     const serviceNumber = await DB.valueQueryAsync("SELECT COUNT(*) FROM translateServices");
     if (!serviceNumber) await fillServiceTypes();
     let parasArr = [];
+    // 数据库已有翻译引擎记录则已完成初始化，
+    // 如果有新添加的翻译引擎，则写入数据库
     serviceNumber ? parasArr = parasArrTranslateServiceAdd : parasArr = parasArrTranslateService;
     if (parasArr.length) {
-        await servicesToDB(keys, parasArr);
+        await servicesToDB(keysTranslateService, parasArr);
     }
+    const services = await getServices();
+    return services;
 
 }
 
@@ -58,6 +64,9 @@ export async function getServices() {
     return services;
 }
 
+export function getServicesSync() {
+    return addon.mountPoint.services as ServiceMap;
+}
 export async function getTranslateService(serviceID: string) {
     const services = await getServices();
     if (services) return services[serviceID];
@@ -193,7 +202,7 @@ async function getAccounts(serviceID: string, tableName: string) {
     const DB = await getDB();
     const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];
     tableName == "accounts" ? sqlColumns.push("secretKey") : sqlColumns.push("token");
-    sqlColumns.push("usable", "charConsum", "dataMarker", "forbidden");
+    sqlColumns.push("usable", "charConsum", "dateMarker", "forbidden");
     const tableName2 = "translateServiceSN";
     const sql = `SELECT DISTINCT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
     const rows = await DB.queryAsync(sql);

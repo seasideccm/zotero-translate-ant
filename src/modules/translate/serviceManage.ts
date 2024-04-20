@@ -1,6 +1,5 @@
 import { saveJsonToDisk, showInfo } from "../../utils/tools";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
-import { services } from "./translateServices";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import {
@@ -9,12 +8,18 @@ import {
   setPluginsPref,
   setPref,
 } from "../../utils/prefs";
+import { getServicesSync } from "./translateServices";
+
+
 
 export const servicesFilename = config.addonName + "_" + "services";
+const services = getServicesSync();
 const plugin = "ZoteroPDFTranslate";
 const serviceIDHasSwitched: string[] = [];
 const secretKeyHasSwitched: string[] = [];
 export class serviceManage {
+
+
   /**
    * 检查单个秘钥是否可用
    * 消耗字符数大于字符数限制为不可用
@@ -22,31 +27,32 @@ export class serviceManage {
    * @param serviceID
    * @param key
    */
-  static singleSecretKeyUsableCheck(serviceID?: string, key?: string) {
+  static async singleAccountUsableCheck(serviceID?: string, key?: string) {
     const date = new Date();
     const formatter = new Intl.DateTimeFormat("en-US", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     });
-    const currentDay = formatter.format(date);
+    const currentDay = formatter.format(date);//'04/20/2024'
     const reg = /^\d{2}/m;
     const currentMonth = String(date.getMonth() + 1);
 
     if (serviceID === undefined || serviceID == "" || serviceID == null) {
       serviceID = getSingleServiceUnderUse().serviceID as string;
     }
+    const services = getServicesSync();
     if (!services[serviceID].hasSecretKey) {
       return;
     }
     if (key === undefined || key == "" || key == null) {
-      //let secrets: object = JSON.parse((getPluginsPref(plugin, "secretObj") as string) || "{}")
       key = getSingleServiceUnderUse().key as string;
     }
-    const singleSecretKey = this.getSingleSecretKey(serviceID, key);
-    if (!singleSecretKey) {
+    const singleAccount = this.getAccount(serviceID, key);
+    if (!singleAccount) {
       return;
     }
+    const usableOld = singleAccount.usable;
     const limitMode = services[serviceID].limitMode;
     let factor = Number(getPref("charasLimitFactor"));
     if (isNaN(factor)) {
@@ -57,65 +63,75 @@ export class serviceManage {
       charasLimit = services[serviceID].charasLimit * factor;
     }
     if (limitMode == "pay" || limitMode == "noLimit") {
+      singleAccount.usable = true;
       return true;
     }
     if (limitMode == "total") {
-      if (singleSecretKey.charConsum - 100 > charasLimit) {
-        singleSecretKey.usable = false;
+      if (singleAccount.charConsum - 100 > charasLimit) {
+        singleAccount.usable = false;
       } else {
-        singleSecretKey.usable = true;
+        singleAccount.usable = true;
       }
     }
     if (limitMode == "daily" || limitMode == "month") {
       if (
-        singleSecretKey.dateMarker === undefined ||
-        typeof singleSecretKey.dateMarker != "string" ||
-        singleSecretKey.dateMarker.length <= 2
+        singleAccount.dateMarker === undefined ||
+        typeof singleAccount.dateMarker != "string" ||
+        singleAccount.dateMarker.length <= 2
       ) {
         //日期标志错误或未定义
-        singleSecretKey.dateMarker = currentDay;
+        singleAccount.dateMarker = currentDay;
       }
     }
     if (limitMode == "month") {
       let thisMonthMarker;
-      const temp = String(singleSecretKey.dateMarker!).match(reg);
+      const temp = String(singleAccount.dateMarker!).match(reg);
       if (temp != null) {
         thisMonthMarker = temp[0].replace("0", "");
       } else {
-        singleSecretKey.dateMarker = currentDay;
+        singleAccount.dateMarker = currentDay;
         thisMonthMarker = currentMonth;
       }
+      //跨越记账时间段则自动重置额度
       if (thisMonthMarker != currentMonth) {
         //重置时间标志
-        singleSecretKey.dateMarker = currentDay;
-        singleSecretKey.charConsum = 0;
+        singleAccount.dateMarker = currentDay;
+        singleAccount.charConsum = 0;
       }
     }
     if (limitMode == "daily") {
-      if (singleSecretKey.dateMarker != currentDay) {
+      if (singleAccount.dateMarker != currentDay) {
         //重置时间标志
-        singleSecretKey.dateMarker = currentDay;
-        singleSecretKey.charConsum = 0;
+        singleAccount.dateMarker = currentDay;
+        singleAccount.charConsum = 0;
       }
     }
-    if (singleSecretKey.charConsum - 100 > charasLimit) {
-      singleSecretKey.usable = false;
+    if (singleAccount.charConsum - 100 > charasLimit) {
+      singleAccount.usable = false;
     } else {
-      singleSecretKey.usable = true;
+      singleAccount.usable = true;
     }
 
-    updateSingleSecretKey(singleSecretKey, serviceID);
-    serviceManage.syncBaiduSecretKey(serviceID);
-    return singleSecretKey.usable;
+    const usableNew = singleAccount.usable;
+    if (usableOld != usableNew) {
+      singleAccount.changedData.usable = singleAccount.usable;
+      await singleAccount.save();
+    }
+
+    //updateSingleSecretKey(singleAccount, serviceID);
+    // 百度修改版 直接调用百度账号信息
+    //serviceManage.syncBaiduSecretKey(serviceID);
+    return singleAccount.usable;
   }
 
   static allkeyUsableCheck() {
     Object.values(services)
-      .filter((e: TranslateService) => e.hasSecretKey)
+      .filter((e: TranslateService) => e.accounts)
       .map((t: TranslateService) => {
-        if (t.secretKeys?.length) {
-          for (const singleSecretKey of t.secretKeys!) {
-            this.singleSecretKeyUsableCheck(t.serviceID, singleSecretKey.secretKey);
+        if (t.accounts?.length) {
+          for (const singleAccount of t.accounts!) {
+            const key = singleAccount.secretKey || singleAccount.token;
+            this.singleAccountUsableCheck(t.serviceID, key);
           }
         }
       });
@@ -123,10 +139,11 @@ export class serviceManage {
 
   /**
    * 获取单个秘钥对象
-   * @param key_singleSecretKey
+   * @param key_singleAccount
    * @returns
    */
-  static getSingleSecretKey(serviceID: string, key_singleSecretKey: string) {
+  static getAccount(serviceID: string, key_singleAccount: string) {
+
     if (
       services[serviceID] === undefined ||
       JSON.stringify(services[serviceID]) == "{}"
@@ -134,16 +151,16 @@ export class serviceManage {
       return;
     }
     if (
-      key_singleSecretKey === undefined ||
-      key_singleSecretKey == "" ||
-      key_singleSecretKey == null
+      key_singleAccount === undefined ||
+      key_singleAccount == "" ||
+      key_singleAccount == null
     ) {
       return;
     }
-    const singleSecretKey: SecretKey = services[serviceID].secretKeys?.filter(
-      (e: any) => e.key == key_singleSecretKey,
-    )[0] as SecretKey;
-    return singleSecretKey;
+    const singleAccount = services[serviceID].accounts?.filter(
+      (e: TranslateServiceAccount) => e.secretKey == key_singleAccount || e.token == key_singleAccount
+    )[0];
+    return singleAccount;
   }
 
   /**
@@ -617,8 +634,8 @@ export function getServicesInfo() {
 }
 /**
  * 获取当前使用的引擎对象
- * 如果是pdfTranslate的翻译引擎，返回其prefs相关信息
- * 否则返回本插件prefs的相关信息
+ * 如果是 PDFTranslate 插件的翻译引擎，返回其 prefs 相关信息
+ * 否则返回本插件的 prefs 相关信息
  * @returns
  */
 export function getSingleServiceUnderUse() {
@@ -643,7 +660,7 @@ export function getSingleServiceUnderUse() {
   }
 }
 
-export function updateSingleSecretKey(
+/* export function updateSingleSecretKey(
   secretKey: SecretKey,
   serviceID?: string,
 ) {
@@ -652,7 +669,7 @@ export function updateSingleSecretKey(
   }
   serviceManage.serviceCRUD("update")(serviceID)("secretKey")(secretKey);
   serviceManage.mergeAndRemoveDuplicates(serviceID);
-}
+} */
 
 let servicePriorityWithKey: string[] = [];
 let servicePriorityWithoutKey: string[] = [];

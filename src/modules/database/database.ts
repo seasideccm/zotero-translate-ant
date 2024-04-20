@@ -561,6 +561,10 @@ export async function getSQLFilesContent() {
   return sqlsFromResourceFiles;
 }
 
+/**
+ * 将翻译引擎类型写入数据库
+ * @returns 
+ */
 export async function fillServiceTypes() {
   const DB = await getDB();
   if (!DB) return;
