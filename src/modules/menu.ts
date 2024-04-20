@@ -9,6 +9,7 @@ import { decryptFileSelected, encryptFile } from './crypto';
 import { readTextFiles } from "./ui/tableSecretKeys";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { openAIOllama } from "./largeLanguageModels/oneApi";
+import { fullTextTranslate } from "./translate/fullTextTranslate";
 
 
 
@@ -90,7 +91,7 @@ export function mountMenu() {
 }
 
 
-export function rightClickMenuItem() {
+export function rightClickMenuItem_ss() {
   const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
   ztoolkit.Menu.register("item", {
     tag: "menuseparator",
@@ -158,6 +159,41 @@ export function rightClickMenuItem() {
       addon.hooks.onShortcuts("translatePDF");
     },
   });
+}
+
+
+
+export function rightClickMenuItem() {
+  const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
+  ztoolkit.Menu.register("item", {
+    tag: "menuseparator",
+  });
+  // item menuitem with icon
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-note") + " ALT+N",
+    commandListener: ((ev) => {
+      fullTextTranslate.translateFT("note");
+    }),
+    icon: menuIcon,
+  });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-pdf") + " ALT+P",
+    commandListener: ((ev) => {
+      fullTextTranslate.translateFT("pdf");
+    }),
+    icon: menuIcon,
+  });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-pdf2Note"),
+    commandListener: (async (ev) => {
+      await this.pdf2Note();       //fullTextTranslate.pdf2Note();
+    }),
+    icon: menuIcon,
+  });
+
 }
 
 

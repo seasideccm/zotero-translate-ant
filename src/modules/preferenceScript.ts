@@ -5,12 +5,13 @@ import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 
 import { mountMenu } from "./menu";
-import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
-import { getServices } from "./translate/translateServices";
-import { addonSetting } from "./addonSetting";
+import { getSelectedRow, getTableByID, replaceSecretKeysTable } from "./ui/tableSecretKeys";
+import { getSerialNumber, getServices } from "./translate/translateServices";
+import { addonSetting, setCurrentServiceSN } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { encryptState } from "./crypto";
 import { llmSettings } from "./ui/llmSettings";
+import { TranslateService } from "./translate/translateService";
 
 
 
@@ -307,6 +308,48 @@ function bindPrefEvents() {
     skipLangsHideShow();
   });
 
+  getDom("switchService")!.addEventListener("command", async (e) => {
+    const elem = getDom("serviceID") as XUL.MenuList;
+    if (!elem) return;
+    const serviceID = elem.value;
+
+    let serialNumber: string;
+    const row = getSelectedRow();
+    if (!row) {
+      //未选择行
+      const services = await getServices();
+      const service = services[serviceID];
+      if (!service.hasSecretKey && service.hasToken) {
+        //引擎没有秘钥
+        if (!service.serialNumber) return;
+        serialNumber = service.serialNumber.toString();
+      } else {
+        //引擎有秘钥，选一个可用的
+        if (!service.accounts || !service.accounts.length) return;
+        serialNumber = service.accounts?.filter(account => {
+          account.usable && !account.forbidden;
+        })[0].serialNumber.toString();
+      }
+    } else {
+      const appID = row.children[0].textContent;
+      if (!appID) {
+        throw "no appID in the table's row ";
+      } else {
+        serialNumber = await getSerialNumberByAppid(serviceID, appID);
+      }
+    }
+    await setCurrentServiceSN(serialNumber);
+  });
+
+  async function getSerialNumberByAppid(serviceID: string, appID: string) {
+    const sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}' AND appID = '${appID}'`;
+    const DB = await getDB();
+    return await DB.valueQueryAsync(sql);
+  }
+
+
+
+
 
   //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has
@@ -332,6 +375,8 @@ function bindPrefEvents() {
       }
     }
   }
+
+
 }
 
 function bilingualContrastHideShow(e?: Event) {

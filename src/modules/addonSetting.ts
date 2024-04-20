@@ -1,5 +1,5 @@
 import { arrayUtils, getFiles, showInfo } from "../utils/tools";
-import { Cry, deleteRecords, isRSAKey } from "./crypto";
+import { isRSAKey } from "./crypto";
 import { getDB } from './database/database';
 import { getElementValueByElement } from "./ui/uiTools";
 
@@ -20,7 +20,6 @@ export async function addonSetting() {
     const oldKeys = Object.keys(settings);
     if (!arrayUtils.isDiffer(keys, oldKeys)) return;    // 判断插件面板是否有新增设置项目
     await setAddon(keys);
-
 }
 
 /**
@@ -76,6 +75,20 @@ async function setAddon(keys: string[]) {
 
 }
 
+
+
+export async function setCurrentServiceSN(serialNumber: string) {
+
+    await setSettingsValue("currentServiceSN", serialNumber);
+
+}
+
+export async function getCurrentServiceSN() {
+    const DB = await getDB();
+    const sql = `SELECT value from settings WHERE key = 'currentServiceSN'`;
+    return await DB.valueQueryAsync(sql);
+
+}
 
 export async function setSettingsValue(queryValue: string, setValue: string) {
     const DB = await getDB();

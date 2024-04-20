@@ -1,5 +1,4 @@
 import { config } from "../../package.json";
-import { franc } from "franc-min";
 import { addonDatabaseDir, addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 import { getString } from "./locale";
@@ -8,6 +7,15 @@ export function showThrowInfo(fltItem: string) {
   const info = getString(fltItem);
   showInfo(info);
   throw info;
+}
+
+export function timer() {
+  const time1 = new Date().getTime();
+  return () => {
+    const time2 = new Date().getTime();
+    return time2 - time1;
+
+  };
 }
 
 export function requireModule(moduleName: string) {

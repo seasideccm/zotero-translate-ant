@@ -9,7 +9,10 @@ import {
   setPref,
 } from "../../utils/prefs";
 import { fullTextTranslate } from "./fullTextTranslate";
-import { getServices } from "./translateServices";
+import { getServiceAccountSync, getServiceBySN, getServices } from "./translateServices";
+import { getCurrentServiceSN, setSettingsValue } from "../addonSetting";
+import { decryptByAESKey, encryptState } from "../crypto";
+import { getDom } from "../ui/uiTools";
 
 
 
@@ -617,27 +620,56 @@ export function getServicesInfo() {
  * 否则返回本插件的 prefs 相关信息
  * @returns
  */
-export function getSingleServiceUnderUse() {
-  const json: string = getPref("singleServiceUnderUse") as string;
-  const secrets: object = JSON.parse(
-    (getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}",
-  );
-  const serviceID = getPluginsPref(
-    "ZoteroPDFTranslate",
-    "translateSource",
-  ) as string;
-  const key = secrets[serviceID as keyof typeof secrets];
-  if (!json) {
-    return { serviceID: serviceID, key: key };
-  }
-  const singleServiceUnderUse: { serviceID: string; key?: string; } =
-    JSON.parse(json);
-  if (["baiduModify", "baidufieldModify", "tencentTransmart"].includes(singleServiceUnderUse.serviceID)) {
-    return singleServiceUnderUse;
+export async function getSingleServiceUnderUse() {
+
+  const serialNumber = await getCurrentServiceSN();
+  const service = await getServiceBySN(serialNumber);
+  if (service) {
+    const serviceID = service.serviceID;
+    if (!service.hasSecretKey && !service.hasToken) {
+      return {
+        serviceID,
+        key: undefined
+      };
+    }
+    const account = service.accounts?.filter(e => e.serialNumber == serialNumber)[0];
+    if (!account) return;
+    const state = await encryptState();
+    const enableEncrypt = (getDom('setEnableEncrypt') as XUL.Checkbox).checked;
+    if (!enableEncrypt) {
+      return {
+        serviceID,
+        key: account?.appID + "#" + account?.secretKey || account?.token
+      };
+    } else {
+      const encryptString = account.secretKey || account.token;
+      const decrypt = await decryptByAESKey(encryptString!);
+      return {
+        serviceID,
+        key: account?.appID + "#" + decrypt
+      };
+    }
+
   } else {
-    return { serviceID: serviceID, key: key };//appID#XXX
+    return false;
   }
+
+
+  //const json: string = getPref("singleServiceUnderUse") as string;
+  // 读取 
+  /*   const secrets: object = JSON.parse(
+      (getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}",
+    );
+    const serviceID = getPluginsPref(
+      "ZoteroPDFTranslate",
+      "translateSource",
+    ) as string;
+    const key = secrets[serviceID as keyof typeof secrets]; */
+
+
 }
+
+
 
 /* export function updateSingleSecretKey(
   secretKey: SecretKey,

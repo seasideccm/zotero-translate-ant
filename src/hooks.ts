@@ -4,21 +4,19 @@ import { registerNotifier } from "./modules/notify";
 import { listenImage, listenImageCallback } from "./modules/ocr/trigerOcr";
 import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
 import { Translator } from "./modules/translate/translate";
-import { getServices, initTranslateServices } from "./modules/translate/translateServices";
+import { initTranslateServices } from "./modules/translate/translateServices";
 import { DataDialog } from "./modules/ui/dataDialog";
-import { mountMenu } from "./modules/menu";
+import { mountMenu, rightClickMenuItem } from "./modules/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
 import {
   onShortcutPan,
   registerPrefsShortcut,
-  registerShortcutsCache,
 } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 import { checkEncryptAccounts, encryptState } from "./modules/crypto";
 import { Command } from "./modules/command";
-import { fullTextTranslate } from "./modules/translate/fullTextTranslate";
 
 async function onStartup() {
   await Promise.all([
@@ -62,7 +60,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   mountMenu();
   //translate();
   addon.mountPoint.transator = new Translator();
-  fullTextTranslate.rightClickMenuItem();
+  rightClickMenuItem();
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

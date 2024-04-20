@@ -300,12 +300,10 @@ export class TranslateService {
       if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.serviceID) > -1) return serviceTypes.indexOf(k);
     }
   }
-  async getSerialNumber(serviceID: string, row?: any) {
-    let sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}'`;
-    if (row) sql += `AND appID = '${row.appID}'`;
-    const DB = await getDB();
-    return await DB.valueQueryAsync(sql);
-  }
+
+
+
+
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }

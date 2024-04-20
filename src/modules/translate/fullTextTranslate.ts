@@ -2,7 +2,7 @@ import { config } from "../../../package.json";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { frequency, pdf2document } from "../pdf/pdfFullText";
-import { showInfo } from "../../utils/tools";
+import { showInfo, timer } from "../../utils/tools";
 import { getSingleServiceUnderUse, serviceManage } from "./serviceManage";
 import { baiduModify } from "../webApi/baiduModify";
 import { baidufieldModify } from "../webApi/baidufieldModify";
@@ -24,38 +24,6 @@ export class fullTextTranslate {
 
 
 
-  static rightClickMenuItem() {
-    const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
-    ztoolkit.Menu.register("item", {
-      tag: "menuseparator",
-    });
-    // item menuitem with icon
-    ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-note") + " ALT+N",
-      commandListener: ((ev) => {
-        fullTextTranslate.translateFT("note");
-      }),
-      icon: menuIcon,
-    });
-    ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-pdf") + " ALT+P",
-      commandListener: ((ev) => {
-        fullTextTranslate.translateFT("pdf");
-      }),
-      icon: menuIcon,
-    });
-    ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-pdf2Note"),
-      commandListener: (async (ev) => {
-        await this.pdf2Note();       //fullTextTranslate.pdf2Note();
-      }),
-      icon: menuIcon,
-    });
-
-  }
 
   /**
    * 
@@ -181,22 +149,8 @@ export class fullTextTranslate {
     const noteIDs = fullTextTranslate.getNoteIDs();
     window.alert("成功获取笔记ID" + noteIDs);
   }
-  /*   static async getHtmlMdInterconvert() {
-      const betterNoteInfo = await fullTextTranslate.getAddonInfo('Knowledge4Zotero@windingwind.com');
-      if (!betterNoteInfo || betterNoteInfo.userDisabled) {
-        htmlToMd = html2md;
-        mdToHtml = md2html;
-        ztoolkit.log("betterNote未安装或禁用，使用根据 windingwind/zotero-better-notes 改编的 html2md和md2html");
-      } else {
-        htmlToMd = Zotero.BetterNotes.api.convert.html2md;
-        mdToHtml = Zotero.BetterNotes.api.convert.md2html;
-        ztoolkit.log("已经安装betterNote" + ":version " + betterNoteInfo.version);
-      }
-    } */
-  /**
-   * 
-   * @returns 
-   */
+
+
   static async getNoteIDs(itemIDs?: number[] | number) {
     let items;
     if (!itemIDs) {
@@ -234,6 +188,11 @@ export class fullTextTranslate {
     return noteIDs;
   }
 
+  /**
+   * 语种识别
+   * @param sourceText 
+   * @returns 
+   */
   static async languageIdentify(sourceText: string) {
     //todo 指定排除的语言
     sourceText = Zotero.Utilities.unescapeHTML(sourceText);
@@ -389,11 +348,10 @@ export class fullTextTranslate {
     for (const noteID of noteIDs) {
       const contentObj = await fullTextTranslate.contentPrepare(noteID);
       if (!contentObj) { continue; }
-      const time1 = new Date().getTime();
+      const start = timer();
       const docItem = await fullTextTranslate.translateDoc(contentObj);
-      const time2 = new Date().getTime();
-      const time3 = time2 - time1;
-      showInfo(getString("info-translationTIme") + (time3 / 1000).toString() + " seconds");
+      const time = start();
+      showInfo(getString("info-translationTIme") + (time / 1000).toString() + " seconds");
       await fullTextTranslate.makeTranslation(docItem);
     }
     this.updateCharConsum();

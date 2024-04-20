@@ -71,6 +71,12 @@ export async function getTranslateService(serviceID: string) {
 
 }
 
+export async function getServiceBySN(serialNumber: string | number) {
+    const services = await getServices();
+    const service = Object.values(services).filter(s => s.serialNumber == serialNumber || s.accounts?.some(e => e.serialNumber == serialNumber))[0];
+    return service;
+}
+
 
 
 export function getSerialNumberSync(serviceID: string, appID: string) {
@@ -81,7 +87,7 @@ export function getSerialNumberSync(serviceID: string, appID: string) {
     return account.serialNumber;
 }
 
-async function getSerialNumber(serviceID: string, appID?: any) {
+export async function getSerialNumber(serviceID: string, appID?: any) {
     let sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}'`;
     if (appID) sql += `AND appID = '${appID}'`;
     const DB = await getDB();

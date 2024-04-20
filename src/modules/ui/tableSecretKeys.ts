@@ -8,6 +8,7 @@ import { getDom, getElementValue } from "./uiTools";
 import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from '../crypto';
+import { getDB } from "../database/database";
 
 
 
@@ -840,10 +841,7 @@ export async function replaceSecretKeysTable() {
             mouseY > tableRect.bottom;
     }
 
-    function getSelectedRow() {
-        //@ts-ignore has
-        return tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0] as HTMLElement;
-    }
+
 
     function commitEditingRow() {
         if (!tableTreeInstance.editingRow) return;
@@ -1224,7 +1222,7 @@ export async function replaceSecretKeysTable() {
     }
 
     async function addRecord(e: Event) {
-        // const table = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+
         if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
             tableTreeInstance.commitEditingRow();
         }
@@ -1261,6 +1259,13 @@ export async function replaceSecretKeysTable() {
     }
 
 
+}
+
+export function getSelectedRow() {
+    const tableHelper = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+    const tableTreeInstance = tableHelper.treeInstance as any;
+    const selecedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0] as HTMLElement;
+    return selecedRow;
 }
 
 
