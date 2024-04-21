@@ -398,6 +398,37 @@
     <!-- 测试表格 -->
     <html:div id="my-table-container" />
   </vbox>
+
+  <!-- 优先级 -->
+  <vbox>
+    <hbox align="center">
+      <button
+        id="__addonRef__-recoverService"
+        data-l10n-id="pref-recoverService"
+      ></button>
+    </hbox>
+    <hbox>
+      <vbox flex="1">
+        <label
+          data-l10n-id="pref-servicePriorityWithKey"
+          minWidth="350px"
+        ></label>
+
+        <html:div id="__addonRef__-table-servicePriorityWithKey" />
+      </vbox>
+      <separator class="groove" orient="vertical" />
+      <vbox flex="1">
+        <label
+          data-l10n-id="pref-servicePriorityWithoutKey"
+          minWidth="350px"
+        ></label>
+
+        <html:div id="__addonRef__-table-servicePriorityWithoutKey" />
+      </vbox>
+    </hbox>
+    <separator class="groove" />
+    <description data-l10n-id="pref-Priority-help" />
+  </vbox>
 </vbox>
 
 <!--LLM 设置-->

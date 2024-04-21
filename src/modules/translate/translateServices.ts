@@ -1,4 +1,5 @@
 import { keysTranslateService, parasArrTranslateService, parasArrTranslateServiceAdd } from "../../utils/constant";
+import { getPref } from "../../utils/prefs";
 import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { fillServiceTypes, getDB, getDBSync } from "../database/database";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
@@ -73,8 +74,14 @@ export async function getTranslateService(serviceID: string) {
 
 export async function getServiceBySN(serialNumber: string | number) {
     const services = await getServices();
-    const service = Object.values(services).filter(s => s.serialNumber == serialNumber || s.accounts?.some(e => e.serialNumber == serialNumber))[0];
-    return service;
+    const service = Object.values(services).filter(s => s.serialNumber == serialNumber)[0];
+    if (service) return service;
+    for (const service of Object.values(services)) {
+        if (service && service.accounts && service.accounts.length) {
+            const account = service.accounts.find(a => a.serialNumber == serialNumber);
+            if (account) return account;
+        }
+    }
 }
 
 
@@ -85,6 +92,20 @@ export function getSerialNumberSync(serviceID: string, appID: string) {
     const account = service.accounts.filter((account: TranslateServiceAccount) => account.appID == appID)[0];
     if (!account) return;
     return account.serialNumber;
+}
+
+export function getCharasLimit(serviceUsing: TranslateService) {
+    let charasLimit = serviceUsing.charasLimit;
+    if (charasLimit == 0) return 100000000;
+    let factor = Number(getPref('charasLimitFactor'));
+    // 如果不能转为数字，则为 1
+    if (isNaN(factor)) {
+        factor = 1;
+    }
+    if (factor) {
+        charasLimit = serviceUsing.charasLimit * factor;
+    }
+    return charasLimit;
 }
 
 export async function getSerialNumber(serviceID: string, appID?: any) {
@@ -106,8 +127,9 @@ export async function getServiceAccount(serviceID: string, serialNumber: number)
     const service = await getTranslateService(serviceID);
     if (!service) return;
     return service.getServiceAccount(serialNumber);
-
 }
+
+
 
 export function getServiceAccountSync(serviceID: string, serialNumber: number) {
     const service = addon.mountPoint.services[serviceID];

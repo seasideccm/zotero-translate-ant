@@ -24,6 +24,7 @@ export class TranslateServiceAccount {
   version?: number;
   saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
   savePromise?: Promise<any>;
+  totalCharConsum?: number;
 
 
   constructor(option: any) {
@@ -200,6 +201,7 @@ export class TranslateService {
   QPS: number;
   limitMode: string;
   charasLimit: number;
+  charConsum?: number;//无需秘钥，限制用量
   supportMultiParas: boolean;
   hasSecretKey: boolean;
   //secretKeys?: SecretKey[];
@@ -208,6 +210,7 @@ export class TranslateService {
   accounts?: TranslateServiceAccount[];
   accountsDelete?: TranslateServiceAccount[];
   forbidden?: boolean;
+  usable?: boolean;
   serialNumber?: number;
   configID?: number | undefined;
   changed?: any;
@@ -218,6 +221,9 @@ export class TranslateService {
   serviceTypeID?: number;
   synced?: boolean;
   version?: number;
+  saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
+  savePromise?: Promise<any>;
+  totalCharConsum?: number;
 
   constructor(options: {
     serviceID: string,
@@ -257,28 +263,7 @@ export class TranslateService {
     //this.ObjectsClass = addon.mountPoint['TranslateServices'];
   }
 
-  /**
-   * 更新引擎账号的字符消耗量
-   * @param characters 
-   * @param service 
-   * @returns 
-   */
-  async updateCharConsum(characters: number, service: TranslateService) {
-    if (!service.hasSecretKey || !service.accounts || !service.accounts?.length) { return; }
-    const keyUnderUse = (await getSingleServiceUnderUse())?.key as string;
-    if (keyUnderUse === undefined || keyUnderUse == "" || keyUnderUse == null) { return; }
-    if (!service.accounts.length || service.accounts === undefined) return;
 
-    for (const account of service.accounts) {
-      const key = account.secretKey || account.token;
-      if (key == keyUnderUse) {
-        account.charConsum += characters;
-        account.changedData.charConsum = account.charConsum;
-        await account.save();
-      }
-    }
-
-  }
 
 
 
@@ -301,6 +286,16 @@ export class TranslateService {
     }
   }
 
+  recoverPrevious() {
+    try {
+      Zotero.Utilities.Internal.assignProps(this, this.previousData);
+    } catch (e: any) {
+      showInfo(e);
+      ztoolkit.log(e);
+    }
+
+  }
+
 
 
 
@@ -308,8 +303,55 @@ export class TranslateService {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }
   async save() {
-
     const DB = await getDB();
+    this.saveDeferred = Zotero.Promise.defer();
+    this.savePromise = this.saveDeferred.promise;
+    if (this.changedData && !this.accounts) {
+      const sqls: string[] = [];
+      const keys = Object.keys(this.changedData);
+      for (const key of keys) {
+        let tableNames: string[] = [];
+        switch (key) {
+          case "charConsum":
+            tableNames = ['charConsum'];
+            break;
+          case "totalCharConsum":
+            tableNames = ['totalCharConsum'];
+            break;
+          case "usable":
+          case "forbidden":
+            tableNames = ['translateServiceSN'];
+            break;
+          case "serialNumber":
+            sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = ${this.serviceID}`);
+            break;
+        }
+        tableNames.forEach(tableName => {
+          const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
+          sqls.push(sql);
+        });
+      }
+
+      await DB.executeTransaction(async () => {
+        for (const sql of sqls) {
+          try {
+            await DB.queryAsync(sql);
+          }
+          catch (e) {
+            this.recoverPrevious();
+            this.saveDeferred!.reject();
+            showInfo('Execute failed: ' + sql);
+            throw e;
+          }
+        }
+      });
+      this.saveDeferred.resolve();
+      this.changedData = null;
+      return;
+
+    }
+
+
     //const serialNumber = await this.getSerialNumber(this.serviceID);
     if (this.serialNumber) {
       const doSave = async () => { };
@@ -382,6 +424,8 @@ export class TranslateService {
       }
     };
     await DB.executeTransaction(doSave.bind(this));
+
+
   }
   saveold: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {
     const env: any = {

@@ -1038,7 +1038,7 @@ export async function decryptByAESKey(encryptAESInfoString: string,
         return deBuffer;
     }
     const decryptContent = arrayBufferTOstring(deBuffer);
-    showInfo(["decryptContent:", decryptContent]);
+    //showInfo(["decryptContent:", decryptContent]);
     return decryptContent;
 }
 

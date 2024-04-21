@@ -77,19 +77,21 @@ async function setAddon(keys: string[]) {
 
 
 
-export async function setCurrentServiceSN(serialNumber: string) {
+export async function setCurrentServiceSN(serialNumber: string | number) {
+    addon.mountPoint.serialNumberUsing = serialNumber;
     await setSettingsValue("currentServiceSN", serialNumber);
-
 }
 
 export async function getCurrentServiceSN() {
+    if (addon.mountPoint.serialNumberUsing) return addon.mountPoint.serialNumberUsing;
     const DB = await getDB();
     const sql = `SELECT value from settings WHERE key = 'currentServiceSN'`;
-    return await DB.valueQueryAsync(sql);
-
+    const serialNumber = await DB.valueQueryAsync(sql);
+    addon.mountPoint.serialNumberUsing = serialNumber;
+    return serialNumber;
 }
 
-export async function setSettingsValue(queryValue: string, setValue: string) {
+export async function setSettingsValue(queryValue: string, setValue: string | number) {
     const DB = await getDB();
     const values = [];
     let sql = `SELECT value from settings WHERE key = '${queryValue}'`;

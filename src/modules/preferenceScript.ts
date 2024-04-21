@@ -3,15 +3,14 @@ import { config } from "../../package.json";
 import { getDom, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
-
 import { mountMenu } from "./menu";
-import { getSelectedRow, getTableByID, replaceSecretKeysTable } from "./ui/tableSecretKeys";
-import { getSerialNumber, getServices } from "./translate/translateServices";
+import { getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData } from "./ui/tableSecretKeys";
+import { getServices } from "./translate/translateServices";
 import { addonSetting, setCurrentServiceSN } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { encryptState } from "./crypto";
 import { llmSettings } from "./ui/llmSettings";
-import { TranslateService } from "./translate/translateService";
+
 
 
 
@@ -38,6 +37,8 @@ export async function registerPrefsScripts(_window: Window) {
   }
   await buildPrefsPane();
   await replaceSecretKeysTable();
+  await priorityWithKeyTable();
+  await priorityWithoutKeyTable();
   await llmSettings();
 
   bindPrefEvents();
@@ -339,6 +340,34 @@ function bindPrefEvents() {
       }
     }
     await setCurrentServiceSN(serialNumber);
+  });
+
+  getDom("recoverService")!.addEventListener("command", async (e) => {
+    const serviceMenu_popup = doc.querySelector(`#${config.addonRef}-serviceID > menupopup`)!;
+    //用户确认，弹出在addon.data.prefs!.window窗口
+    const confirm = addon.data.prefs!.window.confirm(
+      `${getString("pref-recoverService")}`
+    );
+    if (confirm) {
+      const services = await getServices();
+      //const forbiddenArr = Object.values(services).filter(e => e.forbidden)
+      Object.values(services).forEach(e => {
+        if (e.forbidden) {
+          await updateServiceData(e, "forbidden", false);
+          e.forbidden = false;
+          const menuItemObj = {
+            tag: "menuitem",
+            id: makeId(`${e.serviceID}`),
+            attributes: {
+              label: getString(`service-${e.serviceID}`),
+              value: e.serviceID,
+            }
+          };
+          ztoolkit.UI.appendElement(menuItemObj, serviceMenu_popup);
+        }
+      });
+
+    }
   });
 
   async function getSerialNumberByAppid(serviceID: string, appID: string) {

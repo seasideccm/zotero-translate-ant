@@ -5,10 +5,11 @@ import { getString } from "../../utils/locale";
 import {
   getPluginsPref,
   getPref,
+  getServiceInfoPDFTranslate,
   setPluginsPref,
   setPref,
 } from "../../utils/prefs";
-import { getSerialNumber, getServiceBySN, getServices } from "./translateServices";
+import { getCharasLimit, getSerialNumber, getServiceBySN, getServices } from "./translateServices";
 import { getCurrentServiceSN, setCurrentServiceSN } from "../addonSetting";
 import { decryptByAESKey, encryptState } from "../crypto";
 import { getDom } from "../ui/uiTools";
@@ -22,14 +23,8 @@ const secretKeyHasSwitched: string[] = [];
 export class serviceManage {
 
 
-  /**
-   * 检查单个秘钥是否可用
-   * 消耗字符数大于字符数限制为不可用
-   * 不传参数则检查当前使用的秘钥
-   * @param serviceID
-   * @param key
-   */
-  static async singleAccountUsableCheck(serviceID?: string, key?: string) {
+
+  static async serviceAvailableCheck(service: TranslateService | TranslateServiceAccount, serialNumber?: string | number) {
     const date = new Date();
     const formatter = new Intl.DateTimeFormat("en-US", {
       day: "2-digit",
@@ -40,30 +35,22 @@ export class serviceManage {
     const reg = /^\d{2}/m;
     const currentMonth = String(date.getMonth() + 1);
 
-    if (serviceID === undefined || serviceID == "" || serviceID == null) {
-      const service = await getSingleServiceUnderUse();
-      if (!service) {
-        return;
-      }
-      serviceID = service.serviceID as string;
+
+    const serviceID = service.serviceID;
+
+    if (service instanceof TranslateService && !service.accounts) {
+      if (service.charasLimit == 0) return true;
+      if (service.charConsum && service.charConsum > getCharasLimit(service)) return false;
+      return true;
+    }
+    let singleAccount;
+    if (service instanceof TranslateService && service.accounts && serialNumber) {
+      singleAccount = await getServiceBySN(serialNumber);
+    }
+    if (!singleAccount || singleAccount instanceof TranslateService) {
+      return;
     }
     const services = await getServices();
-    if (!services[serviceID].hasSecretKey) {
-      return;
-    }
-    if (key === undefined || key == "" || key == null) {
-      //key = getSingleServiceUnderUse().key as string;
-
-      const service = await getSingleServiceUnderUse();
-      if (!service) {
-        return;
-      }
-      key = service.key as string;
-    }
-    const singleAccount = await this.getAccount(serviceID, key);
-    if (!singleAccount) {
-      return;
-    }
     const usableOld = singleAccount.usable;
     const limitMode = services[serviceID].limitMode;
     let factor = Number(getPref("charasLimitFactor"));
@@ -136,6 +123,8 @@ export class serviceManage {
     return singleAccount.usable;
   }
 
+
+
   static async allkeyUsableCheck() {
     const services = await getServices();
     /*  Object.values(services)
@@ -153,8 +142,7 @@ export class serviceManage {
       const accounts = e.accounts;
       if (!accounts || !accounts.length) continue;
       for (const singleAccount of accounts) {
-        const key = singleAccount.secretKey || singleAccount.token;
-        await this.singleAccountUsableCheck(e.serviceID, key);
+        await this.serviceAvailableCheck(singleAccount);
       }
     }
 
@@ -165,40 +153,32 @@ export class serviceManage {
    * @param key_singleAccount
    * @returns
    */
-  static async getAccount(serviceID: string, key_singleAccount: string) {
+  static async getAccount(serviceID: string, key_singleAccount?: string, serialNumber?: string | number) {
     const services = await getServices();
 
-    if (
-      services[serviceID] === undefined ||
-      JSON.stringify(services[serviceID]) == "{}"
-    ) {
-      return;
-    }
-    if (
-      key_singleAccount === undefined ||
-      key_singleAccount == "" ||
-      key_singleAccount == null
-    ) {
-      return;
-    }
 
     const accounts = services[serviceID].accounts;
     if (!accounts || !accounts.length) return;
     for (const account of accounts) {
-      let key = account.secretKey || account.token;
-      if (!key) continue;
-      key = await decryptKey(key);
-      if (key_singleAccount.includes(key))
-        return account;
+      if (serialNumber) {
+        if (account.serialNumber == serialNumber) {
+          return account;
+        }
+
+      } else if (key_singleAccount) {
+        let key = account.secretKey || account.token;
+        if (!key) continue;
+        if (!key_singleAccount.includes('encryptAESString')) {
+          key = await decryptKey(key);
+        }
+        if (key_singleAccount.includes(key)) {
+          return account;
+        }
+      }
+
+
     }
 
-    /*   const singleAccount = services[serviceID].accounts?.filter(
-        (e: TranslateServiceAccount) => e.secretKey == key_singleAccount || e.token == key_singleAccount
-      )[0];
-  
-  
-  
-      return singleAccount; */
   }
 
 
@@ -212,53 +192,72 @@ export class serviceManage {
    * @returns
    */
   static async onSwitch(isPreferredSameService?: boolean) {
-    await this.switchServiceKey(secretKey, plugin, serviceIDUnderUsed);
+    if (!isPreferredSameService) isPreferredSameService = getPref("isPreferredSameService") as boolean;
 
-    isPreferredSameService !== undefined
-      ? isPreferredSameService
-      : (isPreferredSameService = getPref("isPreferredSameService") as boolean);
     const service = await getSingleServiceUnderUse();
-    if (!service) return;
-    const serviceKeyUnderUsed: string = service.key || "";
-    const serviceIDUnderUsed = service.serviceID;
+    if (!service) return false;
+    if (await this.serviceAvailableCheck(service)) {
 
-    let servicesHasKeyUsable: TranslateService[];
+
+      const IDUsing = service.serviceID;
+
+      //如果 PDFTranslate 账号与当前不一致，则设置为当前账号
+      const serviceInfoPDFTranslate = getServiceInfoPDFTranslate();
+      let keyUsing: string | undefined;
+      if (IDUsing != serviceInfoPDFTranslate.serviceID) {
+        if (service instanceof TranslateServiceAccount) {
+          const keyStr = service.secretKey || service.token;
+          if (keyStr) keyUsing = await decryptKey(keyStr);
+        }
+        await this.switchServiceKey(keyUsing, plugin, IDUsing);
+        return true;
+      }
+      let keyPDFTranslate = serviceInfoPDFTranslate.key;
+      if (keyPDFTranslate) {
+        const strs = keyPDFTranslate.split("#");
+        if (strs.length > 1) keyPDFTranslate = strs[1];
+        if (keyUsing && keyPDFTranslate != keyUsing) {
+          await this.switchServiceKey(keyUsing, plugin, IDUsing);
+          return true;
+        }
+      }
+    }
+
+    //当前引擎不可用
+    let keyStr;
+    if (service instanceof TranslateServiceAccount) {
+      keyStr = service.secretKey || service.token;
+    }
+    //if (keyStr) keyUsing = await decryptKey(keyStr);
+
+    let servicesHasKeyUsable: TranslateService[] = [];
     const services = await getServices();
-    //允许付费则忽略secretKey的usable和已经轮换过的秘钥
-    if (getPref("isPay")) {
-      servicesHasKeyUsable = Object.values(services).filter(
-        (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
-      );
-    } else {
-      const servicesWithSN = Object.values(services).filter((element) => element.hasSecretKey || element.hasToken);
-      servicesHasKeyUsable = [];
+    //允许付费则忽略 secretKey 的 usable 和已经轮换过的秘钥
+    servicesHasKeyUsable = Object.values(services).filter(
+      (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
+    );
+
+    if (!getPref("isPay")) {
+      const temp = [];
       const acountsUsable = [];
-      for (const service of servicesWithSN) {
+      for (const service of servicesHasKeyUsable) {
         if (!service.accounts || !service.accounts.length) continue;
         for (const account of service.accounts) {
-          let key = account.secretKey || account.token;
-          key = await decryptKey(key!);
+          const key = account.secretKey || account.token;
+          if (!key) continue;
           if (!account.usable || account.forbidden) continue;
-          if (!serviceKeyUnderUsed.includes(key)) continue;//除外本轮已经切换过的秘钥
+          if (keyStr && keyStr == key) continue;//除外本轮已经切换过的秘钥
           if (!secretKeyHasSwitched.includes(key)) continue;//除外上轮已经切换过的秘钥
-          servicesHasKeyUsable.push(service);
+          temp.push(service);
           acountsUsable.push(account);
         }
       }
+      servicesHasKeyUsable = temp;
 
-      /*  servicesHasKeyUsable = Object.values(services).filter(
-         (element) =>
-           (element.hasSecretKey || element.hasToken) &&
-           !element.forbidden &&
-           element.accounts?.filter(
-             (e: any) =>
-               e.usable &&
-               (e.secretKey || e.token) != serviceKeyUnderUsed &&
-               //除外上轮已经切换过的秘钥
-               !secretKeyHasSwitched?.includes(e.key),
-           ).length,
-       ); */
     }
+
+
+
     let servicesNoKeyUsable = Object.values(services).filter(
       (element) =>
         !element.hasSecretKey && !element.hasToken &&
@@ -280,45 +279,33 @@ export class serviceManage {
     //优先更换同一翻译引擎的不同秘钥
     if (
       isPreferredSameService &&
-      servicesHasKeyUsable.filter((e) => e.serviceID.includes(serviceIDUnderUsed))
+      servicesHasKeyUsable.filter((e) => e.serviceID.includes(service.serviceID))
         .length
     ) {
-      const secretKeyArr: string[] = [];
-      const accounts = services[serviceIDUnderUsed].accounts;
+      const accountFilters = [];
+      const accounts = services[service.serviceID].accounts;
       if (!accounts || !accounts.length) return;
       for (const account of accounts) {
-        let key = account.secretKey || account.token;
+        const key = account.secretKey || account.token;
         if (!key) continue;
-        key = await decryptKey(key!);
         if (!account.usable || account.forbidden) continue;
-        if (serviceKeyUnderUsed.includes(key)) continue;
-        secretKeyArr.push(account.appID + "#" + key);
+        if (keyStr && keyStr == key) continue;
+        accountFilters.push(account);
+        //secretKeyArr.push(account.appID + "#" + key);
       }
-
-      /* let secretKeyArr = services[serviceIDUnderUsed].accounts?.map(e => {
-        if (e.usable && e.secretKey != serviceKeyUnderUsed) {
-          return e.secretKey;
+      const account = accountFilters.filter(e => e)[0];
+      if (account) {
+        const key = account.secretKey || account.token;
+        if (key) {
+          let secretKey = await decryptKey(key);
+          secretKey = account.appID + "#" + secretKey;
+          await this.switchServiceKey(secretKey, plugin, account.serviceID);
+          secretKeyHasSwitched.push(key);
+          return true;
         }
-      },
-      ); */
-
-      const secretKey = secretKeyArr.filter(e => e)[0];
-
-
-
-
-      if (secretKey != "" && secretKey !== undefined && secretKey != null) {
-        await this.switchServiceKey(secretKey, plugin, serviceIDUnderUsed);
-        if (
-          serviceKeyUnderUsed != "" &&
-          serviceKeyUnderUsed !== undefined &&
-          serviceKeyUnderUsed != null
-        ) {
-          secretKeyHasSwitched.push(serviceKeyUnderUsed);
-        }
-        return true;
       }
     }
+
     //更换翻译引擎
     let useArr: TranslateService[] = [];
     if (getPref("isPreferredHasSecretKey")) {
@@ -333,7 +320,7 @@ export class serviceManage {
     if (!useArr.length) {
       return false;
     }
-    useArr = useArr.filter((e) => e.serviceID != serviceIDUnderUsed);
+    useArr = useArr.filter((e) => e.serviceID != service.serviceID);
     let serviceID = "";
     if (servicesPriorityArr.length) {
       for (const item of servicesPriorityArr) {
@@ -359,28 +346,37 @@ export class serviceManage {
     }
     if (serviceID != "" && serviceID !== undefined && serviceID != null) {
       await this.switchServiceID(serviceID, plugin);
-      serviceIDHasSwitched.push(serviceIDUnderUsed);
+      serviceIDHasSwitched.push(service.serviceID);
     } else {
       return false;
     }
 
     // 如果有秘钥，予以更换
-    const secretKey = (
-      useArr[0].accounts?.filter(
-        (e: any) => e.usable && e.key != serviceKeyUnderUsed,
-      )[0] as SecretKey
-    )?.secretKey;
-    if (secretKey != "" && secretKey !== undefined && secretKey != null) {
-      await this.switchServiceKey(secretKey, plugin, serviceID);
-      if (
-        serviceKeyUnderUsed != "" &&
-        serviceKeyUnderUsed !== undefined &&
-        serviceKeyUnderUsed != null
-      ) {
-        secretKeyHasSwitched.push(serviceKeyUnderUsed);
+    let account;
+    const accs = useArr[0].accounts;
+    if (accs && accs.length) {
+      for (const a of accs) {
+        if (!a.usable) continue;
+        const key = a.secretKey || a.token;
+        if (key && keyStr && keyStr != key) {
+          account = a;
+          break;
+        }
+
       }
     }
-    return true;
+
+    if (account) {
+      const key = account.secretKey || account.token;
+      if (key) {
+        let secretKey = await decryptKey(key);
+        secretKey = account.appID + "#" + secretKey;
+        await this.switchServiceKey(secretKey, plugin, account.serviceID);
+        secretKeyHasSwitched.push(key);
+        return true;
+      }
+    }
+
   }
 
   /**
@@ -389,7 +385,6 @@ export class serviceManage {
    * @param plugin
    */
   static async switchServiceID(serviceID: string, plugin: string) {
-    await saveSingleServiceUnderUse(serviceID);
     if (serviceID.includes("Modify")) {
       serviceID = serviceID.replace("Modify", "");
     }
@@ -419,34 +414,27 @@ export class serviceManage {
    * @param plugin
    */
   static async switchServiceKey(
-    secretKey: string,
+    secretKey: string | undefined,
     plugin: string,
-    serviceID?: string,
+    serviceID: string,
   ) {
-    if (secretKey === undefined || secretKey == "") {
+
+    if (serviceID == "tencentTransmart" || serviceID.includes("Modify")) {
       return;
     }
-    if (serviceID === undefined || serviceID == "" || serviceID == null) {
-      const service = await getSingleServiceUnderUse();
-      if (!service) return;
-      serviceID = service.serviceID as string;
+    if (!secretKey) {
+      this.switchServiceID(serviceID, plugin);
+      showInfo(getString("info-switchServiceKey") + ": " + serviceID);
+      return true;
     }
-    if (serviceID === undefined || serviceID == "" || serviceID == null) {
-      serviceID = getPluginsPref(plugin, "translateSource") as string;
-    }
-    await saveSingleServiceUnderUse(serviceID, secretKey);
-    if (serviceID == "tencentTransmart") {
-      return;
-    }
-    if (serviceID.includes("Modify")) {
-      serviceID = serviceID.replace("Modify", "");
-    }
+
     const secrets = JSON.parse(
       (getPluginsPref(plugin, "secretObj") as string) || "{}",
     );
     secrets[serviceID] = secretKey;
     setPluginsPref(plugin, "secretObj", JSON.stringify(secrets));
     showInfo(getString("info-switchServiceKey") + ": " + serviceID);
+    return true;
   }
   /*   static ServiceValidator(){
     
@@ -646,26 +634,6 @@ export class serviceManage {
   }
 }
 
-/**
- *
- * @param serviceID
- * @param key
- */
-export async function saveSingleServiceUnderUse(serviceID?: string, key?: string) {
-
-  if (serviceID === undefined || serviceID == null || serviceID == "") {
-    const service = await getSingleServiceUnderUse();
-    if (!service) return;
-    serviceID = service.serviceID;
-    key = service.key;
-  }
-
-  const sn = await getSerialNumberByIDAndKey(serviceID, key);
-  if (sn) await setCurrentServiceSN(sn.toString());
-
-}
-
-
 
 
 export async function getSerialNumberByIDAndKey(serviceID: string, key?: string) {
@@ -696,56 +664,37 @@ export function getServicesInfo() {
  * @returns
  */
 export async function getSingleServiceUnderUse() {
-
-  const serialNumber = await getCurrentServiceSN();
-  const service = await getServiceBySN(serialNumber);
-  if (service) {
-    const serviceID = service.serviceID;
-    if (!service.hasSecretKey && !service.hasToken) {
-      return {
-        serviceID: serviceID,
-        key: undefined,
-        serialNumber: serialNumber
-      };
-    }
-    const account = service.accounts?.filter(e => e.serialNumber == serialNumber)[0];
-    if (!account) return await getOne();
-    const key = account.secretKey || account.token;
-    const keyString = await decryptKey(key!);
-
-
-    return {
-      serviceID: serviceID,
-      key: account?.appID + "#" + keyString,
-      serialNumber: serialNumber
-    };
-
-  } else {
-    return await getOne();
-  }
-
-  async function getOne() {
+  let serialNumber = await getCurrentServiceSN();
+  if (serialNumber === false) {
     const serviceOne = (await getAvilabelService("all"))!;
-    const serialNumber = serviceOne.serialNumber;
-    const serviceID = serviceOne.serviceID;
-    let key = undefined;
-    if (serviceOne instanceof TranslateServiceAccount) {
-      const keyString = serviceOne.secretKey || serviceOne.token;
-      if (keyString) key = await decryptKey(keyString!);
-
-    }
-
+    serialNumber = serviceOne.serialNumber;
+  }
+  if (serialNumber === false || serialNumber === void 0) return;
+  return (await getServiceBySN(serialNumber))!;
+  /* if (service instanceof TranslateService) {
+    const serviceID = service.serviceID;
     return {
       serviceID,
-      key: key,
-      serialNumber: serialNumber
+      serialNumber,
+      service
     };
   }
-
-
+  if (service instanceof TranslateServiceAccount) {
+    const key = service.secretKey || service.token;
+    if (key) {
+      //const keyString = await decryptKey(key);
+      return {
+        serviceID: service.serviceID,
+        secretKey: key,//可能加密
+        serialNumber,
+        account: service
+      };
+    }
+  }
+ */
 }
 
-async function decryptKey(key: string) {
+export async function decryptKey(key: string) {
   if (!key.includes('encryptAESString')) return key;
   return await decryptByAESKey(key);
   //const state = await encryptState();
@@ -753,10 +702,6 @@ async function decryptKey(key: string) {
 }
 
 export async function getAvilabelService(type: "hasSN" | "noSN" | "all") {
-  //const isPay = (getDom("isPay") as XUL.Checkbox).checked;
-  //const isPreferredSameService = (getDom("isPreferredSameService") as XUL.Checkbox).checked;
-  //const isPreferredHasSecretKey = (getDom("isPreferredHasSecretKey") as XUL.Checkbox).checked;
-  //const isPriority = (getDom("isPriority") as XUL.Checkbox).checked;
   const services = await getServices();
   const avilabeleServices = Object.values(services).filter(s => !s.forbidden);
   const avilabeleServicesWhithoutSN = avilabeleServices.filter(s => !(s.hasSecretKey || s.hasToken));
@@ -774,10 +719,7 @@ export async function getAvilabelService(type: "hasSN" | "noSN" | "all") {
       return avilabeleServiceAccounts[0];
     default:
       return all[0];
-
   }
-
-
 }
 
 /* export function updateSingleSecretKey(
@@ -813,3 +755,125 @@ if (spwo.length) {
 }
 export { servicePriorityWithKey };
 export { servicePriorityWithoutKey };
+
+
+
+
+/**
+ * 检查单个秘钥是否可用
+ * 消耗字符数大于字符数限制为不可用
+ * 不传参数则检查当前使用的秘钥
+ * @param serviceID
+ * @param key
+ */
+/*   static async singleAccountUsableCheck(serviceID?: string, key?: string, serialNumber?: string | number) {
+    const date = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const currentDay = formatter.format(date);//'04/20/2024'
+    const reg = /^\d{2}/m;
+    const currentMonth = String(date.getMonth() + 1);
+
+    if (!serviceID || serviceID == "") {
+      const service = await getSingleServiceUnderUse();
+      if (!service) {
+        return;
+      }
+      serviceID = service.serviceID as string;
+      if (service instanceof TranslateServiceAccount) {
+        key = service.secretKey || service.token;
+      }
+    }
+    const services = await getServices();
+    const service = services[serviceID];
+    if (service.hasSecretKey && !service.hasToken) {
+      if (service.charasLimit == 0) return true;
+      if (service.charConsum && service.charConsum > getCharasLimit(service)) return false;
+      return true;
+    }
+
+    if (!key || key == "") {
+      const service = await getSingleServiceUnderUse();
+      if (!service) {
+        return;
+      }
+      key = service.key || service.to;
+    }
+    const singleAccount = await this.getAccount(serviceID, key);
+    if (!singleAccount) {
+      return;
+    }
+    const usableOld = singleAccount.usable;
+    const limitMode = services[serviceID].limitMode;
+    let factor = Number(getPref("charasLimitFactor"));
+    if (isNaN(factor)) {
+      factor = 0.9;
+    }
+    let charasLimit = services[serviceID].charasLimit;
+    if (factor != undefined) {
+      charasLimit = services[serviceID].charasLimit * factor;
+    }
+    if (limitMode == "pay" || limitMode == "noLimit") {
+      singleAccount.usable = true;
+      return true;
+    }
+    if (limitMode == "total") {
+      if (singleAccount.charConsum - 100 > charasLimit) {
+        singleAccount.usable = false;
+      } else {
+        singleAccount.usable = true;
+      }
+    }
+    if (limitMode == "daily" || limitMode == "month") {
+      if (
+        singleAccount.dateMarker === undefined ||
+        typeof singleAccount.dateMarker != "string" ||
+        singleAccount.dateMarker.length <= 2
+      ) {
+        //日期标志错误或未定义
+        singleAccount.dateMarker = currentDay;
+      }
+    }
+    if (limitMode == "month") {
+      let thisMonthMarker;
+      const temp = String(singleAccount.dateMarker!).match(reg);
+      if (temp != null) {
+        thisMonthMarker = temp[0].replace("0", "");
+      } else {
+        singleAccount.dateMarker = currentDay;
+        thisMonthMarker = currentMonth;
+      }
+      //跨越记账时间段则自动重置额度
+      if (thisMonthMarker != currentMonth) {
+        //重置时间标志
+        singleAccount.dateMarker = currentDay;
+        singleAccount.charConsum = 0;
+      }
+    }
+    if (limitMode == "daily") {
+      if (singleAccount.dateMarker != currentDay) {
+        //重置时间标志
+        singleAccount.dateMarker = currentDay;
+        singleAccount.charConsum = 0;
+      }
+    }
+    if (singleAccount.charConsum - 100 > charasLimit) {
+      singleAccount.usable = false;
+    } else {
+      singleAccount.usable = true;
+    }
+
+    const usableNew = singleAccount.usable;
+    if (usableOld != usableNew) {
+      singleAccount.changedData.usable = singleAccount.usable;
+      await singleAccount.save();
+    }
+
+    //updateSingleSecretKey(singleAccount, serviceID);
+    // 百度修改版 直接调用百度账号信息
+    //serviceManage.syncBaiduSecretKey(serviceID);
+    return singleAccount.usable;
+  } */

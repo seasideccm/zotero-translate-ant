@@ -1,92 +1,32 @@
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, chooseFilePath, deepClone, differObject, getPS, objOrder, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
 import { TranslateService, TranslateServiceAccount } from "../translate/translateService";
 import { getDom, getElementValue } from "./uiTools";
-import { deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB } from "../translate/translateServices";
+import { ServiceMap, deleteAcount, getNextServiceSNSync, getSerialNumberSync, getServiceAccountSync, getServices, getServicesFromDB } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from '../crypto';
-import { getDB } from "../database/database";
+import { getPref } from "../../utils/prefs";
 
 
-
-
-
-export async function readTextFiles(filePaths?: string[]) {
-    if (!filePaths) filePaths = await chooseDirOrFilePath("files");
-    let text = '';
-    for (let i = 0; i < filePaths.length; i++) {
-        const MIME = await Zotero.MIME.getMIMETypeFromFile(filePaths[i]);
-        if (MIME != "text/plain") {
-            const fileName = PathUtils.filename(filePaths[i]);
-            showInfo(fileName + " is not a plain text file. Skip it.");
-            continue;
-        }
-        const result = await Zotero.File.getContentsAsync(filePaths[i]);// 读取拖拽文件内容
-        if (typeof result != "string") continue;
-        text += result;
-    }
-    return text;
-}
-function baiduVerify(keys: any[], values: any[]) {
-    const reg = {
-        "appID": /^\d{17}$/m,
-        "secretKey": /^[A-Za-z\d]{20}$/m,
-        "usable": /\d/,
-        "charConsum": /^\d+$/m,
-    };
-    function regRes(value: string, reg: RegExp) {
-        const match = value.match(reg);
-        if (match) {
-            if (match[0] == value) return true;
-        }
-    }
-
-    for (let i = 0; i < values.length; i++) {
-        // @ts-ignore xxx
-        if (!regRes(values[i], reg[keys[i]])) return false;
-    }
-    return true;
-}
 
 const dataVerify: any = {
     baidu: baiduVerify
 };
 
 declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
-export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
-    if (!containerId) {
-        throw "Must pass propsOption.containerId which assign table location";
-    }
-    const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
-    const tableHelper = new ztoolkit.VirtualizedTable(win);
-    if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-    tableHelper.setContainerId(containerId);
-    tableHelper.setProp(props);
-    tableHelper.render(-1, () => {
-        renderLock.resolve();
-    });
-    await renderLock.promise;
-    addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
-    return tableHelper;
 
-}
-export function stopEvent(e: Event) {
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation();//@ts-ignore has
-    if (e.nativeEvent) {//@ts-ignore has
-        e.nativeEvent.stopImmediatePropagation();
-        e.stopPropagation();
-    }
-}
+const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
+
 export async function replaceSecretKeysTable() {
     const win = addon.data.prefs?.window;
     if (!win) return;
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
     const serviceID = getElementValue("serviceID");
-    const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
+
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     const rows: any[] = await secretKeysTableRowsData(serviceID) || [];
     if (!rows || rows.length == 0) return;
@@ -135,6 +75,11 @@ export async function replaceSecretKeysTable() {
     //@ts-ignore has//切换选项标签
     const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
     adjustWidth(rows, visibleKeys);
+
+
+    function handleGetRowString(index: number) {
+        return getRowString(rows, index, tableTreeInstance);
+    }
 
     function handleGetRowData(index: number) {
         // 如果加密开启，secretKey、token 字段显示为 ******
@@ -347,17 +292,7 @@ export async function replaceSecretKeysTable() {
         });
         return false;
     }
-    function handleGetRowString(index: number) {
-        const rowCellsString = Object.values(rows[index]).filter(e => typeof e === "string") as string[];
-        if (rowCellsString.length === 0) return "";//@ts-ignore has
-        const typingString = tableTreeInstance._typingString as string;
-        const matchCells = rowCellsString.filter((str: string) => str.toLowerCase().includes(typingString));
-        if (matchCells.length > 0) {
-            return matchCells[0];
-        } else {
-            return "";
-        }
-    }
+
 
     async function handleSelectionChange(selection: TreeSelection, shouldDebounce: boolean) {
         if (tableTreeInstance.dataChangedCache) {
@@ -1153,32 +1088,6 @@ export async function replaceSecretKeysTable() {
 
 
 
-    function makeColumnPropValues(row: any) {
-        // 本地化 ftl 文件中条目的前缀
-        const prefTableStringPrefix = "prefs-table-";
-
-        const temp = Object.keys(row).map((key: string, i: number) => {
-            //let type = '';
-            // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
-            let label = getString(`${prefTableStringPrefix}${key}`);
-            if (!label || label.startsWith(config.addonRef)) {
-                label = key;
-            }
-            const result: any[] = [key, label];
-            result.push(false, false);
-            if (i == 1) {
-                result.push(2);
-            } else {
-                result.push(1);
-            }
-            /* if (key == "usable") {
-                type = 'checkbox';
-            }
-            result.push(type); */
-            return result;
-        });
-        return temp;
-    }
 
 
 
@@ -1259,6 +1168,366 @@ export async function replaceSecretKeysTable() {
     }
 
 
+}
+
+export async function priorityWithKeyTable() {
+    if (!getPref("isPriority")) return;
+    const win = addon.data.prefs?.window;
+    if (!win) return;
+    const id = `${config.addonRef}-` + "servicePriorityWithKey";
+    const containerId = `${config.addonRef}-table-servicePriorityWithKey`;
+    const services = await getServices();
+    const rows: any[] = await serviceWithKeyRowsData() || [];
+    if (!rows || rows.length == 0) return;
+
+    //props
+    const columnPropValues = makeColumnPropValues(rows[0]);
+    const columnsProp = arrsToObjs(columnPropKeys)(columnPropValues) as ColumnOptions[];
+    const props: VirtualizedTableProps = {
+        id: id,
+        columns: columnsProp,
+        staticColumns: false,
+        showHeader: true,
+        multiSelect: true,
+        getRowCount: () => rows.length,
+        getRowData: (index: number) => rows[index],
+        getRowString: handleGetRowString,
+        onKeyDown: handleKeyDown
+    };
+
+    const options: TableFactoryOptions = {
+        win: win,
+        containerId: containerId,
+        props: props,
+    };
+
+
+
+    const tableHelper = await tableFactory(options);
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    tableTreeInstance.scrollToRow(rows.length - 1);
+    tableTreeInstance.rows = rows;
+
+
+    async function serviceWithKeyRowsData() {
+        const rows = Object.values(services).filter(e => e.accounts && e.accounts.length)
+            .map(e2 => ({
+                serviceID: e2.serviceID,
+                locale: getString(`service-${e2.serviceID}`),
+                forbidden: e2.forbidden !== undefined ? getString(`forbidden-${String(e2.forbidden)}`) : getString("forbidden-false"),
+            }));
+        return rows;
+    }
+
+    function handleGetRowString(index: number) {
+        return getRowString(rows, index, tableTreeInstance);
+    }
+
+    /* function handleKeyDown(event: KeyboardEvent) {
+        //return返回的是控制默认按键功能是否启用
+        if (event.key == "Delete" || event.key == "Backspace" || (Zotero.isMac && event.key == "Backspace")) {
+            //获取要禁用的行数据，
+            const rowDataForbidden = rows.filter(
+                (v, i) => tableTreeInstance.selection.isSelected(i)
+            );
+            //确认删除，点击cancel则取消
+            const confirm = addon.data.prefs!.window.confirm(getString("info-forbidden") + '\n'
+                + getString("info-delete-confirm"));
+            if (!confirm) return true;
+
+            //选中行的引擎，获得秘钥，设forbidden 为 true
+            if (rowDataForbidden.length) {
+                for (const rowData of rowDataForbidden) {
+                    const serviceID = rowData.serviceID;
+                    services[serviceID]["forbidden"] = true;
+                    const deleteService = getDom(serviceID) as any;
+                    if (deleteService.isMenulistChild) {
+                        deleteService.remove();
+                    }
+
+                }
+            }
+
+            tableTreeInstance.invalidate();
+        }
+        if (event.key == "ArrowUp") {
+
+            rows.map(
+                (v, i) => {
+                    if (tableTreeInstance.selection.isSelected(i)) {
+                        if (i > 0) {
+                            const temp = rows[i];
+                            rows[i] = rows[i - 1];
+                            rows[i - 1] = temp;
+                        }
+                    }
+                }
+            );
+            tableTreeInstance.invalidate();
+        }
+        if (event.key == "ArrowDown") {
+            rows.map(
+                (v, i) => {
+                    if (tableTreeInstance.selection.isSelected(i)) {
+                        if (i < rows.length - 1) {
+                            const temp = rows[i];
+                            rows[i] = rows[i + 1];
+                            rows[i + 1] = temp;
+                        }
+                    }
+                }
+            );
+            tableTreeInstance.invalidate();
+        }
+
+        return true;
+    } */
+    function handleKeyDown(event: KeyboardEvent) {
+        priorityKeyDown(event, rows, tableTreeInstance, services).then((res) => {
+            return res;
+        });
+        return true;
+
+    }
+
+}
+
+export async function priorityWithoutKeyTable() {
+    if (!getPref("isPriority")) return;
+    const win = addon.data.prefs?.window;
+    if (!win) return;
+    const id = `${config.addonRef}-` + "servicePriorityWithoutKey";
+    const containerId = `${config.addonRef}-table-servicePriorityWithoutKey`;
+    const services = await getServices();
+    const rows: any[] = getRowsData() || [];
+    if (!rows || rows.length == 0) return;
+
+    //props
+    const columnPropValues = makeColumnPropValues(rows[0]);
+    const columnsProp = arrsToObjs(columnPropKeys)(columnPropValues) as ColumnOptions[];
+    const props: VirtualizedTableProps = {
+        id: id,
+        columns: columnsProp,
+        staticColumns: false,
+        showHeader: true,
+        multiSelect: true,
+        getRowCount: () => rows.length,
+        getRowData: (index: number) => rows[index],
+        getRowString: handleGetRowString,
+        onKeyDown: handleKeyDown
+    };
+
+    const options: TableFactoryOptions = {
+        win: win,
+        containerId: containerId,
+        props: props,
+    };
+
+
+
+    const tableHelper = await tableFactory(options);
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    tableTreeInstance.scrollToRow(rows.length - 1);
+    tableTreeInstance.rows = rows;
+
+
+    function getRowsData() {
+        const rows = Object.values(services).filter(e => !e.hasSecretKey && !e.hasToken)
+            .map(e2 => ({
+                serviceID: e2.serviceID,
+                locale: getString(`service-${e2.serviceID}`),
+                forbidden: e2.forbidden !== undefined ? getString(`forbidden-${String(e2.forbidden)}`) : getString("forbidden-false"),
+            }));
+        return rows;
+    }
+
+    function handleGetRowString(index: number) {
+        return getRowString(rows, index, tableTreeInstance);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+        priorityKeyDown(event, rows, tableTreeInstance, services).then((res) => {
+            return res;
+        });
+        return true;
+    }
+
+
+}
+
+
+export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
+    if (!containerId) {
+        throw "Must pass propsOption.containerId which assign table location";
+    }
+    const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
+    const tableHelper = new ztoolkit.VirtualizedTable(win);
+    if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
+    tableHelper.setContainerId(containerId);
+    tableHelper.setProp(props);
+    tableHelper.render(-1, () => {
+        renderLock.resolve();
+    });
+    await renderLock.promise;
+    addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
+    return tableHelper;
+
+}
+export function stopEvent(e: Event) {
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();//@ts-ignore has
+    if (e.nativeEvent) {//@ts-ignore has
+        e.nativeEvent.stopImmediatePropagation();
+        e.stopPropagation();
+    }
+}
+
+function makeColumnPropValues(row: any) {
+    // 本地化 ftl 文件中条目的前缀
+    const prefTableStringPrefix = "prefs-table-";
+
+    const temp = Object.keys(row).map((key: string, i: number) => {
+        //let type = '';
+        // getString 未找到相应本地化字符串时，返回`${config.addonRef}-${localeString}`
+        let label = getString(`${prefTableStringPrefix}${key}`);
+        if (!label || label.startsWith(config.addonRef)) {
+            label = key;
+        }
+        const result: any[] = [key, label];
+        result.push(false, false);
+        if (i == 1) {
+            result.push(2);
+        } else {
+            result.push(1);
+        }
+        /* if (key == "usable") {
+            type = 'checkbox';
+        }
+        result.push(type); */
+        return result;
+    });
+    return temp;
+}
+function getRowString(rows: any, index: number, tableTreeInstance: any) {
+    const rowCellsString = Object.values(rows[index]).filter(e => typeof e === "string") as string[];
+    if (rowCellsString.length === 0) return "";//@ts-ignore has
+    const typingString = tableTreeInstance._typingString as string;
+    const matchCells = rowCellsString.filter((str: string) => str.toLowerCase().includes(typingString));
+    if (matchCells.length > 0) {
+        return matchCells[0];
+    } else {
+        return "";
+    }
+}
+
+
+export async function updateServiceData(serviceAccount: TranslateService | TranslateServiceAccount, key: string, value: any) {
+    if (!serviceAccount.changedData) serviceAccount.changedData = {};
+    serviceAccount.changedData[key] = value;
+    if (!serviceAccount.previousData) serviceAccount.previousData = {};
+    serviceAccount.previousData[key] = serviceAccount[key as keyof typeof serviceAccount];
+    serviceAccount[key as keyof typeof serviceAccount] = value;
+    await serviceAccount.save();
+}
+
+async function priorityKeyDown(event: KeyboardEvent, rows: any[], tableTreeInstance: any, services: ServiceMap) {
+    //return返回的是控制默认按键功能是否启用
+    if (event.key == "Delete" || event.key == "Backspace" || (Zotero.isMac && event.key == "Backspace")) {
+        //获取要禁用的行数据，
+        const rowDataForbidden = rows.filter(
+            (v, i) => tableTreeInstance.selection.isSelected(i)
+        );
+        //确认删除，点击cancel则取消
+        const confirm = addon.data.prefs!.window.confirm(getString("info-forbidden") + '\n'
+            + getString("info-delete-confirm"));
+        if (!confirm) return true;
+
+        //选中行的引擎，获得秘钥，设forbidden 为 true
+        if (rowDataForbidden.length) {
+            for (const rowData of rowDataForbidden) {
+                const serviceID = rowData.serviceID;
+                await updateServiceData(services[serviceID], "forbidden", true);
+                //services[serviceID]["forbidden"] = true;
+                rowData["forbidden"] = getString(`forbidden-true`);
+
+                const deleteService = getDom(serviceID) as any;
+                if (deleteService.isMenulistChild) {
+                    deleteService.remove();
+                }
+            }
+
+        }
+
+
+        tableTreeInstance.invalidate();
+    }
+    if (event.key == "ArrowUp") {
+
+        rows.map(
+            (v, i) => {
+                if (tableTreeInstance.selection.isSelected(i)) {
+                    if (i > 0) {
+                        const temp = rows[i];
+                        rows[i] = rows[i - 1];
+                        rows[i - 1] = temp;
+                    }
+                }
+            }
+        );
+        tableTreeInstance.invalidate();
+    }
+    if (event.key == "ArrowDown") {
+        rows.map(
+            (v, i) => {
+                if (tableTreeInstance.selection.isSelected(i)) {
+                    if (i < rows.length - 1) {
+                        const temp = rows[i];
+                        rows[i] = rows[i + 1];
+                        rows[i + 1] = temp;
+                    }
+                }
+            }
+        );
+        tableTreeInstance.invalidate();
+    }
+
+    return true;
+}
+
+export async function readTextFiles(filePaths?: string[]) {
+    if (!filePaths) filePaths = await chooseDirOrFilePath("files");
+    let text = '';
+    for (let i = 0; i < filePaths.length; i++) {
+        const MIME = await Zotero.MIME.getMIMETypeFromFile(filePaths[i]);
+        if (MIME != "text/plain") {
+            const fileName = PathUtils.filename(filePaths[i]);
+            showInfo(fileName + " is not a plain text file. Skip it.");
+            continue;
+        }
+        const result = await Zotero.File.getContentsAsync(filePaths[i]);// 读取拖拽文件内容
+        if (typeof result != "string") continue;
+        text += result;
+    }
+    return text;
+}
+
+function baiduVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^\d{17}$/m,
+        "secretKey": /^[A-Za-z\d]{20}$/m,
+        "usable": /\d/,
+        "charConsum": /^\d+$/m,
+    };
+    function regRes(value: string, reg: RegExp) {
+        const match = value.match(reg);
+        if (match) {
+            if (match[0] == value) return true;
+        }
+    }
+
+    for (let i = 0; i < values.length; i++) {
+        // @ts-ignore xxx
+        if (!regRes(values[i], reg[keys[i]])) return false;
+    }
+    return true;
 }
 
 export function getSelectedRow() {

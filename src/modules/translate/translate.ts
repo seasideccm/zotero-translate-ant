@@ -7,6 +7,8 @@ import { pdf2document } from "../pdf/pdfFullText";
 import { serviceManage } from "./serviceManage";
 import { tencentTransmart } from "../webApi/tencentTransmart";
 import { showTrans } from "../ui/dataDialog";
+import { baidufieldModify } from "../webApi/baidufieldModify";
+import { baiduOcrAccurate, baiduPictureTranslate } from "../ocr/baiduOCR";
 
 
 export class Translator {
@@ -82,4 +84,15 @@ const OptionsPDFTranslate: OptionsPDFTranslate = {
 };
 // const result = await Zotero.PDFTranslate.api.translate(rowText, OptionsPDFTranslate);
 //showInfo(result.result);
+
+export const translateFunc: any = {
+    baiduModify: baidufieldModify,
+    baidufieldModify: baidufieldModify,
+    tencentTransmart: tencentTransmart,
+    baiduPictureTranslate: baiduPictureTranslate,
+    baiduOcrAccurate: baiduOcrAccurate,
+
+};
+
+//const serviceIDs=["baiduModify","baidufieldModify","tencentTransmart","baiduPictureTranslate","baiduOcrAccurate"]
 
