@@ -1175,7 +1175,7 @@ export async function testCryInfo(info: string) {
     showInfo(cryedInfoJSON.encryptAESString);
 }
 
-declare type DBKV = {
+declare type DataBaseKV = {
     field: string;
     value: string;
 };

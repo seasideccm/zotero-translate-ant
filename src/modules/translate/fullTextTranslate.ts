@@ -127,7 +127,8 @@ export class fullTextTranslate {
   }
 
   static async updateCharConsum() {
-    const serviceID = getSingleServiceUnderUse().serviceID as string;
+    const service = await getSingleServiceUnderUse();
+    const serviceID = service.serviceID as string;
     const services = await getServices();
     if (services[serviceID].hasSecretKey) {
       const service = services[serviceID];
@@ -355,7 +356,7 @@ export class fullTextTranslate {
       await fullTextTranslate.makeTranslation(docItem);
     }
     this.updateCharConsum();
-    serviceManage.allkeyUsableCheck();
+    await serviceManage.allkeyUsableCheck();
   }
 
   /**
@@ -1082,21 +1083,15 @@ export class fullTextTranslate {
     const services = await getServices();
     /* eslint-disable no-constant-condition */
     while (true) {
-      const serviceID = getSingleServiceUnderUse().serviceID as string;
-      const secretKey = getSingleServiceUnderUse().key as string;
-
+      const service = await getSingleServiceUnderUse();
+      const serviceID = service.serviceID;
+      const secretKey = service.key;
       const charasPerTime = services[serviceID].charasPerTime;
-      /* if (services[serviceID].charasPerTime === undefined) {
-        recoverDefaultLimit(serviceID, "charasPerTime");
-      }
-      
-      if (services[serviceID].hasSecretKey === undefined) {
-        recoverDefaultLimit(serviceID, "hasSecretKey");
-      } */
       if (services[serviceID].hasSecretKey) {
-        const secretKeyObj = await serviceManage.getAccount(serviceID, secretKey);
+        const secretKeyObj = await serviceManage.getAccount(serviceID, secretKey!);
         // 如果有秘钥，则检查该秘钥的余额情况
-        if (secretKeyObj) {
+        if (secretKeyObj && secretKeyObj.secretKey) {
+
           let factor = Number(getPref('charasLimitFactor'));
           if (isNaN(factor)) {
             factor = 1;
@@ -1112,11 +1107,11 @@ export class fullTextTranslate {
           }
           const serviceAvailableCharacters = charasLimit - secretKeyObj?.charConsum;
           if (serviceAvailableCharacters < num - 10) {
-            onSwitchResult = serviceManage.onSwitch(true);
+            onSwitchResult = await serviceManage.onSwitch(true);
             //失败后退出，成功则循环检查
             if (!onSwitchResult) {
               //失败就存一下
-              serviceManage.allkeyUsableCheck();
+              await serviceManage.allkeyUsableCheck();
               return "no available service";
             }
             //剩余额度小于每次请求限制数，调整限制数为剩余额度，
@@ -1126,9 +1121,9 @@ export class fullTextTranslate {
             if (serviceAvailableCharacters > 1000) {
               return serviceAvailableCharacters;
             } else {
-              onSwitchResult = serviceManage.onSwitch(true);
+              onSwitchResult = await serviceManage.onSwitch(true);
               if (!onSwitchResult) {
-                serviceManage.allkeyUsableCheck();
+                await serviceManage.allkeyUsableCheck();
                 return "no available service";
               }
             }
@@ -1137,9 +1132,9 @@ export class fullTextTranslate {
           }
           //如果引擎需要秘钥，但没有秘钥，则更换引擎
         } else {
-          onSwitchResult = serviceManage.onSwitch(true);
+          onSwitchResult = await serviceManage.onSwitch(true);
           if (!onSwitchResult) {
-            serviceManage.allkeyUsableCheck();
+            await serviceManage.allkeyUsableCheck();
             return "no available service";
           }
         }
@@ -1180,14 +1175,14 @@ export class fullTextTranslate {
       closeTime: -1,
       closeOtherProgressWindows: true,
     });
-
-    const translatingInfoA = `${getSingleServiceUnderUse().serviceID}: ${getString("translating")}...✍️...`;
-    const translatingInfoB = `${getSingleServiceUnderUse().serviceID}: ✍️...${getString("translating")}...✍️`;
-    const translatingInfoC = `${getSingleServiceUnderUse().serviceID}: ✍️...✍️...${getString("translating")}`;
+    const service = await getSingleServiceUnderUse();
+    const translatingInfoA = `${service.serviceID}: ${getString("translating")}...✍️...`;
+    const translatingInfoB = `${service.serviceID}: ✍️...${getString("translating")}...✍️`;
+    const translatingInfoC = `${service.serviceID}: ✍️...✍️...${getString("translating")}`;
     let LoopCountor = 0;
     let text = '';
     translatingProgress.createLine({
-      text: getString(`service-${getSingleServiceUnderUse().serviceID}`) + getString("start-translating"),
+      text: getString(`service-${service.serviceID}`) + getString("start-translating"),
       type: "default",
     }).show();
 
@@ -1203,10 +1198,10 @@ export class fullTextTranslate {
       let charasPerTime: number;
       const num = leftArr[0].length;
       const check = await this.checkQuotaSwitch(num);
-      const serviceID = getSingleServiceUnderUse().serviceID as string;
+      const serviceID = (await getSingleServiceUnderUse()).serviceID as string;
       if (loopTimes != 0 && lastServiceID == serviceID) {
         if (services[serviceID].hasSecretKey) {
-          const key = getSingleServiceUnderUse().key;
+          const key = service.key;
           if (key !== undefined) {
             const singleAccount = await serviceManage.getAccount(serviceID, key);
             if (singleAccount?.charConsum == 0) {
@@ -1334,8 +1329,9 @@ export class fullTextTranslate {
   static translateGo = async (sourceSegment: string) => {
     let onSwitchResult;
     const services = await getServices();
-    const serviceID = getSingleServiceUnderUse().serviceID as string;
-    const secretKey = getSingleServiceUnderUse().key as string;
+    const service = await getSingleServiceUnderUse();
+    const serviceID = service.serviceID;
+    const secretKey = service.key;
     let secretKeyObj;
     let paraResult: any;
     if (!Zotero.Streamer._socketOpen()) {
@@ -1343,7 +1339,7 @@ export class fullTextTranslate {
       return paraResult["result"] = `[请求错误]：${serviceID}`;
     }
     if (services[serviceID].hasSecretKey) {
-      secretKeyObj = await serviceManage.getAccount(serviceID, secretKey);
+      secretKeyObj = await serviceManage.getAccount(serviceID, secretKey!);
       if (secretKeyObj) {
         const charactersTotranslate = sourceSegment.length;
         let factor = Number(getPref('charasLimitFactor'));
@@ -1356,23 +1352,23 @@ export class fullTextTranslate {
         }
         const serviceAvailableCharacters = charasLimit - secretKeyObj?.charConsum;
         if (serviceAvailableCharacters < charactersTotranslate) {
-          onSwitchResult = serviceManage.onSwitch();
+          onSwitchResult = await serviceManage.onSwitch();
           //如果更换引擎失败，退出translateGo后保存翻译原文和译文到缓存
           if (!onSwitchResult) {
             //失败就存一下
-            serviceManage.allkeyUsableCheck();
+            await serviceManage.allkeyUsableCheck();
             return "no available service";
             //break
             //翻译引擎更换成功，需要继续完成翻译任务，不能break，同时切换记录
           } else {
-            let serviceID = getSingleServiceUnderUse().serviceID as string;
+            let serviceID = (await getSingleServiceUnderUse()).serviceID as string;
             if (sourceSegment.length > services[serviceID].charasPerTime - 20) {
               const sourceTxtArr = fullTextTranslate.wholeSentenceSplit(sourceSegment, services[serviceID].charasPerTime);
               const sourceTxtArrTrans: string[] = [];
               for (const sourceSegment of sourceTxtArr) {
                 const result = await fullTextTranslate.translateGo(sourceSegment) as string;
                 sourceTxtArrTrans.push(result as string);
-                serviceID = getSingleServiceUnderUse().serviceID as string;
+                serviceID = (await getSingleServiceUnderUse()).serviceID as string;
                 if (services[serviceID].QPS) { await Zotero.Promise.delay(1000 / services[serviceID].QPS); }
               }
               const Result = sourceTxtArrTrans.join('');
@@ -1390,14 +1386,14 @@ export class fullTextTranslate {
     if (serviceID == "baiduModify") {
       //const secretKey = (services["baidu"].secretKey as secretKey[]).filter((item: secretKey) => item.usable)[0].key
       try {
-        paraResult = await baiduModify(sourceSegment, secretKey);
+        paraResult = await baiduModify(sourceSegment, secretKey!);
       } catch (e) {
         paraResult["result"] = `[请求错误]：${serviceID}`;
       }
     } else if (serviceID == "baidufieldModify") {
       //const secretKey = (services["baidufield"].secretKey as secretKey[]).filter((item: secretKey) => item.usable)[0].key
       try {
-        paraResult = await baidufieldModify(sourceSegment, secretKey);
+        paraResult = await baidufieldModify(sourceSegment, secretKey!);
       } catch (e) {
         paraResult["result"] = `[请求错误]：${serviceID}`;
       }
@@ -1424,26 +1420,26 @@ export class fullTextTranslate {
         //如果每次更新秘钥字符消耗量，则无需在此记录
         //updatecharConsum(sourceSegment.length, service);
 
-        serviceManage.singleAccountUsableCheck();
+        await serviceManage.singleAccountUsableCheck();
       }
       //todo 如果其原因，如网络不通，则解决问题后继续
-      onSwitchResult = serviceManage.onSwitch();
+      onSwitchResult = await serviceManage.onSwitch();
       //如果更换引擎失败，退出translateGo后保存翻译原文和译文到缓存
       if (!onSwitchResult) {
         //失败就存一下
-        serviceManage.allkeyUsableCheck();
+        await serviceManage.allkeyUsableCheck();
         return "no available service";
         //break
         //翻译引擎更换成功，需要继续完成翻译任务，不能break，同时切换记录
       } else {
-        let serviceID = getSingleServiceUnderUse().serviceID as string;
+        let serviceID = (await getSingleServiceUnderUse()).serviceID;
         if (sourceSegment.length > services[serviceID].charasPerTime) {
           const sourceTxtArr = fullTextTranslate.wholeSentenceSplit(sourceSegment, services[serviceID].charasPerTime);
           const sourceTxtArrTrans: string[] = [];
           for (const sourceSegment of sourceTxtArr) {
             const result = await fullTextTranslate.translateGo(sourceSegment) as string;
             sourceTxtArrTrans.push(result as string);
-            serviceID = getSingleServiceUnderUse().serviceID as string;
+            serviceID = (await getSingleServiceUnderUse()).serviceID as string;
             if (services[serviceID].QPS) { await Zotero.Promise.delay(1000 / services[serviceID].QPS); }
           }
           const Result = sourceTxtArrTrans.join('');

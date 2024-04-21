@@ -8,9 +8,8 @@ import {
   setPluginsPref,
   setPref,
 } from "../../utils/prefs";
-import { fullTextTranslate } from "./fullTextTranslate";
-import { getServiceAccountSync, getServiceBySN, getServices } from "./translateServices";
-import { getCurrentServiceSN, setSettingsValue } from "../addonSetting";
+import { getSerialNumber, getServiceBySN, getServices } from "./translateServices";
+import { getCurrentServiceSN, setCurrentServiceSN } from "../addonSetting";
 import { decryptByAESKey, encryptState } from "../crypto";
 import { getDom } from "../ui/uiTools";
 
@@ -42,14 +41,24 @@ export class serviceManage {
     const currentMonth = String(date.getMonth() + 1);
 
     if (serviceID === undefined || serviceID == "" || serviceID == null) {
-      serviceID = getSingleServiceUnderUse().serviceID as string;
+      const service = await getSingleServiceUnderUse();
+      if (!service) {
+        return;
+      }
+      serviceID = service.serviceID as string;
     }
     const services = await getServices();
     if (!services[serviceID].hasSecretKey) {
       return;
     }
     if (key === undefined || key == "" || key == null) {
-      key = getSingleServiceUnderUse().key as string;
+      //key = getSingleServiceUnderUse().key as string;
+
+      const service = await getSingleServiceUnderUse();
+      if (!service) {
+        return;
+      }
+      key = service.key as string;
     }
     const singleAccount = await this.getAccount(serviceID, key);
     if (!singleAccount) {
@@ -129,16 +138,26 @@ export class serviceManage {
 
   static async allkeyUsableCheck() {
     const services = await getServices();
-    Object.values(services)
-      .filter((e: TranslateService) => e.accounts)
-      .map((t: TranslateService) => {
-        if (t.accounts?.length) {
-          for (const singleAccount of t.accounts!) {
-            const key = singleAccount.secretKey || singleAccount.token;
-            this.singleAccountUsableCheck(t.serviceID, key);
-          }
-        }
-      });
+    /*  Object.values(services)
+       .filter((e: TranslateService) => e.accounts)
+       .map((t: TranslateService) => {
+         if (t.accounts?.length) {
+           for (const singleAccount of t.accounts!) {
+             const key = singleAccount.secretKey || singleAccount.token;
+             this.singleAccountUsableCheck(t.serviceID, key);
+           }
+         }
+       }); */
+
+    for (const e of Object.values(services)) {
+      const accounts = e.accounts;
+      if (!accounts || !accounts.length) continue;
+      for (const singleAccount of accounts) {
+        const key = singleAccount.secretKey || singleAccount.token;
+        await this.singleAccountUsableCheck(e.serviceID, key);
+      }
+    }
+
   }
 
   /**
@@ -162,51 +181,87 @@ export class serviceManage {
     ) {
       return;
     }
-    const singleAccount = services[serviceID].accounts?.filter(
-      (e: TranslateServiceAccount) => e.secretKey == key_singleAccount || e.token == key_singleAccount
-    )[0];
-    return singleAccount;
+
+    const accounts = services[serviceID].accounts;
+    if (!accounts || !accounts.length) return;
+    for (const account of accounts) {
+      let key = account.secretKey || account.token;
+      if (!key) continue;
+      key = await decryptKey(key);
+      if (key_singleAccount.includes(key))
+        return account;
+    }
+
+    /*   const singleAccount = services[serviceID].accounts?.filter(
+        (e: TranslateServiceAccount) => e.secretKey == key_singleAccount || e.token == key_singleAccount
+      )[0];
+  
+  
+  
+      return singleAccount; */
   }
+
+
+  /* static async getAccount() {
+
+  } */
+
 
   /**
    *
    * @returns
    */
   static async onSwitch(isPreferredSameService?: boolean) {
-    /* const servicesHasKeyUsable = Object.values(services).filter(element => {
-          element.hasSecretKey && (element.secretKey?.filter((e:any) =>{e.usable}).length)
-        }); */
+    await this.switchServiceKey(secretKey, plugin, serviceIDUnderUsed);
+
     isPreferredSameService !== undefined
       ? isPreferredSameService
       : (isPreferredSameService = getPref("isPreferredSameService") as boolean);
-    const serviceKeyUnderUsed: string =
-      (getSingleServiceUnderUse()?.key as string) || "";
-    const serviceIDUnderUsed = getSingleServiceUnderUse().serviceID as string;
+    const service = await getSingleServiceUnderUse();
+    if (!service) return;
+    const serviceKeyUnderUsed: string = service.key || "";
+    const serviceIDUnderUsed = service.serviceID;
 
     let servicesHasKeyUsable: TranslateService[];
     const services = await getServices();
     //允许付费则忽略secretKey的usable和已经轮换过的秘钥
     if (getPref("isPay")) {
       servicesHasKeyUsable = Object.values(services).filter(
-        (element) => element.hasSecretKey && !element.forbidden,
+        (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
       );
     } else {
-      servicesHasKeyUsable = Object.values(services).filter(
-        (element) =>
-          element.hasSecretKey &&
-          !element.forbidden &&
-          element.accounts?.filter(
-            (e: any) =>
-              e.usable &&
-              e.key != serviceKeyUnderUsed &&
-              //除外上轮已经切换过的秘钥
-              !secretKeyHasSwitched?.includes(e.key),
-          ).length,
-      );
+      const servicesWithSN = Object.values(services).filter((element) => element.hasSecretKey || element.hasToken);
+      servicesHasKeyUsable = [];
+      const acountsUsable = [];
+      for (const service of servicesWithSN) {
+        if (!service.accounts || !service.accounts.length) continue;
+        for (const account of service.accounts) {
+          let key = account.secretKey || account.token;
+          key = await decryptKey(key!);
+          if (!account.usable || account.forbidden) continue;
+          if (!serviceKeyUnderUsed.includes(key)) continue;//除外本轮已经切换过的秘钥
+          if (!secretKeyHasSwitched.includes(key)) continue;//除外上轮已经切换过的秘钥
+          servicesHasKeyUsable.push(service);
+          acountsUsable.push(account);
+        }
+      }
+
+      /*  servicesHasKeyUsable = Object.values(services).filter(
+         (element) =>
+           (element.hasSecretKey || element.hasToken) &&
+           !element.forbidden &&
+           element.accounts?.filter(
+             (e: any) =>
+               e.usable &&
+               (e.secretKey || e.token) != serviceKeyUnderUsed &&
+               //除外上轮已经切换过的秘钥
+               !secretKeyHasSwitched?.includes(e.key),
+           ).length,
+       ); */
     }
     let servicesNoKeyUsable = Object.values(services).filter(
       (element) =>
-        !element.hasSecretKey &&
+        !element.hasSecretKey && !element.hasToken &&
         //除外上轮已经切换过的无秘钥翻译引擎
         //目的主要是避免死循环
         !serviceIDHasSwitched?.includes(element.serviceID),
@@ -228,29 +283,32 @@ export class serviceManage {
       servicesHasKeyUsable.filter((e) => e.serviceID.includes(serviceIDUnderUsed))
         .length
     ) {
-      let secretKeyArr = services[serviceIDUnderUsed].accounts?.map(e => {
+      const secretKeyArr: string[] = [];
+      const accounts = services[serviceIDUnderUsed].accounts;
+      if (!accounts || !accounts.length) return;
+      for (const account of accounts) {
+        let key = account.secretKey || account.token;
+        if (!key) continue;
+        key = await decryptKey(key!);
+        if (!account.usable || account.forbidden) continue;
+        if (serviceKeyUnderUsed.includes(key)) continue;
+        secretKeyArr.push(account.appID + "#" + key);
+      }
+
+      /* let secretKeyArr = services[serviceIDUnderUsed].accounts?.map(e => {
         if (e.usable && e.secretKey != serviceKeyUnderUsed) {
           return e.secretKey;
         }
       },
-      );
+      ); */
 
-      secretKeyArr = secretKeyArr?.filter((e) => e !== undefined && e !== null);
-      let secretKey;
-      if (secretKeyArr?.length && secretKeyArr[0] !== undefined) {
-        secretKey = secretKeyArr[0];
-      }
+      const secretKey = secretKeyArr.filter(e => e)[0];
 
-      const secretkeyArr2 = services[serviceIDUnderUsed].accounts?.filter(
-        (e) => e.usable && e.secretKey != serviceKeyUnderUsed,
-      );
-      let secretKey2;
-      if (secretkeyArr2?.length) {
-        secretKey2 = secretkeyArr2[0].secretKey;
-      }
+
+
 
       if (secretKey != "" && secretKey !== undefined && secretKey != null) {
-        this.switchServiceKey(secretKey, plugin, serviceIDUnderUsed);
+        await this.switchServiceKey(secretKey, plugin, serviceIDUnderUsed);
         if (
           serviceKeyUnderUsed != "" &&
           serviceKeyUnderUsed !== undefined &&
@@ -300,7 +358,7 @@ export class serviceManage {
       }
     }
     if (serviceID != "" && serviceID !== undefined && serviceID != null) {
-      this.switchServiceID(serviceID, plugin);
+      await this.switchServiceID(serviceID, plugin);
       serviceIDHasSwitched.push(serviceIDUnderUsed);
     } else {
       return false;
@@ -313,7 +371,7 @@ export class serviceManage {
       )[0] as SecretKey
     )?.secretKey;
     if (secretKey != "" && secretKey !== undefined && secretKey != null) {
-      this.switchServiceKey(secretKey, plugin, serviceID);
+      await this.switchServiceKey(secretKey, plugin, serviceID);
       if (
         serviceKeyUnderUsed != "" &&
         serviceKeyUnderUsed !== undefined &&
@@ -330,8 +388,8 @@ export class serviceManage {
    * @param serviceID
    * @param plugin
    */
-  static switchServiceID(serviceID: string, plugin: string) {
-    saveSingleServiceUnderUse(serviceID);
+  static async switchServiceID(serviceID: string, plugin: string) {
+    await saveSingleServiceUnderUse(serviceID);
     if (serviceID.includes("Modify")) {
       serviceID = serviceID.replace("Modify", "");
     }
@@ -343,8 +401,10 @@ export class serviceManage {
     if (Zotero.PDFTranslate.data.alive) {
       Zotero.PDFTranslate.hooks.onReaderTabPanelRefresh();
     }
+    const service = await getSingleServiceUnderUse();
+    if (!service) return;
     showInfo(
-      getString("info-switchServiceID") + getSingleServiceUnderUse().serviceID,
+      getString("info-switchServiceID") + service.serviceID,
     );
   }
 
@@ -358,7 +418,7 @@ export class serviceManage {
    * @param secretKey
    * @param plugin
    */
-  static switchServiceKey(
+  static async switchServiceKey(
     secretKey: string,
     plugin: string,
     serviceID?: string,
@@ -367,12 +427,14 @@ export class serviceManage {
       return;
     }
     if (serviceID === undefined || serviceID == "" || serviceID == null) {
-      serviceID = getSingleServiceUnderUse()?.serviceID as string;
+      const service = await getSingleServiceUnderUse();
+      if (!service) return;
+      serviceID = service.serviceID as string;
     }
     if (serviceID === undefined || serviceID == "" || serviceID == null) {
       serviceID = getPluginsPref(plugin, "translateSource") as string;
     }
-    saveSingleServiceUnderUse(serviceID, secretKey);
+    await saveSingleServiceUnderUse(serviceID, secretKey);
     if (serviceID == "tencentTransmart") {
       return;
     }
@@ -589,18 +651,31 @@ export class serviceManage {
  * @param serviceID
  * @param key
  */
-export function saveSingleServiceUnderUse(serviceID?: string, key?: string) {
+export async function saveSingleServiceUnderUse(serviceID?: string, key?: string) {
+
   if (serviceID === undefined || serviceID == null || serviceID == "") {
-    const obj = getSingleServiceUnderUse();
-    serviceID = obj.serviceID;
-    key = obj.key;
+    const service = await getSingleServiceUnderUse();
+    if (!service) return;
+    serviceID = service.serviceID;
+    key = service.key;
   }
-  const singleServiceUnderUse = {
-    serviceID: serviceID,
-    key: key,
-  };
-  const json = JSON.stringify(singleServiceUnderUse);
-  setPref("singleServiceUnderUse", json);
+
+  const sn = await getSerialNumberByIDAndKey(serviceID, key);
+  if (sn) await setCurrentServiceSN(sn.toString());
+
+}
+
+
+
+
+export async function getSerialNumberByIDAndKey(serviceID: string, key?: string) {
+  const services = await getServices();
+  const service = services[serviceID];
+  if (!key) {
+    if (service.serialNumber) return service.serialNumber;
+  }
+  const account = service.accounts?.filter(a => a.secretKey == key || a.token == key)[0];
+  if (account && account.serialNumber) return account.serialNumber;
 }
 /**
  * 从prefs获取翻译引擎总对象 services
@@ -628,48 +703,82 @@ export async function getSingleServiceUnderUse() {
     const serviceID = service.serviceID;
     if (!service.hasSecretKey && !service.hasToken) {
       return {
-        serviceID,
-        key: undefined
+        serviceID: serviceID,
+        key: undefined,
+        serialNumber: serialNumber
       };
     }
     const account = service.accounts?.filter(e => e.serialNumber == serialNumber)[0];
-    if (!account) return;
-    const state = await encryptState();
-    const enableEncrypt = (getDom('setEnableEncrypt') as XUL.Checkbox).checked;
-    if (!enableEncrypt) {
-      return {
-        serviceID,
-        key: account?.appID + "#" + account?.secretKey || account?.token
-      };
-    } else {
-      const encryptString = account.secretKey || account.token;
-      const decrypt = await decryptByAESKey(encryptString!);
-      return {
-        serviceID,
-        key: account?.appID + "#" + decrypt
-      };
-    }
+    if (!account) return await getOne();
+    const key = account.secretKey || account.token;
+    const keyString = await decryptKey(key!);
+
+
+    return {
+      serviceID: serviceID,
+      key: account?.appID + "#" + keyString,
+      serialNumber: serialNumber
+    };
 
   } else {
-    return false;
+    return await getOne();
   }
 
+  async function getOne() {
+    const serviceOne = (await getAvilabelService("all"))!;
+    const serialNumber = serviceOne.serialNumber;
+    const serviceID = serviceOne.serviceID;
+    let key = undefined;
+    if (serviceOne instanceof TranslateServiceAccount) {
+      const keyString = serviceOne.secretKey || serviceOne.token;
+      if (keyString) key = await decryptKey(keyString!);
 
-  //const json: string = getPref("singleServiceUnderUse") as string;
-  // 读取 
-  /*   const secrets: object = JSON.parse(
-      (getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}",
-    );
-    const serviceID = getPluginsPref(
-      "ZoteroPDFTranslate",
-      "translateSource",
-    ) as string;
-    const key = secrets[serviceID as keyof typeof secrets]; */
+    }
+
+    return {
+      serviceID,
+      key: key,
+      serialNumber: serialNumber
+    };
+  }
 
 
 }
 
+async function decryptKey(key: string) {
+  if (!key.includes('encryptAESString')) return key;
+  return await decryptByAESKey(key);
+  //const state = await encryptState();
+  // const enableEncrypt = (getDom('setEnableEncrypt') as XUL.Checkbox).checked;
+}
 
+export async function getAvilabelService(type: "hasSN" | "noSN" | "all") {
+  //const isPay = (getDom("isPay") as XUL.Checkbox).checked;
+  //const isPreferredSameService = (getDom("isPreferredSameService") as XUL.Checkbox).checked;
+  //const isPreferredHasSecretKey = (getDom("isPreferredHasSecretKey") as XUL.Checkbox).checked;
+  //const isPriority = (getDom("isPriority") as XUL.Checkbox).checked;
+  const services = await getServices();
+  const avilabeleServices = Object.values(services).filter(s => !s.forbidden);
+  const avilabeleServicesWhithoutSN = avilabeleServices.filter(s => !(s.hasSecretKey || s.hasToken));
+  const avilabeleServiceAccounts = avilabeleServices.filter(s => s.accounts && s.accounts.length)
+    .map(s => s.accounts?.filter(a => a.usable && !a.forbidden)).flat();
+  const numbers = avilabeleServicesWhithoutSN.length + avilabeleServiceAccounts.length;
+  const all = [...avilabeleServicesWhithoutSN, ...avilabeleServiceAccounts];
+  const r = Math.floor(Math.random() * numbers);
+  switch (type) {
+    case "all":
+      return all[r];
+    case "noSN":
+      return avilabeleServicesWhithoutSN[0];
+    case "hasSN":
+      return avilabeleServiceAccounts[0];
+    default:
+      return all[0];
+
+  }
+
+
+}
 
 /* export function updateSingleSecretKey(
   secretKey: SecretKey,

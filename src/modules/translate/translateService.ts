@@ -265,7 +265,7 @@ export class TranslateService {
    */
   async updateCharConsum(characters: number, service: TranslateService) {
     if (!service.hasSecretKey || !service.accounts || !service.accounts?.length) { return; }
-    const keyUnderUse = getSingleServiceUnderUse()?.key as string;
+    const keyUnderUse = (await getSingleServiceUnderUse())?.key as string;
     if (keyUnderUse === undefined || keyUnderUse == "" || keyUnderUse == null) { return; }
     if (!service.accounts.length || service.accounts === undefined) return;
 

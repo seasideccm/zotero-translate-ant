@@ -78,7 +78,6 @@ async function setAddon(keys: string[]) {
 
 
 export async function setCurrentServiceSN(serialNumber: string) {
-
     await setSettingsValue("currentServiceSN", serialNumber);
 
 }
