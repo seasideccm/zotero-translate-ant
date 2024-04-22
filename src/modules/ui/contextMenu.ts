@@ -61,13 +61,7 @@ export class ContextMenu {
         } */
     }
 
-    batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
-        for (const arg of args) {
-            for (const paras of arg[1]) {
-                arg[0].addEventListener(paras[0], paras[1]);
-            }
-        }
-    }
+
     /* creatPropsMeun( menuProps: MenuProps) {          
         
         return {
@@ -98,7 +92,7 @@ export class ContextMenu {
             tag: "menuseparator",
             namespace: "xul",
         }, menupopup);
-    };
+    }
     makeMenupopup(idPostfix: string) {
         const menupopupOld = document.querySelector(`[id$="${idPostfix}"]`) as XUL.MenuPopup | null;
         if (menupopupOld) return menupopupOld;
@@ -111,7 +105,7 @@ export class ContextMenu {
 
         return menupopup;
 
-    };
+    }
 
     makeMenuitem(
         label: string,
@@ -124,7 +118,7 @@ export class ContextMenu {
                 label: label || "undefined",
             }
         }, menupopup);
-    };
+    }
 
 
 }
@@ -132,4 +126,4 @@ export class ContextMenu {
 export function judgeAsync(fun: any) {
     const AsyncFunction = (async () => { }).constructor;
     return fun instanceof AsyncFunction;
-};
+}

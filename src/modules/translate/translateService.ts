@@ -43,40 +43,48 @@ export class TranslateServiceAccount {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }
   async save() {
+    if (!this.changedData) {
+      await this.saveChange();
+    }
     if (!this.secretKey && !this.token) return;
     this.saveDeferred = Zotero.Promise.defer();
     this.savePromise = this.saveDeferred.promise;
     const DB = await getDB();
     //新建账号没有 changedData
-    if (!this.changedData) {
-      await DB.executeTransaction(async () => {
-        try {
-          let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
-          await DB.queryAsync(sql);
-          let tableName = this.secretKey ? "accounts" : "accessTokens";
-          const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
-          const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
-          const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
-          const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
-          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
-          tableName = "charConsum";
-          sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
-          await DB.queryAsync(sql);
-          tableName = "totalCharConsum";
-          sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
-          await DB.queryAsync(sql);
-        }
-        catch (e: any) {
-          this.saveDeferred!.reject();
-          ztoolkit.log(e);
-          showInfo(e);
-        }
 
-      });
-      this.saveDeferred.resolve();
+    await DB.executeTransaction(async () => {
+      try {
+        let sql = `INSERT INTO translateServiceSN (serialNumber, serviceID ,appID) VALUES (${this.serialNumber},'${this.serviceID}','${this.appID}')`;
+        await DB.queryAsync(sql);
+        let tableName = this.secretKey ? "accounts" : "accessTokens";
+        const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
+        const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+        const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
+        const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
+        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        tableName = "charConsum";
+        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+        await DB.queryAsync(sql);
+        tableName = "totalCharConsum";
+        sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
+        await DB.queryAsync(sql);
+      }
+      catch (e: any) {
+        this.saveDeferred!.reject();
+        ztoolkit.log(e);
+        showInfo(e);
+      }
 
-      return;
-    }
+    });
+    this.saveDeferred.resolve();
+
+    return;
+
+
+  }
+
+  async saveChange() {
+    if (!this.changedData) return;
     //更新账号
     const sqls: string[] = [];
     const keys = Object.keys(this.changedData);
@@ -117,24 +125,21 @@ export class TranslateServiceAccount {
         sqls.push(sql);
       });
     }
-
+    const DB = await getDB();
     await DB.executeTransaction(async () => {
       for (const sql of sqls) {
         try {
           await DB.queryAsync(sql);
         }
         catch (e) {
-          this.recoverPrevious();
-          this.saveDeferred!.reject();
           showInfo('Execute failed: ' + sql);
           throw e;
         }
       }
     });
-    this.saveDeferred.resolve();
+
     this.changedData = null;
   }
-
   async encryptAccount() {
     const DB = getDBSync();
     const text = this.secretKey ? this.secretKey : this.token;
@@ -302,56 +307,57 @@ export class TranslateService {
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }
+
+  async saveChange() {
+    if (!this.changedData) return;
+    const sqls: string[] = [];
+    const keys = Object.keys(this.changedData);
+    for (const key of keys) {
+      let tableNames: string[] = [];
+      switch (key) {
+        case "charConsum":
+          tableNames = ['charConsum'];
+          break;
+        case "totalCharConsum":
+          tableNames = ['totalCharConsum'];
+          break;
+        case "usable":
+        case "forbidden":
+          tableNames = ['translateServiceSN'];
+          break;
+        case "serialNumber":
+          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = ${this.serviceID}`);
+          break;
+      }
+      tableNames.forEach(tableName => {
+        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
+        sqls.push(sql);
+      });
+    }
+    const DB = await getDB();
+    await DB.executeTransaction(async () => {
+      for (const sql of sqls) {
+        try {
+          await DB.queryAsync(sql);
+        }
+        catch (e) {
+          showInfo('Execute failed: ' + sql);
+          throw e;
+        }
+      }
+    });
+    this.changedData = null;
+    return;
+
+
+  }
   async save() {
+    if (!this.changedData) {
+      await this.saveChange();
+    }
     const DB = await getDB();
     this.saveDeferred = Zotero.Promise.defer();
     this.savePromise = this.saveDeferred.promise;
-    if (this.changedData && !this.accounts) {
-      const sqls: string[] = [];
-      const keys = Object.keys(this.changedData);
-      for (const key of keys) {
-        let tableNames: string[] = [];
-        switch (key) {
-          case "charConsum":
-            tableNames = ['charConsum'];
-            break;
-          case "totalCharConsum":
-            tableNames = ['totalCharConsum'];
-            break;
-          case "usable":
-          case "forbidden":
-            tableNames = ['translateServiceSN'];
-            break;
-          case "serialNumber":
-            sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = ${this.serviceID}`);
-            break;
-        }
-        tableNames.forEach(tableName => {
-          const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
-          sqls.push(sql);
-        });
-      }
-
-      await DB.executeTransaction(async () => {
-        for (const sql of sqls) {
-          try {
-            await DB.queryAsync(sql);
-          }
-          catch (e) {
-            this.recoverPrevious();
-            this.saveDeferred!.reject();
-            showInfo('Execute failed: ' + sql);
-            throw e;
-          }
-        }
-      });
-      this.saveDeferred.resolve();
-      this.changedData = null;
-      return;
-
-    }
-
-
     //const serialNumber = await this.getSerialNumber(this.serviceID);
     if (this.serialNumber) {
       const doSave = async () => { };

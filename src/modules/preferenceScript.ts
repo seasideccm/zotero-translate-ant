@@ -1,16 +1,16 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, makeId, setElementValue, } from "./ui/uiTools";
+import { getDom, getElementValue, makeId, setElementValue, } from "./ui/uiTools";
 import { getDB } from "./database/database";
-import { showInfo } from "../utils/tools";
+import { batchListen, showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
-import { elemHiddenSwitch, getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData } from "./ui/tableSecretKeys";
+import { elemHiddenSwitch, getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData, updateTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting, getSettingValue, setCurrentServiceSN, setSettingValue } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { llmSettings } from "./ui/llmSettings";
 import { getSingleServiceUnderUse } from "./translate/serviceManage";
-import { TranslateServiceAccount } from "./translate/translateService";
+import { TranslateService, TranslateServiceAccount } from "./translate/translateService";
 
 
 
@@ -311,27 +311,8 @@ function onPrefsEvents(idsuffixOrAction?: string[] | string) {
       case "secretKeyUnderUse":
         underUsing();
         break;
-/*       case "setBilingualContrast":
-        {
-          const elemValue = fromElement
-            ? (doc.querySelector(`#${makeId("bilingualContrast")}`) as XUL.Checkbox)
-              .checked
-            : (getPref("bilingualContrast") as boolean);
-          const hidden = !elemValue;
-          setDisabled("checkbox-bilingualContrast", hidden);
-        }
-        break;
-      case "setIsSourceFirst":
-        {
-          const elemValue = fromElement
-            ? (doc.querySelector(`#${makeId("isSourceFirst")}`) as XUL.Checkbox)
-              .checked
-            : (getPref("isSourceFirst") as boolean);
-          const hidden = !elemValue;
-          setDisabled("checkbox-isSourceFirst", hidden);
-        }
-        break;
-
+/*   
+    
       case "update-QPS":
         {
           if (serviceID == "" || serviceID === undefined || serviceID == null) {
@@ -491,46 +472,90 @@ function bindPrefEvents() {
     await setCurrentServiceSN(serialNumber);
   });
 
+  batchListen([getDom("forbiddenService")!, ["command"], [forbiddenService]]);
+
+  async function forbiddenService(e: Event) {
+    ztoolkit.log(e);
+    const serviceID = getElementValue("serviceID") as string;
+    const confirm = addon.data.prefs!.window.confirm(
+      `${getString("pref-forbiddenService")}:         
+        ${serviceID}`
+    );
+    if (confirm) {
+      const services = await getServices();
+
+      if (services[serviceID].serialNumber) {
+        await updateServiceData(services[serviceID], "forbidden", true);
+        const element = getDom(serviceID) as any;
+        if (element && element.isMenulistChild) {
+          element.remove();
+        }
+      } else {
+        const rows = getSelectedRow(false);
+        if (!rows) {
+          const element = getDom(serviceID) as any;
+          if (element && element.isMenulistChild) {
+            element.remove();
+          }
+          await updateAcounts(services[serviceID].accounts);
+          return;
+        }
+        const appIDs = Array.from(rows).map((row: any) => row.children[0].textContent);
+        const accounts = services[serviceID].accounts?.filter(account => appIDs.includes(account.appID));
+        await updateAcounts(accounts);
+
+      }
+
+
+      //await replaceSecretKeysTable();
+    }
+    async function updateAcounts(accounts: TranslateServiceAccount[] | undefined) {
+      if (accounts && accounts.length) {
+        for (const account of accounts) {
+          await updateServiceData(account, "forbidden", true);
+        }
+      }
+    }
+
+  }
+
+
+
+
+
+
+
+
+
   getDom("recoverService")!.addEventListener("command", async (e) => {
     const serviceMenu_popup = doc.querySelector(`#${config.addonRef}-serviceID > menupopup`)!;
     //用户确认，弹出在addon.data.prefs!.window窗口
     const confirm = addon.data.prefs!.window.confirm(
       `${getString("pref-recoverService")}`
     );
-    if (confirm) {
-      const services = await getServices();
-      for (const e of Object.values(services)) {
-        if (e.forbidden) {
-          await updateServiceData(e, "forbidden", false);
-          //e.forbidden = false;
-          if (!serviceMenu_popup) continue;
-          const menuItemObj = {
-            tag: "menuitem",
-            id: makeId(`${e.serviceID}`),
-            attributes: {
-              label: getString(`service-${e.serviceID}`),
-              value: e.serviceID,
-            }
-          };
-          ztoolkit.UI.appendElement(menuItemObj, serviceMenu_popup);
+    if (!confirm) return;
+    const services = await getServices();
+    for (const e of Object.values(services)) {
+      if (e.accounts && e.accounts.length) {
+        for (const account of e.accounts) {
+          if (!account.forbidden) continue;
+          await updateServiceData(account, "forbidden", false);
         }
       }
-      /* Object.values(services).forEach(e => {
-        if (e.forbidden) {
-          await updateServiceData(e, "forbidden", false);
-          e.forbidden = false;
-          const menuItemObj = {
-            tag: "menuitem",
-            id: makeId(`${e.serviceID}`),
-            attributes: {
-              label: getString(`service-${e.serviceID}`),
-              value: e.serviceID,
-            }
-          };
-          ztoolkit.UI.appendElement(menuItemObj, serviceMenu_popup);
+      if (e.hasSecretKey || e.hasToken) continue;
+      if (!e.forbidden) continue;
+      await updateServiceData(e, "forbidden", false);
+      //e.forbidden = false;
+      if (!serviceMenu_popup) continue;
+      const menuItemObj = {
+        tag: "menuitem",
+        id: makeId(`${e.serviceID}`),
+        attributes: {
+          label: getString(`service-${e.serviceID}`),
+          value: e.serviceID,
         }
-      }); */
-
+      };
+      ztoolkit.UI.appendElement(menuItemObj, serviceMenu_popup);
     }
   });
 

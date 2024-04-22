@@ -1,5 +1,5 @@
-import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchAddEventListener, chooseDirOrFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
+import { ColumnOptions, VirtualizedTableHelper } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
+import { arrToObj, arrsToObjs, batchListen, chooseDirOrFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -25,7 +25,7 @@ export async function replaceSecretKeysTable() {
     const serviceID = getElementValue("serviceID");
 
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
-    const rows: any[] = await secretKeysTableRowsData(serviceID) || [];
+    const rows: any[] = await secretKeysRows(serviceID) || [];
     if (!rows || rows.length == 0) return;
     //props
     const columnPropValues = makeColumnPropValues(rows[0]);
@@ -81,6 +81,7 @@ export async function replaceSecretKeysTable() {
     function handleGetRowData(index: number) {
         // 如果加密开启，secretKey、token 字段显示为 ******
         const row: any = deepClone(rows[index]);
+        if (!row) return;
         const enableEncrypt = (getDom('setEnableEncrypt') as XUL.Checkbox).checked;
         if (!enableEncrypt) return row;
         for (const key of Object.keys(row)) {
@@ -199,33 +200,7 @@ export async function replaceSecretKeysTable() {
 
 
 
-    /**
-     * 获取引擎账号或空数据
-     * @param serviceID 
-     * @param getEmptyData 
-     * @returns 
-     */
-    async function secretKeysTableRowsData<T extends keyof TranslateService>(serviceID: T, getEmptyData: boolean = false) {
-        let services = await getServices();
-        let serviceSelected = services[serviceID];
-        if (!serviceSelected || !serviceSelected.accounts) {
-            services = await getServicesFromDB();
-            serviceSelected = services[serviceID];
-            if (!serviceSelected) return;
-        }
-        let rows: any[];
-        if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
-        const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
-        const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
-        if (!serviceSelected.accounts || !serviceSelected.accounts.length || getEmptyData) {
-            return rows = [kvArrsToObject(keys)()];  // 返回空数据   
-        }
-        //const keys = Object.keys(serviceSelected.accounts[0]);// feild much more
-        const getRowDataValues = kvArrsToObject(keys);
-        rows = serviceSelected.accounts.map((acount: TranslateServiceAccount) =>
-            getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
-        return rows;
-    }
+
     function handleFocus(e: any) {        //@ts-ignore has
         if (tableTreeInstance && tableTreeInstance.prevFocusCell) {//@ts-ignore has
             tableTreeInstance.prevFocusCell.focus();
@@ -532,7 +507,7 @@ export async function replaceSecretKeysTable() {
         inputCell.addEventListener('input', updateWidth);
         inputCell.addEventListener('input', valueToRows);
         inputCell.addEventListener('focus', upLevel);
-        batchAddEventListener([inputCell, ['keydown', 'keyup', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
+        batchListen([inputCell, ['keydown', 'keyup', 'input', 'mousedown', 'mouseup', 'dblclick'], [stopEvent]]);
 
         function upLevel() {
             const cells = inputCell.parentElement?.querySelectorAll("input");
@@ -1089,18 +1064,7 @@ export async function replaceSecretKeysTable() {
 
 
 
-    /**
-     * Auto fill with " key + ': '+ EmptyValue " when no values
-     * @param keys 
-     * @returns 
-     */
-    function kvArrsToObject(keys: string[]) {
-        return function (values?: any | any[]) {
-            if (!values) values = [];
-            if (!Array.isArray(values)) values = [values];
-            return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
-        };
-    }
+
     function resizeColumnWidth(columIndexOrKey: number | string, extendValue?: number) {
         const onResizeData: any = {};
         let column;
@@ -1133,7 +1097,7 @@ export async function replaceSecretKeysTable() {
             tableTreeInstance.commitEditingRow();
         }
         const rows = tableTreeInstance.rows || [];
-        const emptyrows = await secretKeysTableRowsData(serviceID, true) || [];
+        const emptyrows = await secretKeysRows(serviceID, true) || [];
         if (emptyrows.length == 0) {
             const keys = Object.keys(rows[0]);
             const row = arrToObj(keys, keys.map((k) => k + ': No Data'));
@@ -1230,65 +1194,6 @@ export async function priorityWithKeyTable() {
         return getRowString(rows, index, tableTreeInstance);
     }
 
-    /* function handleKeyDown(event: KeyboardEvent) {
-        //return返回的是控制默认按键功能是否启用
-        if (event.key == "Delete" || event.key == "Backspace" || (Zotero.isMac && event.key == "Backspace")) {
-            //获取要禁用的行数据，
-            const rowDataForbidden = rows.filter(
-                (v, i) => tableTreeInstance.selection.isSelected(i)
-            );
-            //确认删除，点击cancel则取消
-            const confirm = addon.data.prefs!.window.confirm(getString("info-forbidden") + '\n'
-                + getString("info-delete-confirm"));
-            if (!confirm) return true;
-
-            //选中行的引擎，获得秘钥，设forbidden 为 true
-            if (rowDataForbidden.length) {
-                for (const rowData of rowDataForbidden) {
-                    const serviceID = rowData.serviceID;
-                    services[serviceID]["forbidden"] = true;
-                    const deleteService = getDom(serviceID) as any;
-                    if (deleteService.isMenulistChild) {
-                        deleteService.remove();
-                    }
-
-                }
-            }
-
-            tableTreeInstance.invalidate();
-        }
-        if (event.key == "ArrowUp") {
-
-            rows.map(
-                (v, i) => {
-                    if (tableTreeInstance.selection.isSelected(i)) {
-                        if (i > 0) {
-                            const temp = rows[i];
-                            rows[i] = rows[i - 1];
-                            rows[i - 1] = temp;
-                        }
-                    }
-                }
-            );
-            tableTreeInstance.invalidate();
-        }
-        if (event.key == "ArrowDown") {
-            rows.map(
-                (v, i) => {
-                    if (tableTreeInstance.selection.isSelected(i)) {
-                        if (i < rows.length - 1) {
-                            const temp = rows[i];
-                            rows[i] = rows[i + 1];
-                            rows[i + 1] = temp;
-                        }
-                    }
-                }
-            );
-            tableTreeInstance.invalidate();
-        }
-
-        return true;
-    } */
     function handleKeyDown(event: KeyboardEvent) {
         priorityKeyDown(event, rows, tableTreeInstance, services).then((res) => {
             return res;
@@ -1433,7 +1338,49 @@ export async function updateServiceData(serviceAccount: TranslateService | Trans
     if (!serviceAccount.previousData) serviceAccount.previousData = {};
     serviceAccount.previousData[key] = serviceAccount[key as keyof typeof serviceAccount];
     serviceAccount[key as keyof typeof serviceAccount] = value;
-    await serviceAccount.save();
+    await serviceAccount.saveChange();
+}
+
+/**
+    * 获取引擎账号或空数据
+    * @param serviceID 
+    * @param getEmptyData 
+    * @returns 
+    */
+async function secretKeysRows<T extends keyof TranslateService>(serviceID: T, getEmptyData: boolean = false) {
+    let services = await getServices();
+    let serviceSelected = services[serviceID];
+    if (!serviceSelected || !serviceSelected.accounts) {
+        services = await getServicesFromDB();
+        serviceSelected = services[serviceID];
+        if (!serviceSelected) return;
+    }
+    let rows: any[];
+    if (!serviceSelected.hasSecretKey && !serviceSelected.hasToken) return;
+    const secretKeyOrtoken = serviceSelected.hasSecretKey ? "secretKey" : "token";
+    const keys = ["appID", secretKeyOrtoken, "usable", "charConsum"];
+    if (!serviceSelected.accounts || !serviceSelected.accounts.length || getEmptyData) {
+        return rows = [kvArrsToObject(keys)()];  // 返回空数据   
+    }
+    //const keys = Object.keys(serviceSelected.accounts[0]);// feild much more
+    const getRowDataValues = kvArrsToObject(keys);
+    const accounts = serviceSelected.accounts.filter(account => !account.forbidden);
+    rows = accounts.map((acount: TranslateServiceAccount) =>
+        getRowDataValues(keys.map((key) => acount[key as keyof TranslateServiceAccount])));
+    return rows;
+}
+
+/**
+ * Auto fill with " key + ': '+ EmptyValue " when no values
+ * @param keys 
+ * @returns 
+ */
+function kvArrsToObject(keys: string[]) {
+    return function (values?: any | any[]) {
+        if (!values) values = [];
+        if (!Array.isArray(values)) values = [values];
+        return arrToObj(keys, keys.map((k, i) => values[i] !== void 0 ? String(values[i]) : k + ': ' + EmptyValue));
+    };
 }
 
 async function priorityKeyDown(event: KeyboardEvent, rows: any[], tableTreeInstance: any, services: ServiceMap) {
@@ -1456,9 +1403,9 @@ async function priorityKeyDown(event: KeyboardEvent, rows: any[], tableTreeInsta
                 //services[serviceID]["forbidden"] = true;
                 rowData["forbidden"] = getString(`forbidden-true`);
 
-                const deleteService = getDom(serviceID) as any;
-                if (deleteService.isMenulistChild) {
-                    deleteService.remove();
+                const element = getDom(serviceID) as any;
+                if (element && element.isMenulistChild) {
+                    element.remove();
                 }
             }
 
@@ -1538,20 +1485,35 @@ function baiduVerify(keys: any[], values: any[]) {
     return true;
 }
 
-export function getSelectedRow() {
+export function getSelectedRow(singleRow: boolean = true) {
     const tableHelper = getTableByID(`${config.addonRef}-` + "secretKeysTable");
+    if (!tableHelper) return;
     const tableTreeInstance = tableHelper.treeInstance as any;
-    const selecedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0] as HTMLElement;
-    return selecedRow;
+    const selecedRows = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
+    if (singleRow) {
+        return selecedRows[0] as HTMLElement;
+
+    }
+    return selecedRows;
+
 }
 
+export async function updateTable(tableID: string, serviceID: string) {
+    const tableHelper = getTableByID(tableID);
+    if (tableHelper) return;
+    const rows = await secretKeysRows(serviceID);
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    tableTreeInstance.rows = rows;
+    tableHelper.render();
+}
 
 
 export function getTableByID(tableID?: string) {
     if (!addon.mountPoint.tables) return;
     const tables = addon.mountPoint.tables;
     if (!tableID) return tables;
-    return tables[tableID];
+    if (!tableID.includes(`${config.addonRef}-`)) tableID = `${config.addonRef}-` + tableID;
+    return tables[tableID] as VirtualizedTableHelper;
 }
 
 function makeTableProps(options: VTableProps, rows: any[]) {

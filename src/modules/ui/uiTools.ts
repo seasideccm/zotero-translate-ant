@@ -96,7 +96,7 @@ export const makeMenupopup = (id: string) => {
   return menupopup;
 };
 
-declare type MenuitemProps = { label: string; accesskey: string; acceltext: string, func: (...args: any[]) => any | void; args: any[]; };
+declare type MenuitemProps = { label: string; accesskey: string; acceltext: string, func: Func; args: any[]; };
 export const makeMenuitem = (
   option: MenuitemProps,
   menupopup: any,

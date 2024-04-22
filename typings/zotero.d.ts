@@ -5,7 +5,7 @@ interface IncompatibleVersionException {
 declare namespace Zotero {
   interface Promise<T = void> extends _ZoteroTypes.Bluebird<T> {
     coroutine(
-      generatorFunction: (...args: any[]) => any,
+      generatorFunction: Func,
       options?: { yieldHandler: any; },
     ): () => Promise<any>;
   }

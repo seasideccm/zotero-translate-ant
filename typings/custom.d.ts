@@ -99,11 +99,13 @@ declare type OptionsPopupWinChangeLine = {
   idx?: number;
 };
 
-declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
+declare type Func = (...args: any[]) => any | void;
+
+declare type MenuProps = [label: string, func?: Func, args?: any[]];
 
 declare type MenuItemProps = {
   label: string;
-  func?: ((...args: any[]) => any) | undefined;
+  func?: Func;
   args?: any[] | undefined;
 };
 

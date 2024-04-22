@@ -1118,7 +1118,12 @@ const arrs = [
 ];
 
 
-export function batchAddEventListener(...args: [element: Node, eventType: string[], callBack: ((...args: any[]) => void)[]][]) {
+
+/**
+ * 
+ * @param args 
+ */
+export function batchListen(...args: [element: Node, eventType: string[], callBack: Func[]][]) {
   for (const arg of args) {
     if (!arg[2]) throw 'At least give one callback';
     if (Array.isArray(arg[2]) && !arg[2].length) throw 'At least give one callback';
@@ -1132,7 +1137,9 @@ export function batchAddEventListener(...args: [element: Node, eventType: string
   }
 }
 
-export function doTryCatch(func: (...args: any[]) => any) {
+
+
+export function doTryCatch(func: Func) {
   return function (...args: any[]) {
     return async function () {
       try {
@@ -1175,19 +1182,6 @@ const getCharCode = function (event: KeyboardEvent) {
   }
 };
 
-export function batchAddEventListener2(optins: {
-  element: Node;
-  events: {
-    eventType: string;
-    callBack: (...args: any[]) => void;
-  }[];
-}[]) {
-  for (const option of optins) {
-    for (const event of option.events) {
-      option.element.addEventListener(event.eventType, event.callBack);
-    }
-  }
-}
 
 /**
  * 自动打开选中文件的上级目录，等待再次选择
