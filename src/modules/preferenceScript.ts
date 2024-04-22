@@ -476,7 +476,7 @@ function bindPrefEvents() {
 
   async function forbiddenService(e: Event) {
     ztoolkit.log(e);
-    const serviceID = getElementValue("serviceID") as string;
+    const serviceID = getElementValue("serviceID") as keyof TranslateService;
     const confirm = addon.data.prefs!.window.confirm(
       `${getString("pref-forbiddenService")}:         
         ${serviceID}`
@@ -506,7 +506,7 @@ function bindPrefEvents() {
 
       }
 
-
+      await updateTable("secretKeysTable", serviceID);
       //await replaceSecretKeysTable();
     }
     async function updateAcounts(accounts: TranslateServiceAccount[] | undefined) {

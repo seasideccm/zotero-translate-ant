@@ -1498,7 +1498,7 @@ export function getSelectedRow(singleRow: boolean = true) {
 
 }
 
-export async function updateTable(tableID: string, serviceID: string) {
+export async function updateTable<T extends keyof TranslateService>(tableID: string, serviceID: T) {
     const tableHelper = getTableByID(tableID);
     if (tableHelper) return;
     const rows = await secretKeysRows(serviceID);
