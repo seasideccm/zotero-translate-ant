@@ -1,5 +1,5 @@
 import { getString } from "../../utils/locale";
-import { arrayUtils, arrsToObjs } from "../../utils/tools";
+import { arrayUtils, arrsToObjs, showInfo } from "../../utils/tools";
 import { getDB } from "../database/database";
 import { connectivityCheck } from "../largeLanguageModels/oneApi";
 import { dbRowsToArray, dbRowsToObjs } from "../translate/translateServices";
@@ -53,7 +53,6 @@ export async function llmSettings() {
 
     fillModel();
     getDom("providers")?.addEventListener("command", (e) => {
-        const test = "test";
         fillModel();
 
     });
@@ -92,13 +91,13 @@ export async function llmSettings() {
             const condition = idsufixs.some((sufix: string) => id.endsWith(sufix));
             if (condition) return;
         }
-        if (isAllInputFilled()) {
+        if (integrityCheck()) {
             await saveLLMData();
         }
     });
-    win.addEventListener("beforeunload", (e: Event) => {
-        if (isAllInputFilled()) {
-            saveLLMData();
+    win.addEventListener("beforeunload", async (e: Event) => {
+        if (integrityCheck()) {
+            await saveLLMData();
         }
     });
 
@@ -108,16 +107,21 @@ async function saveLLMData() {
     const values = [];
     for (const id of ["providers", "apikey", "baseurl", "models", "defaultModel"]) {
         const elem = getDom(id) as HTMLInputElement;
+        if (!elem) continue;
         values.push(elem.value);
     }
     await llmToDatabase(values);
 }
 
-function isAllInputFilled() {
-
+function integrityCheck() {
     for (const id of ["providerCustom", "apikey", "baseurl", "models", "defaultModel"]) {
         const elem = getDom(id) as HTMLInputElement;
-        if (!elem.value || elem.value == '') return false;
+        if (!elem.value || elem.value == '') {
+            const label = elem.previousElementSibling as XUL.Label;
+            const labelStr = label.textContent;
+            if (labelStr) showInfo([labelStr + ": ", getString("info-empty")]);
+            return false;
+        }
     }
     return true;
 }

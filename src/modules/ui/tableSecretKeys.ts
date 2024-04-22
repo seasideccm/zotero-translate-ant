@@ -15,9 +15,6 @@ import { getPref } from "../../utils/prefs";
 const dataVerify: any = {
     baidu: baiduVerify
 };
-
-declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
-
 const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
 
 export async function replaceSecretKeysTable() {
@@ -1170,12 +1167,22 @@ export async function replaceSecretKeysTable() {
 
 }
 
+export function elemHiddenSwitch(labelIDs: string[], hidden?: boolean) {
+    labelIDs.forEach(id => {
+        const elem = getDom(id) as HTMLElement | XUL.Element;
+        hidden == void 0 ? hidden = !elem.hidden : hidden;
+        if (elem) elem.hidden = hidden;
+    });
+
+}
 export async function priorityWithKeyTable() {
+    elemHiddenSwitch(["labelPriorityWithoutKey", "labelPriorityWithKey"], !getPref("isPriority"));
     if (!getPref("isPriority")) return;
     const win = addon.data.prefs?.window;
     if (!win) return;
     const id = `${config.addonRef}-` + "servicePriorityWithKey";
     const containerId = `${config.addonRef}-table-servicePriorityWithKey`;
+    if (getDom(containerId)) return;
     const services = await getServices();
     const rows: any[] = await serviceWithKeyRowsData() || [];
     if (!rows || rows.length == 0) return;
@@ -1298,6 +1305,7 @@ export async function priorityWithoutKeyTable() {
     if (!win) return;
     const id = `${config.addonRef}-` + "servicePriorityWithoutKey";
     const containerId = `${config.addonRef}-table-servicePriorityWithoutKey`;
+    if (getDom(containerId)) return;
     const services = await getServices();
     const rows: any[] = getRowsData() || [];
     if (!rows || rows.length == 0) return;

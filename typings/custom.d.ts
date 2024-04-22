@@ -2,6 +2,8 @@
 
 declare type DataBase = typeof import("../src/modules/database/database").DataBase;
 
+declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
+
 declare type DocItem = {
   itemID?: number;
   newItemID?: number;

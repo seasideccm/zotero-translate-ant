@@ -296,6 +296,15 @@
   </label>
 
   <hbox>
+    <label data-l10n-id="pref-underUse"></label>
+    <spacer width="10px" />
+    <textbox id="__addonRef__-serviceIDUnderUse" readonly="true" />
+    <spacer width="10px" />
+    <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
+  </hbox>
+  <separator class="groove" />
+
+  <hbox>
     <label data-l10n-id="pref-multi-service"></label>
     <!-- Replace -->
     <box id="__addonRef__-serviceID-placeholder"></box>
@@ -412,6 +421,7 @@
         <label
           data-l10n-id="pref-servicePriorityWithKey"
           minWidth="350px"
+          id="__addonRef__-labelPriorityWithKey"
         ></label>
 
         <html:div id="__addonRef__-table-servicePriorityWithKey" />
@@ -421,6 +431,7 @@
         <label
           data-l10n-id="pref-servicePriorityWithoutKey"
           minWidth="350px"
+          id="__addonRef__-labelPriorityWithoutKey"
         ></label>
 
         <html:div id="__addonRef__-table-servicePriorityWithoutKey" />
@@ -439,12 +450,18 @@
   </label>
 
   <hbox>
-    <label data-l10n-id="pref-LLM-provider"></label>
+    <label
+      control="__addonRef__-providers"
+      data-l10n-id="pref-LLM-provider"
+    ></label>
     <!-- Replace -->
     <box id="__addonRef__-LLMProvider-placeholder"></box>
     <spacer width="20px" height="20px" />
 
-    <label data-l10n-id="pref-providerCustom"></label>
+    <label
+      control="__addonRef__-providerCustom"
+      data-l10n-id="pref-providerCustom"
+    ></label>
     <html:input
       size="20"
       value=""
@@ -454,7 +471,7 @@
   </hbox>
   <hbox>
     <!-- 接口代理地址 -->
-    <label data-l10n-id="pref-baseURL"></label>
+    <label control="__addonRef__-baseurl" data-l10n-id="pref-baseURL"></label>
     <html:input
       size="60"
       value=""
@@ -464,7 +481,7 @@
   </hbox>
   <hbox>
     <!-- 模型列表 -->
-    <label data-l10n-id="pref-modelsList"></label>
+    <label control="__addonRef__-models" data-l10n-id="pref-modelsList"></label>
     <html:input
       size="60"
       value=""
@@ -474,7 +491,10 @@
   </hbox>
   <hbox>
     <!-- 默认模型 -->
-    <label data-l10n-id="pref-defaultModel"></label>
+    <label
+      control="__addonRef__-defaultModel"
+      data-l10n-id="pref-defaultModel"
+    ></label>
     <html:input
       size="60"
       value=""
@@ -484,7 +504,7 @@
   </hbox>
   <hbox>
     <!-- API Key -->
-    <label>API Key</label>
+    <label control="__addonRef__-apikey">API Key</label>
     <html:input
       size="60"
       value=""
