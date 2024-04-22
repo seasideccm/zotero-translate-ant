@@ -1,14 +1,16 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, makeId, } from "./ui/uiTools";
+import { getDom, makeId, setElementValue, } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
 import { elemHiddenSwitch, getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
-import { addonSetting, getSettingValue, setCurrentServiceSN } from "./addonSetting";
+import { addonSetting, getSettingValue, setCurrentServiceSN, setSettingValue } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { llmSettings } from "./ui/llmSettings";
+import { getSingleServiceUnderUse } from "./translate/serviceManage";
+import { TranslateServiceAccount } from "./translate/translateService";
 
 
 
@@ -39,6 +41,7 @@ export async function registerPrefsScripts(_window: Window) {
   await priorityWithKeyTable();
   await priorityWithoutKeyTable();
   await llmSettings();
+  onPrefsEvents();
 
   bindPrefEvents();
   addonSetting();
@@ -171,8 +174,7 @@ async function buildPrefsPane() {
         const keyTorecord = mutation.target.id.includes("sourceLang")
           ? "defaultSourceLang"
           : "defaultTargetLang";
-        const sql =
-          "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
+        //const sql =          "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
         if (!value) return;
         showInfo(
           "The " +
@@ -183,9 +185,10 @@ async function buildPrefsPane() {
           label +
           "."
         );
-        await DB.executeTransaction(async function () {
-          await DB.queryAsync(sql, [keyTorecord, value]);
-        });
+        await setSettingValue(keyTorecord, value, "translate");
+        //await DB.executeTransaction(async function () {
+        // await DB.queryAsync(sql, [keyTorecord, value]);
+        // });
       }
     }
   };
@@ -222,7 +225,7 @@ async function buildPrefsPane() {
         {
           type: "command",
           listener: (e: Event) => {
-
+            underUsing();
           },
         },
       ],
@@ -292,13 +295,154 @@ async function buildPrefsPane() {
     doc.querySelector(`#${makeId("limitMode-placeholder")}`)!
   );
 
+}
 
+function onPrefsEvents(idsuffixOrAction?: string[] | string) {
+  const doc = addon.data.prefs?.window?.document;
+  const win = addon.data.prefs?.window;
+  if (!doc || !win) {
+    return;
+  }
+  if (!idsuffixOrAction) idsuffixOrAction = ["serviceIDUnderUse", "secretKeyUnderUse"];
+  if (!Array.isArray(idsuffixOrAction)) idsuffixOrAction = [idsuffixOrAction];
+  for (const type of idsuffixOrAction) {
+    switch (type) {
+      case "serviceIDUnderUse":
+      case "secretKeyUnderUse":
+        underUsing();
+        break;
+/*       case "setBilingualContrast":
+        {
+          const elemValue = fromElement
+            ? (doc.querySelector(`#${makeId("bilingualContrast")}`) as XUL.Checkbox)
+              .checked
+            : (getPref("bilingualContrast") as boolean);
+          const hidden = !elemValue;
+          setDisabled("checkbox-bilingualContrast", hidden);
+        }
+        break;
+      case "setIsSourceFirst":
+        {
+          const elemValue = fromElement
+            ? (doc.querySelector(`#${makeId("isSourceFirst")}`) as XUL.Checkbox)
+              .checked
+            : (getPref("isSourceFirst") as boolean);
+          const hidden = !elemValue;
+          setDisabled("checkbox-isSourceFirst", hidden);
+        }
+        break;
 
+      case "update-QPS":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("QPS", '');
+            break;
+          }
+          const QPS = serviceManage.serviceCRUD("read")(serviceID)("QPS");
+          if (QPS != undefined) {
+            setElementValue("QPS", QPS);
+          }
+        }
+        break;
+      case "update-charasPerTime":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("charasPerTime", '');
+            break;
+          }
+          let charasPerTime = serviceManage.serviceCRUD("read")(serviceID)("charasPerTime");
+          if (charasPerTime !== undefined) {
+            charasPerTime = new Intl.NumberFormat().format(charasPerTime);
+            setElementValue("charasPerTime", charasPerTime);
+          }
+          //测试
+          const el = selectEle("charasPerTime");
+          let value = (el as any).value;
+          value = value + "ok";
 
+        }
+        break;
+      case "update-hasSecretKey":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("hasSecretKey", '');
+            break;
+          }
+          const hasSecretKey = serviceManage.serviceCRUD("read")(serviceID)("hasSecretKey");
+          if (hasSecretKey !== undefined) {
+            setElementValue("hasSecretKey", hasSecretKey);
+          }
+        }
+        break;
+      case "update-isMultiParas":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("isMultiParas", '');
+            break;
+          }
+          const isMultiParas = serviceManage.serviceCRUD("read")(serviceID)("isMultiParas");
+          if (isMultiParas !== undefined) {
+            setElementValue("isMultiParas", isMultiParas);
+          }
+        }
+        break;
+      case "update-charasLimit":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("charasLimit", '');
+            break;
+          }
+          let charasLimit = serviceManage.serviceCRUD("read")(serviceID)("charasLimit");
+          if (charasLimit !== undefined && !isNaN(charasLimit)) {
+            charasLimit = new Intl.NumberFormat().format(charasLimit);
+            setElementValue("charasLimit", charasLimit);
+          }
+        }
+        break;
+      case "update-limitMode":
+        {
+          if (serviceID == "" || serviceID === undefined || serviceID == null) {
+            setElementValue("limitMode", '');
+            break;
+          }
+          const limitMode = serviceManage.serviceCRUD("read")(serviceID)("limitMode");
+          if (limitMode !== undefined && limitMode != null && limitMode != '') {
+            setElementValue("limitMode", limitMode);
+          }
+        }
+        break;
+      case "update-untranslatedLanguage":
+        {
+          let ut = getPref("untranslatedLanguage") as string;
+          if (ut === undefined || ut == "" || ut! == null) {
+            ut = "zh-CN,ja-JP ko-KR";
+            setPref("untranslatedLanguage", ut);
+            setElementValue("untranslatedLanguage", ut);
+          }
 
+        }
 
+        break;
+      */ default:
+        return;
+    }
+  }
+  /**
+   * 通过className类名，禁止元素显示
+   * @param className 
+   * @param disabled 
+   */
+  const setDisabled = (className: string, disabled: boolean) => {
+    doc
+      .querySelectorAll(`.${className}`)
+      .forEach(
+        (elem) => ((elem as XUL.Element & XUL.IDisabled).disabled = disabled)
+      );
+  };
 
 }
+
+
 
 function bindPrefEvents() {
   const win = addon.data.prefs?.window;
@@ -441,6 +585,17 @@ function bindPrefEvents() {
     }
   }
 
+
+}
+
+async function underUsing() {
+
+  const service = await getSingleServiceUnderUse();
+  if (!service) return;
+  setElementValue("serviceIDUnderUse", service.serviceID);
+  if (service instanceof TranslateServiceAccount) {
+    setElementValue("secretKeyUnderUse", service.appID);
+  }
 
 }
 

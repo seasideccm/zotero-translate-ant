@@ -146,10 +146,10 @@ export function makeId(suffix: string) {
 }
 
 /**
-@param keyword: string
+@param idSuffix: string
 */
-export function getElementValue(keyword: string) {
-  const ele = selectEle(keyword);
+export function getElementValue(idSuffix: string) {
+  const ele = selectEle(idSuffix);
   if (ele !== undefined && ele != null) {
     if ((ele as any).tagName == "checkbox") {
       return (ele as XUL.Checkbox).checked;
@@ -168,14 +168,14 @@ export function getElementValueByElement(ele: Element) {
   }
 }
 /**
-  @param keyword: string
+  @param idSuffix: string
 */
-export function selectEle(keyword: string) {
+export function selectEle(idSuffix: string) {
   const doc = addon.data.prefs?.window?.document;
   if (!doc) {
     return;
   }
-  const selector = "#" + makeId(keyword);
+  const selector = "#" + makeId(idSuffix);
   const ele = doc.querySelector(selector);
   return ele;
 }
@@ -186,6 +186,28 @@ export function getDom(idSuffix: string) {
   return doc.querySelector(`#${makeId(idSuffix)}`);
 }
 
+/**
+参数均为字符串，能够更具元素值类型自动转换
+@param idSuffix: string
+@param value: string)
+*/
+export function setElementValue(idSuffix: string, value: string | boolean | number) {
+  const ele = selectEle(idSuffix);
+  if (!ele) return;
+  //return (ele as Element).setAttribute("value", value)
+  //setAttribute是尖括号内的属性，不获取值
+  if ((ele as any).tagName == "checkbox") {
+    (ele as XUL.Checkbox).checked = Boolean(value);
+  } else if ((ele as any).tagName == "textbox") {
+    (ele as any).textContent = String(value);
+  } else if (typeof (ele as any).value == "number") {
+    (ele as any).value = Number(value);
+  } else if (typeof (ele as any).value == "string") {
+    (ele as any).value = String(value);
+  }
+
+
+}
 
 
 
