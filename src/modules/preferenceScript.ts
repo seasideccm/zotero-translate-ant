@@ -4,11 +4,10 @@ import { getDom, makeId, } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
-import { elemHiddenSwitch, getSelectedRow, labelHiddenSwitch, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData } from "./ui/tableSecretKeys";
+import { elemHiddenSwitch, getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
-import { addonSetting, setCurrentServiceSN } from "./addonSetting";
+import { addonSetting, getSettingValue, setCurrentServiceSN } from "./addonSetting";
 import { setHiddenState } from "./command";
-import { encryptState } from "./crypto";
 import { llmSettings } from "./ui/llmSettings";
 
 
@@ -57,17 +56,10 @@ async function buildPrefsPane() {
 
     let defaultSourceLang, defaultTargetLang;
     if (DB) {
-      try {
-        defaultSourceLang = await DB.valueQueryAsync(
-          "SELECT value FROM settings WHERE setting='translate' AND key='defaultSourceLang'",
-        );
-        defaultTargetLang = await DB.valueQueryAsync(
-          "SELECT value FROM settings WHERE setting='translate' AND key='defaultTargetLang'",
-        );
 
-      } catch (e) {
-        ztoolkit.log(e);
-      }
+      defaultSourceLang = await getSettingValue('defaultSourceLang', "translate");
+      defaultTargetLang = await getSettingValue('defaultTargetLang', "translate");
+
     }
 
     defaultSourceLang = defaultSourceLang ? defaultSourceLang : void 0;
@@ -201,7 +193,7 @@ async function buildPrefsPane() {
 
 
   // 安全设置   在账号表格前设置，以便控制 secretKey 和 token 字段内容
-  const state = await encryptState();
+
   await setHiddenState();
 
   //多账户管理

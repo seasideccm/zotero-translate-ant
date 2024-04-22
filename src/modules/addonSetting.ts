@@ -79,7 +79,7 @@ async function setAddon(keys: string[]) {
 
 export async function setCurrentServiceSN(serialNumber: string | number) {
     addon.mountPoint.serialNumberUsing = serialNumber;
-    await setSettingsValue("currentServiceSN", serialNumber);
+    await setSettingValue("currentServiceSN", serialNumber);
 }
 
 export async function getCurrentServiceSN() {
@@ -91,17 +91,25 @@ export async function getCurrentServiceSN() {
     return serialNumber;
 }
 
-export async function setSettingsValue(queryValue: string, setValue: string | number) {
+export async function setSettingValue(keyName: string, setValue: string | number, settingType: string = "addon") {
     const DB = await getDB();
     const values = [];
-    let sql = `SELECT value from settings WHERE key = '${queryValue}'`;
+    let sql = `SELECT value from settings WHERE setting='${settingType}' AND key = '${keyName}'`;
     const result = await DB.valueQueryAsync(sql);
     if (result && result == setValue) return;
     await DB.executeTransaction(async () => {
-        result ? sql = `UPDATE settings SET value = '${setValue}' WHERE key = '${queryValue}'`
-            : sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','${queryValue}','${setValue}')`;
+        result ? sql = `UPDATE settings SET value = '${setValue}' WHERE setting='${settingType}' AND key = '${keyName}'`
+            : sql = `INSERT INTO settings (setting,key,value) VALUES ('${settingType}','${keyName}','${setValue}')`;
         await DB.queryAsync(sql);
     });
+}
+
+export async function getSettingValue(keyName: string, settingType: string = "addon") {
+    const DB = await getDB();
+    if (!DB) return;
+    const sql = `SELECT value from settings WHERE setting='${settingType}' AND key = '${keyName}' `;
+    return await DB.valueQueryAsync(sql) as string;
+
 }
 
 export async function clearSettingsRecord(queryValue: string | string[]) {

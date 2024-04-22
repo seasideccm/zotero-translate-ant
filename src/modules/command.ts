@@ -1,6 +1,6 @@
 import { getString } from "../utils/locale";
 import { chooseDirOrFilePath, confirmWin, getPS, showInfo, showThrowInfo } from "../utils/tools";
-import { clearSettingsRecord, setSettingsValue, verifyKeyMD5 } from "./addonSetting";
+import { clearSettingsRecord, setSettingValue, verifyKeyMD5 } from "./addonSetting";
 import { Cry, checkEncryptAccounts, decryptAll, encryptAllAccount, encryptState, getKeyNameByContent } from "./crypto";
 import { DB, getDBSync } from "./database/database";
 import { modifyData } from "./ui/dataDialog";
@@ -54,9 +54,9 @@ export class Command {
             if (!keyName) return;
             KEYS_NAME[keyName] = PathUtils.filename(keyPath);
             const queryValue = mapDBPath[keyName];
-            await setSettingsValue(queryValue, keyPath);
+            await setSettingValue(queryValue, keyPath);
         }
-        await setSettingsValue('cryptoKeyPath', directory);
+        await setSettingValue('cryptoKeyPath', directory);
         await Cry.setRSAfileName(KEYS_NAME);
     }
 
@@ -192,7 +192,7 @@ async function setDeleteSourceFileState(state: boolean) {
 
 export async function setHiddenState(state?: boolean) {
     if (!state) {
-        state = await encryptState();
+        state = await encryptState() || false;
         const domItem = getDom('setEnableEncrypt') as XUL.Checkbox;
         if (domItem) domItem.checked = state;
     }

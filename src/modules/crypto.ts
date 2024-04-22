@@ -1214,13 +1214,7 @@ async function verifyValueDB(tableName: string, target: DataBaseKV, condition: D
 
 
 
-export async function getSettingValue(value: string) {
-    const DB = await getDB();
-    if (!DB) return;
-    const sql = `SELECT value from settings WHERE key = '${value}'`;
-    return await DB.valueQueryAsync(sql) as string;
 
-}
 const mapDB = {
     PUBLICKEY_NAME: "publicKeyMD5",
     PRIVATEKEY_NAME: "privateKeyMD5",
