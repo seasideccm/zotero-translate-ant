@@ -481,30 +481,29 @@ function bindPrefEvents() {
       `${getString("pref-forbiddenService")}:         
         ${serviceID}`
     );
-    if (confirm) {
-      const services = await getServices();
-
-      if (services[serviceID].serialNumber) {
-        await updateServiceData(services[serviceID], "forbidden", true);
+    if (!confirm) return;
+    const services = await getServices();
+    if (services[serviceID].serialNumber) {
+      await updateServiceData(services[serviceID], "forbidden", true);
+      const element = getDom(serviceID) as any;
+      if (element && element.isMenulistChild) {
+        element.remove();
+      }
+    } else {
+      const rows = getSelectedRow(false);
+      if (!rows) {
         const element = getDom(serviceID) as any;
         if (element && element.isMenulistChild) {
           element.remove();
         }
-      } else {
-        const rows = getSelectedRow(false);
-        if (!rows) {
-          const element = getDom(serviceID) as any;
-          if (element && element.isMenulistChild) {
-            element.remove();
-          }
-          await updateAcounts(services[serviceID].accounts);
-          return;
-        }
-        const appIDs = Array.from(rows).map((row: any) => row.children[0].textContent);
-        const accounts = services[serviceID].accounts?.filter(account => appIDs.includes(account.appID));
-        await updateAcounts(accounts);
-
+        await updateAcounts(services[serviceID].accounts);
+        return;
       }
+      const appIDs = Array.from(rows).map((row: any) => row.children[0].textContent);
+      const accounts = services[serviceID].accounts?.filter(account => appIDs.includes(account.appID));
+      await updateAcounts(accounts);
+
+
 
       await updateTable("secretKeysTable", serviceID);
       //await replaceSecretKeysTable();

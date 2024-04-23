@@ -103,6 +103,9 @@ export class TranslateServiceAccount {
         case "totalCharConsum":
           tableNames = ['totalCharConsum'];
           break;
+        case "forbidden":
+          tableNames = ['translateServiceSN'];
+          break;
         case "appID":
           if (this.secretKey) {
 

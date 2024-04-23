@@ -1500,10 +1500,18 @@ export function getSelectedRow(singleRow: boolean = true) {
 
 export async function updateTable<T extends keyof TranslateService>(tableID: string, serviceID: T) {
     const tableHelper = getTableByID(tableID);
-    if (tableHelper) return;
-    const rows = await secretKeysRows(serviceID);
-    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
-    tableTreeInstance.rows = rows;
+    if (!tableHelper) return;
+    const rowsNew = await secretKeysRows(serviceID);
+    if (!rowsNew?.length) return;
+    const oldrows = tableHelper.treeInstance.rows as any[];
+    oldrows.length = 0;
+    oldrows.push(...rowsNew);
+    //if (!oldrows.length) return;
+    //const temp = [...oldrows];
+    //for (const oldrow of temp) {
+    //    if (rowsNew.some((row: any) => row.appID == oldrow.appID)) continue;
+    //    oldrows.splice(oldrows.indexOf(oldrow), 1);
+    //}
     tableHelper.render();
 }
 
