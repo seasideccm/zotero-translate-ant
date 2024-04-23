@@ -224,8 +224,9 @@ async function buildPrefsPane() {
       listeners: [
         {
           type: "command",
-          listener: (e: Event) => {
+          listener: async (e: Event) => {
             underUsing();
+            await updateLimits();
           },
         },
       ],
@@ -294,6 +295,19 @@ async function buildPrefsPane() {
     },
     doc.querySelector(`#${makeId("limitMode-placeholder")}`)!
   );
+  await updateLimits();
+  async function updateLimits() {
+    const elementService = getDom("serviceID") as XUL.MenuList;
+    const serviceID = elementService.value;
+    const services = await getServices();
+    const service = services[serviceID] as TranslateService;
+    const ids = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimit"];
+    for (const id of ids) {
+      setElementValue(id, service[id as keyof typeof service]);
+    }
+
+  }
+
 
 }
 
@@ -355,15 +369,15 @@ function onPrefsEvents(idsuffixOrAction?: string[] | string) {
           }
         }
         break;
-      case "update-isMultiParas":
+      case "update-supportMultiParas":
         {
           if (serviceID == "" || serviceID === undefined || serviceID == null) {
-            setElementValue("isMultiParas", '');
+            setElementValue("supportMultiParas", '');
             break;
           }
-          const isMultiParas = serviceManage.serviceCRUD("read")(serviceID)("isMultiParas");
-          if (isMultiParas !== undefined) {
-            setElementValue("isMultiParas", isMultiParas);
+          const supportMultiParas = serviceManage.serviceCRUD("read")(serviceID)("supportMultiParas");
+          if (supportMultiParas !== undefined) {
+            setElementValue("supportMultiParas", supportMultiParas);
           }
         }
         break;

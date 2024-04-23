@@ -450,7 +450,7 @@ export class serviceManage {
    * saveAll 将多个翻译引擎对象组成的对象转为json，写入硬盘文件中
    * @param action CRUD type ( 'create', 'read', 'update', 'delete','saveAll')
    * @param serviceID translateor ID
-   * @param property service id，charasPerTime，QPS，limitMode，charasLimit，isMultiParas，hasSecretKey，secretKey?:
+   * @param property service id，charasPerTime，QPS，limitMode，charasLimit，supportMultiParas，hasSecretKey，secretKey?:
    * @param value data to update (string|number|boolean|object[])
    */
   static async serviceCRUD(action: string): Promise<any> {
