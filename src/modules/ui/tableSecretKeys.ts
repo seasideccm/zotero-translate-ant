@@ -23,6 +23,8 @@ export async function replaceSecretKeysTable() {
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
     const serviceID = getElementValue("serviceID");
+    const res = await updateTable("secretKeysTable", serviceID);
+    if (res) return;
 
     //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
     const rows: any[] = await secretKeysRows(serviceID) || [];
@@ -59,6 +61,7 @@ export async function replaceSecretKeysTable() {
     const tableHelper = await tableFactory(options);
     const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
     tableTreeInstance.scrollToRow(rows.length - 1);
+    tableTreeInstance._topDiv?.scrollIntoView(false);
     tableTreeInstance.rows = rows;
 
     //绑定事件，增删改查    
@@ -94,8 +97,18 @@ export async function replaceSecretKeysTable() {
     function adjustWidth(rows: any[], visibleKeys?: string[]) {
 
         const onResizeData: any = {};
-        const totalWidth = tableTreeInstance._topDiv?.clientWidth;//表格宽度
+        const totalWidth = tableTreeInstance._topDiv?.clientWidth;
+        const rowsDisplay: any[] = [];
+        for (let i = 0; i < rows.length; i++) {
+            if (tableTreeInstance.props.getRowData) {
+                const row = tableTreeInstance.props.getRowData(i);
+                rowsDisplay.push(row);
+            }
+        }
+
+        //表格宽度
         if (!totalWidth) return;
+        if (rowsDisplay.length) rows = rowsDisplay;
         const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
         const longestCells = strMax(colums);
         const keys = visibleKeys || Object.keys(rows[0]);//可指定keys
@@ -137,7 +150,7 @@ export async function replaceSecretKeysTable() {
     }
 
     function caculateCellWidth(key: string, cellText: string, index: number = 0) {
-        tableTreeInstance._topDiv?.scrollIntoView();//@ts-ignore has
+        //tableTreeInstance._topDiv?.scrollIntoView();//@ts-ignore has
         tableTreeInstance.rerender();
         const container = tableTreeInstance._topDiv?.children[1].children[0].children[0] as HTMLDivElement;
 
@@ -1341,6 +1354,14 @@ export async function updateServiceData(serviceAccount: TranslateService | Trans
     await serviceAccount.saveChange();
 }
 
+export async function changedData(serviceAccount: TranslateService | TranslateServiceAccount, key: string, value: any) {
+    if (!serviceAccount.changedData) serviceAccount.changedData = {};
+    serviceAccount.changedData[key] = value;
+    if (!serviceAccount.previousData) serviceAccount.previousData = {};
+    serviceAccount.previousData[key] = serviceAccount[key as keyof typeof serviceAccount];
+    serviceAccount[key as keyof typeof serviceAccount] = value;
+}
+
 /**
     * 获取引擎账号或空数据
     * @param serviceID 
@@ -1513,6 +1534,7 @@ export async function updateTable<T extends keyof TranslateService>(tableID: str
     //    oldrows.splice(oldrows.indexOf(oldrow), 1);
     //}
     tableHelper.render();
+    return true;
 }
 
 

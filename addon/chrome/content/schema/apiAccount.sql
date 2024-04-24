@@ -71,6 +71,7 @@ CREATE TABLE serviceLimits(
     charasPerTime  INT NOT NULL,
     limitMode TEXT NOT NULL,
     charasLimit INT NOT NULL,
+    charasLimitFactor FLOAT(4,3) NOT NULL DEFAULT 1.0,
     configID INT NOT NULL DEFAULT 0, -- 允许每个翻译引擎多个配置适应不同环境
     FOREIGN KEY (serviceID) REFERENCES translateServices (serviceID) ON DELETE CASCADE ON UPDATE CASCADE
 );

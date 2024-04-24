@@ -4,7 +4,7 @@ import { getDom, getElementValue, makeId, setElementValue, } from "./ui/uiTools"
 import { getDB } from "./database/database";
 import { batchListen, showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
-import { elemHiddenSwitch, getSelectedRow, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData, updateTable } from "./ui/tableSecretKeys";
+import { changedData, elemHiddenSwitch, getSelectedRow, getTableByID, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData, updateTable } from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
 import { addonSetting, getSettingValue, setCurrentServiceSN, setSettingValue } from "./addonSetting";
 import { setHiddenState } from "./command";
@@ -227,6 +227,17 @@ async function buildPrefsPane() {
           listener: async (e: Event) => {
             underUsing();
             await updateLimits();
+            const element = e.target as XUL.MenuList;
+            const serviceID = element.value;
+            const services = await getServices();
+            const service = services[serviceID];
+            if (service.hasSecretKey || service.hasToken) {
+              hidden(false);
+              await replaceSecretKeysTable();
+            } else {
+              hidden();
+            }
+
           },
         },
       ],
@@ -304,6 +315,17 @@ async function buildPrefsPane() {
     const ids = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimit"];
     for (const id of ids) {
       setElementValue(id, service[id as keyof typeof service]);
+    }
+
+  }
+  function hidden(hidden: boolean = true) {
+    const tableHelper = getTableByID("secretKeysTable");
+    if (tableHelper) {
+      tableHelper.treeInstance._topDiv.parentElement.hidden = hidden;
+      const addRecord = getDom("addRecord") as XUL.Button;
+      if (addRecord) addRecord.hidden = hidden;
+      const addRecordBulk = getDom("addRecordBulk") as XUL.Button;
+      if (addRecordBulk) addRecordBulk.hidden = hidden;
     }
 
   }
@@ -487,6 +509,40 @@ function bindPrefEvents() {
   });
 
   batchListen([getDom("forbiddenService")!, ["command"], [forbiddenService]]);
+  batchListen([getDom("saveLimitParam")!, ["command"], [saveLimit]]);
+  async function saveLimit(e: Event) {
+    const serviceID = getElementValue("serviceID") as string;
+    const services = await getServices();
+    const service = services[serviceID as keyof typeof services];
+    const limitIds = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimitFactor", "charasLimit"];
+    for (const id of limitIds) {
+      let value = getElementValue(id);
+      if (!value) continue;
+      switch (id) {
+        case "QPS":
+        case "charasPerTime":
+        case "charasLimit":
+        case "charasLimitFactor":
+          value = Number(value);
+          break;
+        case "hasSecretKey":
+        case "supportMultiParas":
+          value = Boolean(value);
+          break;
+        case "limitMode":
+          value = String(value);
+          break;
+      }
+      if (service[id] != value) {
+        changedData(service, id, value);
+      }
+    }
+    await service.saveChange();
+
+    showInfo("limit Infos Saved", addon.data.prefs!.window);
+  }
+
+  batchListen([getDom("forbiddenService")!, ["command"], [forbiddenService]]);
 
   async function forbiddenService(e: Event) {
     ztoolkit.log(e);
@@ -531,14 +587,6 @@ function bindPrefEvents() {
     }
 
   }
-
-
-
-
-
-
-
-
 
   getDom("recoverService")!.addEventListener("command", async (e) => {
     const serviceMenu_popup = doc.querySelector(`#${config.addonRef}-serviceID > menupopup`)!;
@@ -586,17 +634,11 @@ function bindPrefEvents() {
 
   });
 
-
-
   async function getSerialNumberByAppid(serviceID: string, appID: string) {
     const sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}' AND appID = '${appID}'`;
     const DB = await getDB();
     return await DB.valueQueryAsync(sql);
   }
-
-
-
-
 
   //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has

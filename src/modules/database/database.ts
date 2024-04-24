@@ -89,12 +89,15 @@ export async function compareSQLUpdateDB() {
                 oldFields.push(newFieldvalueConfig[col]);
                 continue;
               } else if (typeof newFieldvalueConfig[col] == "function") {
+                //todo 
                 continue;
               }
             }
             const defaultValue = getDefaltValue(col, diff);
             if (defaultValue !== void 0) {
               oldFields.push(defaultValue);// 如果没有默认值该如何？
+            } else {
+              oldFields.push("");
             }
           } else {
             //新旧表字段名相同, 且复制原值
@@ -124,7 +127,7 @@ export async function compareSQLUpdateDB() {
   return true;
 }
 function getDefaltValue(col: string, sql: string) {
-  const reg = new RegExp("\\(.*?" + `(${col}` + ".+?)[,)]");
+  const reg = new RegExp("\\(.*?" + `(${col}.+?)` + "(, |\\)$)");
   const match = sql.match(reg);
   if (!match) return "NULL";
   const tempArr = match[1].split(/ +/);

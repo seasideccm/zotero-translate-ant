@@ -203,6 +203,7 @@ export declare type options = {
 
 };
 
+
 export class TranslateService {
   serviceID: string;
   charasPerTime: number;
@@ -211,6 +212,7 @@ export class TranslateService {
   charasLimit: number;
   charConsum?: number;//无需秘钥，限制用量
   supportMultiParas: boolean;
+  charasLimitFactor?: number;
   hasSecretKey: boolean;
   //secretKeys?: SecretKey[];
   hasToken: boolean;
@@ -316,26 +318,34 @@ export class TranslateService {
     const sqls: string[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
-      let tableNames: string[] = [];
+      let tableName: string = '';
       switch (key) {
         case "charConsum":
-          tableNames = ['charConsum'];
+          tableName = 'charConsum';
           break;
         case "totalCharConsum":
-          tableNames = ['totalCharConsum'];
+          tableName = 'totalCharConsum';
           break;
         case "usable":
         case "forbidden":
-          tableNames = ['translateServiceSN'];
+          tableName = 'translateServiceSN';
+          break;
+        case "QPS":
+        case "charasPerTime":
+        case "limitMode":
+        case "charasLimit":
+        case "configID":
+        case "charasLimitFactor":
+          tableName = 'serviceLimits';
           break;
         case "serialNumber":
-          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = ${this.serviceID}`);
+          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = '${this.serviceID}'`);
           break;
       }
-      tableNames.forEach(tableName => {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
-        sqls.push(sql);
-      });
+      if (tableName == "") continue;
+      const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
+      sqls.push(sql);
+
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {
@@ -350,9 +360,6 @@ export class TranslateService {
       }
     });
     this.changedData = null;
-    return;
-
-
   }
   async save() {
     if (!this.changedData) {
@@ -378,8 +385,8 @@ export class TranslateService {
       await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
 
       tableName = "serviceLimits";
-      sqlColumns = ["serviceID", "QPS", "charasPerTime", "limitMode", "charasLimit", "configID"];
-      sqlValues = [this.serviceID, this.QPS, this.charasPerTime, this.limitMode, this.charasLimit, this.configID];
+      sqlColumns = ["serviceID", "QPS", "charasPerTime", "limitMode", "charasLimit", "charasLimitFactor", "configID"];
+      sqlValues = [this.serviceID, this.QPS, this.charasPerTime, this.limitMode, this.charasLimit, this.charasLimitFactor, this.configID];
       await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
       //freeLoginServices
       if (!this.hasSecretKey && !this.hasToken) {
