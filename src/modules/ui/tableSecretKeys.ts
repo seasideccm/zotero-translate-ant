@@ -22,6 +22,7 @@ export async function replaceSecretKeysTable() {
     if (!win) return;
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
+
     const serviceID = getElementValue("serviceID");
     const res = await updateTable("secretKeysTable", serviceID);
     if (res) return;
@@ -150,10 +151,9 @@ export async function replaceSecretKeysTable() {
     }
 
     function caculateCellWidth(key: string, cellText: string, index: number = 0) {
-        //tableTreeInstance._topDiv?.scrollIntoView();//@ts-ignore has
+        //@ts-ignore has
         tableTreeInstance.rerender();
         const container = tableTreeInstance._topDiv?.children[1].children[0].children[0] as HTMLDivElement;
-
         if (!container) return;
         const span = container.children.item(index);
         if (!span || span?.classList[1] !== key) {
@@ -253,6 +253,7 @@ export async function replaceSecretKeysTable() {
     }
     function verigyServiceID(text: string) {
         if (!text) return;
+        const serviceID = getElementValue("serviceID") as string;
         // eslint-disable-next-line no-useless-escape
         const reg = new RegExp(`^[^\S\r\n]*${serviceID}[^\S\r\n]*$[\r\n]+`, "m");
         const match = text.match(reg);
@@ -262,6 +263,7 @@ export async function replaceSecretKeysTable() {
             return;
         }
         const serviceIDFromFile = match[0].trim();
+
         if (serviceID != serviceIDFromFile) {
             showInfo(info);
             //throw new Error("翻译引擎不匹配，请确保文件第一行翻译引擎名字和账号对应的翻译引擎一致")
@@ -368,6 +370,7 @@ export async function replaceSecretKeysTable() {
             });
 
             //从services中删除
+            const serviceID = getElementValue("serviceID") as string;
             const service = addon.mountPoint.services[serviceID];
             const appIDsDelete = rowsDelete.map(row => row.appID);
             const secretkeysDelete = [];
@@ -478,9 +481,11 @@ export async function replaceSecretKeysTable() {
         const key = cell.classList[1];
         let cellValue = originRow[key];
         if (state && ["secretKey", "token"].includes(key)) {
-            if (cellValue && cellValue != "") {
+            if (cellValue && cellValue != "" && !cellValue.endsWith("No Data")) {
                 try {
-                    cellValue = await decryptByAESKey(cellValue);
+                    if (cellValue.includes("encryptAESString")) {
+                        cellValue = await decryptByAESKey(cellValue);
+                    }
                 } catch (e: any) {
                     showInfo("不是加密数据");
                     throw e;
@@ -490,13 +495,15 @@ export async function replaceSecretKeysTable() {
         const inputCell = document.createElement('input');
         //inputCell.placeholder = cellValue==""?cellValue
 
-        inputCell.value = cellValue || '';
+        //inputCell.value = cellValue || '';
+        inputCell.value = '';
         //将行号作为class，作为编辑行的标志（blur时行号可能已经改变）
 
         inputCell.className = cell.classList[1];
         inputCell.classList.add(String(selectedRow));
         inputCell.dir = 'auto';
-        const cellBackgroundColor = window.getComputedStyle(cell).getPropertyValue('backgroundColor');
+        let cellBackgroundColor = window.getComputedStyle(cell).getPropertyValue('backgroundColor');
+        if (cellBackgroundColor == "") cellBackgroundColor = "black";
         //const color = window.getComputedStyle(cell).getPropertyValue('color');
         const color = "#4072e5";
         const styleInput = {
@@ -514,7 +521,15 @@ export async function replaceSecretKeysTable() {
         };
         Object.assign(inputCell.style, styleInput);
         cell.parentElement!.appendChild(inputCell);
-
+        cell.parentElement!.addEventListener("click", (e) => {
+            const tagName = e.target?.tagName.toLowerCase();
+            if (tagName && tagName != "input") {
+                showInfo("点击输入框外面");
+            }
+        });
+        //@ts-ignore xxx
+        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
+        adjustWidth(rows, visibleKeys);
 
         //const updateRowDebounce = Zotero.Utilities.debounce(valueToRows, 1000);
         inputCell.addEventListener('input', updateWidth);
@@ -584,9 +599,11 @@ export async function replaceSecretKeysTable() {
         if (!tableTreeInstance.dataChangedCache) tableTreeInstance.dataChangedCache = {};
         const dc = tableTreeInstance.dataChangedCache;
         if (!dc[index]) dc[index] = {};
+        // 存储整行原始数据
         if (!dc[index]["originRow"]) dc[index]["originRow"] = deepClone(rows[index]);
+        // 存储 某一个 key 的原始数据，之后保存修改的数据从 rows 中读取
         if (!dc[index][key]) dc[index][key] = rows[index][key];
-        //修改表格单元格数据
+        //修改表格单元格数据 当前数据源 rows，如果刷新表格，则 rows 中修改的数据会显示出来
         rows[index][key] = value;
     }
 
@@ -601,11 +618,17 @@ export async function replaceSecretKeysTable() {
                     if (old == inputCellCurrent.clientWidth) {
                         break;
                     }
+                    //@ts-ignore xxx
+                    const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
+                    adjustWidth(rows, visibleKeys);
                 }
                 cacheValue.value = inputCellCurrent.value;
             }
             if (inputCellCurrent.scrollWidth > inputCellCurrent.clientWidth) {
                 inputCellCurrent.style.width = inputCellCurrent.scrollWidth + 50 + "px";
+                //@ts-ignore xxx
+                const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
+                adjustWidth(rows, visibleKeys);
                 cacheValue.value = inputCellCurrent.value;
             }
         };
@@ -636,59 +659,7 @@ export async function replaceSecretKeysTable() {
         return tableTreeInstance._jsWindow.getElementByIndex(index);
     }
 
-    /*  async function editCell(e: Event, indices: number[]) {
-         //处理前一个单元格的编辑状态
-         if (tableTreeInstance.editIndex) commitEditingRow();
-         if (!e.target) return true;
-         const div = e.target as HTMLElement;
-         const cellIndex = getcellIndex(e);
-         if (cellIndex == void 0) return true;
-         const cell = div.childNodes[cellIndex];
-         const cellNext = div.childNodes[cellIndex + 1];
-         if (!cell) return true;//@ts-ignore has
-         const inputCell = cellChangeToInput(cell);
- 
- 
-         //@ts-ignore has
-         const width = cellNext ? cellNext.screenX - cell.screenX : cell.clientWidth;
-         inputCell.style.width = width + "px";
-         inputCell.addEventListener('blur', async (e) => {
-             commitEditingRow();
-             addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
-         });        //@ts-ignore has
- 
-         addon.data.prefs?.window.addEventListener("click", blurEditingRow);
-         function blurEditingRow(e: Event) {
-             if (e.target != div) {
-                 div.blur();
-                 addon.data.prefs?.window.removeEventListener("click", blurEditingRow);
-             }
-         }
-         // Feels like a bit of a hack, but it gets the job done
-         setTimeout(() => {
-             inputCell.focus();
-             inputCell.select();
-         });
- 
-         if (tableTreeInstance.editingRow) {
-             commitEditingRow();
-         }
-         tableTreeInstance.editingRow = {
-             oldCells: [],
-             currentCells: []
-         };
- 
-         //tableTreeInstance.oldCell = cell;//@ts-ignore has
-         tableTreeInstance.editingRow.oldCells.push(cell);
-         //tableTreeInstance.inputCell = inputCell;//@ts-ignore has
-         tableTreeInstance.editingRow.currentCells.push(inputCell);
-         tableTreeInstance.editIndex = indices[0];
-         div.replaceChild(inputCell, cell);
-         //禁用默认操作
-         return false;
- 
-     }
-  */
+
     function getColumn(index: number) {
         //@ts-ignore has
         const columns = tableTreeInstance._getVisibleColumns();//@ts-ignore has
@@ -820,7 +791,9 @@ export async function replaceSecretKeysTable() {
         for (const index of indices) {
             if (index == void 0) return;
             const changedKeys = Object.keys(dc[index]);
-            const rowData = rows[Number(index)];
+            changedKeys.splice((changedKeys.indexOf("originRow"), 1));//移除不用的key
+            const rowData = rows[Number(index)];//当前数据源一行
+            const serviceID = getElementValue("serviceID") as string;
             // 加密
             //await encryptSecretKeyOrToken(rowData);
             const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
@@ -862,6 +835,7 @@ export async function replaceSecretKeysTable() {
     function saveNewAccount(rowData: any) {
         const serialNumber = getNextServiceSNSync();
         const accuntOptions: any = {};
+        const serviceID = getElementValue("serviceID") as string;
         accuntOptions.serviceID = serviceID;
         accuntOptions.serialNumber = serialNumber;//
         Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
@@ -962,6 +936,7 @@ export async function replaceSecretKeysTable() {
         window.navigator.clipboard
             .readText()
             .then((v) => {
+                const serviceID = getElementValue("serviceID") as string;
                 const text: string = v;
                 const confirm = win?.confirm("账号信息将要添加到翻译引擎：" + serviceID + " 中。请确认。");
                 if (!confirm) return;
@@ -975,6 +950,7 @@ export async function replaceSecretKeysTable() {
 
     async function batchAddAccount(text: string) {
         if (!text) return;
+        const serviceID = getElementValue("serviceID") as string;
         if (!dataVerify[serviceID]) {
             showInfo("无法验证数据");
             throw new Error("无法验证数据");
@@ -1110,6 +1086,7 @@ export async function replaceSecretKeysTable() {
             tableTreeInstance.commitEditingRow();
         }
         const rows = tableTreeInstance.rows || [];
+        const serviceID = getElementValue("serviceID");
         const emptyrows = await secretKeysRows(serviceID, true) || [];
         if (emptyrows.length == 0) {
             const keys = Object.keys(rows[0]);
@@ -1117,7 +1094,8 @@ export async function replaceSecretKeysTable() {
             emptyrows.push(row);
         }
         rows.push(emptyrows[0]);
-        tableTreeInstance.render();
+        //tableTreeInstance.render();
+        tableTreeInstance.invalidate();
         tableTreeInstance.selection.select(rows.length - 1);//@ts-ignore has        
         const seletedRow = tableTreeInstance._topDiv.querySelectorAll(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`)[0];
         if (!seletedRow) {
@@ -1543,6 +1521,8 @@ export function getTableByID(tableID?: string) {
     const tables = addon.mountPoint.tables;
     if (!tableID) return tables;
     if (!tableID.includes(`${config.addonRef}-`)) tableID = `${config.addonRef}-` + tableID;
+    const element = addon.data.prefs?.window.document.getElementById(tableID);
+    if (!element) return;
     return tables[tableID] as VirtualizedTableHelper;
 }
 

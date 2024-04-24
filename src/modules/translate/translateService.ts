@@ -43,8 +43,15 @@ export class TranslateServiceAccount {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
   }
   async save() {
-    if (!this.changedData) {
+    if (this.changedData) {
       await this.saveChange();
+    }
+    for (const key of Object.keys(this)) {
+      if (typeof this[key as keyof typeof this] == "string") {
+        if ((this[key as keyof typeof this] as string).endsWith('No Data')) return;
+      }
+
+
     }
     if (!this.secretKey && !this.token) return;
     this.saveDeferred = Zotero.Promise.defer();
@@ -362,7 +369,7 @@ export class TranslateService {
     this.changedData = null;
   }
   async save() {
-    if (!this.changedData) {
+    if (this.changedData) {
       await this.saveChange();
     }
     const DB = await getDB();

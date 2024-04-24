@@ -14,6 +14,7 @@ import { TranslateService, TranslateServiceAccount } from "./translate/translate
 
 
 
+const limitIds = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimitFactor", "charasLimit"];
 
 
 export function registerPrefs() {
@@ -312,9 +313,15 @@ async function buildPrefsPane() {
     const serviceID = elementService.value;
     const services = await getServices();
     const service = services[serviceID] as TranslateService;
-    const ids = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimit"];
-    for (const id of ids) {
-      setElementValue(id, service[id as keyof typeof service]);
+    //const ids = ["QPS", "charasPerTime", "hasSecretKey", "updateLimits", "limitMode", "charasLimit"];
+
+    for (const id of limitIds) {
+      let value = service[id as keyof typeof service];
+      if (!value && id == 'charasLimitFactor') {
+        value = 1.0;
+      }
+
+      setElementValue(id, value);
     }
 
   }
@@ -514,7 +521,7 @@ function bindPrefEvents() {
     const serviceID = getElementValue("serviceID") as string;
     const services = await getServices();
     const service = services[serviceID as keyof typeof services];
-    const limitIds = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimitFactor", "charasLimit"];
+    //const limitIds = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimitFactor", "charasLimit"];
     for (const id of limitIds) {
       let value = getElementValue(id);
       if (!value) continue;
