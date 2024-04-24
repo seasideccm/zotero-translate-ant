@@ -1,7 +1,8 @@
 import { arrayUtils, getFiles, showInfo } from "../utils/tools";
 import { isRSAKey } from "./crypto";
 import { getDB } from './database/database';
-import { getElementValueByElement } from "./ui/uiTools";
+import { clickSwitchService } from "./preferenceScript";
+import { getElementValue, getElementValueByElement } from "./ui/uiTools";
 
 
 export async function addonSetting() {
@@ -77,9 +78,12 @@ async function setAddon(keys: string[]) {
 
 
 
-export async function setCurrentServiceSN(serialNumber: string | number) {
+export async function setCurrentService(serviceID: string, serialNumber: string | number) {
     addon.mountPoint.serialNumberUsing = serialNumber;
+    addon.mountPoint.serviceIDUsing = serviceID;
     await setSettingValue("currentServiceSN", serialNumber);
+    await setSettingValue("currentServiceID", serviceID);
+
 }
 
 export async function getCurrentServiceSN() {
@@ -87,10 +91,25 @@ export async function getCurrentServiceSN() {
     const DB = await getDB();
     const sql = `SELECT value from settings WHERE key = 'currentServiceSN'`;
     const serialNumber = await DB.valueQueryAsync(sql);
+    if (!serialNumber) {
+        await clickSwitchService();
+        return await getCurrentserviceID();
+    }
     addon.mountPoint.serialNumberUsing = serialNumber;
     return serialNumber;
 }
-
+export async function getCurrentserviceID() {
+    if (addon.mountPoint.serviceIDUsing) return addon.mountPoint.serviceIDUsing;
+    const DB = await getDB();
+    const sql = `SELECT value from settings WHERE key = 'currentServiceID'`;
+    const serviceID = await DB.valueQueryAsync(sql);
+    if (!serviceID) {
+        await clickSwitchService();
+        return await getCurrentserviceID();
+    }
+    addon.mountPoint.serviceIDUsing = serviceID;
+    return serviceID;
+}
 export async function setSettingValue(keyName: string, setValue: string | number, settingType: string = "addon") {
     const DB = await getDB();
     const values = [];

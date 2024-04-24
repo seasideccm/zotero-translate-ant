@@ -201,7 +201,7 @@ function inputFill(id: string, value: string) {
     if (id == "serialNumber") return;
     if (id == "provider") id = "providerCustom";
     if (id == "models") {
-        const reg = /[# \t,;@，；]+/;
+        const reg = /[# \t,;，；]+/;
         value = value.split(reg).join("; ");
     }
     const elem = getDom(id) as HTMLInputElement;

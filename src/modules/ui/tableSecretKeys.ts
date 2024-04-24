@@ -13,7 +13,14 @@ import { getPref } from "../../utils/prefs";
 
 
 const dataVerify: any = {
-    baidu: baiduVerify
+    baidu: baiduVerify,
+    caiyun: caiyunVerify,
+    tencent: tencentVerify,
+    niutranspro: niutransproVerify,
+    microsoft: microsoftVerify,
+    youdaozhiyun: youdaozhiyunVerify,
+    deeplfree: deeplVerify,
+    deeplpro: deeplVerify,
 };
 const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
 
@@ -23,7 +30,8 @@ export async function replaceSecretKeysTable() {
     const id = `${config.addonRef}-` + "secretKeysTable";
     const containerId = `${config.addonRef}-table-container`;
 
-    const serviceID = getElementValue("serviceID");
+    const serviceID = getElementValue("serviceID") as keyof TranslateService;
+
     const res = await updateTable("secretKeysTable", serviceID);
     if (res) return;
 
@@ -72,10 +80,7 @@ export async function replaceSecretKeysTable() {
     getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
     win.addEventListener("beforeunload", saveAccounts);
     win.addEventListener("click", clickTableOutsideCommit);
-
-    //@ts-ignore has//切换选项标签
-    const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
-    adjustWidth(rows, visibleKeys);
+    adjustWidth(rows);
 
 
     function handleGetRowString(index: number) {
@@ -95,21 +100,27 @@ export async function replaceSecretKeysTable() {
         }
         return row;
     }
-    function adjustWidth(rows: any[], visibleKeys?: string[]) {
-
+    function adjustWidth(rows: any[], byDisplay: boolean = true) {
+        //@ts-ignore xxx
+        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
         const onResizeData: any = {};
         const totalWidth = tableTreeInstance._topDiv?.clientWidth;
-        const rowsDisplay: any[] = [];
-        for (let i = 0; i < rows.length; i++) {
-            if (tableTreeInstance.props.getRowData) {
-                const row = tableTreeInstance.props.getRowData(i);
-                rowsDisplay.push(row);
+        if (byDisplay) {
+            const rowsDisplay: any[] = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                if (tableTreeInstance.props.getRowData) {
+                    const row = tableTreeInstance.props.getRowData(i);
+                    rowsDisplay.push(row);
+                }
             }
+            if (rowsDisplay.length) rows = rowsDisplay;
+
         }
 
         //表格宽度
         if (!totalWidth) return;
-        if (rowsDisplay.length) rows = rowsDisplay;
+
         const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
         const longestCells = strMax(colums);
         const keys = visibleKeys || Object.keys(rows[0]);//可指定keys
@@ -148,6 +159,7 @@ export async function replaceSecretKeysTable() {
         }//@ts-ignore has        
         tableTreeInstance._columns.onResize(onResizeData);//@ts-ignore has
         tableTreeInstance.rerender();
+        return onResizeData;
     }
 
     function caculateCellWidth(key: string, cellText: string, index: number = 0) {
@@ -160,10 +172,16 @@ export async function replaceSecretKeysTable() {
             showInfo("行元素有错误");
             return;
         }
-        const spanClone = span.cloneNode(true) as HTMLSpanElement;
-        container.appendChild(spanClone);
-        spanClone.style.position = "fixed";
-        spanClone.style.top = "-1000px";
+        const selector = `span.${key}.clone`;
+        let spanClone = container.querySelector(selector) as HTMLSpanElement;
+        if (!spanClone) {
+            spanClone = span.cloneNode(true) as HTMLSpanElement;
+            spanClone.classList.add("clone");
+            container.appendChild(spanClone);
+            spanClone.style.position = "fixed";
+            spanClone.style.top = "-1000px";
+        }
+        if (!spanClone) return;
         spanClone.textContent = cellText;
         const clientWidth = spanClone.clientWidth;
         return spanClone.scrollWidth;
@@ -272,10 +290,10 @@ export async function replaceSecretKeysTable() {
 
     }
     function handleDrop(e: DragEvent) {
-        readTextFilesDroped(e).then(text => {
+        readTextFilesDroped(e).then(async text => {
             if (!text) return false;
-            batchAddAccount(text);
-            tableHelper.render();
+            await batchAddAccount(text);
+            //tableHelper.render();
         });
         return false;
     }
@@ -285,9 +303,8 @@ export async function replaceSecretKeysTable() {
         if (tableTreeInstance.dataChangedCache) {
             await saveAccounts();
         }
-        //@ts-ignore has
-        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);
-        adjustWidth(rows, visibleKeys);
+
+        adjustWidth(rows);
         return true;
     }
 
@@ -475,6 +492,9 @@ export async function replaceSecretKeysTable() {
 
     async function cellChangeToInput(cell: HTMLElement) {
         //解密
+        if (tableTreeInstance.editIndex != void 0) {//@ts-ignore has
+            tableTreeInstance.commitEditingRow();
+        }
         const selectedRow = tableTreeInstance.selection.focused;
         const originRow = rows[selectedRow];
         const state = await encryptState();
@@ -501,6 +521,7 @@ export async function replaceSecretKeysTable() {
 
         inputCell.className = cell.classList[1];
         inputCell.classList.add(String(selectedRow));
+
         inputCell.dir = 'auto';
         let cellBackgroundColor = window.getComputedStyle(cell).getPropertyValue('backgroundColor');
         if (cellBackgroundColor == "") cellBackgroundColor = "black";
@@ -521,15 +542,22 @@ export async function replaceSecretKeysTable() {
         };
         Object.assign(inputCell.style, styleInput);
         cell.parentElement!.appendChild(inputCell);
-        cell.parentElement!.addEventListener("click", (e) => {
-            const tagName = e.target?.tagName.toLowerCase();
+
+        win?.addEventListener("click", doit);
+        function doit(e: Event) {
+            if (e.target != inputCell) {
+                if (inputCell.value == "" || inputCell.value.endsWith("No Data")) return;
+                valueToRows();
+                tableTreeInstance.invalidate();
+                inputCell.remove();
+                win?.removeEventListener("click", doit);
+            }
+            /* const tagName = e.target?.tagName.toLowerCase();
             if (tagName && tagName != "input") {
                 showInfo("点击输入框外面");
-            }
-        });
-        //@ts-ignore xxx
-        const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
-        adjustWidth(rows, visibleKeys);
+            } */
+        }
+        adjustWidth(rows, false);
 
         //const updateRowDebounce = Zotero.Utilities.debounce(valueToRows, 1000);
         inputCell.addEventListener('input', updateWidth);
@@ -550,7 +578,7 @@ export async function replaceSecretKeysTable() {
         }
         //当选中的行发生变化，先更新表，所以 input 消失了，也未能触发 blur 事件 focusin focusou
         //inputCell.addEventListener('blur', blurUpdateRow);
-        function valueToRows(e: Event) {
+        function valueToRows(e?: Event) {
             const key = inputCell.classList[0];
             const index = Number(inputCell.classList[1]);
             if (!rows[index] || !rows[index][key]) return;//空数据也在rows内
@@ -618,17 +646,11 @@ export async function replaceSecretKeysTable() {
                     if (old == inputCellCurrent.clientWidth) {
                         break;
                     }
-                    //@ts-ignore xxx
-                    const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
-                    adjustWidth(rows, visibleKeys);
                 }
                 cacheValue.value = inputCellCurrent.value;
             }
             if (inputCellCurrent.scrollWidth > inputCellCurrent.clientWidth) {
                 inputCellCurrent.style.width = inputCellCurrent.scrollWidth + 50 + "px";
-                //@ts-ignore xxx
-                const visibleKeys = tableTreeInstance._getVisibleColumns().map((e: any) => e.dataKey);//可见列的key
-                adjustWidth(rows, visibleKeys);
                 cacheValue.value = inputCellCurrent.value;
             }
         };
@@ -791,11 +813,18 @@ export async function replaceSecretKeysTable() {
         for (const index of indices) {
             if (index == void 0) return;
             const changedKeys = Object.keys(dc[index]);
-            changedKeys.splice((changedKeys.indexOf("originRow"), 1));//移除不用的key
+            changedKeys.splice(changedKeys.indexOf("originRow"), 1);//移除不用的key
             const rowData = rows[Number(index)];//当前数据源一行
-            const serviceID = getElementValue("serviceID") as string;
-            // 加密
-            //await encryptSecretKeyOrToken(rowData);
+            const noDatas = Object.values(rowData).filter((e: any) => e.endsWith("No Data"));
+            if (noDatas.length) {
+                showInfo("has empty data");
+                return;
+            }
+            let serviceID = getElementValue("serviceID") as string;
+            if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+                // @ts-ignore xxx
+                serviceID = "baidu";
+            }
             const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
             //比较false==0的结果为true
             //if (typeof serialNumber != "boolean" && serialNumber != void 0) {
@@ -835,7 +864,11 @@ export async function replaceSecretKeysTable() {
     function saveNewAccount(rowData: any) {
         const serialNumber = getNextServiceSNSync();
         const accuntOptions: any = {};
-        const serviceID = getElementValue("serviceID") as string;
+        let serviceID = getElementValue("serviceID") as string;
+        if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+            // @ts-ignore xxx
+            serviceID = "baidu";
+        }
         accuntOptions.serviceID = serviceID;
         accuntOptions.serialNumber = serialNumber;//
         Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
@@ -935,13 +968,13 @@ export async function replaceSecretKeysTable() {
     function pasteAccount() {
         window.navigator.clipboard
             .readText()
-            .then((v) => {
+            .then(async (v) => {
                 const serviceID = getElementValue("serviceID") as string;
                 const text: string = v;
                 const confirm = win?.confirm("账号信息将要添加到翻译引擎：" + serviceID + " 中。请确认。");
                 if (!confirm) return;
-                batchAddAccount(text);
-                tableHelper.render();
+                await batchAddAccount(text);
+                //tableHelper.render();
             })
             .catch((v) => {
                 ztoolkit.log("Failed To Read Clipboard: ", v);
@@ -950,19 +983,31 @@ export async function replaceSecretKeysTable() {
 
     async function batchAddAccount(text: string) {
         if (!text) return;
-        const serviceID = getElementValue("serviceID") as string;
+        let serviceID = getElementValue("serviceID") as string;
+        if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+            // @ts-ignore xxx
+            serviceID = "baidu";
+        }
         if (!dataVerify[serviceID]) {
             showInfo("无法验证数据");
             throw new Error("无法验证数据");
         }
         const textArr = text.split(/\r?\n/).filter(e => e);
-        const valuesArr = textArr.map((str: string) => str.split(/[# \t,;@，；]+/).filter(e => e));
+        const valuesArr = textArr.map((str: string) => str.split(/[# \t,;，；]+/).filter(e => e));
         const keys = Object.keys(rows[0]);
         for (const values of valuesArr) {
             if (!dataVerify[serviceID](keys, values)) {
                 showInfo(serviceID + "：数据格式未通过验证");
+                const info = "appID#secretKey#usable#consumes: 2222222#g8g8g8g8g8#0#800; or appID#secretKey: 2222222#g8g8g8g8g8";
                 const dataFormat: any = {
-                    baidu: "2222222#g8g8g8g8g8#0#800"
+                    baidu: info,
+                    caiyun: "appID 任意。token（secretKey）长度 20。" + info,
+                    tencent: "appID 长度36, secretKey 长度 32。" + info,
+                    niutranspro: "appID 任意。API-KEY 长度 32。" + info,
+                    microsoft: "appID 任意。secretKey 长度 32。。" + info,
+                    youdaozhiyun: "appID 任意。secretKey 长度 32。。" + info,
+                    deeplfree: "appID 任意。secretKey 长度 >= 36。" + info,
+                    deeplpro: "appID 任意。secretKey 长度 >= 36。" + info,
                 };
                 showInfo(serviceID + " 数据格式样例：" + dataFormat[serviceID]);
                 throw new Error(serviceID + "：数据格式未通过验证");
@@ -978,8 +1023,7 @@ export async function replaceSecretKeysTable() {
             });
             return row;
         });
-        //加密 pasteRows ，数组元素改变
-        //await encryptSecretKeyOrToken(pasteRows);
+
 
 
         const newRows = pasteRows.filter((pasteRow: any) => !(rows.find((row: any) => !differObject(pasteRow, row))));
@@ -991,8 +1035,14 @@ export async function replaceSecretKeysTable() {
             if (!newRows.length) throw new Error("没有新记录");
             showInfo("添加了 " + newRows.length + " 条记录");
         }
+        const noneEmptys = rows.filter(e => !(Object.values(e).filter((str: any) => str.includes("No Data"))).length);
+        rows.length = 0;
+        if (noneEmptys.length) rows.push(...noneEmptys);
         rows.push(...newRows);
+
         saveNewAccounts(newRows);
+        tableHelper.render();
+        await priorityWithKeyTable();
     }
 
 
@@ -1111,8 +1161,8 @@ export async function replaceSecretKeysTable() {
     async function addRecordBulk(e: Event) {
         let text = await readTextFiles() as string;
         text = verigyServiceID(text) as string;
-        batchAddAccount(text);
-        tableHelper.render();
+        await batchAddAccount(text);
+        //tableHelper.render();
     }
     async function addOldCryKey(e: Event) {
         await Cry.importCryptoKey();
@@ -1348,6 +1398,10 @@ export async function changedData(serviceAccount: TranslateService | TranslateSe
     */
 async function secretKeysRows<T extends keyof TranslateService>(serviceID: T, getEmptyData: boolean = false) {
     let services = await getServices();
+    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+        // @ts-ignore xxx
+        serviceID = "baidu";
+    }
     let serviceSelected = services[serviceID];
     if (!serviceSelected || !serviceSelected.accounts) {
         services = await getServicesFromDB();
@@ -1467,23 +1521,93 @@ function baiduVerify(keys: any[], values: any[]) {
     const reg = {
         "appID": /^\d{17}$/m,
         "secretKey": /^[A-Za-z\d]{20}$/m,
+
+    };
+    return coreVerify(keys, values, reg);
+    /*  function regRes(value: string, reg: RegExp) {
+         const match = value.match(reg);
+         if (match) {
+             if (match[0] == value) return true;
+         }
+     }
+ 
+     for (let i = 0; i < values.length; i++) {
+         // @ts-ignore xxx
+         if (!regRes(values[i], reg[keys[i]])) return false;
+     }
+     return true; */
+}
+function coreVerify(keys: any[], values: any[], reg: any) {
+    const reg2 = {
         "usable": /\d/,
         "charConsum": /^\d+$/m,
     };
-    function regRes(value: string, reg: RegExp) {
-        const match = value.match(reg);
-        if (match) {
-            if (match[0] == value) return true;
-        }
-    }
+    reg = Object.assign(reg, reg2);
 
     for (let i = 0; i < values.length; i++) {
         // @ts-ignore xxx
         if (!regRes(values[i], reg[keys[i]])) return false;
     }
     return true;
+    function regRes(value: string, reg: RegExp) {
+        const match = value.match(reg);
+        if (match) {
+            if (match[0] == value) return true;
+        }
+    }
+}
+function caiyunVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^.+$/m,
+        "secretKey": /^[A-Za-z\d]{20}$/m,
+        "token": /^[A-Za-z\d]{20}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
+function tencentVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^[A-Za-z\d]{36}$/m,
+        "secretKey": /^[A-Za-z\d]{32}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
 }
 
+function niutransproVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^.+$/m,
+        "secretKey": /^[a-z\d]{32}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
+function microsoftVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^.+$/m,
+        "secretKey": /^.{32}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
+
+function youdaozhiyunVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^.+$/m,
+        "secretKey": /^.{32}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
+
+function deeplVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^.+$/m,
+        "secretKey": /^.{36,}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
 export function getSelectedRow(singleRow: boolean = true) {
     const tableHelper = getTableByID(`${config.addonRef}-` + "secretKeysTable");
     if (!tableHelper) return;
@@ -1535,6 +1659,7 @@ function makeTableProps(options: VTableProps, rows: any[]) {
         getRowString: ((index: number) => rows[index].key || ""),
     };
     //清理options
+
     const columnPropAvilableKeys = [
         "id",
         "getRowCount",

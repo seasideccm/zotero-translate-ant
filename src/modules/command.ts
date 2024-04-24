@@ -2,7 +2,7 @@ import { getString } from "../utils/locale";
 import { chooseDirOrFilePath, confirmWin, getPS, showInfo, showThrowInfo } from "../utils/tools";
 import { clearSettingsRecord, setSettingValue, verifyKeyMD5 } from "./addonSetting";
 import { Cry, checkEncryptAccounts, decryptAll, encryptAllAccount, encryptState, getKeyNameByContent } from "./crypto";
-import { DB, getDBSync } from "./database/database";
+import { getDBSync } from "./database/database";
 import { modifyData } from "./ui/dataDialog";
 import { getDom, } from "./ui/uiTools";
 
@@ -15,7 +15,7 @@ export class Command {
 
     static async openCryptoDirectory() {
         const path = await Cry.getPathCryKey();
-        await Zotero.File.reveal(path);
+        await Zotero.File.reveal(path!);
     }
 
     static async selectRSADirectory() {
@@ -52,12 +52,12 @@ export class Command {
         for (const keyPath of keyPaths) {
             const keyName = await getKeyNameByContent(keyPath) as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME";
             if (!keyName) return;
-            KEYS_NAME[keyName] = PathUtils.filename(keyPath);
+            KEYS_NAME![keyName] = PathUtils.filename(keyPath);
             const queryValue = mapDBPath[keyName];
             await setSettingValue(queryValue, keyPath);
         }
         await setSettingValue('cryptoKeyPath', directory);
-        await Cry.setRSAfileName(KEYS_NAME);
+        await Cry.setRSAfileName(KEYS_NAME!);
     }
 
     static async showHiddenEncryptDom() {

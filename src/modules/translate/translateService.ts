@@ -1,7 +1,7 @@
 
 
 import { showInfo } from '../../utils/tools';
-import { encryptByAESKey, getTableBySN } from '../crypto';
+import { encryptByAESKey, encryptState, getTableBySN } from '../crypto';
 import { getDB, getDBSync } from '../database/database';
 import { getSingleServiceUnderUse } from './serviceManage';
 
@@ -28,6 +28,10 @@ export class TranslateServiceAccount {
 
 
   constructor(option: any) {
+    if (["baidufield", "baiduModify", "baidufieldModify"].includes(option.serviceID)) {
+      // @ts-ignore xxx
+      option.serviceID = "baidu";
+    }
     this.serialNumber = Number(option.serialNumber);
     this.serviceID = option.serviceID;
     this.usable = option.usable || true;
@@ -65,7 +69,13 @@ export class TranslateServiceAccount {
         await DB.queryAsync(sql);
         let tableName = this.secretKey ? "accounts" : "accessTokens";
         const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
-        const secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+        let secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+        const state = await encryptState();
+        if (state) {
+          if (secretKeyOrtokenValue && !secretKeyOrtokenValue?.includes("encryptAESString")) {
+            secretKeyOrtokenValue = await encryptByAESKey(secretKeyOrtokenValue);
+          }
+        }
         const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
         const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
         await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
@@ -150,35 +160,35 @@ export class TranslateServiceAccount {
 
     this.changedData = null;
   }
-  async encryptAccount() {
-    const DB = getDBSync();
-    const text = this.secretKey ? this.secretKey : this.token;
-    if (!text) return;
-    const stringEncyptAES = await encryptByAESKey(text);
-    //let tableName = "accounts";
-    const tableName = await getTableBySN(this.serialNumber);
-    if (!tableName) {
-      ztoolkit.log("accoun isn't exist: " + this.serialNumber);
-      return;
-    }
-    const fieldName = tableName == "accounts" ? "secretKey" : "token";
-    let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${this.serialNumber}`;
-    const content = await DB.valueQueryAsync(sql);
-    if (content) {
-      sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${this.serialNumber}`;
-      await DB.queryAsync(sql);
-    } else {
-      sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${this.serialNumber}`;
-    }
-
-    await DB.executeTransaction(async () => {
-      await DB.queryAsync(sql);
-      //记录加密条目`SELECT serialNumber FROM encryptAccounts`
-      sql = `INSERT INTO encryptAccounts (serialNumber) VALUES ('${this.serialNumber}')`;
-      await DB.queryAsync(sql);
-    });
-    return stringEncyptAES;
-  }
+  /*  async encryptAccount() {
+     const DB = getDBSync();
+     const text = this.secretKey ? this.secretKey : this.token;
+     if (!text) return;
+     const stringEncyptAES = await encryptByAESKey(text);
+     //let tableName = "accounts";
+     const tableName = await getTableBySN(this.serialNumber);
+     if (!tableName) {
+       ztoolkit.log("accoun isn't exist: " + this.serialNumber);
+       return;
+     }
+     const fieldName = tableName == "accounts" ? "secretKey" : "token";
+     let sql = `SELECT ${fieldName} FROM ${tableName} WHERE serialNumber = ${this.serialNumber}`;
+     const content = await DB.valueQueryAsync(sql);
+     if (content) {
+       sql = `UPDATE ${tableName} SET ${fieldName} = '${stringEncyptAES}' WHERE serialNumber = ${this.serialNumber}`;
+       await DB.queryAsync(sql);
+     } else {
+       sql = `INSERT INTO ${tableName} (${fieldName}) VALUES ('${stringEncyptAES}') WHERE serialNumber = ${this.serialNumber}`;
+     }
+ 
+     await DB.executeTransaction(async () => {
+       await DB.queryAsync(sql);
+       //记录加密条目`SELECT serialNumber FROM encryptAccounts`
+       sql = `INSERT INTO encryptAccounts (serialNumber) VALUES ('${this.serialNumber}')`;
+       await DB.queryAsync(sql);
+     });
+     return stringEncyptAES;
+   } */
   recoverPrevious() {
     try {
       Zotero.Utilities.Internal.assignProps(this, this.previousData);
@@ -254,6 +264,7 @@ export class TranslateService {
     accounts?: TranslateServiceAccount[],
     forbidden?: boolean,
     serialNumber?: number,
+    charasLimitFactor?: number,
     configID?: number | undefined,
 
   }
@@ -274,6 +285,7 @@ export class TranslateService {
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
     this.configID = options.configID || 0;
+    this.charasLimitFactor = options.charasLimitFactor || 1.0;
     this.serviceTypeID = this.getServiceTypeID();
 
 
@@ -287,7 +299,7 @@ export class TranslateService {
   getServiceTypeID(serviceType?: string) {
     const objectType = ["item", "collection", "dataObject", "search", "feedItem"];
     const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
-    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao",];
+    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplpro", "deeplcustom", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao",];
     const ocrServices = ["baiduOCR"];
     const ocrTranslateServices = ["baiduPictureTranslate"];
     const languageIdentificationServices = [""];

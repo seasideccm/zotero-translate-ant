@@ -1,6 +1,7 @@
 import { keysTranslateService, parasArrTranslateService, parasArrTranslateServiceAdd } from "../../utils/constant";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
+import { getCurrentserviceID } from "../addonSetting";
 import { fillServiceTypes, getDB, getDBSync } from "../database/database";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 
@@ -74,12 +75,17 @@ export async function getTranslateService(serviceID: string) {
 
 export async function getServiceBySN(serialNumber: string | number) {
     const services = await getServices();
-    const service = Object.values(services).filter(s => s.serialNumber == serialNumber)[0];
+    let service = Object.values(services).filter(s => s.serialNumber == serialNumber)[0];
     if (service) return service;
-    for (const service of Object.values(services)) {
-        if (service && service.accounts && service.accounts.length) {
-            const account = service.accounts.find(a => a.serialNumber == serialNumber);
-            if (account) return account;
+    const serviceID = await getCurrentserviceID();
+    service = Object.values(services).filter(service => service.serviceID == serviceID)[0];
+
+    if (service && service.accounts && service.accounts.length) {
+
+        const account = service.accounts.find(a => a.serialNumber == serialNumber);
+        if (account) {
+            if (account.serviceID == "baidu") account.serviceID = serviceID;
+            return account;
         }
     }
 }
@@ -120,6 +126,8 @@ export async function deleteAcount(serialNumber: number) {
     if (!DB) return;
     await DB.executeTransaction(async () => {
         await DB.queryAsync(`DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`);
+        await DB.queryAsync(`DELETE FROM accounts WHERE serialNumber='${serialNumber}'`);
+        await DB.queryAsync(`DELETE FROM accessTokens WHERE serialNumber='${serialNumber}'`);
     });
 }
 
@@ -225,6 +233,10 @@ async function getCommonProperty(serviceID: string) {
 
 
 async function getAccounts(serviceID: string, tableName: string) {
+    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+        // @ts-ignore xxx
+        serviceID = "baidu";
+    }
     const DB = await getDB();
     const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];
     tableName == "accounts" ? sqlColumns.push("secretKey") : sqlColumns.push("token");

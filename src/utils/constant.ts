@@ -24,6 +24,8 @@ export const parasArrTranslateService = [
   ["googleapi", 5000, 5, "noLimit", 0, true, false, false,],
   ["google", 5000, 5, "noLimit", 0, true, false, false,],
   ["deeplfree", 3000, 3, "month", 500000, true, true, false,],
+  ["deeplpro", 3000, 3, "month", 500000, true, true, false,],
+  ["deeplcustom", 3000, 3, "month", 500000, true, true, false,],
   ["deeplx", 3000, 3, "month", 500000, true, false, false,],
   ["microsoft", 50000, 10, "month", 2000000, false, true, false,],
   ["baiduModify", 5000, 10, "month", 1000000, true, true, false,],

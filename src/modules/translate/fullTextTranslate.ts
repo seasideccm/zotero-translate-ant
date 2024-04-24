@@ -1182,7 +1182,10 @@ export class fullTextTranslate {
     }
     //const keyUse = getSingleServiceUnderUse().key;
     const service = await getSingleServiceUnderUse();
-    if (!service) return;
+    if (!service) {
+      showInfo("没有指定翻译引擎或账号");
+      return;
+    }
     await serviceManage.serviceAvailableCheck(service);
     const translatingProgress = new ztoolkit.ProgressWindow(config.addonName, {
       closeOnClick: true,

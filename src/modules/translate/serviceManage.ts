@@ -10,7 +10,7 @@ import {
   setPref,
 } from "../../utils/prefs";
 import { getCharasLimit, getSerialNumber, getServiceBySN, getServices } from "./translateServices";
-import { getCurrentServiceSN, setCurrentServiceSN } from "../addonSetting";
+import { getCurrentServiceSN, setCurrentService } from "../addonSetting";
 import { decryptByAESKey, encryptState } from "../crypto";
 import { getDom } from "../ui/uiTools";
 
@@ -33,7 +33,7 @@ export class serviceManage {
     });
     const currentDay = formatter.format(date);//'04/20/2024'
     const reg = /^\d{2}/m;
-    const currentMonth = String(date.getMonth() + 1);
+    const currentMonth = date.getMonth() + 1;
 
 
     const serviceID = service.serviceID;
@@ -47,6 +47,7 @@ export class serviceManage {
     if (service instanceof TranslateService && service.accounts && serialNumber) {
       singleAccount = await getServiceBySN(serialNumber);
     }
+    if (service instanceof TranslateServiceAccount) singleAccount = service;
     if (!singleAccount || singleAccount instanceof TranslateService) {
       return;
     }
@@ -84,15 +85,29 @@ export class serviceManage {
     }
     if (limitMode == "month") {
       let thisMonthMarker;
-      const temp = String(singleAccount.dateMarker!).match(reg);
-      if (temp != null) {
+      let date;
+      let month;
+      if (!singleAccount.dateMarker) {
+        singleAccount.dateMarker = currentDay;
+        thisMonthMarker = currentMonth;
+        return true;
+      }
+      if (Zotero.Date.isSQLDateTime(singleAccount.dateMarker)) {
+        date = Zotero.Date.sqlToDate(singleAccount.dateMarker, false);// isUTC 设为 false不加 8 ，与 sqlite 一致
+        if (date)
+          month = date.getMonth() + 1;
+        if (month)
+          thisMonthMarker = month;
+      }
+      //const temp = String(singleAccount.dateMarker!).match(reg);
+      /* if (temp != null) {
         thisMonthMarker = temp[0].replace("0", "");
       } else {
         singleAccount.dateMarker = currentDay;
         thisMonthMarker = currentMonth;
-      }
+      } */
       //跨越记账时间段则自动重置额度
-      if (thisMonthMarker != currentMonth) {
+      if (thisMonthMarker && thisMonthMarker != currentMonth) {
         //重置时间标志
         singleAccount.dateMarker = currentDay;
         singleAccount.charConsum = 0;
@@ -453,130 +468,130 @@ export class serviceManage {
    * @param property service id，charasPerTime，QPS，limitMode，charasLimit，supportMultiParas，hasSecretKey，secretKey?:
    * @param value data to update (string|number|boolean|object[])
    */
-  static async serviceCRUD(action: string): Promise<any> {
-    const services = await getServices();
-
-    function updateServiceProperty<T extends keyof TranslateService>(
-      service: TranslateService,
-      property: T,
-      value: TranslateService[T],
-    ): void {
-      service[property] = value;
-    }
-    switch (action) {
-      case "create":
-        //返回一个函数
-        return (option: any) => {
-          return new TranslateService(option);
-
-        };
-        break;
-      case "read":
-        // 如果没有结果就返回最后传入的参数字符串
-        return (serviceID: string) => {
-          const service = services[serviceID];
-          if (!service) {
-            return;
-          }
-          return (property: string) => {
-            return service[property as keyof typeof service];
+  /*   static async serviceCRUD(action: string): Promise<any> {
+      const services = await getServices();
+  
+      function updateServiceProperty<T extends keyof TranslateService>(
+        service: TranslateService,
+        property: T,
+        value: TranslateService[T],
+      ): void {
+        service[property] = value;
+      }
+      switch (action) {
+        case "create":
+          //返回一个函数
+          return (option: any) => {
+            return new TranslateService(option);
+  
           };
-        };
-        break;
-      //如为秘钥能更新一个或多个
-      //注意只是更新内存中对象的值，并未写入prefs中，如果prefs限制大小，可写入磁盘
-      case "update":
-        return (serviceID: string) => {
-          const service: TranslateService = services[serviceID];
-          if (service === undefined) return;
-          return (property: keyof TranslateService): Services => {
-            return <T extends keyof TranslateService>(
-              value: TranslateService[T] | TranslateServiceAccount | TranslateServiceAccount[],
-            ) => {
-              //<T extends keyof TranslateService>(value: TranslateService[T]|TranslateService[T][])
-              //如果秘钥为空则将秘钥的值以数组形式赋值
-              //如果已有秘钥，则push新秘钥到原有数组
-              if (property == "accounts") {
-                //value: secretKey | secretKey[]
-                if (!(value instanceof Array)) {
-                  value = [value as TranslateServiceAccount];
-                }
-
-                if (
-                  !service["accounts"]?.length ||
-                  service[property as keyof typeof service] === undefined
-                ) {
-                  service["accounts"] = value as TranslateServiceAccount[];
-                } else {
-                  //判断原有的多个key是否有传入的多个key
-                  /* service[property]?.map((e: any) => e.key as string)
-                                      .some(key => (value as secretKey[]).map((secretKey: secretKey) => secretKey.key
-                                      ).includes(key)) */
-
-                  const oldSecretKeys = service[property]?.map(
-                    (e: TranslateServiceAccount) => e.secretKey as string,
-                  );
-                  const newKeys = value.map((e) => e.secretKey);
-                  const isHas = oldSecretKeys?.some((e) => newKeys.includes(e));
-                  const accounts: TranslateServiceAccount[] = service["accounts"];
-                  if (isHas) {
-                    const temp: TranslateServiceAccount[] = [];
-                    // 如果输入的秘钥和原有秘钥一致，则将输入的秘钥复制给原秘钥
-                    accounts.filter((e) => {
-                      (value as TranslateServiceAccount[]).map((e2) => {
-                        if (e.secretKey == e2.secretKey) {
-                          if (e2.charConsum != undefined) {
-                            e.charConsum = e2.charConsum;
-                          }
-                          if (e2.dateMarker != undefined) {
-                            e.dateMarker = e2.dateMarker;
-                          }
-                          if (e2.usable != undefined) {
-                            e.usable = e2.usable;
-                          }
-                        } else {
-                          if (e2.secretKey && !oldSecretKeys?.includes(e2.secretKey)) {
-                            temp.push(e2);
-                          }
-                        }
-                      });
-                    });
-                    if (temp.length) {
-                      accounts.push(...temp);
-                    }
-                    //秘钥是引用类型，无需再赋值
-                    //service["secretKey"] = secretKey;
-                    //先删除旧secretKey，然后再更新，避免重复
-                    /* secretKey = secretKey.filter(e => !(value as secretKey[]).map((e2) => e2.key).includes(e.key));
-                                        secretKey = secretKey.concat(value as secretKey[]);
-                                        service["secretKey"] = secretKey; */
-                  } else {
-                    accounts.push(...(value));
-                  }
-                }
-                //同步百度秘钥
-                serviceManage.syncBaiduSecretKey(serviceID);
-              } else {
-                updateServiceProperty(service, property, value as any);
-              }
+          break;
+        case "read":
+          // 如果没有结果就返回最后传入的参数字符串
+          return (serviceID: string) => {
+            const service = services[serviceID];
+            if (!service) {
+              return;
+            }
+            return (property: string) => {
+              return service[property as keyof typeof service];
             };
           };
-        };
-        break;
-      //返回清理后的翻译引擎总对象
-      case "delete":
-        return (serviceID: string) => {
-          delete services[serviceID];
-        };
-        break;
-      case "saveAll":
-        //setPref('servicesPref', JSON.stringify(services));
-        saveJsonToDisk(services, servicesFilename);
-        break;
-      default:
-        break;
-    }
-  }
+          break;
+        //如为秘钥能更新一个或多个
+        //注意只是更新内存中对象的值，并未写入prefs中，如果prefs限制大小，可写入磁盘
+        case "update":
+          return (serviceID: string) => {
+            const service: TranslateService = services[serviceID];
+            if (service === undefined) return;
+            return (property: keyof TranslateService): Services => {
+              return <T extends keyof TranslateService>(
+                value: TranslateService[T] | TranslateServiceAccount | TranslateServiceAccount[],
+              ) => {
+                //<T extends keyof TranslateService>(value: TranslateService[T]|TranslateService[T][])
+                //如果秘钥为空则将秘钥的值以数组形式赋值
+                //如果已有秘钥，则push新秘钥到原有数组
+                if (property == "accounts") {
+                  //value: secretKey | secretKey[]
+                  if (!(value instanceof Array)) {
+                    value = [value as TranslateServiceAccount];
+                  }
+  
+                  if (
+                    !service["accounts"]?.length ||
+                    service[property as keyof typeof service] === undefined
+                  ) {
+                    service["accounts"] = value as TranslateServiceAccount[];
+                  } else {
+                    //判断原有的多个key是否有传入的多个key
+                   // service[property]?.map((e: any) => e.key as string)
+                   //                     .some(key => (value as secretKey[]).map((secretKey: secretKey) => secretKey.key
+                   //                     ).includes(key))
+  
+                    const oldSecretKeys = service[property]?.map(
+                      (e: TranslateServiceAccount) => e.secretKey as string,
+                    );
+                    const newKeys = value.map((e) => e.secretKey);
+                    const isHas = oldSecretKeys?.some((e) => newKeys.includes(e));
+                    const accounts: TranslateServiceAccount[] = service["accounts"];
+                    if (isHas) {
+                      const temp: TranslateServiceAccount[] = [];
+                      // 如果输入的秘钥和原有秘钥一致，则将输入的秘钥复制给原秘钥
+                      accounts.filter((e) => {
+                        (value as TranslateServiceAccount[]).map((e2) => {
+                          if (e.secretKey == e2.secretKey) {
+                            if (e2.charConsum != undefined) {
+                              e.charConsum = e2.charConsum;
+                            }
+                            if (e2.dateMarker != undefined) {
+                              e.dateMarker = e2.dateMarker;
+                            }
+                            if (e2.usable != undefined) {
+                              e.usable = e2.usable;
+                            }
+                          } else {
+                            if (e2.secretKey && !oldSecretKeys?.includes(e2.secretKey)) {
+                              temp.push(e2);
+                            }
+                          }
+                        });
+                      });
+                      if (temp.length) {
+                        accounts.push(...temp);
+                      }
+                      //秘钥是引用类型，无需再赋值
+                      //service["secretKey"] = secretKey;
+                      //先删除旧secretKey，然后再更新，避免重复
+                     //  secretKey = secretKey.filter(e => !(value as secretKey[]).map((e2) => e2.key).includes(e.key));
+                     //                      secretKey = secretKey.concat(value as secretKey[]);
+                     //                      service["secretKey"] = secretKey;
+                    } else {
+                      accounts.push(...(value));
+                    }
+                  }
+                  //同步百度秘钥
+                  serviceManage.syncBaiduSecretKey(serviceID);
+                } else {
+                  updateServiceProperty(service, property, value as any);
+                }
+              };
+            };
+          };
+          break;
+        //返回清理后的翻译引擎总对象
+        case "delete":
+          return (serviceID: string) => {
+            delete services[serviceID];
+          };
+          break;
+        case "saveAll":
+          //setPref('servicesPref', JSON.stringify(services));
+          saveJsonToDisk(services, servicesFilename);
+          break;
+        default:
+          break;
+      }
+    } */
 
   /**
    * 百度和修改版百度秘钥相等
@@ -665,6 +680,7 @@ export function getServicesInfo() {
  */
 export async function getSingleServiceUnderUse() {
   let serialNumber = await getCurrentServiceSN();
+
   if (serialNumber === false) {
     const serviceOne = (await getAvilabelService("all"))!;
     serialNumber = serviceOne.serialNumber;
