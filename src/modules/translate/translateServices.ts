@@ -39,17 +39,6 @@ export async function servicesToDB(keys: string[], parasArr: any[]) {
     }
     return services;
 }
-
-
-
-
-
-
-
-
-
-
-
 export interface ServiceMap {
     [serviceID: string]: TranslateService;
 }
@@ -182,6 +171,11 @@ export async function loadServiceFromDB(serviceID: string) {
     options.serviceID = serviceID;
     const limit = await getLimit(serviceID);
     Zotero.Utilities.Internal.assignProps(options, limit);
+    const setting = await getSetting(serviceID);
+    if (setting) {
+        Zotero.Utilities.Internal.assignProps(options, setting);
+    }
+
     const commonProperty = await getCommonProperty(serviceID);
     if (!commonProperty) return;
     Zotero.Utilities.Internal.assignProps(options, commonProperty);
@@ -209,6 +203,16 @@ async function getLimit(serviceID: string) {
     const sqlColumns = ["QPS", "charasPerTime", "limitMode", "charasLimit", "configID"];
     const conditionField = "serviceID";
     return await getObjectFromDB(sqlColumns, tableName, conditionField, serviceID);
+}
+
+async function getSetting(serviceID: string) {
+    const DB = await getDB();
+    const sql = `SELECT key, value FROM settings WHERE setting = '${serviceID}'`;
+    const rows = await DB.queryAsync(sql);
+    if (!rows) return;
+    const keys = rows.map((row: any) => row["key"]);
+    const values = rows.map((row: any) => row["value"]);
+    return arrToObj(keys, values);
 }
 
 async function getObjectFromDB(sqlColumns: string[], tablename: string, conditionField: string, conditionFieldValue: string) {

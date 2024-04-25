@@ -5,6 +5,26 @@ import { encryptByAESKey, encryptState, getTableBySN } from '../crypto';
 import { getDB, getDBSync } from '../database/database';
 import { getSingleServiceUnderUse } from './serviceManage';
 
+
+//Zotero.extendClass(DataObject, TranslateServiceItem);
+export declare type options = {
+  serviceID: string,
+  charasPerTime: number,
+  QPS: number,
+  limitMode: string,
+  charasLimit: number,
+  supportMultiParas: boolean | number,
+  hasSecretKey: boolean | number,
+  hasToken: boolean | number,
+  //secretKeys?: SecretKey[],
+  //accessTokens?: AccessToken[],
+  accounts?: TranslateServiceAccount[],
+  forbidden?: boolean | number,
+  serialNumber?: number,
+  configID?: number | undefined,
+
+};
+
 //todo 百度修改版共享百度信息
 export class TranslateServiceAccount {
   serialNumber: number;
@@ -204,24 +224,6 @@ export class TranslateServiceAccount {
 
 
 }
-//Zotero.extendClass(DataObject, TranslateServiceItem);
-export declare type options = {
-  serviceID: string,
-  charasPerTime: number,
-  QPS: number,
-  limitMode: string,
-  charasLimit: number,
-  supportMultiParas: boolean | number,
-  hasSecretKey: boolean | number,
-  hasToken: boolean | number,
-  //secretKeys?: SecretKey[],
-  //accessTokens?: AccessToken[],
-  accounts?: TranslateServiceAccount[],
-  forbidden?: boolean | number,
-  serialNumber?: number,
-  configID?: number | undefined,
-
-};
 
 
 export class TranslateService {
@@ -255,6 +257,11 @@ export class TranslateService {
   saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
   savePromise?: Promise<any>;
   totalCharConsum?: number;
+  field?: string;
+  region?: string;
+  projectID?: string;
+  vocabid?: string;
+
 
   constructor(options: {
     serviceID: string,
@@ -271,6 +278,10 @@ export class TranslateService {
     charasLimitFactor?: number,
     configID?: number | undefined,
     dateMarker?: string | undefined,
+    field?: string | undefined,
+    region?: string | undefined,
+    projectID?: string | undefined,
+    vocabid?: string | undefined,
 
   }
 
@@ -290,6 +301,10 @@ export class TranslateService {
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
     this.configID = options.configID || 0;
+    this.field = options.field;
+    this.region = options.region;
+    this.projectID = options.projectID;
+    this.vocabid = options.vocabid;
     this.charasLimitFactor = options.charasLimitFactor || 1.0;
     this.serviceTypeID = this.getServiceTypeID();
 
@@ -304,7 +319,7 @@ export class TranslateService {
   getServiceTypeID(serviceType?: string) {
     const objectType = ["item", "collection", "dataObject", "search", "feedItem"];
     const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
-    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplpro", "deeplcustom", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao",];
+    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplpro", "deeplcustom", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao", "chatgpt", "azuregpt", "gemini", "aliyun"];
     const ocrServices = ["baiduOCR"];
     const ocrTranslateServices = ["baiduPictureTranslate"];
     const languageIdentificationServices = [""];
@@ -347,6 +362,12 @@ export class TranslateService {
         case "charConsum":
           tableName = 'charConsum';
           break;
+        case "field":
+        case "region":
+        case "projectID":
+        case "vocabid":
+          tableName = 'settings';
+          break;
         case "dateMarker":
           tableName = 'charConsum';
           break;
@@ -370,8 +391,14 @@ export class TranslateService {
           break;
       }
       if (tableName == "") continue;
-      const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
-      sqls.push(sql);
+      if (tableName == "settings") {
+        const sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', '${this.changedData[key]}')`;
+        sqls.push(sql);
+      } else {
+        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
+        sqls.push(sql);
+      }
+
 
     }
     const DB = await getDB();

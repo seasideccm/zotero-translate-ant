@@ -238,7 +238,7 @@ async function buildPrefsPane() {
             } else {
               hidden();
             }
-
+            addField(serviceID);
           },
         },
       ],
@@ -254,59 +254,98 @@ async function buildPrefsPane() {
     doc.querySelector(`#${makeId("serviceID-placeholder")}`)!,
   );
 
-  ztoolkit.UI.replaceElement(
-    {
-      tag: "menulist",
-      id: makeId("limitMode"),
+  function limit() {
+    const limitModes = ["daily", "month", "total", "noLimit", "pay"];
+    const limitModeChildPro = limitModes.map(mode => ({
+      tag: "menuitem",
+      namespace: "xul",
       attributes: {
-        value: '',
-        native: "true",
-      },
-      children: [
-        {
-          tag: "menupopup",
-          children: [
-            {
-              tag: "menuitem",
-              attributes: {
-                label: getString("pref-limitMode-daily"),
-                value: "daily",
-              },
-            },
-            {
-              tag: "menuitem",
-              attributes: {
-                label: getString("pref-limitMode-month"),
-                value: "month",
-              },
-            },
-            {
-              tag: "menuitem",
-              attributes: {
-                label: getString("pref-limitMode-total"),
-                value: "total",
-              },
-            },
-            {
-              tag: "menuitem",
-              attributes: {
-                label: getString("pref-limitMode-noLimit"),
-                value: "noLimit",
-              },
-            },
-            {
-              tag: "menuitem",
-              attributes: {
-                label: getString("pref-limitMode-pay"),
-                value: "pay",
-              },
-            },
-          ]
+        label: getString("pref-limitMode-" + mode),
+        value: mode,
+      }
+    }));
+
+    ztoolkit.UI.replaceElement(
+      {
+        tag: "menulist",
+        id: makeId("limitMode"),
+        attributes: {
+          value: '',
+          native: "true",
         },
-      ],
-    },
-    doc.querySelector(`#${makeId("limitMode-placeholder")}`)!
-  );
+        children: [
+          {
+            tag: "menupopup",
+            children: limitModeChildPro,
+          }
+        ]
+      },
+      getDom("limitMode-placeholder")!
+    );
+  }
+  limit();
+
+  async function addField(serviceID: string) {
+    const box = getDom("fieldsBox") as XUL.Box;
+    if (!serviceID.includes("baidufield")) {
+      if (box) box.hidden = true;
+
+      return;
+    }
+    if (box) {
+      box.hidden = false;
+      return;
+    }
+    const fields = ["senimed", "it", "finance", "machinery", "novel", "academic", "aerospace", "wiki", "news", "law", "contract"];
+    const childPro = fields.map(field => ({
+      tag: "menuitem",
+      namespace: "xul",
+      attributes: {
+        label: getString("pref-" + field),
+        value: field,
+      }
+    }));
+    ztoolkit.UI.insertElementBefore(
+      {
+        tag: "hbox",
+        id: makeId("fieldsBox"),
+        namespace: "xul",
+        children: [
+          {
+            tag: "label",
+            namespace: "xul",
+            attributes: {
+              value: getString("info-field"),
+            },
+          },
+          {
+            tag: "menulist",
+            id: makeId("fields"),
+            attributes: {
+              value: '',
+              native: "true",
+            },
+            children: [
+
+              {
+                tag: "menupopup",
+                children: childPro,
+              },
+            ],
+          }
+        ]
+      }
+      ,
+      getDom("QPS")!.parentElement!
+    );
+    const field = (getDom("fields") as XUL.MenuList).value;
+    if (field != "") {
+      const services = await getServices();
+      const service = services[serviceID as keyof typeof services];
+      await updateServiceData(service, "field", field);
+    }
+
+  }
   await updateLimits();
   async function updateLimits() {
     const elementService = getDom("serviceID") as XUL.MenuList;

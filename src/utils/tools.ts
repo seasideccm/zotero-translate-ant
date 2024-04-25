@@ -516,6 +516,21 @@ function isDiffer(array1: any[], array2: any[]) {
 }
 
 /**
+ * 对象数组，不同返回 true
+ * @param arr1 
+ * @param arr2 
+ * @returns 
+ */
+export function objArrDiffer(arr1: any[], arr2: any[]) {
+  for (let i = 0; i < arr1.length; i++) {
+    if (differObject(arr1[i], arr2[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * 交集
  * @param a 
  * @param b 

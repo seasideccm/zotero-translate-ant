@@ -1,5 +1,5 @@
 import { ColumnOptions, VirtualizedTableHelper } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { arrToObj, arrsToObjs, batchListen, chooseDirOrFilePath, deepClone, differObject, showInfo } from "../../utils/tools";
+import { arrToObj, arrsToObjs, batchListen, chooseDirOrFilePath, deepClone, differObject, objArrDiffer, showInfo } from "../../utils/tools";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
 import { ContextMenu } from "./contextMenu";
@@ -9,6 +9,7 @@ import { ServiceMap, deleteAcount, getNextServiceSNSync, getSerialNumberSync, ge
 import { DEFAULT_VALUE, EmptyValue, } from '../../utils/constant';
 import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from '../crypto';
 import { getPref } from "../../utils/prefs";
+import { getSettingValue, setSettingValue } from "../addonSetting";
 
 
 
@@ -1222,21 +1223,33 @@ export async function priorityWithKeyTable() {
 
 
     async function serviceWithKeyRowsData() {
+        //let rows= getRowsByOrderFromDB(hasKey:Boolean)
+        const settingValue = await getSettingValue("servicesWithKeyByOrder", "services");
+        if (settingValue) return JSON.parse(settingValue);
         const rows = Object.values(services).filter(e => e.accounts && e.accounts.length)
             .map(e2 => ({
                 serviceID: e2.serviceID,
                 locale: getString(`service-${e2.serviceID}`),
                 forbidden: e2.forbidden !== undefined ? getString(`forbidden-${String(e2.forbidden)}`) : getString("forbidden-false"),
             }));
+        const value = JSON.stringify(rows);
+        await setSettingValue("servicesWithKeyByOrder", value, "services");
         return rows;
     }
+
+
 
     function handleGetRowString(index: number) {
         return getRowString(rows, index, tableTreeInstance);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-        priorityKeyDown(event, rows, tableTreeInstance, services).then((res) => {
+        const oldRows = [...rows];
+        priorityKeyDown(event, rows, tableTreeInstance, services).then(async (res) => {
+            if (objArrDiffer(oldRows, rows)) {
+                const value = JSON.stringify(rows);
+                await setSettingValue("servicesWithKeyByOrder", value, "services");
+            }
             return res;
         });
         return true;
@@ -1253,7 +1266,7 @@ export async function priorityWithoutKeyTable() {
     const containerId = `${config.addonRef}-table-servicePriorityWithoutKey`;
     if (getDom(containerId)) return;
     const services = await getServices();
-    const rows: any[] = getRowsData() || [];
+    const rows: any[] = await getWithoutKeyRowsData() || [];
     if (!rows || rows.length == 0) return;
 
     //props
@@ -1285,13 +1298,17 @@ export async function priorityWithoutKeyTable() {
     tableTreeInstance.rows = rows;
 
 
-    function getRowsData() {
+    async function getWithoutKeyRowsData() {
+        const settingValue = await getSettingValue("servicesWithoutKeyByOrder", "services");
+        if (settingValue) return JSON.parse(settingValue);
         const rows = Object.values(services).filter(e => !e.hasSecretKey && !e.hasToken)
             .map(e2 => ({
                 serviceID: e2.serviceID,
                 locale: getString(`service-${e2.serviceID}`),
                 forbidden: e2.forbidden !== undefined ? getString(`forbidden-${String(e2.forbidden)}`) : getString("forbidden-false"),
             }));
+        const value = JSON.stringify(rows);
+        await setSettingValue("servicesWithoutKeyByOrder", value, "services");
         return rows;
     }
 
@@ -1299,14 +1316,22 @@ export async function priorityWithoutKeyTable() {
         return getRowString(rows, index, tableTreeInstance);
     }
     function handleKeyDown(event: KeyboardEvent) {
-        priorityKeyDown(event, rows, tableTreeInstance, services).then((res) => {
+        const oldRows = [...rows];
+        priorityKeyDown(event, rows, tableTreeInstance, services).then(async (res) => {
+            if (objArrDiffer(oldRows, rows)) {
+                const value = JSON.stringify(rows);
+                await setSettingValue("servicesWithoutKeyByOrder", value, "services");
+            }
+
             return res;
         });
         return true;
+
     }
 
 
 }
+
 
 
 export async function tableFactory({ win, containerId, props }: TableFactoryOptions) {
@@ -1438,6 +1463,7 @@ function kvArrsToObject(keys: string[]) {
 
 async function priorityKeyDown(event: KeyboardEvent, rows: any[], tableTreeInstance: any, services: ServiceMap) {
     //return返回的是控制默认按键功能是否启用
+
     if (event.key == "Delete" || event.key == "Backspace" || (Zotero.isMac && event.key == "Backspace")) {
         //获取要禁用的行数据，
         const rowDataForbidden = rows.filter(
@@ -1496,8 +1522,9 @@ async function priorityKeyDown(event: KeyboardEvent, rows: any[], tableTreeInsta
         );
         tableTreeInstance.invalidate();
     }
-
     return true;
+
+
 }
 
 export async function readTextFiles(filePaths?: string[]) {

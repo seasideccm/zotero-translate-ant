@@ -44,12 +44,7 @@ export const parasArrTranslateService = [
 // ["xftrans", 5000, 40, "total", 0, false, true, false,],
 
 //有新增时加入 example:= [["tencent", 2000, 5, "month", 5000000, true, true, false,]];
-export const parasArrTranslateServiceAdd = [
-  ["chatgpt", 1000, 60, "pay", 0, false, true, false,],
-  ["azuregpt", 1000, 60, "pay", 0, false, true, false,],
-  ["gemini", 1000, 40, "pay", 0, false, true, false,],
-  ["aliyun", 5000, 50, "month", 1000000, false, true, false,],
-];
+export const parasArrTranslateServiceAdd = [];
 
 export const syncConfig = {
   SYNC_ITEM_TITLE_PREFIX: "sqliteDatabase",

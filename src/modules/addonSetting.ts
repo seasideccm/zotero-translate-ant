@@ -123,6 +123,19 @@ export async function setSettingValue(keyName: string, setValue: string | number
     });
 }
 
+
+
+export async function getServicesOrder(hasKey: boolean = true) {
+    const keyName = hasKey ? "servicesWithKeyByOrder" : 'servicesWithoutKeyByOrder';
+    const settingValue = await getSettingValue(keyName, "services");
+    if (settingValue) {
+        const rows = JSON.parse(settingValue);
+        const serviceIDs = rows.map((row: any) => row.serviceID);
+        return serviceIDs as string[];
+    }
+
+}
+
 export async function getSettingValue(keyName: string, settingType: string = "addon") {
     const DB = await getDB();
     if (!DB) return;

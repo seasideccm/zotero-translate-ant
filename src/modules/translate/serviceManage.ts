@@ -1,4 +1,4 @@
-import { saveJsonToDisk, showInfo } from "../../utils/tools";
+import { showInfo } from "../../utils/tools";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
@@ -7,12 +7,10 @@ import {
   getPref,
   getServiceInfoPDFTranslate,
   setPluginsPref,
-  setPref,
 } from "../../utils/prefs";
-import { getCharasLimit, getSerialNumber, getServiceBySN, getServices } from "./translateServices";
-import { getCurrentServiceSN, setCurrentService } from "../addonSetting";
-import { decryptByAESKey, encryptState } from "../crypto";
-import { getDom } from "../ui/uiTools";
+import { getCharasLimit, getServiceBySN, getServices } from "./translateServices";
+import { getCurrentServiceSN, getServicesOrder, getSettingValue } from "../addonSetting";
+import { decryptByAESKey } from "../crypto";
 import { updateServiceData } from "../ui/tableSecretKeys";
 
 
@@ -24,10 +22,72 @@ const secretKeyHasSwitched: string[] = [];
 export class serviceManage {
 
 
+  static async secretKeyForPDFTranslate(account: TranslateServiceAccount) {
+    const keyStr = account.secretKey || account.token;
+    if (!keyStr) return;
+    const secretKeyFormat = {
+      niutranspro: 1,
+      caiyun: 1,
+      microsoft: 1,
+      deeplfree: 1,
+      deeplpro: 1,
+      deeplcustom: 1,
+      aliyun: 2,
+      baiduModify: 2,
+      baidu: 2,
+      baidufield: 3,//20201001000577901#jQMdyV80ouaYBnjHXNKs#medicine
+      baidufieldModify: 3,
+      tencent: 4,//secretId#SecretKey#Region(default ap-shanghai)#ProjectId(default 0)
+      youdaozhiyun: 5,//appid#appsecret#vocabid(optional)
+    };
+    const secretKeyType = {
+      KEY: 1,
+      APPID_KEY: 2,
+      APPID_KEY_FIELD: 3,
+      APPID_KEY_REGION_PROJECTID: 4,
+      APPID_KEY_VOCABID: 5,
+    };
 
+    const secretKey = await decryptKey(keyStr);
+    const type = secretKeyFormat[account.serviceID as keyof typeof secretKeyFormat];
+    const services = await getServices();
+    const service = services[account.serviceID];
+    if (type == void 0) return;
+    const tempArr = [account.appID, secretKey];
+    switch (type) {
+      case secretKeyType.KEY:
+        tempArr.shift();
+        break;
+      case secretKeyType.APPID_KEY:
+        break;
+      case secretKeyType.APPID_KEY_FIELD:
+        if (service.field) tempArr.push(service.field);
+        break;
+      case secretKeyType.APPID_KEY_REGION_PROJECTID:
+        if (service.region) tempArr.push(service.region);
+        if (service.projectID) tempArr.push(service.projectID);
+        break;
+      case secretKeyType.APPID_KEY_VOCABID:
+        if (service.vocabid) tempArr.push(service.vocabid);
+        break;
+    }
+    return tempArr.join("#");
+  }
   static async serviceAvailableCheck(service: TranslateService | TranslateServiceAccount, serialNumber?: string | number) {
     if (service instanceof TranslateService && service.limitMode && service.limitMode == "noLimit") {
       return true;
+    }
+    if (["gemini", "azuregpt", "chatgpt"].includes(service.serviceID)) {
+      await this.switchServiceID(service.serviceID, plugin);
+      if (service instanceof TranslateServiceAccount) {
+        const keyStr = service.secretKey || service.token;
+        if (keyStr) {
+          const keyUsing = await decryptKey(keyStr);
+          await this.switchServiceKey(keyUsing, plugin, service.serviceID);
+        }
+      }
+      const result = await Zotero.PDFTranslate.api.translate("hello");
+
     }
     const services = await getServices();
     if (service instanceof TranslateServiceAccount) {
@@ -222,54 +282,31 @@ export class serviceManage {
    */
   static async onSwitch(isPreferredSameService?: boolean) {
     if (!isPreferredSameService) isPreferredSameService = getPref("isPreferredSameService") as boolean;
-    const secretKeyFormat = {
-      baidu: 2,
-      baidufield: 3,
-      baidufieldModify: 3,
-      baiduModify: 2,
-      niutranspro: 1,
-      caiyun: 1,
-      youdaozhiyun: 3,
-      deeplfree: 1,
-      deeplpro: 1,
-      deeplcustom: 1,
-      microsoft: 1,
-      tencent: 4,//secretId#SecretKey#Region(default ap-shanghai)#ProjectId(default 0)
-    };
-    const secretKeyType = {
-      KEY: 1,
-      APPID_KEY: 2,
-      APPID_KEY_FIELD: 3,
-      APPID_KEY_REGION_PROJECTID: 4,
-
-    };
-
     const service = await getSingleServiceUnderUse();
-    if (!service) return false;
-    if (await this.serviceAvailableCheck(service)) {
+    if (!service) {
+      const info = "无可用引擎和账号";
+      showInfo(info);
+      throw info;
+    }
+    if (!await this.serviceAvailableCheck(service)) {
+      //getAvilabelService()
+      //switchOne()
+    }
 
-
-      const IDUsing = service.serviceID;
-
-      //如果 PDFTranslate 账号与当前不一致，则设置为当前账号
-      const serviceInfoPDFTranslate = getServiceInfoPDFTranslate();
-      let keyUsing: string | undefined;
-      if (IDUsing != serviceInfoPDFTranslate.serviceID) {
-        if (service instanceof TranslateServiceAccount) {
-          const keyStr = service.secretKey || service.token;
-          if (keyStr) keyUsing = await decryptKey(keyStr);
-        }
-        await this.switchServiceKey(keyUsing, plugin, IDUsing);
-        return true;
-      }
-      let keyPDFTranslate = serviceInfoPDFTranslate.key;
-      if (keyPDFTranslate) {
-        const strs = keyPDFTranslate.split("#");
-        if (strs.length > 1) keyPDFTranslate = strs[1];
-        if (keyUsing && keyPDFTranslate != keyUsing) {
-          await this.switchServiceKey(keyUsing, plugin, IDUsing);
-          return true;
-        }
+    //如果 PDFTranslate 账号与当前设置不一致，予以切换账号
+    const IDUsing = service.serviceID;
+    let keyUsing;
+    const serviceInfoPDFTranslate = getServiceInfoPDFTranslate();
+    const keyPDFTranslate = serviceInfoPDFTranslate.key;
+    let result;
+    if (IDUsing != serviceInfoPDFTranslate.serviceID) {
+      result = await this.switchServiceID(IDUsing, plugin);
+    }
+    // 如果 PDFTranslate 秘钥与当前设置不一致，予以切换秘钥
+    if (service instanceof TranslateServiceAccount) {
+      keyUsing = await this.secretKeyForPDFTranslate(service);
+      if (keyUsing && keyPDFTranslate && keyUsing != keyPDFTranslate) {
+        result = await this.switchServiceKey(keyUsing, plugin, IDUsing);
       }
     }
 
@@ -282,11 +319,12 @@ export class serviceManage {
 
     let servicesHasKeyUsable: TranslateService[] = [];
     const services = await getServices();
+    // 允许付费时可用的引擎（需要秘钥）
     //允许付费则忽略 secretKey 的 usable 和已经轮换过的秘钥
     servicesHasKeyUsable = Object.values(services).filter(
       (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
     );
-
+    // 禁用付费时可用的引擎（需要秘钥）
     if (!getPref("isPay")) {
       const temp = [];
       const acountsUsable = [];
@@ -303,11 +341,9 @@ export class serviceManage {
         }
       }
       servicesHasKeyUsable = temp;
-
     }
 
-
-
+    // 无秘钥引擎
     let servicesNoKeyUsable = Object.values(services).filter(
       (element) =>
         !element.hasSecretKey && !element.hasToken &&
@@ -315,23 +351,24 @@ export class serviceManage {
         //目的主要是避免死循环
         !serviceIDHasSwitched?.includes(element.serviceID),
     );
-    if (getPref("isPriority") && servicePriorityWithKey.length) {
+    // 带秘钥引擎按优先顺序排列
+    const servicePriorityWithKey = await getServicesOrder();
+    if (getPref("isPriority") && servicePriorityWithKey && servicePriorityWithKey.length) {
       servicesHasKeyUsable = servicePriorityWithKey.map(
         (e) => servicesHasKeyUsable.filter((e2) => e2.serviceID == e)[0],
       );
     }
-    if (getPref("isPriority") && servicePriorityWithoutKey.length) {
+    // 无秘钥引擎按优先顺序排列
+    const servicePriorityWithoutKey = await getServicesOrder(false);
+    if (getPref("isPriority") && servicePriorityWithoutKey && servicePriorityWithoutKey.length) {
       servicesNoKeyUsable = servicePriorityWithoutKey.map(
         (e) => servicesNoKeyUsable.filter((e2) => e2.serviceID == e)[0],
       );
     }
-    const servicesPriorityArr: string[] = [];
+
     //优先更换同一翻译引擎的不同秘钥
-    if (
-      isPreferredSameService &&
-      servicesHasKeyUsable.filter((e) => e.serviceID.includes(service.serviceID))
-        .length
-    ) {
+
+    if (isPreferredSameService && servicesHasKeyUsable.filter((e) => e.serviceID.includes(service.serviceID)).length) {
       const accountFilters = [];
       const accounts = services[service.serviceID].accounts;
       if (!accounts || !accounts.length) return;
@@ -341,24 +378,25 @@ export class serviceManage {
         if (!account.usable || account.forbidden) continue;
         if (keyStr && keyStr == key) continue;
         accountFilters.push(account);
-        //secretKeyArr.push(account.appID + "#" + key);
       }
       const account = accountFilters.filter(e => e)[0];
       if (account) {
         const key = account.secretKey || account.token;
         if (key) {
-          let secretKey = await decryptKey(key);
-          secretKey = account.appID + "#" + secretKey;
+          const secretKey = await this.secretKeyForPDFTranslate(account);
           await this.switchServiceKey(secretKey, plugin, account.serviceID);
           secretKeyHasSwitched.push(key);
           return true;
         }
+      } else {
+        showInfo("当前引擎无其他可用账号，切换为其他引擎");
       }
     }
 
     //更换翻译引擎
     let useArr: TranslateService[] = [];
     if (getPref("isPreferredHasSecretKey")) {
+      // 优先选择带秘钥的引擎
       if (servicesHasKeyUsable.length) {
         useArr = servicesHasKeyUsable;
       } else {
@@ -368,33 +406,13 @@ export class serviceManage {
       useArr = servicesNoKeyUsable.concat(servicesHasKeyUsable);
     }
     if (!useArr.length) {
+      showInfo("无可用引擎");
       return false;
     }
     useArr = useArr.filter((e) => e.serviceID != service.serviceID);
-    let serviceID = "";
-    if (servicesPriorityArr.length) {
-      for (const item of servicesPriorityArr) {
-        Object.values(useArr).map((e) => {
-          if (e.serviceID == item) {
-            serviceID = item;
-          }
-        });
-        if (serviceID != "") {
-          //不为空即这轮匹配到了，终止循环后继续
-          break;
-        }
-      }
-    } else {
-      //优选修改版引擎
-      let serviceID;
-      const modifyServiceIDArr = useArr.filter((e) => e.serviceID.includes("Modify"));
-      if (modifyServiceIDArr.length) {
-        serviceID = modifyServiceIDArr[0];
-      } else {
-        serviceID = useArr[0].serviceID;
-      }
-    }
-    if (serviceID != "" && serviceID !== undefined && serviceID != null) {
+    const serviceSingle = useArr[0];
+    const serviceID = serviceSingle.serviceID;
+    if (serviceID && serviceID != "") {
       await this.switchServiceID(serviceID, plugin);
       serviceIDHasSwitched.push(service.serviceID);
     } else {
@@ -403,10 +421,10 @@ export class serviceManage {
 
     // 如果有秘钥，予以更换
     let account;
-    const accs = useArr[0].accounts;
+    const accs = serviceSingle.accounts;
     if (accs && accs.length) {
       for (const a of accs) {
-        if (!a.usable) continue;
+        if (!a.usable || a.forbidden) continue;
         const key = a.secretKey || a.token;
         if (key && keyStr && keyStr != key) {
           account = a;
@@ -419,8 +437,7 @@ export class serviceManage {
     if (account) {
       const key = account.secretKey || account.token;
       if (key) {
-        let secretKey = await decryptKey(key);
-        secretKey = account.appID + "#" + secretKey;
+        const secretKey = await this.secretKeyForPDFTranslate(account);
         await this.switchServiceKey(secretKey, plugin, account.serviceID);
         secretKeyHasSwitched.push(key);
         return true;
@@ -442,15 +459,14 @@ export class serviceManage {
       return;
     }
     const keyField = "translateSource";
-    setPluginsPref(plugin, keyField, serviceID);
+    const result = setPluginsPref(plugin, keyField, serviceID);
     if (Zotero.PDFTranslate.data.alive) {
       Zotero.PDFTranslate.hooks.onReaderTabPanelRefresh();
     }
-    const service = await getSingleServiceUnderUse();
-    if (!service) return;
     showInfo(
-      getString("info-switchServiceID") + service.serviceID,
+      getString("info-switchServiceID") + serviceID,
     );
+    return true;
   }
 
   static switchTranslateLang(langFrom: string, langTo: string) {
@@ -784,7 +800,7 @@ export async function getAvilabelService(type: "hasSN" | "noSN" | "all") {
   serviceManage.mergeAndRemoveDuplicates(serviceID);
 } */
 
-let servicePriorityWithKey: string[] = [];
+/* let servicePriorityWithKey: string[] = [];
 let servicePriorityWithoutKey: string[] = [];
 let spw = [];
 let spwo = [];
@@ -805,7 +821,11 @@ if (spwo.length) {
   servicePriorityWithoutKey = spwo;
 }
 export { servicePriorityWithKey };
-export { servicePriorityWithoutKey };
+export { servicePriorityWithoutKey }; */
+
+
+
+
 
 
 
