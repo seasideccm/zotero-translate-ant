@@ -222,6 +222,27 @@ export class serviceManage {
    */
   static async onSwitch(isPreferredSameService?: boolean) {
     if (!isPreferredSameService) isPreferredSameService = getPref("isPreferredSameService") as boolean;
+    const secretKeyFormat = {
+      baidu: 2,
+      baidufield: 3,
+      baidufieldModify: 3,
+      baiduModify: 2,
+      niutranspro: 1,
+      caiyun: 1,
+      youdaozhiyun: 3,
+      deeplfree: 1,
+      deeplpro: 1,
+      deeplcustom: 1,
+      microsoft: 1,
+      tencent: 4,//secretId#SecretKey#Region(default ap-shanghai)#ProjectId(default 0)
+    };
+    const secretKeyType = {
+      KEY: 1,
+      APPID_KEY: 2,
+      APPID_KEY_FIELD: 3,
+      APPID_KEY_REGION_PROJECTID: 4,
+
+    };
 
     const service = await getSingleServiceUnderUse();
     if (!service) return false;
