@@ -13,6 +13,7 @@ import { getCharasLimit, getSerialNumber, getServiceBySN, getServices } from "./
 import { getCurrentServiceSN, setCurrentService } from "../addonSetting";
 import { decryptByAESKey, encryptState } from "../crypto";
 import { getDom } from "../ui/uiTools";
+import { updateServiceData } from "../ui/tableSecretKeys";
 
 
 
@@ -25,117 +26,130 @@ export class serviceManage {
 
 
   static async serviceAvailableCheck(service: TranslateService | TranslateServiceAccount, serialNumber?: string | number) {
+    if (service instanceof TranslateService && service.limitMode && service.limitMode == "noLimit") {
+      return true;
+    }
+    const services = await getServices();
+    if (service instanceof TranslateServiceAccount) {
+      const serviceParent = services[service.serviceID];
+      if (serviceParent.limitMode && serviceParent.limitMode == "noLimit")
+        return true;
+    }
+
     const date = new Date();
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-    const currentDay = formatter.format(date);//'04/20/2024'
-    const reg = /^\d{2}/m;
+    //const formatter = new Intl.DateTimeFormat("en-US", {
+    //  day: "2-digit",
+    //  month: "2-digit",
+    //  year: "numeric",
+    //});
+    const currentDay = Zotero.Date.dateToSQL(date, false);//"2024-04-25 08:09:30" 
     const currentMonth = date.getMonth() + 1;
-
-
+    const today = date.getDate();
     const serviceID = service.serviceID;
-
     if (service instanceof TranslateService && !service.accounts) {
       if (service.charasLimit == 0) return true;
-      if (service.charConsum && service.charConsum > getCharasLimit(service)) return false;
-      return true;
+      if (service.charConsum && service.charConsum > getCharasLimit(service)) {
+        service["usable"] = 0;
+      }
+      else {
+        service["usable"] = 1;
+      }
+      await updateServiceData(service, "usable", service["usable"]);
+      return service["usable"];
     }
     let singleAccount;
     if (service instanceof TranslateService && service.accounts && serialNumber) {
       singleAccount = await getServiceBySN(serialNumber);
     }
+    if (service instanceof TranslateService && service.accounts) {
+      singleAccount = service.accounts[0];
+    }
     if (service instanceof TranslateServiceAccount) singleAccount = service;
-    if (!singleAccount || singleAccount instanceof TranslateService) {
-      return;
+    if (!singleAccount) {
+      return false;
     }
-    const services = await getServices();
-    const usableOld = singleAccount.usable;
     const limitMode = services[serviceID].limitMode;
-    let factor = Number(getPref("charasLimitFactor"));
-    if (isNaN(factor)) {
-      factor = 0.9;
-    }
-    let charasLimit = services[serviceID].charasLimit;
-    if (factor != undefined) {
-      charasLimit = services[serviceID].charasLimit * factor;
-    }
     if (limitMode == "pay" || limitMode == "noLimit") {
       singleAccount.usable = true;
+      await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
       return true;
     }
+
+    const charasLimit = getCharasLimit(services[singleAccount.serviceID]);
+
     if (limitMode == "total") {
-      if (singleAccount.charConsum - 100 > charasLimit) {
-        singleAccount.usable = false;
+      if (singleAccount.totalCharConsum && singleAccount.totalCharConsum - 100 > charasLimit) {
+        singleAccount.usable = 0;
       } else {
-        singleAccount.usable = true;
+        singleAccount.usable = 1;
       }
+      await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
+      return singleAccount.usable;
     }
-    if (limitMode == "daily" || limitMode == "month") {
-      if (
-        singleAccount.dateMarker === undefined ||
-        typeof singleAccount.dateMarker != "string" ||
-        singleAccount.dateMarker.length <= 2
-      ) {
-        //日期标志错误或未定义
-        singleAccount.dateMarker = currentDay;
-      }
+    if (!singleAccount.dateMarker) {
+      //日期标志错误或未定义
+      singleAccount.dateMarker = currentDay;
+      await updateServiceData(singleAccount, "dateMarker", singleAccount["dateMarker"]);
+      return true;
     }
     if (limitMode == "month") {
-      let thisMonthMarker;
-      let date;
-      let month;
-      if (!singleAccount.dateMarker) {
-        singleAccount.dateMarker = currentDay;
-        thisMonthMarker = currentMonth;
-        return true;
-      }
-      if (Zotero.Date.isSQLDateTime(singleAccount.dateMarker)) {
-        date = Zotero.Date.sqlToDate(singleAccount.dateMarker, false);// isUTC 设为 false不加 8 ，与 sqlite 一致
-        if (date)
-          month = date.getMonth() + 1;
-        if (month)
-          thisMonthMarker = month;
-      }
-      //const temp = String(singleAccount.dateMarker!).match(reg);
-      /* if (temp != null) {
-        thisMonthMarker = temp[0].replace("0", "");
-      } else {
-        singleAccount.dateMarker = currentDay;
-        thisMonthMarker = currentMonth;
-      } */
+      const month = dayOrMonth(singleAccount.dateMarker, "month");
       //跨越记账时间段则自动重置额度
-      if (thisMonthMarker && thisMonthMarker != currentMonth) {
+      if (month && month != currentMonth) {
         //重置时间标志
-        singleAccount.dateMarker = currentDay;
-        singleAccount.charConsum = 0;
+        await reset(singleAccount);
+        return true;
       }
     }
     if (limitMode == "daily") {
-      if (singleAccount.dateMarker != currentDay) {
+      const day = dayOrMonth(singleAccount.dateMarker, "day");
+      if (day && day != today) {
         //重置时间标志
-        singleAccount.dateMarker = currentDay;
-        singleAccount.charConsum = 0;
+        await reset(singleAccount);
+        return true;
       }
     }
-    if (singleAccount.charConsum - 100 > charasLimit) {
-      singleAccount.usable = false;
+    if (singleAccount.charConsum && singleAccount.charConsum - 100 > charasLimit) {
+      singleAccount.usable = 0;
     } else {
-      singleAccount.usable = true;
+      singleAccount.usable = 1;
     }
-
-    const usableNew = singleAccount.usable;
-    if (usableOld != usableNew) {
-      singleAccount.changedData.usable = singleAccount.usable;
-      await singleAccount.save();
-    }
-
-    //updateSingleSecretKey(singleAccount, serviceID);
-    // 百度修改版 直接调用百度账号信息
-    //serviceManage.syncBaiduSecretKey(serviceID);
+    await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
     return singleAccount.usable;
+
+    function dayOrMonth(dateMarker: string, type: "day" | "month") {
+      let date;
+      let month;
+      let day;
+      let result;
+      if (Zotero.Date.isSQLDateTime(dateMarker) || Zotero.Date.isSQLDate(dateMarker, false)) {
+        date = Zotero.Date.sqlToDate(dateMarker, false);// isUTC 设为 false不加 8 ，与 sqlite 一致
+        if (date) {
+          month = date.getMonth() + 1;
+          day = date.getDate();
+        }
+      } else {
+        const tempDate = Zotero.Date.strToDate(dateMarker);
+        //@ts-ignore xxx
+        month = tempDate.month + 1;
+        //@ts-ignore xxx
+        day = tempDate.day;
+      }
+      if (type == "month") {
+        return month;
+      } else {
+        return day;
+      }
+    }
+
+    async function reset(singleAccount: TranslateService | TranslateServiceAccount) {
+      singleAccount.dateMarker = currentDay;
+      singleAccount.charConsum = 0;
+      singleAccount.usable = true;
+      await updateServiceData(singleAccount, "dateMarker", singleAccount["dateMarker"]);
+      await updateServiceData(singleAccount, "charConsum", singleAccount["charConsum"]);
+      await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
+    }
   }
 
 

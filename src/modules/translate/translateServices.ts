@@ -11,12 +11,12 @@ import { TranslateService, TranslateServiceAccount } from "./translateService";
  */
 export async function initTranslateServices() {
     const DB = await getDB();
-    const serviceNumber = await DB.valueQueryAsync("SELECT COUNT(*) FROM translateServices");
-    if (!serviceNumber) await fillServiceTypes();
+    const servicesAmount = await DB.valueQueryAsync("SELECT COUNT(*) FROM translateServices");
+    if (!servicesAmount) await fillServiceTypes();
     let parasArr = [];
     // 数据库已有翻译引擎记录则已完成初始化，
     // 如果有新添加的翻译引擎，则写入数据库
-    serviceNumber ? parasArr = parasArrTranslateServiceAdd : parasArr = parasArrTranslateService;
+    servicesAmount ? parasArr = parasArrTranslateServiceAdd : parasArr = parasArrTranslateService;
     if (parasArr.length) {
         await servicesToDB(keysTranslateService, parasArr);
     }

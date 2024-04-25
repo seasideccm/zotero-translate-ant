@@ -7,6 +7,7 @@ export async function baiduModify(sourceText: string, secretKey: string, sourceL
   if (targetLang === undefined || targetLang == "" || targetLang == null) {
     targetLang = "zh";
   }
+
   const params = secretKey.split("#");
   const appid = params[0];
   const key = params[1];

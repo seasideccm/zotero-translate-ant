@@ -13,6 +13,9 @@ import { langCodeNameSpeakers, langCode_francVsZotero } from "../../utils/consta
 import { franc } from "franc-min";
 import { translateFunc } from "./translate";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
+import { getSettingValue } from "../addonSetting";
+import { getElementValue } from "../ui/uiTools";
+import { getLang, getLangCode, zoteroLangCode } from "../../utils/iso-639-3";
 
 
 
@@ -147,7 +150,7 @@ export class fullTextTranslate {
       account.changedData = {};
     }
     account.changedData.charConsum = account.charConsum;
-    await account.save();
+    await account.saveChange();
   }
 
   /**
@@ -1186,7 +1189,11 @@ export class fullTextTranslate {
       showInfo("没有指定翻译引擎或账号");
       return;
     }
-    await serviceManage.serviceAvailableCheck(service);
+    const checkResult = await serviceManage.serviceAvailableCheck(service);
+    if (!checkResult) {
+      showInfo("无可用翻译引擎或账号");
+      throw "无可用翻译引擎或账号";
+    }
     const translatingProgress = new ztoolkit.ProgressWindow(config.addonName, {
       closeOnClick: true,
       closeTime: -1,
@@ -1374,9 +1381,16 @@ export class fullTextTranslate {
     let args;
     if (service instanceof TranslateServiceAccount) {
       const keyStr = service.secretKey || service.token;
-      if (keyStr)
-        args = service.appID + "#" + await decryptKey(keyStr);
+      if (keyStr) {
+        args = [service.appID + "#" + await decryptKey(keyStr)];
+        const lang = await getLang(service.serviceID);
+        args.push(lang.sourceLang, lang.targetLang);
+
+      }
+
     }
+
+
 
     let func = translateFunc[serviceID];
     if (!func) {
@@ -1390,7 +1404,8 @@ export class fullTextTranslate {
 
       try {
         const timerStart = timer();
-        const paraResult = await func(string, args);
+        // 开始翻译
+        const paraResult = await func(string, ...args);
         trans.push(paraResult.result);
         // 记录字符消耗
         await fullTextTranslate.updateCharConsum(string!.length, service);

@@ -9,18 +9,18 @@ import { getSingleServiceUnderUse } from './serviceManage';
 export class TranslateServiceAccount {
   serialNumber: number;
   serviceID: string;
-  usable: boolean;
+  usable: boolean | number;
   charConsum: number;
   appID: string;
   secretKey?: string;
   token?: string;
   dateMarker?: string | undefined;
-  forbidden?: boolean; //用户是否禁用  
+  forbidden?: boolean | number; //用户是否禁用  
   changed?: any;
   previousData?: any;
   changedData?: any;
   loaded?: any;
-  synced?: boolean;
+  synced?: boolean | number;
   version?: number;
   saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
   savePromise?: Promise<any>;
@@ -117,6 +117,9 @@ export class TranslateServiceAccount {
         case "charConsum":
           tableNames = ['charConsum'];
           break;
+        case "dateMarker":
+          tableNames = ['charConsum'];
+          break;
         case "totalCharConsum":
           tableNames = ['totalCharConsum'];
           break;
@@ -208,13 +211,13 @@ export declare type options = {
   QPS: number,
   limitMode: string,
   charasLimit: number,
-  supportMultiParas: boolean,
-  hasSecretKey: boolean,
-  hasToken: boolean,
+  supportMultiParas: boolean | number,
+  hasSecretKey: boolean | number,
+  hasToken: boolean | number,
   //secretKeys?: SecretKey[],
   //accessTokens?: AccessToken[],
   accounts?: TranslateServiceAccount[],
-  forbidden?: boolean,
+  forbidden?: boolean | number,
   serialNumber?: number,
   configID?: number | undefined,
 
@@ -228,16 +231,17 @@ export class TranslateService {
   limitMode: string;
   charasLimit: number;
   charConsum?: number;//无需秘钥，限制用量
-  supportMultiParas: boolean;
+  dateMarker?: string | undefined;
+  supportMultiParas: boolean | number;
   charasLimitFactor?: number;
-  hasSecretKey: boolean;
+  hasSecretKey: boolean | number;
   //secretKeys?: SecretKey[];
-  hasToken: boolean;
+  hasToken: boolean | number;
   //accessTokens?: AccessToken[];
   accounts?: TranslateServiceAccount[];
   accountsDelete?: TranslateServiceAccount[];
-  forbidden?: boolean;
-  usable?: boolean;
+  forbidden?: boolean | number;
+  usable?: boolean | number;
   serialNumber?: number;
   configID?: number | undefined;
   changed?: any;
@@ -246,7 +250,7 @@ export class TranslateService {
   loaded?: any;
   objectType?: string;
   serviceTypeID?: number;
-  synced?: boolean;
+  synced?: boolean | number;
   version?: number;
   saveDeferred?: _ZoteroTypes.DeferredPromise<void>;
   savePromise?: Promise<any>;
@@ -258,14 +262,15 @@ export class TranslateService {
     QPS: number,
     limitMode: string,
     charasLimit: number,
-    supportMultiParas: boolean,
-    hasSecretKey: boolean,
-    hasToken: boolean,
+    supportMultiParas: boolean | number,
+    hasSecretKey: boolean | number,
+    hasToken: boolean | number,
     accounts?: TranslateServiceAccount[],
-    forbidden?: boolean,
+    forbidden?: boolean | number,
     serialNumber?: number,
     charasLimitFactor?: number,
     configID?: number | undefined,
+    dateMarker?: string | undefined,
 
   }
 
@@ -280,7 +285,7 @@ export class TranslateService {
     this.supportMultiParas = options.supportMultiParas || false;
     this.hasSecretKey = options.hasSecretKey;
     this.hasToken = options.hasToken;
-
+    this.dateMarker = options.dateMarker;
     this.accounts = options.accounts;
     this.forbidden = options.forbidden;
     this.serialNumber = options.serialNumber;
@@ -340,6 +345,9 @@ export class TranslateService {
       let tableName: string = '';
       switch (key) {
         case "charConsum":
+          tableName = 'charConsum';
+          break;
+        case "dateMarker":
           tableName = 'charConsum';
           break;
         case "totalCharConsum":
