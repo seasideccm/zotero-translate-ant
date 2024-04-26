@@ -21,7 +21,7 @@ declare const addon: import("../src/addon").default;
 
 declare const __env__: "production" | "development";
 
-declare class Localization { }
+declare class Localization {}
 
 declare namespace XUL {
   interface MenuPopup {
@@ -39,12 +39,6 @@ declare namespace XUL {
     ): void;
   }
 }
-
-
-
-
-
-
 
 declare type Services = {
   [key: string]: typeof TranslateService;

@@ -55,20 +55,21 @@ export function setPluginsPref(
   return Zotero.Prefs.set(`${prefsPrefix}.${key}`, value, true);
 }
 
-
-
 /**
  * 获取当前使用的引擎对象
  * 如果是 pdfTranslate 的翻译引擎，返回其 prefs 相关信息
- * 
- * @returns 
+ *
+ * @returns
  */
 export function getServiceInfoPDFTranslate() {
-  const secrets: object = JSON.parse((getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}");
-  const serviceID = getPluginsPref("ZoteroPDFTranslate", "translateSource") as string;
+  const secrets: object = JSON.parse(
+    (getPluginsPref("ZoteroPDFTranslate", "secretObj") as string) || "{}",
+  );
+  const serviceID = getPluginsPref(
+    "ZoteroPDFTranslate",
+    "translateSource",
+  ) as string;
   const key = secrets[serviceID as keyof typeof secrets] as string;
   //if (isAll) return { serviceID, secrets };
   return { serviceID, key };
-
-
 }

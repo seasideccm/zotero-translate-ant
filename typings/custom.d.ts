@@ -1,8 +1,11 @@
+declare type DataBase =
+  typeof import("../src/modules/database/database").DataBase;
 
-
-declare type DataBase = typeof import("../src/modules/database/database").DataBase;
-
-declare type TableFactoryOptions = { win: Window, containerId: string, props: VirtualizedTableProps; };
+declare type TableFactoryOptions = {
+  win: Window;
+  containerId: string;
+  props: VirtualizedTableProps;
+};
 
 declare type DocItem = {
   itemID?: number;
@@ -14,7 +17,17 @@ declare type DocItem = {
 
 declare type DocCell = {
   id: string;
-  type: "img" | "table" | "paragraph" | "title" | "headMarker" | "tailMarker" | "contentEnd" | "citation" | "header" | "footer";
+  type:
+    | "img"
+    | "table"
+    | "paragraph"
+    | "title"
+    | "headMarker"
+    | "tailMarker"
+    | "contentEnd"
+    | "citation"
+    | "header"
+    | "footer";
   rawContent: string;
   rawToTranslate?: string | string[];
   translation?: string | string[];
@@ -82,7 +95,6 @@ declare type OptionsPopupWin = {
   closeOtherProgressWindows?: boolean;
 };
 
-
 declare type OptionsPopupWinCreateLine = {
   type?: string;
   icon?: string;
@@ -122,7 +134,12 @@ declare type VTableProps = {
    * @param oldElem
    * @param columns
    */
-  renderItem?: (index: number, selection: TreeSelection, oldElem: HTMLElement, columns: ColumnOptions[]) => Node;
+  renderItem?: (
+    index: number,
+    selection: TreeSelection,
+    oldElem: HTMLElement,
+    columns: ColumnOptions[],
+  ) => Node;
   linesPerRow?: number;
   disableFontSizeScaling?: boolean;
   alternatingRowColors?: Array<string>;
@@ -135,9 +152,7 @@ declare type VTableProps = {
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
-  storeColumnPrefs?: (prefs: {
-    [dataKey: string]: any;
-  }) => void;
+  storeColumnPrefs?: (prefs: { [dataKey: string]: any }) => void;
   getDefaultColumnOrder?: () => {
     [dataKey: string]: any;
   };
@@ -146,7 +161,10 @@ declare type VTableProps = {
   treeboxRef?: (innerWindowedList: WindowedList) => any;
   hide?: boolean;
   multiSelect?: boolean;
-  onSelectionChange?: (selection: TreeSelection, shouldDebounce: boolean) => void;
+  onSelectionChange?: (
+    selection: TreeSelection,
+    shouldDebounce: boolean,
+  ) => void;
   isSelectable?: (index: number) => boolean;
   getParentIndex?: (index: number) => number;
   isContainer?: (index: number) => boolean;
@@ -158,11 +176,16 @@ declare type VTableProps = {
   onKeyUp?: (e: KeyboardEvent) => boolean;
   onDragOver?: (e: DragEvent) => boolean;
   onDrop?: (e: DragEvent) => boolean;
-  onActivate?: ((e: MouseEvent) => boolean) | ((event: Event, indices: number[]) => boolean);
+  onActivate?:
+    | ((e: MouseEvent) => boolean)
+    | ((event: Event, indices: number[]) => boolean);
   onFocus?: (e: FocusEvent) => boolean;
-  onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
+  onItemContextMenu?: (
+    e: MouseEvent | KeyboardEvent,
+    x: number,
+    y: number,
+  ) => boolean;
 };
-
 
 interface VirtualizedTableProps {
   id: string;
@@ -177,7 +200,12 @@ interface VirtualizedTableProps {
    * @param oldElem
    * @param columns
    */
-  renderItem?: (index: number, selection: TreeSelection, oldElem: HTMLElement, columns: ColumnOptions[]) => Node;
+  renderItem?: (
+    index: number,
+    selection: TreeSelection,
+    oldElem: HTMLElement,
+    columns: ColumnOptions[],
+  ) => Node;
   linesPerRow?: number;
   disableFontSizeScaling?: boolean;
   alternatingRowColors?: Array<string>;
@@ -190,9 +218,7 @@ interface VirtualizedTableProps {
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
-  storeColumnPrefs?: (prefs: {
-    [dataKey: string]: any;
-  }) => void;
+  storeColumnPrefs?: (prefs: { [dataKey: string]: any }) => void;
   getDefaultColumnOrder?: () => {
     [dataKey: string]: any;
   };
@@ -201,7 +227,10 @@ interface VirtualizedTableProps {
   treeboxRef?: (innerWindowedList: WindowedList) => any;
   hide?: boolean;
   multiSelect?: boolean;
-  onSelectionChange?: (selection: TreeSelection, shouldDebounce: boolean) => void;
+  onSelectionChange?: (
+    selection: TreeSelection,
+    shouldDebounce: boolean,
+  ) => void;
   isSelectable?: (index: number) => boolean;
   getParentIndex?: (index: number) => number;
   isContainer?: (index: number) => boolean;
@@ -216,7 +245,11 @@ interface VirtualizedTableProps {
   onActivate?: (e: MouseEvent) => boolean;
   onActivate?: (event: Event, indices: number[]) => boolean;
   onFocus?: (e: FocusEvent) => boolean;
-  onItemContextMenu?: (e: MouseEvent | KeyboardEvent, x: number, y: number) => boolean;
+  onItemContextMenu?: (
+    e: MouseEvent | KeyboardEvent,
+    x: number,
+    y: number,
+  ) => boolean;
 }
 
 interface VTable extends React.Component<VirtualizedTableProps, any> {
@@ -233,13 +266,12 @@ interface VTable extends React.Component<VirtualizedTableProps, any> {
 }
 
 declare type columnsProp = {
-  dataKey: string,
-  label: string,
-  staticWidth: boolean,
-  fixedWidth: boolean,
+  dataKey: string;
+  label: string;
+  staticWidth: boolean;
+  fixedWidth: boolean;
   flex: number;
 };
-
 
 declare type CS = {
   dataKey: string;
@@ -257,14 +289,16 @@ declare type CS = {
 
 declare type columnOption<K extends keyof ColumnOptions> = [K];
 
-declare type CS2 = [dataKey: string,
+declare type CS2 = [
+  dataKey: string,
   label: string,
   iconLabel?: React.ReactElement,
   defaultSort?: 1 | -1,
   flex?: number,
   width?: number,
   fixedWidth?: boolean,
-  staticWidth?: boolean];
+  staticWidth?: boolean,
+];
 
 interface TreeSelection {
   _tree: VirtualizedTable;
@@ -276,7 +310,7 @@ interface TreeSelection {
    * @param tree {VirtualizedTable} The tree where selection occurs. Will be used to issue
    * updates.
    */
-  new(tree: VirtualizedTable): this;
+  new (tree: VirtualizedTable): this;
   /**
    * Returns whether the given index is selected.
    * @param index {Number} The index is 0-clamped.
@@ -297,7 +331,12 @@ interface TreeSelection {
    * @returns {boolean} False if nothing to select and select handlers won't be called
    */
   select(index: number, shouldDebounce?: boolean): boolean;
-  rangedSelect(from: number, to: number, augment: boolean, isSelectAll: boolean): void;
+  rangedSelect(
+    from: number,
+    to: number,
+    augment: boolean,
+    isSelectAll: boolean,
+  ): void;
   /**
    * Performs a shift-select from current pivot to provided index. Updates focused item to index.
    * @param index {Number} The index is 0-clamped.
@@ -325,7 +364,6 @@ declare type SecretKey = {
   dateMarker?: string;
 };
 
-
 declare type AccessToken = {
   serialNumber: number;
   appID?: string;
@@ -352,7 +390,6 @@ declare type CellBox = {
   //right: number;
   items: PDFItem[];
 };
-
 
 declare type PDFItem = {
   /*   chars: {
@@ -421,7 +458,6 @@ declare type Box = {
   top: number;
   bottom: number;
 };
-
 
 declare type EncryptAESInfo = {
   encryptAESString?: string;

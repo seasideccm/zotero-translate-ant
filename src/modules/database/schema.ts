@@ -4,7 +4,13 @@ adapted from Zotero
 
 //import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
-import { compareObj, fileNameNoExt, getPS, resourceFilesRecursive, showInfo } from "../../utils/tools";
+import {
+  compareObj,
+  fileNameNoExt,
+  getPS,
+  resourceFilesRecursive,
+  showInfo,
+} from "../../utils/tools";
 import { DB, compareSQLUpdateDB } from "./database";
 import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
 
@@ -18,8 +24,8 @@ export class Schema {
   _maxCompatibility: number;
   _localUpdateInProgress: boolean;
   isCompatible: boolean | null;
-  versionsFromBD: { [key: string]: number; };
-  versionsFromFile: { [key: string]: number; };
+  versionsFromBD: { [key: string]: number };
+  versionsFromFile: { [key: string]: number };
   DB: DataBase;
 
   constructor() {
@@ -38,16 +44,17 @@ export class Schema {
     this.DB = addon.mountPoint.database;
     this.versionsFromBD = {};
     this.versionsFromFile = {};
-
-
   }
-
 
   async checkInitialized() {
     if (this.initialized) return true;
     try {
       if (await this.isEmptyDB()) await this.initializeSchema();
-      if (await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='schema' AND key='initialized'")) {
+      if (
+        await this.DB.valueQueryAsync(
+          "SELECT value FROM settings WHERE setting='schema' AND key='initialized'",
+        )
+      ) {
         this.initialized = true;
       } else {
         await this.initializeSchema();
@@ -77,7 +84,7 @@ export class Schema {
     if (compatibility > this._maxCompatibility) {
       const dbAddonVersion = await this.DB.valueQueryAsync(
         "SELECT value FROM settings " +
-        "WHERE setting='addon' AND key='lastCompatibleVersion'",
+          "WHERE setting='addon' AND key='lastCompatibleVersion'",
       );
       const msg =
         "Database is incompatible with this addon " +
@@ -96,14 +103,14 @@ export class Schema {
     return (this.isCompatible = true);
   }
 
-
   /**
    * 读取所有 SQL 文件中 schema 表结构的版本号
    * @param isExcuteSQL 是否批量执行 SQL 文件
-   * @returns 
+   * @returns
    */
   async getAllSchemasVersionFromFile(isExcuteSQL: boolean = false) {
-    if (!isExcuteSQL && Object.keys(this.versionsFromFile).length) return this.versionsFromFile;
+    if (!isExcuteSQL && Object.keys(this.versionsFromFile).length)
+      return this.versionsFromFile;
     const files = await resourceFilesRecursive(undefined, undefined, "sql");
     for (const file of files) {
       const schema = fileNameNoExt(file.name);
@@ -121,11 +128,12 @@ export class Schema {
 
   /**
    * 查询数据库中所有表结构的版本号，与 SQL 文件相对应
-   * @returns 
+   * @returns
    */
   async getAllSchemasVersionFromDB() {
     if (Object.keys(this.versionsFromBD).length) return this.versionsFromBD;
-    const sql = "SELECT schema,version FROM version WHERE schema <> 'compatibility'";
+    const sql =
+      "SELECT schema,version FROM version WHERE schema <> 'compatibility'";
     const rows = await this.DB.queryAsync(sql);
     if (!rows.length) return;
     rows.forEach((row: any) => {
@@ -136,8 +144,8 @@ export class Schema {
 
   /**
    * 查询数据库中表结构的版本号，与 SQL 文件相对应
-   * @param schema 
-   * @returns 
+   * @param schema
+   * @returns
    */
   async getSchemaVersionFromDB(schema: string) {
     if (this.versionsFromBD[schema]) {
@@ -155,13 +163,12 @@ export class Schema {
         }
       })
       .catch((e: any) => {
-        return this.DB.tableExists("version")
-          .then((exists: any) => {
-            if (exists) {
-              throw e;
-            }
-            return false;
-          });
+        return this.DB.tableExists("version").then((exists: any) => {
+          if (exists) {
+            throw e;
+          }
+          return false;
+        });
       });
   }
 
@@ -184,18 +191,21 @@ export class Schema {
   //
   /**
    * 检查表并更新，返回 false 无需更新
-   * @returns 
+   * @returns
    */
   async checkSchemasUpdate() {
     await this.getAllSchemasVersionFromDB();
     await this.getAllSchemasVersionFromFile();
-    const compareResult = compareObj(this.versionsFromBD, this.versionsFromFile);
+    const compareResult = compareObj(
+      this.versionsFromBD,
+      this.versionsFromFile,
+    );
     if (compareResult == true) {
       return false;
     }
     showInfo("schema has changed");
     for (const schema of compareResult) {
-      if (!await this.updateSchema(schema)) {
+      if (!(await this.updateSchema(schema))) {
         const msg = "Failure Update Schema: " + schema;
         showInfo(msg);
         throw msg;
@@ -203,9 +213,7 @@ export class Schema {
     }
     //成功后无需更新
     return false;
-
   }
-
 
   /**
    * 比较sql文件与数据库存储的版本信息
@@ -239,7 +247,6 @@ export class Schema {
   }
 
   async updateSchema(schema: string, options: any = {}) {
-
     if (this.isCompatible == null) await this.checkCompat();
     if (!this.isCompatible) {
       const msg =
@@ -293,7 +300,11 @@ export class Schema {
       this.minorUpdateFrom && schemaVersion >= this.minorUpdateFrom;
 
     // If non-minor userdata upgrade, make backup of database first
-    if (schemaSqlFileVersion && schemaVersion < schemaSqlFileVersion && !options.minor) {
+    if (
+      schemaSqlFileVersion &&
+      schemaVersion < schemaSqlFileVersion &&
+      !options.minor
+    ) {
       await this.DB.bakeupDB(schema + schemaVersion, true);
     }
     // Automatic backup
@@ -332,7 +343,7 @@ export class Schema {
             );
           }
           return updated;
-        }.bind(this)
+        }.bind(this),
       );
 
       // If we updated the DB, also do an integrity check for good measure
@@ -404,8 +415,6 @@ export class Schema {
     return !!updated;
   }
 
-
-
   async migrateSchema(
     schema: string,
     fromVersion: number,
@@ -416,18 +425,20 @@ export class Schema {
 
     if (fromVersion >= toVersion) {
       showInfo("check why version downgrade");
-      const downgrade = () => { showInfo("请完善降级函数"); };
+      const downgrade = () => {
+        showInfo("请完善降级函数");
+      };
       downgrade();
       return false;
     }
 
     ztoolkit.log(
       "Updating" +
-      schema +
-      "data tables from version " +
-      fromVersion +
-      " to " +
-      toVersion,
+        schema +
+        "data tables from version " +
+        fromVersion +
+        " to " +
+        toVersion,
     );
 
     if (options.onBeforeUpdate) {
@@ -441,24 +452,20 @@ export class Schema {
       try {
         await migrateAddonSystem(fromVersion, toVersion);
         await this.updateSchemaVersion(schema, toVersion);
-      }
-      catch (e) {
+      } catch (e) {
         ztoolkit.log(e);
         return false;
       }
-
     }
 
     if (schema == "translation") {
       try {
         await migrateTranslation(fromVersion, toVersion);
         await this.updateSchemaVersion(schema, toVersion);
-      }
-      catch (e) {
+      } catch (e) {
         ztoolkit.log(e);
         return false;
       }
-
     }
 
     return true;
@@ -483,9 +490,10 @@ export class Schema {
   }
 
   async integrityCheckRequired() {
-    return !!(await this.DB.valueQueryAsync("SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'"));
+    return !!(await this.DB.valueQueryAsync(
+      "SELECT value FROM settings WHERE setting='db' AND key='integrityCheck'",
+    ));
   }
-
 
   /**
    * 检查表是否缺失，删除无用表，检查外键约束，可选自动修复
@@ -516,11 +524,7 @@ export class Schema {
 
     // Check for deleted tables and triggers that still exist
     // 事务相关
-    const deletedTables = [
-      "transactionSets",
-      "transactions",
-      "transactionLog",
-    ];
+    const deletedTables = ["transactionSets", "transactions", "transactionLog"];
     // 操作相关
     const deletedTriggers = ["insert_date_field", "update_date_field"];
     for (const table of deletedTables) {
@@ -544,7 +548,9 @@ export class Schema {
       statements = statements.concat(sqls);
     }
     for (const statement of statements) {
-      let matches = statement.match(/^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/);
+      let matches = statement.match(
+        /^CREATE.+?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([^\s]+)/,
+      );
       if (matches) {
         const table = matches.slice(-1)[0];
         if (!schema.has("table:" + table)) {
@@ -736,7 +742,10 @@ export class Schema {
           sql = await this.getSchemaSQL("triggers");
           await this.DB.executeSQLFile(sql); */
           for (const schema of Object.keys(this.versionsFromFile)) {
-            await this.updateSchemaVersion(schema, this.versionsFromFile[schema]);
+            await this.updateSchemaVersion(
+              schema,
+              this.versionsFromFile[schema],
+            );
           }
           /* let version;
           version = schemaConfig["addonSystem"]["version"];
@@ -748,7 +757,8 @@ export class Schema {
           version = schemaConfig["triggers"]["version"];
           await this.updateSchemaVersion("triggers", version); */
           //await this.updateLastAddonVersion();
-          const sql = "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
+          const sql =
+            "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
           await this.DB.queryAsync(sql, addonVersion);
           await this.updateCompatibility(this._maxCompatibility);
           this.isCompatible = true;
@@ -809,7 +819,6 @@ export class Schema {
         }.bind(this)); */
   }
 
-
   /*
    * Update a DB schema version tag in an existing database
    */
@@ -857,12 +866,12 @@ export class Schema {
           "REPLACE INTO settings (setting, key, value) VALUES ('addon', 'lastVersion', ?)";
         try {
           await this.DB.queryAsync(sql, addonVersion);
-        }
-        catch (e) {
+        } catch (e) {
           ztoolkit.log(e);
           throw e;
         }
-      }.bind(this));
+      }.bind(this),
+    );
   }
 
   //todo reverse update
@@ -878,5 +887,3 @@ function reportError(e: any) {
     Zotero.getString("startupError", Zotero.appName),
   );
 }
-
-

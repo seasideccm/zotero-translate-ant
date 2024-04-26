@@ -2,23 +2,21 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
 import { arrToObj } from "../utils/tools";
-import { clearAllTable } from './database/database';
+import { clearAllTable } from "./database/database";
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
-import { decryptFileSelected, encryptFile } from './crypto';
+import { decryptFileSelected, encryptFile } from "./crypto";
 import { readTextFiles } from "./ui/tableSecretKeys";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { openAIOllama } from "./largeLanguageModels/oneApi";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
 
-
-
-
 function getParasArrs() {
-  const text = "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
+  const text =
+    "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
   const parasArrs = [
     [
-      ["clearTable", clearAllTable,],
+      ["clearTable", clearAllTable],
       ["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
@@ -30,9 +28,7 @@ function getParasArrs() {
       ["读取文件内容", readTextFiles],
       ["AI 翻译", aITransUI],
       ["翻译", showTrans],
-      ["测试openai兼容", openAIOllama]
-
-
+      ["测试openai兼容", openAIOllama],
     ],
   ];
   return parasArrs;
@@ -69,9 +65,14 @@ export function mountMenu() {
       return;
     }
     const parasArrs = getParasArrs();
-    const menuitemGroupArr = parasArrs.map(parasArr => parasArr.map(paras => menuitemObj(paras as any[])));
+    const menuitemGroupArr = parasArrs.map((parasArr) =>
+      parasArr.map((paras) => menuitemObj(paras as any[])),
+    );
 
-    const menuPopup = makeClickButton(makeId("menu"), menuitemGroupArr) as Element;
+    const menuPopup = makeClickButton(
+      makeId("menu"),
+      menuitemGroupArr,
+    ) as Element;
     menu.append(menuPopup);
   }
   const location = getPref("addonMenuLocation") || "right";
@@ -90,7 +91,6 @@ export function mountMenu() {
   }
 }
 
-
 export function rightClickMenuItem_ss() {
   const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
   ztoolkit.Menu.register("item", {
@@ -100,46 +100,44 @@ export function rightClickMenuItem_ss() {
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-note") + " ALT+N",
-    commandListener: ((ev) => {
+    commandListener: (ev) => {
       //Translator.translateFT("note");
-    }),
+    },
     icon: menuIcon,
   });
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-pdf") + " ALT+P",
-    commandListener: ((ev) => {
+    commandListener: (ev) => {
       // Translator.translateFT("pdf");
-    }),
+    },
     icon: menuIcon,
   });
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-pdf2Note"),
-    commandListener: (async (ev) => {
+    commandListener: async (ev) => {
       // await this.pdf2Note();       //Translator.pdf2Note();
-    }),
+    },
     icon: menuIcon,
   });
 
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: "添加图片注释",
-    commandListener: (async (ev) => {
+    commandListener: async (ev) => {
       //await imageToAnnotation();       //Translator.pdf2Note();
-    }),
+    },
     icon: menuIcon,
   });
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: "测试保存图片",
-    commandListener: (async (ev) => {
+    commandListener: async (ev) => {
       //await testSaveImg();
-    }),
+    },
     icon: menuIcon,
   });
-
-
 
   ztoolkit.Shortcut.register("event", {
     id: `${config.addonRef}-key-translate-note`,
@@ -161,8 +159,6 @@ export function rightClickMenuItem_ss() {
   });
 }
 
-
-
 export function rightClickMenuItem() {
   const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
   ztoolkit.Menu.register("item", {
@@ -172,32 +168,25 @@ export function rightClickMenuItem() {
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-note") + " ALT+N",
-    commandListener: ((ev) => {
+    commandListener: (ev) => {
       fullTextTranslate.translateFT("note");
-    }),
+    },
     icon: menuIcon,
   });
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-pdf") + " ALT+P",
-    commandListener: ((ev) => {
+    commandListener: (ev) => {
       fullTextTranslate.translateFT("pdf");
-    }),
+    },
     icon: menuIcon,
   });
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     label: getString("menuitem-pdf2Note"),
-    commandListener: (async (ev) => {
-      await this.pdf2Note();       //fullTextTranslate.pdf2Note();
-    }),
+    commandListener: async (ev) => {
+      await this.pdf2Note(); //fullTextTranslate.pdf2Note();
+    },
     icon: menuIcon,
   });
-
 }
-
-
-
-
-
-

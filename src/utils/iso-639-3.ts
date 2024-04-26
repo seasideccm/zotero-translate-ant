@@ -26,7 +26,9 @@ export async function getLangCode(code: string, type: number) {
   while (!iso6393) {
     await Zotero.Promise.delay(500);
   }
-  const langCodeObj = iso6393.filter((e: any) => e.name.toLocaleLowerCase() == name.toLocaleLowerCase())[0];
+  const langCodeObj = iso6393.filter(
+    (e: any) => e.name.toLocaleLowerCase() == name.toLocaleLowerCase(),
+  )[0];
   if (!langCodeObj) {
     showInfo(code + " 查询失败");
     throw code + " 查询失败";
@@ -41,12 +43,18 @@ export async function getLangCode(code: string, type: number) {
 }
 
 export async function getLang(serviceID: string) {
-  const format: { [key: string]: number; } = {
+  const format: { [key: string]: number } = {
     baidufieldModify: 2,
     baiduModify: 2,
   };
-  const defaultSourceLang = await getSettingValue("defaultSourceLang", "translate");
-  const defaultTargetLang = await getSettingValue("defaultTargetLang", "translate");
+  const defaultSourceLang = await getSettingValue(
+    "defaultSourceLang",
+    "translate",
+  );
+  const defaultTargetLang = await getSettingValue(
+    "defaultTargetLang",
+    "translate",
+  );
 
   let sourceLang = getElementValue("sourceLang") || defaultSourceLang;
   let targetLang = getElementValue("targetLang") || defaultTargetLang;
@@ -57,19 +65,23 @@ export async function getLang(serviceID: string) {
 
   if (type == 3) {
     //@ts-ignore xxx
-    const ss = Object.keys(langCode_francVsZotero).filter(key => langCode_francVsZotero[key] == sourceLang);
+    const ss = Object.keys(langCode_francVsZotero).filter(
+      (key) => langCode_francVsZotero[key] == sourceLang,
+    );
     if (ss.length > 0) {
       sourceLang = Object.keys(ss[0])[0];
     }
     //@ts-ignore xxx
-    const tt = Object.keys(langCode_francVsZotero).filter(key => langCode_francVsZotero[key] == targetLang);
+    const tt = Object.keys(langCode_francVsZotero).filter(
+      (key) => langCode_francVsZotero[key] == targetLang,
+    );
     if (tt.length > 0) {
       targetLang = Object.keys(ss[0])[0];
     }
 
     return {
       targetLang: targetLang,
-      sourceLang: sourceLang
+      sourceLang: sourceLang,
     };
   }
   /* return lang;
@@ -79,9 +91,6 @@ export async function getLang(serviceID: string) {
   targetLang = await getLangCode(targetLang, type); */
   return {
     targetLang: targetLang,
-    sourceLang: sourceLang
+    sourceLang: sourceLang,
   };
 }
-
-
-

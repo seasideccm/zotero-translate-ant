@@ -1,6 +1,9 @@
-
-
-export async function baidufieldModify(sourceText: string, secretKey: string, sourceLang?: string, targetLang?: string) {
+export async function baidufieldModify(
+  sourceText: string,
+  secretKey: string,
+  sourceLang?: string,
+  targetLang?: string,
+) {
   if (sourceLang === undefined || sourceLang == "" || sourceLang == null) {
     sourceLang = "en";
   }
@@ -14,18 +17,17 @@ export async function baidufieldModify(sourceText: string, secretKey: string, so
   const salt = new Date().getTime();
   const sign = Zotero.Utilities.Internal.md5(
     appid + sourceText + salt + domain + key,
-    false
+    false,
   );
   `from=${sourceLang}&to=${targetLang}`;
   const xhr = await Zotero.HTTP.request(
     "GET",
     `http://api.fanyi.baidu.com/api/trans/vip/fieldtranslate?q=${encodeURIComponent(
-      sourceText
-    )}&appid=${appid}&from=${sourceLang}&to=${targetLang
-    }&domain=${domain}&salt=${salt}&sign=${sign}`,
+      sourceText,
+    )}&appid=${appid}&from=${sourceLang}&to=${targetLang}&domain=${domain}&salt=${salt}&sign=${sign}`,
     {
       responseType: "json",
-    }
+    },
   );
   if (xhr?.status !== 200) {
     throw `Request error: ${xhr?.status}`;
@@ -39,8 +41,8 @@ export async function baidufieldModify(sourceText: string, secretKey: string, so
     tgt += xhr.response.trans_result[i].dst + "\n";
   }
   const data = {
-    "result": tgt,
-    "error": `${xhr.response.error_code}`
+    result: tgt,
+    error: `${xhr.response.error_code}`,
   };
   return data;
-};
+}

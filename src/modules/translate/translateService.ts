@@ -1,28 +1,24 @@
-
-
-import { showInfo } from '../../utils/tools';
-import { encryptByAESKey, encryptState, getTableBySN } from '../crypto';
-import { getDB, getDBSync } from '../database/database';
-import { getSingleServiceUnderUse } from './serviceManage';
-
+import { showInfo } from "../../utils/tools";
+import { encryptByAESKey, encryptState, getTableBySN } from "../crypto";
+import { getDB, getDBSync } from "../database/database";
+import { getSingleServiceUnderUse } from "./serviceManage";
 
 //Zotero.extendClass(DataObject, TranslateServiceItem);
 export declare type options = {
-  serviceID: string,
-  charasPerTime: number,
-  QPS: number,
-  limitMode: string,
-  charasLimit: number,
-  supportMultiParas: boolean | number,
-  hasSecretKey: boolean | number,
-  hasToken: boolean | number,
+  serviceID: string;
+  charasPerTime: number;
+  QPS: number;
+  limitMode: string;
+  charasLimit: number;
+  supportMultiParas: boolean | number;
+  hasSecretKey: boolean | number;
+  hasToken: boolean | number;
   //secretKeys?: SecretKey[],
   //accessTokens?: AccessToken[],
-  accounts?: TranslateServiceAccount[],
-  forbidden?: boolean | number,
-  serialNumber?: number,
-  configID?: number | undefined,
-
+  accounts?: TranslateServiceAccount[];
+  forbidden?: boolean | number;
+  serialNumber?: number;
+  configID?: number | undefined;
 };
 
 //todo 百度修改版共享百度信息
@@ -35,7 +31,7 @@ export class TranslateServiceAccount {
   secretKey?: string;
   token?: string;
   dateMarker?: string | undefined;
-  forbidden?: boolean | number; //用户是否禁用  
+  forbidden?: boolean | number; //用户是否禁用
   changed?: any;
   previousData?: any;
   changedData?: any;
@@ -46,9 +42,12 @@ export class TranslateServiceAccount {
   savePromise?: Promise<any>;
   totalCharConsum?: number;
 
-
   constructor(option: any) {
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(option.serviceID)) {
+    if (
+      ["baidufield", "baiduModify", "baidufieldModify"].includes(
+        option.serviceID,
+      )
+    ) {
       // @ts-ignore xxx
       option.serviceID = "baidu";
     }
@@ -61,7 +60,6 @@ export class TranslateServiceAccount {
     this.token = option.token;
     this.dateMarker = option.dateMarker;
     this.forbidden = option.forbidden;
-
   }
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
@@ -72,10 +70,9 @@ export class TranslateServiceAccount {
     }
     for (const key of Object.keys(this)) {
       if (typeof this[key as keyof typeof this] == "string") {
-        if ((this[key as keyof typeof this] as string).endsWith('No Data')) return;
+        if ((this[key as keyof typeof this] as string).endsWith("No Data"))
+          return;
       }
-
-
     }
     if (!this.secretKey && !this.token) return;
     this.saveDeferred = Zotero.Promise.defer();
@@ -89,35 +86,51 @@ export class TranslateServiceAccount {
         await DB.queryAsync(sql);
         let tableName = this.secretKey ? "accounts" : "accessTokens";
         const secretKeyOrtoken = this.secretKey ? "secretKey" : "token";
-        let secretKeyOrtokenValue = this.secretKey ? this.secretKey : this.token;
+        let secretKeyOrtokenValue = this.secretKey
+          ? this.secretKey
+          : this.token;
         const state = await encryptState();
         if (state) {
-          if (secretKeyOrtokenValue && !secretKeyOrtokenValue?.includes("encryptAESString")) {
-            secretKeyOrtokenValue = await encryptByAESKey(secretKeyOrtokenValue);
+          if (
+            secretKeyOrtokenValue &&
+            !secretKeyOrtokenValue?.includes("encryptAESString")
+          ) {
+            secretKeyOrtokenValue = await encryptByAESKey(
+              secretKeyOrtokenValue,
+            );
           }
         }
-        const sqlColumns = ["serialNumber", "serviceID", "appID", secretKeyOrtoken];
-        const sqlValues = [this.serialNumber, this.serviceID, this.appID, secretKeyOrtokenValue];
-        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        const sqlColumns = [
+          "serialNumber",
+          "serviceID",
+          "appID",
+          secretKeyOrtoken,
+        ];
+        const sqlValues = [
+          this.serialNumber,
+          this.serviceID,
+          this.appID,
+          secretKeyOrtokenValue,
+        ];
+        await DB.queryAsync(
+          this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+          sqlValues,
+        );
         tableName = "charConsum";
         sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
         await DB.queryAsync(sql);
         tableName = "totalCharConsum";
         sql = `INSERT INTO ${tableName} (serialNumber) VALUES (${this.serialNumber})`;
         await DB.queryAsync(sql);
-      }
-      catch (e: any) {
+      } catch (e: any) {
         this.saveDeferred!.reject();
         ztoolkit.log(e);
         showInfo(e);
       }
-
     });
     this.saveDeferred.resolve();
 
     return;
-
-
   }
 
   async saveChange() {
@@ -129,41 +142,42 @@ export class TranslateServiceAccount {
       let tableNames: string[] = [];
       switch (key) {
         case "secretKey":
-          tableNames = ['accounts'];
+          tableNames = ["accounts"];
           break;
         case "token":
-          tableNames = ['accessTokens'];
+          tableNames = ["accessTokens"];
           break;
         case "charConsum":
-          tableNames = ['charConsum'];
+          tableNames = ["charConsum"];
           break;
         case "dateMarker":
-          tableNames = ['charConsum'];
+          tableNames = ["charConsum"];
           break;
         case "totalCharConsum":
-          tableNames = ['totalCharConsum'];
+          tableNames = ["totalCharConsum"];
           break;
         case "forbidden":
-          tableNames = ['translateServiceSN'];
+          tableNames = ["translateServiceSN"];
           break;
         case "appID":
           if (this.secretKey) {
-
-            tableNames = ['translateServiceSN', 'accounts'];
+            tableNames = ["translateServiceSN", "accounts"];
           }
           if (this.token) {
-            tableNames = ['translateServiceSN', 'accessTokens'];
+            tableNames = ["translateServiceSN", "accessTokens"];
           }
           break;
         case "usable":
-          tableNames = ['translateServiceSN'];
+          tableNames = ["translateServiceSN"];
           break;
         case "serialNumber":
           //tableNames = ['translateServiceSN'];
-          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`);
+          sqls.push(
+            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`,
+          );
           break;
       }
-      tableNames.forEach(tableName => {
+      tableNames.forEach((tableName) => {
         const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
         sqls.push(sql);
       });
@@ -173,9 +187,8 @@ export class TranslateServiceAccount {
       for (const sql of sqls) {
         try {
           await DB.queryAsync(sql);
-        }
-        catch (e) {
-          showInfo('Execute failed: ' + sql);
+        } catch (e) {
+          showInfo("Execute failed: " + sql);
           throw e;
         }
       }
@@ -219,12 +232,8 @@ export class TranslateServiceAccount {
       showInfo(e);
       ztoolkit.log(e);
     }
-
   }
-
-
 }
-
 
 export class TranslateService {
   serviceID: string;
@@ -232,7 +241,7 @@ export class TranslateService {
   QPS: number;
   limitMode: string;
   charasLimit: number;
-  charConsum?: number;//无需秘钥，限制用量
+  charConsum?: number; //无需秘钥，限制用量
   dateMarker?: string | undefined;
   supportMultiParas: boolean | number;
   charasLimitFactor?: number;
@@ -262,31 +271,26 @@ export class TranslateService {
   projectID?: string;
   vocabid?: string;
 
-
   constructor(options: {
-    serviceID: string,
-    charasPerTime: number,
-    QPS: number,
-    limitMode: string,
-    charasLimit: number,
-    supportMultiParas: boolean | number,
-    hasSecretKey: boolean | number,
-    hasToken: boolean | number,
-    accounts?: TranslateServiceAccount[],
-    forbidden?: boolean | number,
-    serialNumber?: number,
-    charasLimitFactor?: number,
-    configID?: number | undefined,
-    dateMarker?: string | undefined,
-    field?: string | undefined,
-    region?: string | undefined,
-    projectID?: string | undefined,
-    vocabid?: string | undefined,
-
-  }
-
-  ) {
-
+    serviceID: string;
+    charasPerTime: number;
+    QPS: number;
+    limitMode: string;
+    charasLimit: number;
+    supportMultiParas: boolean | number;
+    hasSecretKey: boolean | number;
+    hasToken: boolean | number;
+    accounts?: TranslateServiceAccount[];
+    forbidden?: boolean | number;
+    serialNumber?: number;
+    charasLimitFactor?: number;
+    configID?: number | undefined;
+    dateMarker?: string | undefined;
+    field?: string | undefined;
+    region?: string | undefined;
+    projectID?: string | undefined;
+    vocabid?: string | undefined;
+  }) {
     // ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"]
     this.serviceID = options.serviceID;
     this.charasPerTime = options.charasPerTime;
@@ -308,18 +312,49 @@ export class TranslateService {
     this.charasLimitFactor = options.charasLimitFactor || 1.0;
     this.serviceTypeID = this.getServiceTypeID();
 
-
     //this.ObjectsClass = addon.mountPoint['TranslateServices'];
   }
 
-
-
-
-
   getServiceTypeID(serviceType?: string) {
-    const objectType = ["item", "collection", "dataObject", "search", "feedItem"];
-    const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
-    const translateServices = ["baidu", "baidufield", "tencent", "niutranspro", "caiyun", "youdaozhiyun", "cnki", "googleapi", "google", "deeplfree", "deeplpro", "deeplcustom", "deeplx", "microsoft", "gpt", "baiduModify", "baidufieldModify", "tencentTransmart", "haici", "youdao", "chatgpt", "azuregpt", "gemini", "aliyun"];
+    const objectType = [
+      "item",
+      "collection",
+      "dataObject",
+      "search",
+      "feedItem",
+    ];
+    const serviceTypes = [
+      "translate",
+      "ocr",
+      "ocrTranslate",
+      "languageIdentification",
+    ];
+    const translateServices = [
+      "baidu",
+      "baidufield",
+      "tencent",
+      "niutranspro",
+      "caiyun",
+      "youdaozhiyun",
+      "cnki",
+      "googleapi",
+      "google",
+      "deeplfree",
+      "deeplpro",
+      "deeplcustom",
+      "deeplx",
+      "microsoft",
+      "gpt",
+      "baiduModify",
+      "baidufieldModify",
+      "tencentTransmart",
+      "haici",
+      "youdao",
+      "chatgpt",
+      "azuregpt",
+      "gemini",
+      "aliyun",
+    ];
     const ocrServices = ["baiduOCR"];
     const ocrTranslateServices = ["baiduPictureTranslate"];
     const languageIdentificationServices = [""];
@@ -331,7 +366,12 @@ export class TranslateService {
     };
     if (serviceType) return serviceTypes.indexOf(serviceType);
     for (const k in serviceCategory) {
-      if (serviceCategory[k as keyof typeof serviceCategory].indexOf(this.serviceID) > -1) return serviceTypes.indexOf(k);
+      if (
+        serviceCategory[k as keyof typeof serviceCategory].indexOf(
+          this.serviceID,
+        ) > -1
+      )
+        return serviceTypes.indexOf(k);
     }
   }
 
@@ -342,11 +382,7 @@ export class TranslateService {
       showInfo(e);
       ztoolkit.log(e);
     }
-
   }
-
-
-
 
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
@@ -358,26 +394,26 @@ export class TranslateService {
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
       let sql;
-      let tableName: string = '';
+      let tableName: string = "";
       switch (key) {
         case "charConsum":
-          tableName = 'charConsum';
+          tableName = "charConsum";
           break;
         case "field":
         case "region":
         case "projectID":
         case "vocabid":
-          tableName = 'settings';
+          tableName = "settings";
           break;
         case "dateMarker":
-          tableName = 'charConsum';
+          tableName = "charConsum";
           break;
         case "totalCharConsum":
-          tableName = 'totalCharConsum';
+          tableName = "totalCharConsum";
           break;
         case "usable":
         case "forbidden":
-          tableName = 'translateServiceSN';
+          tableName = "translateServiceSN";
           break;
         case "QPS":
         case "charasPerTime":
@@ -385,10 +421,12 @@ export class TranslateService {
         case "charasLimit":
         case "configID":
         case "charasLimitFactor":
-          tableName = 'serviceLimits';
+          tableName = "serviceLimits";
           break;
         case "serialNumber":
-          sqls.push(`UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = '${this.serviceID}'`);
+          sqls.push(
+            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = '${this.serviceID}'`,
+          );
           break;
       }
       if (tableName == "") continue;
@@ -399,7 +437,6 @@ export class TranslateService {
         sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, '${this.changedData[key]}')`;
       } else {
         sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
-
       }
       sqls.push(sql);
     }
@@ -408,9 +445,8 @@ export class TranslateService {
       for (const sql of sqls) {
         try {
           await DB.queryAsync(sql);
-        }
-        catch (e) {
-          showInfo('Execute failed: ' + sql);
+        } catch (e) {
+          showInfo("Execute failed: " + sql);
           throw e;
         }
       }
@@ -426,48 +462,106 @@ export class TranslateService {
     this.savePromise = this.saveDeferred.promise;
     //const serialNumber = await this.getSerialNumber(this.serviceID);
     if (this.serialNumber) {
-      const doSave = async () => { };
+      const doSave = async () => {};
       await DB.executeTransaction(doSave.bind(this));
       //update
       return;
     }
     const doSave = async () => {
       const DB = await getDB();
-      const serialNumber = await DB.getNextID("translateServiceSN", "serialNumber");
+      const serialNumber = await DB.getNextID(
+        "translateServiceSN",
+        "serialNumber",
+      );
 
       let tableName = "translateServices";
-      let sqlColumns = ["serviceID", "serviceTypeID", "hasSecretKey", "hasToken", "supportMultiParas"];
-      let sqlValues = [this.serviceID, this.serviceTypeID, Number(this.hasSecretKey), Number(this.hasToken), Number(this.supportMultiParas)];
-      await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+      let sqlColumns = [
+        "serviceID",
+        "serviceTypeID",
+        "hasSecretKey",
+        "hasToken",
+        "supportMultiParas",
+      ];
+      let sqlValues = [
+        this.serviceID,
+        this.serviceTypeID,
+        Number(this.hasSecretKey),
+        Number(this.hasToken),
+        Number(this.supportMultiParas),
+      ];
+      await DB.queryAsync(
+        this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+        sqlValues,
+      );
 
       tableName = "serviceLimits";
-      sqlColumns = ["serviceID", "QPS", "charasPerTime", "limitMode", "charasLimit", "charasLimitFactor", "configID"];
-      sqlValues = [this.serviceID, this.QPS, this.charasPerTime, this.limitMode, this.charasLimit, this.charasLimitFactor, this.configID];
-      await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+      sqlColumns = [
+        "serviceID",
+        "QPS",
+        "charasPerTime",
+        "limitMode",
+        "charasLimit",
+        "charasLimitFactor",
+        "configID",
+      ];
+      sqlValues = [
+        this.serviceID,
+        this.QPS,
+        this.charasPerTime,
+        this.limitMode,
+        this.charasLimit,
+        this.charasLimitFactor,
+        this.configID,
+      ];
+      await DB.queryAsync(
+        this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+        sqlValues,
+      );
       //freeLoginServices
       if (!this.hasSecretKey && !this.hasToken) {
-        tableName = 'translateServiceSN';
+        tableName = "translateServiceSN";
         sqlColumns = ["serialNumber", "serviceID"];
         sqlValues = [serialNumber, this.serviceID];
-        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        await DB.queryAsync(
+          this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+          sqlValues,
+        );
 
         tableName = "freeLoginServices";
         sqlColumns = ["serialNumber", "serviceID"];
         sqlValues = [serialNumber, this.serviceID];
-        await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+        await DB.queryAsync(
+          this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+          sqlValues,
+        );
         return;
       }
-      //without account info 
+      //without account info
       if (!this.accounts || !this.accounts.length) {
         return;
       }
 
       if (this.accounts.length) {
         for (const account of this.accounts) {
-          sqlColumns = ["serialNumber", "serviceID", "appID", "usable", "forbidden"];
-          sqlValues = [serialNumber, this.serviceID, account.appID, account.usable, account.forbidden];
-          tableName = 'translateServiceSN';
-          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          sqlColumns = [
+            "serialNumber",
+            "serviceID",
+            "appID",
+            "usable",
+            "forbidden",
+          ];
+          sqlValues = [
+            serialNumber,
+            this.serviceID,
+            account.appID,
+            account.usable,
+            account.forbidden,
+          ];
+          tableName = "translateServiceSN";
+          await DB.queryAsync(
+            this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+            sqlValues,
+          );
 
           sqlColumns = ["serialNumber", "serviceID", "appID"];
           sqlValues = [serialNumber, this.serviceID, account.appID];
@@ -475,61 +569,72 @@ export class TranslateService {
             sqlColumns.push("secretKey");
             sqlValues.push(account.secretKey);
             tableName = "accounts";
-            await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+            await DB.queryAsync(
+              this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+              sqlValues,
+            );
           }
           if (account.token) {
             sqlColumns.push("token");
             sqlValues.push(account.token);
             tableName = "accessTokens";
-            await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+            await DB.queryAsync(
+              this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+              sqlValues,
+            );
           }
           tableName = "charConsum";
           sqlColumns = ["serialNumber", "charConsum"];
           sqlValues = [serialNumber, account.charConsum];
-          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          await DB.queryAsync(
+            this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+            sqlValues,
+          );
           tableName = "totalCharConsum";
           sqlColumns = ["serialNumber"];
           sqlValues = [serialNumber];
-          await DB.queryAsync(this.sqlInsertRow(tableName, sqlColumns, sqlValues), sqlValues);
+          await DB.queryAsync(
+            this.sqlInsertRow(tableName, sqlColumns, sqlValues),
+            sqlValues,
+          );
         }
         return;
       }
     };
     await DB.executeTransaction(doSave.bind(this));
-
-
   }
-  saveold: any = Zotero.Promise.coroutine(function* (this: any, options = {}): any {
+  saveold: any = Zotero.Promise.coroutine(function* (
+    this: any,
+    options = {},
+  ): any {
     const env: any = {
       options: Object.assign({}, options),
-      transactionOptions: {}
+      transactionOptions: {},
     };
 
     const DB = yield getDB();
 
     if (env.options.skipAll) {
       [
-        'skipDateModifiedUpdate',
-        'skipClientDateModifiedUpdate',
-        'skipSyncedUpdate',
-        'skipEditCheck',
-        'skipNotifier',
-        'skipSelect'
-      ].forEach(x => env.options[x] = true);
+        "skipDateModifiedUpdate",
+        "skipClientDateModifiedUpdate",
+        "skipSyncedUpdate",
+        "skipEditCheck",
+        "skipNotifier",
+        "skipSelect",
+      ].forEach((x) => (env.options[x] = true));
     }
 
     const proceed = yield this._initSave(env);
     if (!proceed) return false;
 
     if (env.isNew) {
-      ztoolkit.log('Saving data for new ' + this._objectType + ' to database');
-    }
-    else {
-      ztoolkit.log('Updating database with new ' + this._objectType + ' data');
+      ztoolkit.log("Saving data for new " + this._objectType + " to database");
+    } else {
+      ztoolkit.log("Updating database with new " + this._objectType + " data");
     }
 
     try {
-
       env.notifierData = {};
       // Pass along any 'notifierData' values, which become 'extraData' in notifier events
       if (env.options.notifierData) {
@@ -551,12 +656,15 @@ export class TranslateService {
       // Create transaction
       let result;
       if (!DB.inTransaction()) {
-        result = yield DB.executeTransaction(async function (this: any) {
-          this._saveData.call(this, env);
-          await this.saveData(env);
-          await this._finalizeSave.call(this, env);
-          return this.finalizeSave(env);
-        }.bind(this), env.transactionOptions);
+        result = yield DB.executeTransaction(
+          async function (this: any) {
+            this._saveData.call(this, env);
+            await this.saveData(env);
+            await this._finalizeSave.call(this, env);
+            return this.finalizeSave(env);
+          }.bind(this),
+          env.transactionOptions,
+        );
       }
       // Use existing transaction
       else {
@@ -568,8 +676,7 @@ export class TranslateService {
       }
       this._postSave(env);
       return result;
-    }
-    catch (e) {
+    } catch (e) {
       return this._recoverFromSaveError(env, e)
         .catch(function (e2: any) {
           ztoolkit.log(e2, 1);
@@ -577,8 +684,7 @@ export class TranslateService {
         .then(function () {
           if (env.options.errorHandler) {
             env.options.errorHandler(e);
-          }
-          else {
+          } else {
             ztoolkit.log(e);
           }
           throw e;
@@ -588,17 +694,9 @@ export class TranslateService {
 
   getServiceAccount(serialNumber: number) {
     if (!this.accounts) return;
-    return this.accounts.filter((account: TranslateServiceAccount) => account.serialNumber == serialNumber)[0];
+    return this.accounts.filter(
+      (account: TranslateServiceAccount) =>
+        account.serialNumber == serialNumber,
+    )[0];
   }
-
 }
-
-
-
-
-
-
-
-
-
-

@@ -2,17 +2,17 @@ import { config } from "../package.json";
 import { compareSQLUpdateDB, getDB } from "./modules/database/database";
 import { registerNotifier } from "./modules/notify";
 import { listenImage, listenImageCallback } from "./modules/ocr/trigerOcr";
-import { registerPrefs, registerPrefsScripts } from "./modules/preferenceScript";
+import {
+  registerPrefs,
+  registerPrefsScripts,
+} from "./modules/preferenceScript";
 import { Translator } from "./modules/translate/translate";
 import { initTranslateServices } from "./modules/translate/translateServices";
 import { DataDialog } from "./modules/ui/dataDialog";
 import { mountMenu, rightClickMenuItem } from "./modules/menu";
 import { monitorImageItem } from "./modules/ui/monitorImageItem";
 import { getString, initLocale } from "./utils/locale";
-import {
-  onShortcutPan,
-  registerPrefsShortcut,
-} from "./utils/shortcut";
+import { onShortcutPan, registerPrefsShortcut } from "./utils/shortcut";
 import { showInfo } from "./utils/tools";
 import { createZToolkit } from "./utils/ztoolkit";
 import { checkEncryptAccounts, encryptState } from "./modules/crypto";
@@ -24,7 +24,6 @@ async function onStartup() {
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
-
 
   /* if (__env__ === "development") {
     // Keep in sync with the scripts/.mjs
@@ -45,8 +44,10 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   monitorImageItem();
   showInfo(getString("startup-begin"));
   await getDB();
-  if (__env__ === "production" && await encryptState()) {
-    const condition = Services.prefs.getBoolPref('devtools.debugger.enabled') || Services.prefs.getBoolPref('devtools.debugger.remote-enabled');
+  if (__env__ === "production" && (await encryptState())) {
+    const condition =
+      Services.prefs.getBoolPref("devtools.debugger.enabled") ||
+      Services.prefs.getBoolPref("devtools.debugger.remote-enabled");
     if (condition) {
       window.alert(getString("info-debugger"));
       return;
@@ -80,12 +81,11 @@ async function onShutdown(): Promise<void> {
   delete Zotero[config.addonInstance];
 }
 
-
 /**
  * @param type event type
  * @param data event data
  */
-async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
+async function onPrefsEvent(type: string, data: { [key: string]: any }) {
   switch (type) {
     case "load":
       await registerPrefsScripts(data.window);
@@ -123,10 +123,10 @@ async function onCommand(cmd: string) {
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
-      () => { };
+      () => {};
       break;
     case "smaller":
-      () => { };
+      () => {};
       break;
     default:
       break;

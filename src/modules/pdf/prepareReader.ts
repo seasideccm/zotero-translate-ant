@@ -1,6 +1,13 @@
-
-export async function prepareReader(result: "beforReaderInit" | "waitForReader" | "initializedReader"
-  | "initializedPDFView" | "initializedPDFViewerApplication" | "pdfLoaded" | "firstPageLoaded" | "pagesLoaded"
+export async function prepareReader(
+  result:
+    | "beforReaderInit"
+    | "waitForReader"
+    | "initializedReader"
+    | "initializedPDFView"
+    | "initializedPDFViewerApplication"
+    | "pdfLoaded"
+    | "firstPageLoaded"
+    | "pagesLoaded",
 ) {
   let tabID;
   let n = 0;
@@ -10,16 +17,20 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   //参数itemID未传递
   //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
   let itemID;
-  if (!tabID && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
+  if (
+    !tabID &&
+    Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === "reader"
+  ) {
     //所选标签即为pdf
     tabID = Zotero_Tabs.selectedID;
     itemID = Zotero_Tabs._getTab(tabID).tab.data.itemID;
-
   } else {
     const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
     if (item) {
       if (!item.isPDFAttachment()) {
-        itemID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+        itemID = item
+          .getAttachments()
+          .filter((id) => Zotero.Items.get(id).isPDFAttachment())[0];
       } else {
         itemID = item.id;
       }
@@ -32,13 +43,12 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       fullTextTranslate.showInfo("info-noItemSelectedNoReaderOpened", 3000);
       return;
     } */
-
   }
   if (itemID) {
     await Zotero.Reader.open(itemID);
     tabID = Zotero_Tabs.getTabIDByItemID(itemID);
   }
-  //if (Zotero_Tabs.selectedID == "zotero-pane") 
+  //if (Zotero_Tabs.selectedID == "zotero-pane")
 
   /* if (!tabID && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type != 'reader') {
     tabID = getLatestTab(true);
@@ -46,8 +56,6 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     await Zotero.Reader.open(itemID);
   } */
   //if (!tabID) return getObj;
-
-
 
   /*   else {
       //查找pdf标签，找不到则退出      
@@ -62,7 +70,6 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
         tabID = Zotero_Tabs.getTabIDByItemID(itemID);
       }
     } */
-
 
   /* if(itemID) {
     //传递了参数itemID，如果 pdf 尚未打开    
@@ -80,7 +87,6 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     tabID = Zotero_Tabs.getTabIDByItemID(itemID);
   } */
 
-
   let reader: any;
   n = 0;
   let time;
@@ -93,16 +99,14 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n < 200) {
     await Zotero.Promise.delay(time);
     if (!reader && ++n % 20 == 0) {
-      const sec = (n * time / 1000).toFixed(2);
+      const sec = ((n * time) / 1000).toFixed(2);
       ztoolkit.log(`prepare reader... ${sec} seconds past.`);
     }
     if (reader) {
-      const sec = (n * time / 1000).toFixed(2);
+      const sec = ((n * time) / 1000).toFixed(2);
       ztoolkit.log(`Spend ${sec} seconds reader loaded.`);
     }
   }
-
-
 
   if (result == "beforReaderInit") {
     return getObj;
@@ -122,7 +126,8 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   if (result == "initializedPDFView") {
     return getObj;
   }
-  const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
+  const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject
+    .PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
   const pdfViewer = PDFViewerApplication.pdfViewer;
   if (result == "initializedPDFViewerApplication") {
@@ -143,41 +148,64 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   if (result == "pagesLoaded") {
     return getObj;
   } else {
-    return (e: string) => { };
+    return (e: string) => {};
   }
-  function getObj(obj: "reader" | "internalReader" | "primaryView"
-    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages"
-    | "pdfDocument" | "pdfItemID" | "document" | "documentPDFView") {
+  function getObj(
+    obj:
+      | "reader"
+      | "internalReader"
+      | "primaryView"
+      | "PDFViewerApplication"
+      | "pdfViewer"
+      | "pages"
+      | "pdfPages"
+      | "pdfDocument"
+      | "pdfItemID"
+      | "document"
+      | "documentPDFView",
+  ) {
     switch (obj) {
-      case "reader": return reader;
-      case "internalReader": return internalReader;
-      case "primaryView": return primaryView;
-      case "pdfViewer": return pdfViewer;
-      case "pages": return pages;
-      case "pdfPages": return pdfPages;
-      case "pdfDocument": return pdfDocument;
-      case "PDFViewerApplication": return PDFViewerApplication;
-      case "pdfItemID": return reader._item.id;
-      case "document": return document;
-      case "documentPDFView": return primaryView._iframeWindow.document;
+      case "reader":
+        return reader;
+      case "internalReader":
+        return internalReader;
+      case "primaryView":
+        return primaryView;
+      case "pdfViewer":
+        return pdfViewer;
+      case "pages":
+        return pages;
+      case "pdfPages":
+        return pdfPages;
+      case "pdfDocument":
+        return pdfDocument;
+      case "PDFViewerApplication":
+        return PDFViewerApplication;
+      case "pdfItemID":
+        return reader._item.id;
+      case "document":
+        return document;
+      case "documentPDFView":
+        return primaryView._iframeWindow.document;
       default:
         return reader;
     }
-  };
+  }
   function getLatestReader() {
-
     const tabs = Zotero_Tabs._tabs
       .map((x: any) => {
-        if ((x.type == 'reader' || x.type == 'reader-unloaded')
-          && Zotero.Items.exists(x.data.itemID)) {
+        if (
+          (x.type == "reader" || x.type == "reader-unloaded") &&
+          Zotero.Items.exists(x.data.itemID)
+        ) {
           return x;
         }
       })
-      .filter(e => e);
+      .filter((e) => e);
     if (!tabs.length) return;
     if (tabs.length == 1) return tabs[0].data.itemID;
-    return tabs.sort((a, b) => a.timeUnselected - b.timeUnselected)
-      .slice(-1)[0].data.itemID;
+    return tabs.sort((a, b) => a.timeUnselected - b.timeUnselected).slice(-1)[0]
+      .data.itemID;
     /* return Zotero_Tabs._tabs
       .map((x: any) => {
         if ((x.type == 'reader' || x.type == 'reader-unloaded')
@@ -191,20 +219,19 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
   function getLatestTab(onlyReaderTab?: boolean) {
     let condition: any;
-    onlyReaderTab ? condition = (x: any) => (x.type == 'reader' || x.type == 'reader-unloaded') : 1;
+    onlyReaderTab
+      ? (condition = (x: any) =>
+          x.type == "reader" || x.type == "reader-unloaded")
+      : 1;
     return Zotero_Tabs._tabs
       .map((x: any) => {
         if (condition() && Zotero.Items.exists(x.data.itemID)) {
           return x;
         }
       })
-      .filter(e => e)
+      .filter((e) => e)
       .sort((a, b) => a.timeUnselected - b.timeUnselected)
       .slice(-1)[0];
   }
   //Zotero.Session.state.windows.map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x.itemID; } });
-
 }
-
-
-

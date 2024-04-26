@@ -1,21 +1,47 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, getElementValue, makeId, setElementValue, } from "./ui/uiTools";
+import { getDom, getElementValue, makeId, setElementValue } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { batchListen, showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
-import { changedData, elemHiddenSwitch, getSelectedRow, getTableByID, priorityWithKeyTable, priorityWithoutKeyTable, replaceSecretKeysTable, updateServiceData, updateTable } from "./ui/tableSecretKeys";
+import {
+  changedData,
+  elemHiddenSwitch,
+  getSelectedRow,
+  getTableByID,
+  priorityWithKeyTable,
+  priorityWithoutKeyTable,
+  replaceSecretKeysTable,
+  updateServiceData,
+  updateTable,
+} from "./ui/tableSecretKeys";
 import { getServices } from "./translate/translateServices";
-import { addonSetting, getSettingValue, setCurrentService, setSettingValue } from "./addonSetting";
+import {
+  addonSetting,
+  getSettingValue,
+  setCurrentService,
+  setSettingValue,
+} from "./addonSetting";
 import { setHiddenState } from "./command";
 import { llmSettings } from "./ui/llmSettings";
-import { getSingleServiceUnderUse, serviceManage } from "./translate/serviceManage";
-import { TranslateService, TranslateServiceAccount } from "./translate/translateService";
+import {
+  getSingleServiceUnderUse,
+  serviceManage,
+} from "./translate/serviceManage";
+import {
+  TranslateService,
+  TranslateServiceAccount,
+} from "./translate/translateService";
 
-
-
-const limitIds = ["QPS", "charasPerTime", "hasSecretKey", "supportMultiParas", "limitMode", "charasLimitFactor", "charasLimit"];
-
+const limitIds = [
+  "QPS",
+  "charasPerTime",
+  "hasSecretKey",
+  "supportMultiParas",
+  "limitMode",
+  "charasLimitFactor",
+  "charasLimit",
+];
 
 export function registerPrefs() {
   ztoolkit.PreferencePane.register({
@@ -26,8 +52,6 @@ export function registerPrefs() {
     defaultXUL: true,
   });
 }
-
-
 
 export async function registerPrefsScripts(_window: Window) {
   if (!addon.data.prefs) {
@@ -57,18 +81,20 @@ async function buildPrefsPane() {
 
   // 原文语言 目标语言
   const langPair = async () => {
-
     let defaultSourceLang, defaultTargetLang;
     if (DB) {
-
-      defaultSourceLang = await getSettingValue('defaultSourceLang', "translate");
-      defaultTargetLang = await getSettingValue('defaultTargetLang', "translate");
-
+      defaultSourceLang = await getSettingValue(
+        "defaultSourceLang",
+        "translate",
+      );
+      defaultTargetLang = await getSettingValue(
+        "defaultTargetLang",
+        "translate",
+      );
     }
 
     defaultSourceLang = defaultSourceLang ? defaultSourceLang : void 0;
     defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
-
 
     const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
     const targetLangPlaceholder = getDom("targetLang-placeholder")!;
@@ -104,7 +130,7 @@ async function buildPrefsPane() {
           //@ts-ignore has
           label: defaultSourceLang
             ? //@ts-ignore has
-            Zotero.Locale.availableLocales[defaultSourceLang]
+              Zotero.Locale.availableLocales[defaultSourceLang]
             : getString("autoDetect"),
           value: defaultSourceLang ? defaultSourceLang : "autoDetect",
         },
@@ -179,12 +205,12 @@ async function buildPrefsPane() {
         if (!value) return;
         showInfo(
           "The " +
-          keyTorecord +
-          " was modified from " +
-          mutation.oldValue +
-          " to " +
-          label +
-          "."
+            keyTorecord +
+            " was modified from " +
+            mutation.oldValue +
+            " to " +
+            label +
+            ".",
         );
         await setSettingValue(keyTorecord, value, "translate");
         //await DB.executeTransaction(async function () {
@@ -194,7 +220,6 @@ async function buildPrefsPane() {
     }
   };
   await observeLangPair();
-
 
   // 安全设置   在账号表格前设置，以便控制 secretKey 和 token 字段内容
 
@@ -256,13 +281,13 @@ async function buildPrefsPane() {
 
   function limit() {
     const limitModes = ["daily", "month", "total", "noLimit", "pay"];
-    const limitModeChildPro = limitModes.map(mode => ({
+    const limitModeChildPro = limitModes.map((mode) => ({
       tag: "menuitem",
       namespace: "xul",
       attributes: {
         label: getString("pref-limitMode-" + mode),
         value: mode,
-      }
+      },
     }));
 
     ztoolkit.UI.replaceElement(
@@ -270,17 +295,17 @@ async function buildPrefsPane() {
         tag: "menulist",
         id: makeId("limitMode"),
         attributes: {
-          value: '',
+          value: "",
           native: "true",
         },
         children: [
           {
             tag: "menupopup",
             children: limitModeChildPro,
-          }
-        ]
+          },
+        ],
       },
-      getDom("limitMode-placeholder")!
+      getDom("limitMode-placeholder")!,
     );
   }
   limit();
@@ -296,14 +321,26 @@ async function buildPrefsPane() {
       box.hidden = false;
       return;
     }
-    const fields = ["senimed", "it", "finance", "machinery", "novel", "academic", "aerospace", "wiki", "news", "law", "contract"];
-    const childPro = fields.map(field => ({
+    const fields = [
+      "senimed",
+      "it",
+      "finance",
+      "machinery",
+      "novel",
+      "academic",
+      "aerospace",
+      "wiki",
+      "news",
+      "law",
+      "contract",
+    ];
+    const childPro = fields.map((field) => ({
       tag: "menuitem",
       namespace: "xul",
       attributes: {
         label: getString("pref-" + field),
         value: field,
-      }
+      },
     }));
     ztoolkit.UI.insertElementBefore(
       {
@@ -322,21 +359,19 @@ async function buildPrefsPane() {
             tag: "menulist",
             id: makeId("fields"),
             attributes: {
-              value: '',
+              value: "",
               native: "true",
             },
             children: [
-
               {
                 tag: "menupopup",
                 children: childPro,
               },
             ],
-          }
-        ]
-      }
-      ,
-      getDom("QPS")!.parentElement!
+          },
+        ],
+      },
+      getDom("QPS")!.parentElement!,
     );
     const field = (getDom("fields") as XUL.MenuList).value;
     if (field != "") {
@@ -344,7 +379,6 @@ async function buildPrefsPane() {
       const service = services[serviceID as keyof typeof services];
       await updateServiceData(service, "field", field);
     }
-
   }
   await updateLimits();
   async function updateLimits() {
@@ -360,13 +394,12 @@ async function buildPrefsPane() {
 
     for (const id of limitIds) {
       let value = service[id as keyof typeof service];
-      if (!value && id == 'charasLimitFactor') {
+      if (!value && id == "charasLimitFactor") {
         value = 1.0;
       }
 
       setElementValue(id, value);
     }
-
   }
   function hidden(hidden: boolean = true) {
     const tableHelper = getTableByID("secretKeysTable");
@@ -377,10 +410,7 @@ async function buildPrefsPane() {
       const addRecordBulk = getDom("addRecordBulk") as XUL.Button;
       if (addRecordBulk) addRecordBulk.hidden = hidden;
     }
-
   }
-
-
 }
 
 async function onPrefsEvents(idsuffixOrAction?: string[] | string) {
@@ -389,7 +419,8 @@ async function onPrefsEvents(idsuffixOrAction?: string[] | string) {
   if (!doc || !win) {
     return;
   }
-  if (!idsuffixOrAction) idsuffixOrAction = ["serviceIDUnderUse", "secretKeyUnderUse"];
+  if (!idsuffixOrAction)
+    idsuffixOrAction = ["serviceIDUnderUse", "secretKeyUnderUse"];
   if (!Array.isArray(idsuffixOrAction)) idsuffixOrAction = [idsuffixOrAction];
   for (const type of idsuffixOrAction) {
     switch (type) {
@@ -397,7 +428,7 @@ async function onPrefsEvents(idsuffixOrAction?: string[] | string) {
       case "secretKeyUnderUse":
         await underUsing();
         break;
-/*   
+      /*   
     
       case "update-QPS":
         {
@@ -496,20 +527,17 @@ async function onPrefsEvents(idsuffixOrAction?: string[] | string) {
   }
   /**
    * 通过className类名，禁止元素显示
-   * @param className 
-   * @param disabled 
+   * @param className
+   * @param disabled
    */
   const setDisabled = (className: string, disabled: boolean) => {
     doc
       .querySelectorAll(`.${className}`)
       .forEach(
-        (elem) => ((elem as XUL.Element & XUL.IDisabled).disabled = disabled)
+        (elem) => ((elem as XUL.Element & XUL.IDisabled).disabled = disabled),
       );
   };
-
 }
-
-
 
 function bindPrefEvents() {
   const win = addon.data.prefs?.window;
@@ -526,7 +554,6 @@ function bindPrefEvents() {
   });
 
   getDom("switchService")!.addEventListener("command", clickSwitchService);
-
 
   batchListen([getDom("forbiddenService")!, ["command"], [forbiddenService]]);
   batchListen([getDom("saveLimitParam")!, ["command"], [saveLimit]]);
@@ -577,7 +604,7 @@ function bindPrefEvents() {
     }
     const confirm = addon.data.prefs!.window.confirm(
       `${getString("pref-forbiddenService")}:         
-        ${serviceID}`
+        ${serviceID}`,
     );
     if (!confirm) return;
     const services = await getServices();
@@ -597,30 +624,35 @@ function bindPrefEvents() {
         await updateAcounts(services[serviceID].accounts);
         return;
       }
-      const appIDs = Array.from(rows).map((row: any) => row.children[0].textContent);
-      const accounts = services[serviceID].accounts?.filter(account => appIDs.includes(account.appID));
+      const appIDs = Array.from(rows).map(
+        (row: any) => row.children[0].textContent,
+      );
+      const accounts = services[serviceID].accounts?.filter((account) =>
+        appIDs.includes(account.appID),
+      );
       await updateAcounts(accounts);
-
-
 
       await updateTable("secretKeysTable", serviceID);
       //await replaceSecretKeysTable();
     }
-    async function updateAcounts(accounts: TranslateServiceAccount[] | undefined) {
+    async function updateAcounts(
+      accounts: TranslateServiceAccount[] | undefined,
+    ) {
       if (accounts && accounts.length) {
         for (const account of accounts) {
           await updateServiceData(account, "forbidden", true);
         }
       }
     }
-
   }
 
   getDom("recoverService")!.addEventListener("command", async (e) => {
-    const serviceMenu_popup = doc.querySelector(`#${config.addonRef}-serviceID > menupopup`)!;
+    const serviceMenu_popup = doc.querySelector(
+      `#${config.addonRef}-serviceID > menupopup`,
+    )!;
     //用户确认，弹出在addon.data.prefs!.window窗口
     const confirm = addon.data.prefs!.window.confirm(
-      `${getString("pref-recoverService")}`
+      `${getString("pref-recoverService")}`,
     );
     if (!confirm) return;
     const services = await getServices();
@@ -642,27 +674,30 @@ function bindPrefEvents() {
         attributes: {
           label: getString(`service-${e.serviceID}`),
           value: e.serviceID,
-        }
+        },
       };
       ztoolkit.UI.appendElement(menuItemObj, serviceMenu_popup);
     }
   });
 
-  getDom("isPriority")?.addEventListener("command", async function dodo(this: any, e) {
-    if (this.checked) {
-      await priorityWithKeyTable();
-      await priorityWithoutKeyTable();
-    }
-    elemHiddenSwitch(
-      ["labelPriorityWithoutKey",
-        "labelPriorityWithKey",
-        "table-servicePriorityWithoutKey",
-        "table-servicePriorityWithKey"],
-      !this.checked);
-
-  });
-
-
+  getDom("isPriority")?.addEventListener(
+    "command",
+    async function dodo(this: any, e) {
+      if (this.checked) {
+        await priorityWithKeyTable();
+        await priorityWithoutKeyTable();
+      }
+      elemHiddenSwitch(
+        [
+          "labelPriorityWithoutKey",
+          "labelPriorityWithKey",
+          "table-servicePriorityWithoutKey",
+          "table-servicePriorityWithKey",
+        ],
+        !this.checked,
+      );
+    },
+  );
 
   //监控插件菜单的位置，如果有变化，重新加载
   //@ts-ignore has
@@ -674,12 +709,18 @@ function bindPrefEvents() {
   //监控插件设置项目变化
   //@ts-ignore has
   const mutationObserverSettings = new win.MutationObserver(addonSettingUpdate);
-  mutationObserverSettings.observe(doc.querySelector(`#zotero-prefpane-${config.addonRef}`)!.parentElement, {
-    attributes: true, childList: true, subtree: true,
-  });
+  mutationObserverSettings.observe(
+    doc.querySelector(`#zotero-prefpane-${config.addonRef}`)!.parentElement,
+    {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    },
+  );
   function addonSettingUpdate(mutationsList: MutationRecord[], observer: any) {
-    for (const mutation of mutationsList) {//@ts-ignore has
-      if (!mutation.target.id.match(/-setting-(.*)/)) continue;//@ts-ignore has
+    for (const mutation of mutationsList) {
+      //@ts-ignore has
+      if (!mutation.target.id.match(/-setting-(.*)/)) continue; //@ts-ignore has
       showInfo(mutation.target.id);
       if (mutation.type === "childList") {
         showInfo("A child node has been added or removed.");
@@ -688,8 +729,6 @@ function bindPrefEvents() {
       }
     }
   }
-
-
 }
 
 export async function clickSwitchService(e?: Event) {
@@ -713,7 +752,9 @@ export async function clickSwitchService(e?: Event) {
     } else {
       //引擎有秘钥，选一个可用的
       if (!service.accounts || !service.accounts.length) return;
-      serialNumber = service.accounts?.filter(account => account.usable && !account.forbidden)[0].serialNumber.toString();
+      serialNumber = service.accounts
+        ?.filter((account) => account.usable && !account.forbidden)[0]
+        .serialNumber.toString();
     }
   } else {
     const appID = row.children[0].textContent;
@@ -725,7 +766,7 @@ export async function clickSwitchService(e?: Event) {
   }
   await setCurrentService(serviceID, serialNumber);
   await underUsing();
-  await serviceManage.onSwitch();//可用就用，pdftranslate 不一致则切换
+  await serviceManage.onSwitch(); //可用就用，pdftranslate 不一致则切换
 }
 
 async function getSerialNumberByAppid(serviceID: string, appID: string) {
@@ -739,7 +780,6 @@ async function getSerialNumberByAppid(serviceID: string, appID: string) {
 }
 
 async function underUsing() {
-
   const service = await getSingleServiceUnderUse();
   if (!service) return;
   const serviceID = getElementValue("serviceID");
@@ -749,7 +789,6 @@ async function underUsing() {
   } else {
     setElementValue("secretKeyUnderUse", "");
   }
-
 }
 
 function bilingualContrastHideShow(e?: Event) {
@@ -769,20 +808,20 @@ function skipLangsHideShow() {
     if (skipLangs) {
       skipLangs.parentElement
         ? (skipLangs.parentElement.hidden = true)
-        : () => { };
+        : () => {};
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
     placeholder.parentElement
       ? (placeholder.parentElement.hidden = true)
-      : () => { };
+      : () => {};
     return;
   }
   if (skipLangs) {
     skipLangs.parentElement
       ? (skipLangs.parentElement.hidden = false)
-      : () => { };
+      : () => {};
     return;
   }
   const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
@@ -833,8 +872,8 @@ function skipLangsHideShow() {
     if (tagName && tagName == "checkbox") {
       showInfo(
         (e.target as XUL.Checkbox).label +
-        ": " +
-        (e.target as XUL.Checkbox).checked,
+          ": " +
+          (e.target as XUL.Checkbox).checked,
       );
     }
   });
@@ -869,11 +908,11 @@ function skipLangsHideShow() {
   );
 }
 
-
 export async function openAddonPrefPane() {
-
   //shortcut.xhtml
-  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.pluginID == config.addonID && e.src.endsWith("preferences.xhtml"))[0];
+  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(
+    (e) => e.pluginID == config.addonID && e.src.endsWith("preferences.xhtml"),
+  )[0];
   if (addonPrefPane.id) {
     Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
   }
@@ -882,13 +921,10 @@ export async function openAddonPrefPane() {
 
 export async function openAddonShortcut() {
   //shortcut.xhtml
-  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(e => e.pluginID == config.addonID && e.src.endsWith("shortcut.xhtml"))[0];
+  const addonPrefPane = Zotero.PreferencePanes.pluginPanes.filter(
+    (e) => e.pluginID == config.addonID && e.src.endsWith("shortcut.xhtml"),
+  )[0];
   if (addonPrefPane.id) {
     Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
   }
-
 }
-
-
-
-

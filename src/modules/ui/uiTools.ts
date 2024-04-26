@@ -96,14 +96,21 @@ export const makeMenupopup = (id: string) => {
   return menupopup;
 };
 
-declare type MenuitemProps = { label: string; accesskey: string; acceltext: string, func: Func; args: any[]; };
-export const makeMenuitem = (
-  option: MenuitemProps,
-  menupopup: any,
-) => {
+declare type MenuitemProps = {
+  label: string;
+  accesskey: string;
+  acceltext: string;
+  func: Func;
+  args: any[];
+};
+export const makeMenuitem = (option: MenuitemProps, menupopup: any) => {
   localLabel(option);
   const attributes: any = {};
-  Zotero.Utilities.Internal.assignProps(attributes, option, ['label', 'accesskey', "acceltext"]);
+  Zotero.Utilities.Internal.assignProps(attributes, option, [
+    "label",
+    "accesskey",
+    "acceltext",
+  ]);
   const makeMenuitem = ztoolkit.UI.appendElement(
     {
       tag: "menuitem",
@@ -116,7 +123,7 @@ export const makeMenuitem = (
         option.func(...option.args);
     }); */
   if (!option.func) return;
-  option.args ? option.args : option.args = [];
+  option.args ? option.args : (option.args = []);
   if (judgeAsync(option.func)) {
     makeMenuitem.addEventListener("command", async () => {
       await option.func(...option.args);
@@ -129,7 +136,10 @@ export const makeMenuitem = (
 
   function localLabel(option: MenuitemProps) {
     let label = getString(option.label);
-    label = label.startsWith(config.addonRef) || label == void 0 || label == "" ? option.label : label;
+    label =
+      label.startsWith(config.addonRef) || label == void 0 || label == ""
+        ? option.label
+        : label;
     if (option.accesskey) label += ` (${option.accesskey.toLocaleUpperCase()})`;
     //if (option.acceltext) label += ` (${option.acceltext.toLocaleUpperCase()})`;
     option.label = label;
@@ -137,7 +147,7 @@ export const makeMenuitem = (
 };
 
 export const judgeAsync = (fun: any) => {
-  const AsyncFunction = (async () => { }).constructor;
+  const AsyncFunction = (async () => {}).constructor;
   return fun instanceof AsyncFunction;
 };
 
@@ -191,7 +201,10 @@ export function getDom(idSuffix: string) {
 @param idSuffix: string
 @param value: string)
 */
-export function setElementValue(idSuffix: string, value: string | boolean | number) {
+export function setElementValue(
+  idSuffix: string,
+  value: string | boolean | number,
+) {
   const ele = selectEle(idSuffix);
   if (!ele) return;
   //return (ele as Element).setAttribute("value", value)
@@ -205,10 +218,4 @@ export function setElementValue(idSuffix: string, value: string | boolean | numb
   } else if (typeof (ele as any).value == "string") {
     (ele as any).value = String(value);
   }
-
-
 }
-
-
-
-

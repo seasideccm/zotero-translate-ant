@@ -1,13 +1,15 @@
-
-
-
-export async function migrateAddonSystem(fromVersion: number, toVersion: number) {
+export async function migrateAddonSystem(
+  fromVersion: number,
+  toVersion: number,
+) {
   return true;
 }
-export async function migrateTranslation(fromVersion: number, toVersion: number) {
+export async function migrateTranslation(
+  fromVersion: number,
+  toVersion: number,
+) {
   return true;
 }
-
 
 /* export const migrate: any = {
   addonSystem: async function (fromVersion: number, toVersion: number) {

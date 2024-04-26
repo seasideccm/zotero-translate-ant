@@ -6,8 +6,6 @@ import { config } from "../../package.json";
 import { openAddonPrefPane } from "../modules/preferenceScript";
 import { getElementValue } from "../modules/ui/uiTools";
 
-
-
 export function registerPrefsShortcut() {
   ztoolkit.PreferencePane.register({
     pluginID: config.addonID,
@@ -34,21 +32,13 @@ export function onShortcutPan() {
   });
 
   const ele = doc.querySelector("#input-shortcut") as HTMLInputElement;
-  ele?.addEventListener('blur', () => {
-    if (ele.value && ele.value != '') {
-      const shortcutStr = ele.value.split('').join(" ");
+  ele?.addEventListener("blur", () => {
+    if (ele.value && ele.value != "") {
+      const shortcutStr = ele.value.split("").join(" ");
       customShortcut(shortcutStr, "setting");
     }
   });
-
-
-
 }
-
-
-
-
-
 
 export function registerShortcutsCache() {
   type KeyboardEventType = "keydown" | "keyup";
@@ -77,13 +67,12 @@ export function registerShortcutsCache() {
   registerFn();
   setShortcut();
   ztoolkit.Keyboard.register(cacheShortcuts);
-
 }
 const dispatchDebounced = Zotero.Utilities.debounce(dispatchShortcuts, 1000);
 function dispatchShortcuts(shortcutStr: string) {
   const cachedShortcuts = addon.mountPoint.cachedShortcuts;
   // 清空快捷键缓存
-  cachedShortcuts ? (cachedShortcuts.length = 0) : () => { };
+  cachedShortcuts ? (cachedShortcuts.length = 0) : () => {};
   //获取 Map 对象中键的值（函数），然后直接运行
 
   //
@@ -105,7 +94,6 @@ function dispatchShortcuts(shortcutStr: string) {
 }
 
 export function setShortcut() {
-
   const argsArr = [
     ["b d f y", 百度翻译],
     ["t x f y", 腾讯翻译],
@@ -113,13 +101,11 @@ export function setShortcut() {
     ["b d", "increaseFontSize"],
     ["b x", "decreaseFontSize"],
     ["a s", "setting"],
-
   ];
 
   argsArr.forEach((args: any[]) => {
     customShortcut(args[0], args[1]);
   });
-
 
   /*   customShortcut("b d f y", 百度翻译);
     customShortcut("t x f y", 腾讯翻译);
@@ -180,4 +166,3 @@ export function registerFn() {
   addon.mountPoint.fn.decreaseFontSize = decreaseFontSize;
   addon.mountPoint.fn.setting = openAddonPrefPane;
 }
-

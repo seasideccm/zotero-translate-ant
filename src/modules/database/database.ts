@@ -1,6 +1,12 @@
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
-import { getDir, fileNameNoExt, showInfo, getFilesRecursive, resourceFilesRecursive } from "../../utils/tools";
+import {
+  getDir,
+  fileNameNoExt,
+  showInfo,
+  getFilesRecursive,
+  resourceFilesRecursive,
+} from "../../utils/tools";
 import { Schema } from "./schema";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 
@@ -12,11 +18,8 @@ const newFieldvalueConfig: any = undefined;
   xxx: () => { }
 }; */
 
-
-
 //读取数据库建表 sql 语句，逐个表和 sql 文件拆分的见表语句比对，若有差异，备份表，重建表，导入旧数据，删除备份表
 export async function compareSQLUpdateDB() {
-
   const DB = await getDB();
   if (!DB) return;
   const sqlsFromDB: string[] = [];
@@ -25,30 +28,45 @@ export async function compareSQLUpdateDB() {
   for (const row of rows) {
     tableFromDB.push(row.name);
     if (!row.sql || !row.sql.length || row.sql == " ") continue;
-    sqlsFromDB.push(row.sql.replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
+    sqlsFromDB.push(
+      row.sql
+        .replace(/ +/g, " ")
+        .replace(/(\() +/g, "$1")
+        .replace(/ +(\))/g, "$1"),
+    );
   }
 
   const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB);
-  const allTextSqlsFromFiles = sqlsFromResourceFiles.join(';');
+  const allTextSqlsFromFiles = sqlsFromResourceFiles.join(";");
   //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
   //sqls 存在差异表示出现在数据库中，但文件中没有或修改了，需要删除数据库中的表
   const diffsDB = Zotero.Utilities.arrayDiff(sqlsFromDB, sqlsFromResourceFiles);
-  const diffsFiles = Zotero.Utilities.arrayDiff(sqlsFromResourceFiles, sqlsFromDB);
-  const diffs = diffsFiles.concat(diffsDB).filter((e: string) => !e.startsWith("DROP "));
+  const diffsFiles = Zotero.Utilities.arrayDiff(
+    sqlsFromResourceFiles,
+    sqlsFromDB,
+  );
+  const diffs = diffsFiles
+    .concat(diffsDB)
+    .filter((e: string) => !e.startsWith("DROP "));
 
   if (!diffs.length) {
-    ztoolkit.log("schema in database and files no diffs "); return;
+    ztoolkit.log("schema in database and files no diffs ");
+    return;
   }
   if (!newFieldvalueConfig) {
     window.alert(getString("tip-checkDatabaseSchema"));
-    const confirm = window.confirm("点击取消按钮：程序继续，自动配置被修改表中新字段的值。\n点击确定按钮跳过表结构修改，请完善代码，重新启动程序");
+    const confirm = window.confirm(
+      "点击取消按钮：程序继续，自动配置被修改表中新字段的值。\n点击确定按钮跳过表结构修改，请完善代码，重新启动程序",
+    );
     if (confirm) return;
   }
 
   await DB.executeTransaction(async () => {
     const cache: string[] = [];
     for (const diff of diffs) {
-      const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);
+      const matches = diff.match(
+        /^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i,
+      );
       if (!matches) continue;
       const tableName = matches.slice(-1)[0];
       if (cache.includes(tableName)) continue;
@@ -59,7 +77,12 @@ export async function compareSQLUpdateDB() {
         let sql = `SELECT COUNT(*) FROM ${tableName}`;
         const rowsNumberOld = await DB.queryAsync(sql);
         //如果旧表没有列或没有数据，则删除旧表建新表
-        if (!oldColumns || oldColumns.length === 0 || !rowsNumberOld || rowsNumberOld === 0) {
+        if (
+          !oldColumns ||
+          oldColumns.length === 0 ||
+          !rowsNumberOld ||
+          rowsNumberOld === 0
+        ) {
           const sql = `DROP ${tableType} ${tableName}`;
           await DB.queryAsync("PRAGMA foreign_keys = false");
           await DB.queryAsync(sql);
@@ -69,7 +92,7 @@ export async function compareSQLUpdateDB() {
           ztoolkit.log(tableName + " table Created");
           continue;
         }
-        //旧表重命名，建新表，导入数据，删除旧表      
+        //旧表重命名，建新表，导入数据，删除旧表
         sql = `ALTER TABLE ${tableName} RENAME TO ${tableName}_tempTable`;
         await DB.queryAsync(sql);
         await DB.queryAsync(diff);
@@ -84,18 +107,21 @@ export async function compareSQLUpdateDB() {
           // 新表新加的字段其值不能从旧表直接导入，筛选出其默认值
           if (!oldColumns.includes(col)) {
             //新表字段 MD5，对应旧表字段 fileName， 先将 fileName 字段的所有值复制到新表 MD5 字段
-            if (newFieldvalueConfig && newFieldvalueConfig?.alterTableName == tableName) {
+            if (
+              newFieldvalueConfig &&
+              newFieldvalueConfig?.alterTableName == tableName
+            ) {
               if (oldColumns.includes(newFieldvalueConfig[col])) {
                 oldFields.push(newFieldvalueConfig[col]);
                 continue;
               } else if (typeof newFieldvalueConfig[col] == "function") {
-                //todo 
+                //todo
                 continue;
               }
             }
             const defaultValue = getDefaltValue(col, diff);
             if (defaultValue !== void 0) {
-              oldFields.push(defaultValue);// 如果没有默认值该如何？
+              oldFields.push(defaultValue); // 如果没有默认值该如何？
             } else {
               oldFields.push("");
             }
@@ -134,16 +160,16 @@ function getDefaltValue(col: string, sql: string) {
   const index = tempArr.indexOf("DEFAULT");
   if (index > -1) {
     ztoolkit.log("found colum DEFAULT value: " + tempArr[index + 1]);
-    return tempArr[index + 1];//返回定义的默认值
+    return tempArr[index + 1]; //返回定义的默认值
   }
-  if (tempArr.indexOf("INT") > -1) {// 如果没有 “DEFAULT”字符串 但有“INT”，返回默认值0
+  if (tempArr.indexOf("INT") > -1) {
+    // 如果没有 “DEFAULT”字符串 但有“INT”，返回默认值0
     return 0;
   }
-  if (tempArr.indexOf("TEXT") > -1) {// 如果没有 “DEFAULT”字符串 但有“TEXT”，返回默认值"no"
+  if (tempArr.indexOf("TEXT") > -1) {
+    // 如果没有 “DEFAULT”字符串 但有“TEXT”，返回默认值"no"
     return "'no'";
   }
-
-
 }
 
 //通过as Zotero.DBConnection 类型断言，避免修改 node_modules\zotero-types\types\zotero.d.ts
@@ -221,10 +247,10 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
           : null;
         ztoolkit.log(
           Zotero.getString("startupError", Zotero.appName) +
-          "\n\n" +
-          Zotero.getString("db.integrityCheck.reportInForums") +
-          "\n\n" +
-          (stack || e),
+            "\n\n" +
+            Zotero.getString("db.integrityCheck.reportInForums") +
+            "\n\n" +
+            (stack || e),
         );
       }
       ztoolkit.log(e);
@@ -250,7 +276,6 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
   getFieldID(field: string) {
     const sql = `SELECT fieldID FROM fields WHERE fieldName = ${field}`;
     return this.valueQueryAsync(sql);
-
   }
 
   async renameTable(tableName: string, tableNameNew: string) {
@@ -326,8 +351,8 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
 
   async updateDate(
     tableName: string,
-    data: { [columsField: string]: any; },
-    record: { [columsField: string]: any; },
+    data: { [columsField: string]: any },
+    record: { [columsField: string]: any },
   ) {
     const sqlColumns = Object.keys(data);
     const sqlValues = sqlColumns.map((key) => data[key]);
@@ -345,13 +370,11 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
     await this.queryAsync(sql, sqlValues);
   }
 
-
   async getNextID(table: string, field: string) {
     //这个 SQL 语句从表中选择特定字段的最大值，并使用 COALESCE 函数将其加1。如果最大值为 null，则返回默认值1。
-    const sql = 'SELECT COALESCE(MAX(' + field + ') + 1, 1) FROM ' + table;
+    const sql = "SELECT COALESCE(MAX(" + field + ") + 1, 1) FROM " + table;
     return await this.valueQueryAsync(sql);
   }
-
 }
 
 /**
@@ -385,8 +408,7 @@ export async function getDB(dbName?: string) {
   // 若 addonDB 存在则检查
   try {
     await addonDB.initPromise;
-  }
-  catch (e: any) {
+  } catch (e: any) {
     ztoolkit.log(e);
     showInfo(e);
     /* if (typeof e == "string" && e == msg.SCHEMA_NEED_REPAIR) {
@@ -413,7 +435,17 @@ export async function clearTable(tableNames: string[]) {
 }
 
 export async function clearAllTable() {
-  const tableNames = ["translateServiceSN", "translateServices", "accounts", "accessTokens", "freeLoginServices", "charConsum", "totalCharConsum", "serviceLimits", "serviceTypes"];
+  const tableNames = [
+    "translateServiceSN",
+    "translateServices",
+    "accounts",
+    "accessTokens",
+    "freeLoginServices",
+    "charConsum",
+    "totalCharConsum",
+    "serviceLimits",
+    "serviceTypes",
+  ];
   await clearTable(tableNames);
 }
 
@@ -427,7 +459,7 @@ export async function makeDBPath(dbName?: string) {
   if (dbName == void 0 || (dbName && getDir(dbName) == ".")) {
     dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
   } else {
-    dir = getDir(dbName) || '';
+    dir = getDir(dbName) || "";
   }
   //if (!dir) return;
 
@@ -488,19 +520,17 @@ function _checkDataDirAccessError(e: any) {
 
 /**
  * false 为故障，true 为检查通过
- * @returns 
+ * @returns
  */
 async function checkSchema() {
   const schema = new Schema();
-  if (!await schema.checkInitialized()) return false;
-  if (!await schema.checkAddonVersion()) return false;
+  if (!(await schema.checkInitialized())) return false;
+  if (!(await schema.checkAddonVersion())) return false;
   if (await schema.integrityCheckRequired()) {
     if (!(await schema.integrityCheck())) return false;
   }
   return !(await schema.checkSchemasUpdate());
-
 }
-
 
 /* async function saveDateToDB(data: any, op?: string, record?: { filed: string; value: any; }) {
     const DB = await getDB();
@@ -524,11 +554,10 @@ async function checkSchema() {
     }
 } */
 
-
-
-
-
-export async function getSQLFromResourceFiles(DB: DataBase, filterFilename?: string) {
+export async function getSQLFromResourceFiles(
+  DB: DataBase,
+  filterFilename?: string,
+) {
   const sqlsFromResourceFiles = [];
   const files = await resourceFilesRecursive(undefined, undefined, "sql");
   for (const file of files) {
@@ -543,7 +572,13 @@ export async function getSQLFromResourceFiles(DB: DataBase, filterFilename?: str
     const sqlFromFile = await Zotero.File.getResourceAsync(path);
     const sqls = DB.parseSQLFile(sqlFromFile);
     //sqlite 表结构中的建表语句没有 " IF NOT EXISTS"
-    const sqlsTemp = sqls.map(sql => sql.replace(" IF NOT EXISTS", '').replace(/ +/g, " ").replace(/(\() +/g, "$1").replace(/ +(\))/g, "$1"));
+    const sqlsTemp = sqls.map((sql) =>
+      sql
+        .replace(" IF NOT EXISTS", "")
+        .replace(/ +/g, " ")
+        .replace(/(\() +/g, "$1")
+        .replace(/ +(\))/g, "$1"),
+    );
     sqlsFromResourceFiles.push(...sqlsTemp);
   }
   return sqlsFromResourceFiles;
@@ -566,12 +601,17 @@ export async function getSQLFilesContent() {
 
 /**
  * 将翻译引擎类型写入数据库
- * @returns 
+ * @returns
  */
 export async function fillServiceTypes() {
   const DB = await getDB();
   if (!DB) return;
-  const serviceTypes = ["translate", "ocr", "ocrTranslate", "languageIdentification"];
+  const serviceTypes = [
+    "translate",
+    "ocr",
+    "ocrTranslate",
+    "languageIdentification",
+  ];
   const tableName = "serviceTypes";
   await DB.executeTransaction(async () => {
     for (const serviceType of serviceTypes) {
@@ -582,13 +622,11 @@ export async function fillServiceTypes() {
   });
 }
 
-
-
 export async function getTableNamesFromSqlFile(fileName: string) {
   const DB = await getDB();
   if (!DB) return;
   const sqlsFromResourceFiles = await getSQLFromResourceFiles(DB, fileName);
-  const diffs = sqlsFromResourceFiles.join(';');
+  const diffs = sqlsFromResourceFiles.join(";");
   const tableNames = [];
   for (const diff of diffs) {
     const matches = diff.match(/^CREATE\s((TABLE)|(INDEX)|(TRIGGER))\s(\w+)/i);

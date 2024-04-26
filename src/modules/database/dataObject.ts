@@ -1,3 +1,1 @@
-export class DataObject {
-
-}
+export class DataObject {}

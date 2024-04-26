@@ -3,21 +3,26 @@ import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { frequency, pdf2document } from "../pdf/pdfFullText";
 import { showInfo, timer } from "../../utils/tools";
-import { decryptKey, getSingleServiceUnderUse, serviceManage } from "./serviceManage";
+import {
+  decryptKey,
+  getSingleServiceUnderUse,
+  serviceManage,
+} from "./serviceManage";
 import { baiduModify } from "../webApi/baiduModify";
 import { baidufieldModify } from "../webApi/baidufieldModify";
 import { tencentTransmart } from "../webApi/tencentTransmart";
 import { html2md, md2html } from "../../utils/mdHtmlConvert";
-import { ServiceMap, getCharasLimit, getServices, } from "./translateServices";
-import { langCodeNameSpeakers, langCode_francVsZotero } from "../../utils/constant";
+import { ServiceMap, getCharasLimit, getServices } from "./translateServices";
+import {
+  langCodeNameSpeakers,
+  langCode_francVsZotero,
+} from "../../utils/constant";
 import { franc } from "franc-min";
 import { translateFunc } from "./translate";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 import { getSettingValue } from "../addonSetting";
 import { getElementValue } from "../ui/uiTools";
 import { getLang, getLangCode, zoteroLangCode } from "../../utils/iso-639-3";
-
-
 
 const charConsumRecoder = 0;
 
@@ -26,15 +31,11 @@ const charConsumRecoder = 0;
   ztoolkit.log("open pdf");
 } */
 export class fullTextTranslate {
-
-
-
-
   /**
-   * 
-   * @param pdfItem 
-   * @param isSavePDTtoNote 
-   * @returns 
+   *
+   * @param pdfItem
+   * @param isSavePDTtoNote
+   * @returns
    */
   static async getPdfContent(pdfItem: Zotero.Item, isSavePDTtoNote?: boolean) {
     if (!pdfItem.isPDFAttachment()) {
@@ -42,19 +43,21 @@ export class fullTextTranslate {
       return;
     }
     const doc = await pdf2document(pdfItem.id);
-    if (!doc) { return; }
+    if (!doc) {
+      return;
+    }
     const noteTxt = doc;
     //保存笔记
     if (isSavePDTtoNote) {
-      const note = new Zotero.Item('note');
+      const note = new Zotero.Item("note");
       note.libraryID = pdfItem.libraryID;
       const zp = Zotero.getActiveZoteroPane();
 
       if (pdfItem.parentKey) {
         note.parentKey = pdfItem.parentKey;
-      }
-      else if (pdfItem.getCollections().length) {
-        if (zp.collectionsView) note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
+      } else if (pdfItem.getCollections().length) {
+        if (zp.collectionsView)
+          note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
       }
 
       note.setNote(noteTxt);
@@ -64,8 +67,8 @@ export class fullTextTranslate {
   }
 
   /**
-   * 
-   * @returns 
+   *
+   * @returns
    */
   static getPDFs() {
     const items = Zotero.getActiveZoteroPane().getSelectedItems();
@@ -80,7 +83,11 @@ export class fullTextTranslate {
       //如果是无父条目的pdf，直接获取其id
       if (!item.isRegularItem() && item.parentItem) {
         item = item.parentItem;
-      } else if (!item.isRegularItem() && item.isPDFAttachment() && !item.parentItem) {
+      } else if (
+        !item.isRegularItem() &&
+        item.isPDFAttachment() &&
+        !item.parentItem
+      ) {
         pdfIDs.push(item.id);
         continue;
       }
@@ -108,17 +115,17 @@ export class fullTextTranslate {
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
       await this.getPdfContent(item, true);
-
     }
   }
 
   static async onePdf2Note() {
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
-    if (!reader) { return; }
+    if (!reader) {
+      return;
+    }
     const item = reader._item;
     await this.getPdfContent(item, true);
   }
-
 
   static async translateOnePdf() {
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
@@ -131,18 +138,18 @@ export class fullTextTranslate {
     await fullTextTranslate.makeTranslation(docItem);
   }
 
-
-
   /**
- * 更新引擎账号的字符消耗量
- * @param characters 
- * @param service 
- * @returns 
- */
-  static async updateCharConsum(characters: number, account: TranslateServiceAccount | TranslateService) {
+   * 更新引擎账号的字符消耗量
+   * @param characters
+   * @param service
+   * @returns
+   */
+  static async updateCharConsum(
+    characters: number,
+    account: TranslateServiceAccount | TranslateService,
+  ) {
     if (!account.charConsum) {
       account.charConsum = characters;
-
     } else {
       account.charConsum += characters;
     }
@@ -154,7 +161,7 @@ export class fullTextTranslate {
   }
 
   /**
-   * 
+   *
    */
   static getTxtCallback() {
     new ztoolkit.ProgressWindow(config.addonName)
@@ -166,7 +173,6 @@ export class fullTextTranslate {
     const noteIDs = fullTextTranslate.getNoteIDs();
     window.alert("成功获取笔记ID" + noteIDs);
   }
-
 
   static async getNoteIDs(itemIDs?: number[] | number) {
     let items;
@@ -207,14 +213,15 @@ export class fullTextTranslate {
 
   /**
    * 语种识别
-   * @param sourceText 
-   * @returns 
+   * @param sourceText
+   * @returns
    */
   static async languageIdentify(sourceText: string) {
     //todo 指定排除的语言
     sourceText = Zotero.Utilities.unescapeHTML(sourceText);
     const isSkipLocal = getPref("isSkipLocal");
-    let untranslatedLanguage = getPref("untranslatedLanguage") as string || "";
+    let untranslatedLanguage =
+      (getPref("untranslatedLanguage") as string) || "";
     if (isSkipLocal) {
       untranslatedLanguage += Zotero.locale as string;
     }
@@ -229,9 +236,15 @@ export class fullTextTranslate {
       const francLang: string = franc(text);
       if (francLang !== undefined && francLang != "" && francLang !== "und") {
         //三码到两码未定义的语言被忽略
-        const lang = langCode_francVsZotero[francLang as keyof typeof langCode_francVsZotero];
-        const langCodeNameSpeakersObj = langCodeNameSpeakers[francLang as keyof typeof langCode_francVsZotero];
-        if (lang !== undefined && lang != '') {
+        const lang =
+          langCode_francVsZotero[
+            francLang as keyof typeof langCode_francVsZotero
+          ];
+        const langCodeNameSpeakersObj =
+          langCodeNameSpeakers[
+            francLang as keyof typeof langCode_francVsZotero
+          ];
+        if (lang !== undefined && lang != "") {
           languageArr.push(lang);
         }
         langRecognize.push(francLang);
@@ -239,18 +252,32 @@ export class fullTextTranslate {
     }
     if (langRecognize.length) {
       //[...new Set(langRecognize)]
-      frequency(langRecognize).itemOrderByFrequency.filter(e => {
-        langCodeNameSpeakersString = langCodeNameSpeakersString + ('\n' + e + "=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].name + ", speakers=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].speakers + ';\n');
+      frequency(langRecognize).itemOrderByFrequency.filter((e) => {
+        langCodeNameSpeakersString =
+          langCodeNameSpeakersString +
+          ("\n" +
+            e +
+            "=" +
+            langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero]
+              .name +
+            ", speakers=" +
+            langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero]
+              .speakers +
+            ";\n");
       });
-
     }
     //对元素合并计数
-    const languageObj = languageArr.reduce((acc: { [key: string]: number; }, el) => {
-      acc[el] = (acc[el] + 1) || 1;
-      return acc;
-    }, {});
+    const languageObj = languageArr.reduce(
+      (acc: { [key: string]: number }, el) => {
+        acc[el] = acc[el] + 1 || 1;
+        return acc;
+      },
+      {},
+    );
     //多键值对象转换为一键一值的对象数组
-    const languageObjArr = Object.keys(languageObj).map((key: string) => ({ [key]: languageObj[key] }));
+    const languageObjArr = Object.keys(languageObj).map((key: string) => ({
+      [key]: languageObj[key],
+    }));
     //对对象数组按降序排序
     languageObjArr.sort((a, b) => b[Object.keys(b)[0]] - a[Object.keys(a)[0]]);
     const langArr = [];
@@ -260,18 +287,28 @@ export class fullTextTranslate {
       }
     }
 
-    showInfo(langCodeNameSpeakersString + '\n\n' + '三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言');
+    showInfo(
+      langCodeNameSpeakersString +
+        "\n\n" +
+        "三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言",
+    );
     if (langArr.length > 2) {
       langArr.splice(2);
     }
     let isTran;
-    const forbiddenLang = langArr.filter(item => untranslatedLanguage.includes(item));
+    const forbiddenLang = langArr.filter((item) =>
+      untranslatedLanguage.includes(item),
+    );
     if (!forbiddenLang.length) {
       isTran = true;
       /* noteTodoIDs.push(aNOteID); */
     } else {
       isTran = false;
-      showInfo(getString("info-filteredByLanguageForbidden") + ": " + forbiddenLang.toString());
+      showInfo(
+        getString("info-filteredByLanguageForbidden") +
+          ": " +
+          forbiddenLang.toString(),
+      );
     }
     /*     }
       } */
@@ -281,12 +318,11 @@ export class fullTextTranslate {
   }
 
   /**
-   * 
-   * @param mdtxt 
-   * @returns 
+   *
+   * @param mdtxt
+   * @returns
    */
   static cleanMd(mdtxt: string) {
-
     /* eslint-disable no-useless-escape */
     //删除markdown转义“\”
     //const reg0 = /\\([.\[\]~\(\)>*\\\-`{}_!#+&])/gi;
@@ -296,7 +332,7 @@ export class fullTextTranslate {
     // 处理其他 a 标签
     const reg1 = /<a[^>]*>([^>]?.*?)<\/a>/gi;
     const reg2 = /\xA0/g;
-    const reg3 = /(^(?!!\[).+?)[\[\(]+https.+?[\]\)]+/gmi;
+    const reg3 = /(^(?!!\[).+?)[\[\(]+https.+?[\]\)]+/gim;
     const reg4 = /(<span[^>]*>)+(.+?)(<\/span>)+/gi;
     const reg41 = /\*\*([^\*\n]+)\*\*/g;
     const reg5 = /\]\]([, ]*)\[\[/g;
@@ -321,39 +357,38 @@ export class fullTextTranslate {
     const reg20 = /\n{2,}/g;
     const reg21 = /^#+ *$/gm;
 
-    mdtxt = mdtxt.replace(reg1, '[$1]')
-      .replace(reg2, ' ')
-      .replace(reg3, '$1')
-      .replace(reg4, '$2')
-      .replace(reg41, '$1')
-      .replace(reg5, ',')
-      .replace(reg6, '')
-      .replace(reg22, '')
-      .replace(reg7, '[')
-      .replace(reg8, ']')
-      .replace(reg9, ',')
-      .replace(reg10, ',')
-      .replace(reg11, ',')
-      .replace(reg12, '[')
-      .replace(reg13, ']')
-      .replace(reg14, '[')
-      .replace(reg15, ']')
-      .replace(reg16, '[')
-      .replace(reg17, ']')
-      .replace(reg18, '')
-      .replace(reg19, '$1')
-      .replace(reg20, '\n')
-      .replace(reg21, '');
+    mdtxt = mdtxt
+      .replace(reg1, "[$1]")
+      .replace(reg2, " ")
+      .replace(reg3, "$1")
+      .replace(reg4, "$2")
+      .replace(reg41, "$1")
+      .replace(reg5, ",")
+      .replace(reg6, "")
+      .replace(reg22, "")
+      .replace(reg7, "[")
+      .replace(reg8, "]")
+      .replace(reg9, ",")
+      .replace(reg10, ",")
+      .replace(reg11, ",")
+      .replace(reg12, "[")
+      .replace(reg13, "]")
+      .replace(reg14, "[")
+      .replace(reg15, "]")
+      .replace(reg16, "[")
+      .replace(reg17, "]")
+      .replace(reg18, "")
+      .replace(reg19, "$1")
+      .replace(reg20, "\n")
+      .replace(reg21, "");
     return mdtxt;
   }
 
   /**
-   * 
-   * @returns 
+   *
+   * @returns
    */
   static async translateFT(type: "note" | "pdf") {
-
-
     let noteIDs: number[] = [];
     if (type == "pdf") {
       noteIDs = this.getPDFs();
@@ -361,15 +396,23 @@ export class fullTextTranslate {
       noteIDs = await fullTextTranslate.getNoteIDs();
     }
 
-    if (!noteIDs?.length) { return; }
+    if (!noteIDs?.length) {
+      return;
+    }
     for (const noteID of noteIDs) {
       const contentObj = await fullTextTranslate.contentPrepare(noteID);
-      if (!contentObj) { continue; }
+      if (!contentObj) {
+        continue;
+      }
       const start = timer();
       const docItem = await fullTextTranslate.translateDoc(contentObj);
       if (!docItem) return;
       const time = start();
-      showInfo(getString("info-translationTIme") + (time / 1000).toString() + " seconds");
+      showInfo(
+        getString("info-translationTIme") +
+          (time / 1000).toString() +
+          " seconds",
+      );
       await fullTextTranslate.makeTranslation(docItem);
     }
     await serviceManage.allkeyUsableCheck();
@@ -377,49 +420,52 @@ export class fullTextTranslate {
 
   /**
    * split zotero note by paragraph or table or img
-   * @param sourceTxt 
-   * @param emptyLine  whether to preserve empty lines  
-   * @returns 
+   * @param sourceTxt
+   * @param emptyLine  whether to preserve empty lines
+   * @returns
    */
   static splitContent = (sourceTxt: string, emptyLine: boolean) => {
     let regex;
     if (emptyLine) {
       //(<([^<>]+?>)<\/\2)用于分割空行会导致\2也起到了分割的作用
       //正则表达式标志gs可以运行，但在zotero run JavaScript中不能有s，估计其支持不完整
-      //改为/(<[^<>]+?><\/[^<>]+>\n)/ 后出错 "</strong></p>\n" 
+      //改为/(<[^<>]+?><\/[^<>]+>\n)/ 后出错 "</strong></p>\n"
       //(<([^<>]+?>)<\/\2),然后过滤掉 p> h>，需要写在正则表达式后面，否则元素可能未定义
 
-
-      regex = /(<([^<>]+?>)<\/\2\n)|(<table>.+?<\/table>\n?)|(<ol>.+?<\/ol>\n?)|(<ul>.+?<\/ul>\n?)|(<p><img.+?<\/p>\n?)|(^<p><span class="highlight" data-annotation="[^>]+?>“.+?”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?)|(^<[^<>]+?>“.+” ?<span class="citation" data-citation=".+?<\/span>\)<\/span><\/[^><]+?>\n?)/gms;
-
-
-
+      regex =
+        /(<([^<>]+?>)<\/\2\n)|(<table>.+?<\/table>\n?)|(<ol>.+?<\/ol>\n?)|(<ul>.+?<\/ul>\n?)|(<p><img.+?<\/p>\n?)|(^<p><span class="highlight" data-annotation="[^>]+?>“.+?”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?)|(^<[^<>]+?>“.+” ?<span class="citation" data-citation=".+?<\/span>\)<\/span><\/[^><]+?>\n?)/gms;
     } else {
-      regex = /(^<table>.+?<\/table>\n?)|(<ol>.+?<\/ol>\n?)|(<ul>.+?<\/ul>\n?)|(^<p><img.+?<\/p>\n?)|(^<p><span class="highlight" data-annotation="[^>]+?>“.+?”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?)/gms;
+      regex =
+        /(^<table>.+?<\/table>\n?)|(<ol>.+?<\/ol>\n?)|(<ul>.+?<\/ul>\n?)|(^<p><img.+?<\/p>\n?)|(^<p><span class="highlight" data-annotation="[^>]+?>“.+?”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?)/gms;
     }
     const splitArr = sourceTxt.split(regex);
-    const filteredArr = splitArr.filter((item) => item !== undefined && item !== "" && item.match(/^[a-z]>$/g) === null);
+    const filteredArr = splitArr.filter(
+      (item) =>
+        item !== undefined && item !== "" && item.match(/^[a-z]>$/g) === null,
+    );
     return filteredArr;
   };
 
   /**
    * split table or image at the end of the article
-   * @param sourceTxt 
-   * @returns 
+   * @param sourceTxt
+   * @returns
    */
   static splitContentEnd = (sourceTxt: string) => {
     const regex = /(<table>.+?<\/table>\n?)|(<p><img.+?<\/p>\n?)/gs;
     const splitArr = sourceTxt.split(regex);
-    const filteredArr = splitArr.filter((item) => item !== undefined && item !== "");
+    const filteredArr = splitArr.filter(
+      (item) => item !== undefined && item !== "",
+    );
     return filteredArr;
   };
 
   /**
    * 整句拆分
    * 如果未经判断的字串传入，且小于字符限制，则以数组的形式返回
-   * @param sourceTxt 
-   * @param charasPerTime 
-   * @returns 
+   * @param sourceTxt
+   * @param charasPerTime
+   * @returns
    */
   static wholeSentenceSplit(sourceTxt: string, charasPerTime: number) {
     /* eslint-disable no-useless-escape */
@@ -428,39 +474,50 @@ export class fullTextTranslate {
 
     // consider characters count after a period "."
     const charaLength = charasPerTime - 20;
-    if (sourceTxt.length <= charaLength) { return [sourceTxt]; }
+    if (sourceTxt.length <= charaLength) {
+      return [sourceTxt];
+    }
     //烧脑正则表达式，只有通过new RegExp 构建regex，才能利用变量达到长度为动态的要求
-    const regex = new RegExp("\(" + ".{1," + charaLength + regexTxt + regexTxt2 + "\)", 'gm');
+    const regex = new RegExp(
+      "(" + ".{1," + charaLength + regexTxt + regexTxt2 + ")",
+      "gm",
+    );
     const splitArr = sourceTxt.split(regex);
-    let filteredArr = splitArr.filter((item) => item !== undefined && item !== "" && item !== "\n");
+    let filteredArr = splitArr.filter(
+      (item) => item !== undefined && item !== "" && item !== "\n",
+    );
     //分割失败怎么办？
     if (filteredArr.length == 0) {
       const regex2 = /(.+?[.:?!'"] (?=[A-z]))/g;
       const splitArr1 = sourceTxt.split(regex2);
-      const filteredArr1 = splitArr1.filter((item) => item !== undefined && item !== "");
-      filteredArr = fullTextTranslate.combineByLimit(filteredArr1, charasPerTime);
+      const filteredArr1 = splitArr1.filter(
+        (item) => item !== undefined && item !== "",
+      );
+      filteredArr = fullTextTranslate.combineByLimit(
+        filteredArr1,
+        charasPerTime,
+      );
     }
     return filteredArr;
   }
-
 
   /**
    * 数组元素中不能有"\n"
    * 传入数组，合并成符合字数限制的数组，原有数组字符串末尾加 '\n'
    * 最终返回字符串数组，有"\n"的字符串是合并过的
-   * @param filteredArr 
-   * @param charasPerTime 
-   * @returns 
+   * @param filteredArr
+   * @param charasPerTime
+   * @returns
    */
   static combineByLimit(filteredArr: string[], charasPerTime: number) {
     const resultArr = [];
-    let tempStr = '';
+    let tempStr = "";
     for (let i = 0; i < filteredArr.length; i++) {
       if (tempStr.length + filteredArr[i].length <= charasPerTime) {
-        tempStr = tempStr + filteredArr[i] + '\n';
+        tempStr = tempStr + filteredArr[i] + "\n";
       } else {
-        resultArr.push(tempStr.replace(/\n$/, ''));
-        tempStr = filteredArr[i] + '\n';
+        resultArr.push(tempStr.replace(/\n$/, ""));
+        tempStr = filteredArr[i] + "\n";
       }
       if (i === filteredArr.length - 1) {
         resultArr.push(tempStr);
@@ -470,50 +527,55 @@ export class fullTextTranslate {
   }
 
   /**
-   * 
-   * @param filteredArr 
-   * @param charasPerTime 
-   * @returns 
+   *
+   * @param filteredArr
+   * @param charasPerTime
+   * @returns
    */
-  static combineByLimitOneRequest(filteredArr: string[], charasPerTime: number) {
-    let tempStr = '';
+  static combineByLimitOneRequest(
+    filteredArr: string[],
+    charasPerTime: number,
+  ) {
+    let tempStr = "";
     const reg = /\n$/g;
-    const leftArr = filteredArr.map(e => e);
+    const leftArr = filteredArr.map((e) => e);
     for (let i = 0; i < filteredArr.length; i++) {
       if (tempStr.length + filteredArr[i].length < charasPerTime) {
-        tempStr = tempStr + filteredArr[i] + '\n';
+        tempStr = tempStr + filteredArr[i] + "\n";
         leftArr.shift();
       } else {
         return {
-          str: tempStr.replace(reg, ''),
-          leftArr: leftArr
+          str: tempStr.replace(reg, ""),
+          leftArr: leftArr,
         };
       }
     }
     return {
-      str: tempStr.replace(reg, ''),
-      leftArr: leftArr
+      str: tempStr.replace(reg, ""),
+      leftArr: leftArr,
     };
   }
 
   /**
-   * 
-   * @param noteID 
-   * @returns 
+   *
+   * @param noteID
+   * @returns
    */
   static async contentPrepare(itemID: number) {
-    if (itemID === undefined) { return; }
+    if (itemID === undefined) {
+      return;
+    }
     const item = Zotero.Items.get(itemID);
     const Library = Zotero.Libraries.get(item.libraryID);
     if (!(Library && Library.filesEditable)) {
       showInfo(getString("info-filesUnEditable"));
       return;
     }
-    let noteHtml = '';
+    let noteHtml = "";
     if (item.isNote()) {
       noteHtml = item.getNote();
     } else if (item.isPDFAttachment()) {
-      noteHtml = await this.getPdfContent(item) as string;
+      noteHtml = (await this.getPdfContent(item)) as string;
     }
     const docCellArr: DocCell[] = [];
     const docItem: DocItem = {
@@ -521,7 +583,9 @@ export class fullTextTranslate {
       key: item.key,
       content: docCellArr,
     };
-    if (!noteHtml.length || noteHtml === undefined) { return; }
+    if (!noteHtml.length || noteHtml === undefined) {
+      return;
+    }
     //split paragraph
     //replace begin <div data-schema-version="8"> with ''
     //replace end </div> with ''
@@ -530,7 +594,7 @@ export class fullTextTranslate {
     const regEnd = /<\/div>$/g;
     const headMarkerMatch = noteHtml.match(regBegin);
     const tailMarkerMatch = noteHtml.match(regEnd);
-    let headMarker = '';
+    let headMarker = "";
     let tailMarker = "";
     if (headMarkerMatch != null && headMarkerMatch.length) {
       headMarker = headMarkerMatch[0];
@@ -548,17 +612,18 @@ export class fullTextTranslate {
       type: "title" as DocCell["type"],
       rawContent: noteTitle,
       rawToTranslate: noteTitle,
-
     };
     docCellArr.push(obj);
 
-    const noteHtmlTrimHeadTail = noteHtml.replace(regEnd, '').replace(headMarker, '');
+    const noteHtmlTrimHeadTail = noteHtml
+      .replace(regEnd, "")
+      .replace(headMarker, "");
     //split noteHtml by image table paragraph
     //const noteHtmlArr1 = fullTextTranslate.splitContent(noteHtml);
     // split contentEndExceptImgTablefrom last element of noteHtmlArr1
     //匹配到文末，故如有文末的表格图片则予以提取
     //let noteHtmlEnd = noteHtmlArr1.slice(-1)[0];
-    //|\bAuthor Affiliations\b    
+    //|\bAuthor Affiliations\b
     let noteHtmlTrimHeadEndTail;
     let contentEndExceptImgTable;
     const contentEndExceptImgTableArr = [];
@@ -568,24 +633,24 @@ export class fullTextTranslate {
     //const regContentEnd = /(?<!<th>\n)(<[^>\n]+?>)(<[^>\n]+?>)*\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
     //const regContentEnd = /(?<!<\/?th[^<>]+>\n?)^(<[^>\n]+?>)(<[^>\n]+?>)*\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/mgi;
     //整篇没有换行？除外表格标题或单元格内的关键字：可有一次换行，无论多少<*>标签，后面的关键字都是除外的
-    const regContentEnd = /(?<!<\/?t[hd][^<>]*>\n?(<\/?[^>\n]+?>)*)(<[^>\n]+?>)+\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)(&nbsp)*[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
+    const regContentEnd =
+      /(?<!<\/?t[hd][^<>]*>\n?(<\/?[^>\n]+?>)*)(<[^>\n]+?>)+\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)(&nbsp)*[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
     const contentEndMatch = noteHtmlTrimHeadTail.match(regContentEnd);
     if (contentEndMatch != null && contentEndMatch[0] != "") {
       contentEnd = contentEndMatch[0];
-      noteHtmlTrimHeadEndTail = noteHtmlTrimHeadTail.replace(contentEnd, '');
+      noteHtmlTrimHeadEndTail = noteHtmlTrimHeadTail.replace(contentEnd, "");
       //split table and img.How todo when contentEndExceptImgTableis table？
       if (contentEnd.includes("<table>" || "<p><img")) {
         const contentEndArrTemp = fullTextTranslate.splitContentEnd(contentEnd);
         for (const e of contentEndArrTemp) {
-          if (e.startsWith('<p><img') || e.startsWith('<table>')) {
+          if (e.startsWith("<p><img") || e.startsWith("<table>")) {
             tableImgAfter.push(e);
-          }
-          else {
+          } else {
             contentEndExceptImgTableArr.push(e);
           }
         }
         //如果数组为空，字符串即为""
-        contentEndExceptImgTable = contentEndExceptImgTableArr.join('\n');
+        contentEndExceptImgTable = contentEndExceptImgTableArr.join("\n");
       } else {
         contentEndExceptImgTable = contentEnd;
       }
@@ -600,7 +665,9 @@ export class fullTextTranslate {
     }
     //语种识别
     const isTran = await this.languageIdentify(noteHtmlTrimHeadEndTail);
-    if (isTran == false) { return; }
+    if (isTran == false) {
+      return;
+    }
 
     //tailMarker
     if (tailMarkerMatch != null && tailMarkerMatch.length) {
@@ -609,13 +676,15 @@ export class fullTextTranslate {
         id: getID(),
         type: "tailMarker" as DocCell["type"],
         rawContent: tailMarker,
-
       };
       docCellArr.push(obj);
     }
 
     //正文
-    const noteHtmlTrimHeadEndTailArr = fullTextTranslate.splitContent(noteHtmlTrimHeadEndTail, true);
+    const noteHtmlTrimHeadEndTailArr = fullTextTranslate.splitContent(
+      noteHtmlTrimHeadEndTail,
+      true,
+    );
     let noteHtmlArr = [];
     if (tableImgAfter.length) {
       noteHtmlArr = noteHtmlTrimHeadEndTailArr.concat(tableImgAfter);
@@ -626,8 +695,8 @@ export class fullTextTranslate {
     /*     const htmlTransArr: string[] = []; */
     //skip img, table trans, txtHtml trans
     for (let html of noteHtmlArr) {
-      //图片不翻译        
-      if (html.startsWith('<p><img')) {
+      //图片不翻译
+      if (html.startsWith("<p><img")) {
         const obj: DocCell = {
           id: getID(),
           type: "img" as DocCell["type"],
@@ -646,16 +715,20 @@ export class fullTextTranslate {
         continue;
       }
       //提取表格中需要翻译的文字，转为数组，去重
-      else if (html.startsWith('<table>')) {
+      else if (html.startsWith("<table>")) {
         //删除表格的标签
         const reg = /<[^>]+?>/g;
-        const tableTxt = html.replace(reg, '');
+        const tableTxt = html.replace(reg, "");
         const reg2 = /\n+/g;
         const tempTabletxtArr = tableTxt.split(reg2);
-        const tableTxtArr = tempTabletxtArr.filter((item) => item !== undefined && item !== "");
+        const tableTxtArr = tempTabletxtArr.filter(
+          (item) => item !== undefined && item !== "",
+        );
         const tableTxtArrUnrepeated = [...new Set(tableTxtArr)];
         //过滤掉非单词内容
-        const tableTxtArrClean = tableTxtArrUnrepeated.filter((item) => /\b[A-Za-z]{3,}\b/.test(item));
+        const tableTxtArrClean = tableTxtArrUnrepeated.filter((item) =>
+          /\b[A-Za-z]{3,}\b/.test(item),
+        );
         if (!tableTxtArrClean.length) {
           const obj: DocCell = {
             id: getID(),
@@ -674,11 +747,14 @@ export class fullTextTranslate {
         }
         continue;
         // 保留引用格式，仅翻译其中的正文内容
-      } else if (html.startsWith('<p><span class="highlight" data-annotation=')
-        || html.startsWith('<[^<>]+?>“.+” ?<span class="citation" data-citation=')) {
-        //引文的正文被 >“ ”<\/span>包裹，引文提取后可能为数组        
+      } else if (
+        html.startsWith('<p><span class="highlight" data-annotation=') ||
+        html.startsWith('<[^<>]+?>“.+” ?<span class="citation" data-citation=')
+      ) {
+        //引文的正文被 >“ ”<\/span>包裹，引文提取后可能为数组
         //const reg = /(?<=>“)(.+?)(?=”<\/span>)/;
-        const reg = /^<p><span class="highlight" data-annotation="[^>]+?>“(.+)”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?|^<[^<>]+?>“(.+)” ?<span class="citation" data-citation=".+?<\/span>\)<\/span><\/[^><]+?>\n?/m;
+        const reg =
+          /^<p><span class="highlight" data-annotation="[^>]+?>“(.+)”<\/span> <span class="citation" data-citation=".+?<\/span>\)<\/span><\/p>\n?|^<[^<>]+?>“(.+)” ?<span class="citation" data-citation=".+?<\/span>\)<\/span><\/[^><]+?>\n?/m;
         //const citationTotran = html.match(reg)?.filter((item) => item.length)||[];
         const citationTotran = html.match(reg);
         if (citationTotran == null || citationTotran[0] == "") {
@@ -695,16 +771,24 @@ export class fullTextTranslate {
           } else {
             ctx = citationTotran[2];
           }
-          if ((citationTotran[1] != undefined && citationTotran[1].includes('class="citation"'))
-            || (citationTotran[2] != undefined && citationTotran[2].includes('class="citation"'))
+          if (
+            (citationTotran[1] != undefined &&
+              citationTotran[1].includes('class="citation"')) ||
+            (citationTotran[2] != undefined &&
+              citationTotran[2].includes('class="citation"'))
           ) {
-            const reg = /”?<[^>]+?>“?|\(<span class="citation-item">.+?<\/span>\)/g;
-            const tempArr = ctx.split(reg).filter(e => e !== undefined && e != "" && e != "\n" && e != " ");
+            const reg =
+              /”?<[^>]+?>“?|\(<span class="citation-item">.+?<\/span>\)/g;
+            const tempArr = ctx
+              .split(reg)
+              .filter(
+                (e) => e !== undefined && e != "" && e != "\n" && e != " ",
+              );
             const obj: DocCell = {
               id: getID(),
               type: "citation",
               rawContent: html,
-              rawToTranslate: tempArr
+              rawToTranslate: tempArr,
             };
             docCellArr.push(obj);
           } else {
@@ -712,19 +796,23 @@ export class fullTextTranslate {
               id: getID(),
               type: "citation",
               rawContent: html,
-              rawToTranslate: [ctx]
+              rawToTranslate: [ctx],
             };
             docCellArr.push(obj);
           }
         }
         continue;
-      } else if (html.startsWith('<ol>') || html.startsWith('<ul>')) {
+      } else if (html.startsWith("<ol>") || html.startsWith("<ul>")) {
         const reg = /<[^>]+?>/g;
         let olUlTxtArr = html.split(reg);
-        olUlTxtArr = olUlTxtArr.filter((item) => item !== undefined && item !== "" && item !== "\n");
+        olUlTxtArr = olUlTxtArr.filter(
+          (item) => item !== undefined && item !== "" && item !== "\n",
+        );
         const olUlTxtArrUnrepeated = [...new Set(olUlTxtArr)];
         //过滤掉非单词内容
-        const olUlTxtArrClean = olUlTxtArrUnrepeated.filter((item) => /\b[A-Za-z]{3,}\b/.test(item));
+        const olUlTxtArrClean = olUlTxtArrUnrepeated.filter((item) =>
+          /\b[A-Za-z]{3,}\b/.test(item),
+        );
         if (!olUlTxtArrClean.length) {
           const obj: DocCell = {
             id: getID(),
@@ -743,7 +831,6 @@ export class fullTextTranslate {
           docCellArr.push(obj);
         }
         continue;
-
       }
       // translate paragraph
       else {
@@ -757,10 +844,16 @@ export class fullTextTranslate {
         tempArr = tempArr.filter(e => e != "" && e.match(/^[hp][1-6]?>$/g) === null && e !== undefined && e.match(/^ +$/g) === null);
  */
         if (html.includes(">\n<")) {
-          tempArr = html.split("\n").filter(e => e != "" && e !== undefined && e.match(/^ +$/g) === null);
+          tempArr = html
+            .split("\n")
+            .filter(
+              (e) => e != "" && e !== undefined && e.match(/^ +$/g) === null,
+            );
         } else {
           const reg = /(<([ph][1-6]?>).+?<\/\2)/g;
-          tempArr = html.split(reg).filter(e => e != '' && e.match(/^[hp][1-6]?>$/g) === null);
+          tempArr = html
+            .split(reg)
+            .filter((e) => e != "" && e.match(/^[hp][1-6]?>$/g) === null);
         }
         for (const item of tempArr) {
           //匹配行内图片
@@ -768,8 +861,8 @@ export class fullTextTranslate {
           const regMatch = item.match(reg);
           //不替换行内图片，转为markdown ![](), 译后替换
 
-          let mdTxt = await html2md(item) as string;
-          mdTxt = mdTxt.replace("\n", '');
+          let mdTxt = (await html2md(item)) as string;
+          mdTxt = mdTxt.replace("\n", "");
           mdTxt = fullTextTranslate.cleanMd(mdTxt);
           //再拆分，为句子？
           /* const regPara = /\n+/gs;
@@ -801,28 +894,31 @@ export class fullTextTranslate {
 
   /**
    * 译后处理，生成译文
-   * @param docCellArr 
-   * @returns 
+   * @param docCellArr
+   * @returns
    */
   static async translateDoc(docItem: DocItem) {
     const docCellArr = docItem.content;
-    const bilingualContrast = getPref('bilingualContrast');
-    const isSourceFirst = getPref('isSourceFirst');
+    const bilingualContrast = getPref("bilingualContrast");
+    const isSourceFirst = getPref("isSourceFirst");
 
     let objArrToTranArr: DocCell[] = [];
     let totranArr: string[];
     let result: TransResult[] | undefined;
-    objArrToTranArr = docCellArr.filter((e: DocCell) => e.rawToTranslate && e.rawToTranslate != "");
+    objArrToTranArr = docCellArr.filter(
+      (e: DocCell) => e.rawToTranslate && e.rawToTranslate != "",
+    );
     //段落
-    const paragraph = objArrToTranArr.filter(e => (e.type == "paragraph" || e.type == "title") && e.rawToTranslate);
-    totranArr = paragraph.map(e => e.rawToTranslate) as string[];
+    const paragraph = objArrToTranArr.filter(
+      (e) => (e.type == "paragraph" || e.type == "title") && e.rawToTranslate,
+    );
+    totranArr = paragraph.map((e) => e.rawToTranslate) as string[];
     // 开始翻译
     result = await fullTextTranslate.translateExec(totranArr);
     if (!result || !result.length) return;
-    const translation = result.map(e => e.translation);
-    const serviceID = result.map(e => e.serviceID);
-    if (result.slice(-1)[0].status != 'error') {
-
+    const translation = result.map((e) => e.translation);
+    const serviceID = result.map((e) => e.serviceID);
+    if (result.slice(-1)[0].status != "error") {
       for (const e of paragraph) {
         e.translation = translation!.splice(0, 1)[0];
         e.serviceID = serviceID!.splice(0, 1)[0];
@@ -837,26 +933,36 @@ export class fullTextTranslate {
           paragraph[i].serviceID = serviceID.splice(0, 1)[0];
           await paraPostTran(paragraph[i]);
         }
-        //标记翻译失败    
+        //标记翻译失败
         docItem.status = "error";
       }
     }
 
     //表格引用批量翻译后处理
-    const tableCitation = objArrToTranArr.filter(e => (e.type == "table" || e.type == "citation") && e.rawToTranslate);
+    const tableCitation = objArrToTranArr.filter(
+      (e) => (e.type == "table" || e.type == "citation") && e.rawToTranslate,
+    );
     if (tableCitation.length) {
       //展开数组
-      totranArr = tableCitation.map(e => e.rawToTranslate).flat(Infinity) as string[];
+      totranArr = tableCitation
+        .map((e) => e.rawToTranslate)
+        .flat(Infinity) as string[];
       if (totranArr.length) {
         result = await fullTextTranslate.translateExec(totranArr);
         if (!result || !result.length) return;
-        const translation = result.map(e => e.translation);
-        const serviceID = result.map(e => e.serviceID);
-        if (result.slice(-1)[0].status != 'error') {
+        const translation = result.map((e) => e.translation);
+        const serviceID = result.map((e) => e.serviceID);
+        if (result.slice(-1)[0].status != "error") {
           for (const e of tableCitation) {
             if (translation.length >= (e.rawToTranslate as string[]).length) {
-              e.translation = translation.splice(0, (e.rawToTranslate as string[]).length);
-              e.serviceID = serviceID.splice(0, (e.rawToTranslate as string[]).length);
+              e.translation = translation.splice(
+                0,
+                (e.rawToTranslate as string[]).length,
+              );
+              e.serviceID = serviceID.splice(
+                0,
+                (e.rawToTranslate as string[]).length,
+              );
               tableCitationPostTran(e);
             } else {
               //saveJsonToDisk(docItem, docItemFailure, docsTranslationCacheDir);
@@ -871,8 +977,14 @@ export class fullTextTranslate {
           if (translation.length) {
             for (const e of tableCitation) {
               if (translation.length >= (e.rawToTranslate as string[]).length) {
-                e.translation = translation.splice(0, (e.rawToTranslate as string[]).length);
-                e.serviceID = serviceID.splice(0, (e.rawToTranslate as string[]).length);
+                e.translation = translation.splice(
+                  0,
+                  (e.rawToTranslate as string[]).length,
+                );
+                e.serviceID = serviceID.splice(
+                  0,
+                  (e.rawToTranslate as string[]).length,
+                );
                 tableCitationPostTran(e);
               } else {
                 break;
@@ -880,18 +992,19 @@ export class fullTextTranslate {
             }
           }
           //saveJsonToDisk(docItem, docItemFailure, docsTranslationCacheDir);
-          docItem.status = 'error';
+          docItem.status = "error";
         }
       }
     }
-
 
     return docItem;
 
     //段落生成html，考虑行内图片
     async function paraPostTran(docCell: DocCell) {
       //如果没有译文，则result属性缺失
-      if (!docCell.translation || docCell.translation == "") { return; }
+      if (!docCell.translation || docCell.translation == "") {
+        return;
+      }
       let tranedStr = docCell.translation as string;
       const rawToTranslate = docCell.rawToTranslate! as string;
       //要想译文结果是按照段落对照，应当在最后合并时按一段原文一段译文方式来处理
@@ -935,14 +1048,18 @@ export class fullTextTranslate {
       const result = await md2html(tranedStr);
       if (result !== undefined) {
         docCell.result = result;
-      } else { return; }
+      } else {
+        return;
+      }
     }
 
     //表格引用替换原文html内容为译文html
     function tableCitationPostTran(docCell: DocCell) {
       /* if(docCell===undefined){return;} */
-      if (!docCell.translation) { return; }
-      let tranedStr = '';
+      if (!docCell.translation) {
+        return;
+      }
+      let tranedStr = "";
       const tranedStrArr = docCell.translation;
       const rawToTranslate = docCell.rawToTranslate!;
       let result = docCell.rawContent;
@@ -953,12 +1070,11 @@ export class fullTextTranslate {
           } else {
             tranedStr = tranedStrArr[i] + "<br>" + rawToTranslate[i];
           }
-        }
-        else {
+        } else {
           tranedStr = tranedStrArr[i];
         }
         const temp = fullTextTranslate.escapeString(rawToTranslate[i]);
-        const reg = new RegExp(temp, 'g');
+        const reg = new RegExp(temp, "g");
         result = result.replace(reg, tranedStr);
       }
       if (result != docCell.rawContent) {
@@ -969,22 +1085,28 @@ export class fullTextTranslate {
 
   /**
    * 合成译文，写入笔记
-   * @param docCellArr 
-   * @returns 
+   * @param docCellArr
+   * @returns
    */
   static async makeTranslation(docItem: DocItem) {
-    if (docItem.status == 'error') {
+    if (docItem.status == "error") {
       const failureReason = "";
-      showInfo(getString("info-translateFailure") + ": " + docItem.itemID?.toString() + ':' + failureReason);
+      showInfo(
+        getString("info-translateFailure") +
+          ": " +
+          docItem.itemID?.toString() +
+          ":" +
+          failureReason,
+      );
       return;
     }
     const docCellArr = docItem.content;
-    const bilingualContrast = getPref('bilingualContrast');
-    const isSourceFirst = getPref('isSourceFirst');
+    const bilingualContrast = getPref("bilingualContrast");
+    const isSourceFirst = getPref("isSourceFirst");
     let head: string, tail: string, contentEnd: string, title: string;
-    head = tail = contentEnd = title = '';
+    head = tail = contentEnd = title = "";
     const contentBody: string[] = [];
-    docCellArr.map(e => {
+    docCellArr.map((e) => {
       if (e.type == "title" && e.result) {
         //如果双语并且原文在前，需要把译文标题作为标题
         //否则留空，软件将自动提取第一段为标题
@@ -993,7 +1115,6 @@ export class fullTextTranslate {
             title = e.translation as string;
           }
         }
-
       }
       if (e.type == "tailMarker" && e.rawContent) {
         tail = e.rawContent;
@@ -1004,8 +1125,12 @@ export class fullTextTranslate {
       if (e.type == "headMarker" && e.rawContent) {
         head = e.rawContent;
       }
-      if (e.type == "img" || e.type == "table" || e.type == "paragraph" || e.type == "citation") {
-
+      if (
+        e.type == "img" ||
+        e.type == "table" ||
+        e.type == "paragraph" ||
+        e.type == "citation"
+      ) {
         if (e.result) {
           if (e.type == "paragraph") {
             if (bilingualContrast) {
@@ -1023,13 +1148,11 @@ export class fullTextTranslate {
             //除了段落，如有译文，已经过双语处理
             contentBody.push(e.result);
           }
-
         } else {
           contentBody.push(e.rawContent);
         }
       }
-    }
-    );
+    });
     //如果双语原文在前，标题没有截断的话，标题译文是重复的，只需删除数组第二个元素即可纠正
     if (bilingualContrast) {
       if (isSourceFirst) {
@@ -1041,7 +1164,7 @@ export class fullTextTranslate {
     const body = contentBody.join("\n");
     //双语对照，则将标题设为目标语言
     if (bilingualContrast) {
-      title = '<h1>' + title + '</h1>';
+      title = "<h1>" + title + "</h1>";
     } else {
       title = "";
     }
@@ -1057,7 +1180,10 @@ export class fullTextTranslate {
     if (item.isNote()) {
       const newItem = item.clone(item.libraryID);
       newItem.setNote(contentTranslation);
-      if (zp.getCollectionTreeRow()!.isCollection() && newItem.isTopLevelItem()) {
+      if (
+        zp.getCollectionTreeRow()!.isCollection() &&
+        newItem.isTopLevelItem()
+      ) {
         newItem.setCollections([zp.getCollectionTreeRow()!.ref.id]);
       }
       const newItemID = await newItem.saveTx({ skipSelect: true });
@@ -1066,10 +1192,17 @@ export class fullTextTranslate {
       }
 
       // 复制图片,必须通过 executeTransaction 完成
-      if (!(!await Zotero.Notes.ensureEmbeddedImagesAreAvailable(item)
-        && !Zotero.Notes.promptToIgnoreMissingImage())) {
+      if (
+        !(
+          !(await Zotero.Notes.ensureEmbeddedImagesAreAvailable(item)) &&
+          !Zotero.Notes.promptToIgnoreMissingImage()
+        )
+      ) {
         Zotero.DB.executeTransaction(async function () {
-          if (newItem.isNote() && (Zotero.Libraries.get(newItem.libraryID) as any).filesEditable) {
+          if (
+            newItem.isNote() &&
+            (Zotero.Libraries.get(newItem.libraryID) as any).filesEditable
+          ) {
             await Zotero.Notes.copyEmbeddedImages(item, newItem);
           }
         });
@@ -1077,7 +1210,7 @@ export class fullTextTranslate {
     }
 
     if (item.isPDFAttachment()) {
-      const note = new Zotero.Item('note');
+      const note = new Zotero.Item("note");
       note.libraryID = item.libraryID;
       note.parentKey = item.parentKey;
       note.setNote(contentTranslation);
@@ -1092,8 +1225,8 @@ export class fullTextTranslate {
 
   /**
    * 筛选出符合条件的翻译引擎
-   * @param num 
-   * @returns 
+   * @param num
+   * @returns
    */
   static async checkQuotaSwitch(num: number) {
     let onSwitchResult;
@@ -1110,8 +1243,7 @@ export class fullTextTranslate {
         // 如果有秘钥，则检查该秘钥的余额情况
         const key = service.secretKey || service.token;
         if (key) {
-
-          let factor = Number(getPref('charasLimitFactor'));
+          let factor = Number(getPref("charasLimitFactor"));
           if (isNaN(factor)) {
             factor = 1;
           }
@@ -1162,10 +1294,10 @@ export class fullTextTranslate {
   }
 
   /**
-   * 
-   * @param docCellArr 
-   * @param sourceTxt 
-   * @returns 
+   *
+   * @param docCellArr
+   * @param sourceTxt
+   * @returns
    */
   static async translateExec(sourceTxt: string | string[]) {
     let toTranArr: string[] = [];
@@ -1181,7 +1313,7 @@ export class fullTextTranslate {
     if (typeof sourceTxt == "string") {
       toTranArr = [sourceTxt];
     } else {
-      toTranArr = sourceTxt.filter(e => e);
+      toTranArr = sourceTxt.filter((e) => e);
     }
     //const keyUse = getSingleServiceUnderUse().key;
     const service = await getSingleServiceUnderUse();
@@ -1203,17 +1335,20 @@ export class fullTextTranslate {
     const translatingInfoB = `${service.serviceID}: ✍️...${getString("translating")}...✍️`;
     const translatingInfoC = `${service.serviceID}: ✍️...✍️...${getString("translating")}`;
     let LoopCountor = 0;
-    let text = '';
-    translatingProgress.createLine({
-      text: getString(`service-${service.serviceID}`) + getString("start-translating"),
-      type: "default",
-    }).show();
+    let text = "";
+    translatingProgress
+      .createLine({
+        text:
+          getString(`service-${service.serviceID}`) +
+          getString("start-translating"),
+        type: "default",
+      })
+      .show();
 
-
-    let leftArr = toTranArr.map(e => e);
-    let toTran = '';
+    let leftArr = toTranArr.map((e) => e);
+    let toTran = "";
     let loopTimes = 0;
-    let lastServiceID = '';
+    let lastServiceID = "";
     const services = await getServices();
     while (leftArr.length) {
       //翻译引擎支持多段翻译,合并后翻译提高效率
@@ -1249,13 +1384,20 @@ export class fullTextTranslate {
         charasPerTime = services[serviceID].charasPerTime;
       }
       //判断翻译引擎额度是否够本次翻译
-      if (services[serviceID].supportMultiParas && leftArr.length > 1
-        && leftArr[0].length <= charasPerTime && leftArr[0].length > 0) {
+      if (
+        services[serviceID].supportMultiParas &&
+        leftArr.length > 1 &&
+        leftArr[0].length <= charasPerTime &&
+        leftArr[0].length > 0
+      ) {
         //将可以合并的句子按翻译引擎字符数限制合并
         // 超过翻译引擎字符数限制的句子在翻译前拆分，以后合并
         // 翻译结束再根据"\n"拆分合并的句子
         const lengthOfBefor = leftArr.length;
-        const combineObj = fullTextTranslate.combineByLimitOneRequest(leftArr, charasPerTime);
+        const combineObj = fullTextTranslate.combineByLimitOneRequest(
+          leftArr,
+          charasPerTime,
+        );
         toTran = combineObj.str;
         leftArr = combineObj.leftArr;
         const lengthOfAfter = leftArr.length;
@@ -1271,7 +1413,7 @@ export class fullTextTranslate {
           break;
         }
         const reg = /\n$/g;
-        const splitArr = resultStr.replace(reg, '').split("\n");
+        const splitArr = resultStr.replace(reg, "").split("\n");
         if (arrLengthToTran != splitArr.length) {
           const obj: TransResult = {
             translation: resultStr,
@@ -1335,8 +1477,11 @@ export class fullTextTranslate {
           transResultArr.push(obj);
         }
       }
-      LoopCountor % 3 == 0 ? text = translatingInfoA
-        : (LoopCountor % 2 ? text = translatingInfoB : text = translatingInfoC);
+      LoopCountor % 3 == 0
+        ? (text = translatingInfoA)
+        : LoopCountor % 2
+          ? (text = translatingInfoB)
+          : (text = translatingInfoC);
       translatingProgress.changeLine({
         text: text,
       });
@@ -1346,12 +1491,9 @@ export class fullTextTranslate {
     return transResultArr;
   }
 
-
-
-
   static translateGo = async (sourceSegment: string) => {
     if (!Zotero.Streamer._socketOpen()) {
-      throw (getString("info-networkDisconnected"));
+      throw getString("info-networkDisconnected");
     }
 
     let service = await getSingleServiceUnderUse();
@@ -1361,11 +1503,12 @@ export class fullTextTranslate {
     let serviceUsing = services[serviceID];
     let sourceTxtArr;
 
-    const availableChars = getCharasLimit(serviceUsing) - (service.charConsum || 0);
+    const availableChars =
+      getCharasLimit(serviceUsing) - (service.charConsum || 0);
     if (availableChars < sourceSegment.length) {
       // 可用字符不足，更换引擎或账号
       //如果更换引擎失败，返回特定字符
-      if (!await serviceManage.onSwitch()) return "no available service";
+      if (!(await serviceManage.onSwitch())) return "no available service";
       service = await getSingleServiceUnderUse();
       if (!service) throw "no available service";
       serviceID = service.serviceID;
@@ -1374,7 +1517,10 @@ export class fullTextTranslate {
 
     // 超过单次请求字符限制时进一步拆分
     if (sourceSegment.length > serviceUsing.charasPerTime - 20) {
-      sourceTxtArr = fullTextTranslate.wholeSentenceSplit(sourceSegment, services[serviceID].charasPerTime);
+      sourceTxtArr = fullTextTranslate.wholeSentenceSplit(
+        sourceSegment,
+        services[serviceID].charasPerTime,
+      );
     }
 
     if (!sourceTxtArr) sourceTxtArr = [sourceSegment];
@@ -1382,7 +1528,7 @@ export class fullTextTranslate {
     if (service instanceof TranslateServiceAccount) {
       const keyStr = service.secretKey || service.token;
       if (keyStr) {
-        args = [service.appID + "#" + await decryptKey(keyStr)];
+        args = [service.appID + "#" + (await decryptKey(keyStr))];
         const lang = await getLang(service.serviceID);
         args.push(lang.sourceLang, lang.targetLang);
       }
@@ -1413,44 +1559,42 @@ export class fullTextTranslate {
           if (sec > 0) {
             await Zotero.Promise.delay(sec);
           }
-
         }
-
       } catch (e) {
         ztoolkit.log(e);
         //如果更换引擎失败，退出translateGo后保存翻译原文和译文到缓存
-        if (!await serviceManage.onSwitch()) {
+        if (!(await serviceManage.onSwitch())) {
           addon.mountPoint.trans = trans;
           return "no available service";
         }
         // 递归
-        const secondSource = sourceTxtArr.join('');
+        const secondSource = sourceTxtArr.join("");
         const resultSecond = await fullTextTranslate.translateGo(secondSource);
         if (resultSecond == "no available service") {
           if (addon.mountPoint.trans) {
             addon.mountPoint.trans.push(...trans);
           }
           addon.mountPoint.trans = trans;
-          return "no available service";//退出函数
+          return "no available service"; //退出函数
         }
         trans.push(resultSecond);
-        break;// 退出循环，继续函数其他内容
+        break; // 退出循环，继续函数其他内容
       }
     }
 
-    const Result = trans.join('');
+    const Result = trans.join("");
     return Result;
   };
   /**
    * 翻译引擎：支持换行，字数限制，QPS
-   * @param sourceTxt 
-   * @returns 
+   * @param sourceTxt
+   * @returns
    */
   //删除行首不翻译的字符
   static beginNoTransExtract(sourceTxt: string) {
     const regSS = /^[\W.]+/;
     const regSSMatch = sourceTxt.match(regSS);
-    let begingSS = '';
+    let begingSS = "";
     if (regSSMatch != null) {
       begingSS = regSSMatch[0];
     }
@@ -1458,15 +1602,16 @@ export class fullTextTranslate {
   }
   /**
    * 截取的行尾内容不包括最后的标点
-   * @param sourceTxt 
-   * @returns 
+   * @param sourceTxt
+   * @returns
    */
   static endNoTransExtract(sourceTxt: string) {
     //测试后向断言,通过
     //const regSS = /(?<=[.?!"]) /g
-    const regSS = /[\[\(][0-9\W]+[^.?!]"?(?=[.?!"]$)|(?<=[.?!]"?)[\[\(][0-9\W]+|(<su[pb]>[^>]+?<\/su[pb]>)+[^A-Za-z.]*(?=[.?!]"?$)/gm;
+    const regSS =
+      /[\[\(][0-9\W]+[^.?!]"?(?=[.?!"]$)|(?<=[.?!]"?)[\[\(][0-9\W]+|(<su[pb]>[^>]+?<\/su[pb]>)+[^A-Za-z.]*(?=[.?!]"?$)/gm;
     const regSSMatch = sourceTxt.match(regSS);
-    let endSS = '';
+    let endSS = "";
     if (regSSMatch != null) {
       endSS = regSSMatch[0];
     }
@@ -1476,17 +1621,19 @@ export class fullTextTranslate {
   /**
    * 根据插件id查看插件版本
    * 不传参数返回所有插件
-   * @param id 
-   * @returns 
+   * @param id
+   * @returns
    */
   static async getAddonInfo(id?: string) {
-    const { AddonManager } = ChromeUtils.import("resource://gre/modules/AddonManager.jsm");
+    const { AddonManager } = ChromeUtils.import(
+      "resource://gre/modules/AddonManager.jsm",
+    );
     if (id !== undefined && id != "") {
       const addon = await AddonManager.getAddonByID(id);
       if (addon) {
         return {
           version: addon.version,
-          userDisabled: addon.userDisabled
+          userDisabled: addon.userDisabled,
         };
       }
     } else {
@@ -1517,7 +1664,13 @@ export class fullTextTranslate {
    * @param closeTime 默认不自动关闭
    * @param closeOtherProgressWindows 默认 true
    */
-  static showInfo(fullTextTranslateInfo: string, closeTime?: number, window?: Window, closeOnClick?: boolean, closeOtherProgressWindows?: boolean) {
+  static showInfo(
+    fullTextTranslateInfo: string,
+    closeTime?: number,
+    window?: Window,
+    closeOnClick?: boolean,
+    closeOtherProgressWindows?: boolean,
+  ) {
     /*     if (closeOtherProgressWindows) {
           while (true) {
             if (typeof Zotero.ProgressWindowSet != "undefined") {
@@ -1531,39 +1684,42 @@ export class fullTextTranslate {
       window: window ? window : undefined,
       closeOnClick: closeOnClick ? closeOnClick : true,
       closeTime: closeTime ? closeTime : -1,
-      closeOtherProgressWindows: closeOtherProgressWindows ? closeOtherProgressWindows : true
-    })
-      .createLine({
-        text: fullTextTranslateInfo,
-        type: "default",
-        progress: 0,
-      });
+      closeOtherProgressWindows: closeOtherProgressWindows
+        ? closeOtherProgressWindows
+        : true,
+    }).createLine({
+      text: fullTextTranslateInfo,
+      type: "default",
+      progress: 0,
+    });
     popupWin.show();
 
     return popupWin;
   }
 
-
   /**
    * 转义字符串中需要转义的字符
-   * @param str 
-   * @returns 
+   * @param str
+   * @returns
    */
   static escapeString(str: string) {
-    const result = str.replace(/[\-\/\\\^\$\*\+\?\.\(\)\|\[\]\{\}]/g, '\\$&') as string;
+    const result = str.replace(
+      /[\-\/\\\^\$\*\+\?\.\(\)\|\[\]\{\}]/g,
+      "\\$&",
+    ) as string;
     return result;
   }
 
   /**
    * 修复翻译引擎错误处理的上下标和标题
-   * @param mdTxtTransResult 
-   * @returns 
+   * @param mdTxtTransResult
+   * @returns
    */
   static modifySubSupHeading = (mdTxtTransResult: string) => {
     //有时markdown标题标志#翻译为＃，和文字没有空格，需要替换＃为#，添加空格
     //g是全局标志，没有的话仅匹配一项
     //限定匹配6个以内的#或＃
-    const regMd = /^ *[#＃]{0,5}[#＃](?![#＃])/mg;
+    const regMd = /^ *[#＃]{0,5}[#＃](?![#＃])/gm;
     const ss = mdTxtTransResult.match(regMd);
     if (ss != null) {
       //最长的需要先替换，古先要把最长的放到数组前面
@@ -1572,14 +1728,16 @@ export class fullTextTranslate {
       if (sss.length) {
         for (const s of sss) {
           //先把匹配项的空格删除然后替换＃，末尾加空格，这是要替换为的内容
-          const t = s.replace(/ /g, '').replace(/＃/g, '#') + ' ';
+          const t = s.replace(/ /g, "").replace(/＃/g, "#") + " ";
           //按先长后短的顺序全文替换
-          const reg = new RegExp("^" + s, 'gm');
+          const reg = new RegExp("^" + s, "gm");
           mdTxtTransResult = mdTxtTransResult.replace(reg, t);
         }
       }
     }
-    if (mdTxtTransResult.match(/su[bp]|&#x3C;?|&#x3E;?|&#60;?|&#62;?/g) != null) {
+    if (
+      mdTxtTransResult.match(/su[bp]|&#x3C;?|&#x3E;?|&#60;?|&#62;?/g) != null
+    ) {
       const regMDSubp1 = /(&#x3C);?|(&#60);?|&lt;/g;
       const regMDSubp2 = /(&#x3E);?|(&#62);?|&gt;/g;
       const regMDSubp3 = /<([^<>＜＞]{1,10}?)(\/su[bp])([^<>＜＞]{1,10}?)>/g;
@@ -1615,7 +1773,6 @@ export class fullTextTranslate {
       }
       const match4 = mdTxtTransResult.match(regMDSubp4);
       if (match4 != null) {
-
         temp = mdTxtTransResult;
         mdTxtTransResult = mdTxtTransResult.replace(regMDSubp4, "$1>$2");
       }
@@ -1644,7 +1801,10 @@ export class fullTextTranslate {
       const match9 = mdTxtTransResult.match(regMDSubp9);
       if (match9 != null) {
         temp = mdTxtTransResult;
-        mdTxtTransResult = mdTxtTransResult.replace(regMDSubp9, "<sub>$1</sub>");
+        mdTxtTransResult = mdTxtTransResult.replace(
+          regMDSubp9,
+          "<sub>$1</sub>",
+        );
       }
 
       const match10 = mdTxtTransResult.match(regMDSubp10);
@@ -1657,10 +1817,15 @@ export class fullTextTranslate {
         temp = mdTxtTransResult;
         mdTxtTransResult = mdTxtTransResult.replace(regMDSubp11, "<$1$2</$1");
       }
-      mdTxtTransResult = mdTxtTransResult.replace(regMDSubp14, "<su$1></su$1>$2");
-      mdTxtTransResult = mdTxtTransResult.replace(regMDSubp15, "$1<su$2></su$2>");
+      mdTxtTransResult = mdTxtTransResult.replace(
+        regMDSubp14,
+        "<su$1></su$1>$2",
+      );
+      mdTxtTransResult = mdTxtTransResult.replace(
+        regMDSubp15,
+        "$1<su$2></su$2>",
+      );
     }
     return mdTxtTransResult;
   };
 }
-

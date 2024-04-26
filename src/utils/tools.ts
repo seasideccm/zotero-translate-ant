@@ -14,7 +14,6 @@ export function timer() {
   return () => {
     const time2 = new Date().getTime();
     return time2 - time1;
-
   };
 }
 
@@ -23,16 +22,16 @@ export function requireModule(moduleName: string) {
   if (typeof require == "undefined") {
     require = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
       .getService(Components.interfaces.mozIJSSubScriptLoader)
-      .loadSubScript('resource://zotero/require.js');
+      .loadSubScript("resource://zotero/require.js");
   }
   const module = require(moduleName);
   return module;
 }
 
-
-export const getPS = () => Components.classes[
-  "@mozilla.org/embedcomp/prompt-service;1"
-].getService(Components.interfaces.nsIPromptService);
+export const getPS = () =>
+  Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(
+    Components.interfaces.nsIPromptService,
+  );
 
 export function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
@@ -44,7 +43,7 @@ export function stringToArrayBuffer(str: string) {
 }
 
 export function uint8ArrayToString(buffer: Uint8Array) {
-  let str = '';
+  let str = "";
   for (let i = 0; i < buffer.byteLength; i++) {
     str += String.fromCharCode(buffer[i]);
   }
@@ -64,35 +63,40 @@ export function arrayBufferTOstring(buffer: ArrayBuffer) {
   return uint8ArrayToString(new Uint8Array(buffer));
 }
 /**
- * - 添加时间戳确保路径可用 
+ * - 添加时间戳确保路径可用
  * - 时间戳添加在文件名末尾
- * @param path 
- * @returns 
+ * @param path
+ * @returns
  */
 export async function ensureNonePath(path: string, win?: Window) {
-  if (!await IOUtils.exists(path)) return path;
+  if (!(await IOUtils.exists(path))) return path;
   const cf = confirmWin(path + "\n文件已存在，是否为文件名添加时间戳？", "win");
   if (!cf) {
     showInfo(getString("info-userCancle"));
-    throw new Error(getString("info-userCancle") + '为文件名添加时间戳？');
+    throw new Error(getString("info-userCancle") + "为文件名添加时间戳？");
   }
 
   const timeStamp = "_" + Date.now();
   const lastIndexOfDot = path.lastIndexOf(".");
 
-  if (lastIndexOfDot == -1 || path.includes("\\", lastIndexOfDot) || path.includes("/", lastIndexOfDot)) return path + timeStamp;
-  return path.substring(0, lastIndexOfDot) + timeStamp + path.substring(lastIndexOfDot);
-
+  if (
+    lastIndexOfDot == -1 ||
+    path.includes("\\", lastIndexOfDot) ||
+    path.includes("/", lastIndexOfDot)
+  )
+    return path + timeStamp;
+  return (
+    path.substring(0, lastIndexOfDot) +
+    timeStamp +
+    path.substring(lastIndexOfDot)
+  );
 }
 export function confirmWin(tip: string, win: "win" | "window" = "window") {
   const winPref = addon.data.prefs?.window;
   const winToShow = win ? (winPref ? winPref : window) : window;
   winToShow.focus();
   return winToShow.confirm(tip);
-
 }
-
-
 
 export function getAddonDir() {
   return PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
@@ -115,8 +119,10 @@ export function compareObj(obj1: any, obj2: any) {
   const keys1 = Object.keys(obj1);
   const keys2 = Object.keys(obj2);
   const allKeys = keys1.concat(keys2);
-  const diffKeys = allKeys.filter(e => !keys1.includes(e) || !keys2.includes(e));
-  const sameKeys = allKeys.filter(e => !diffKeys.includes(e));
+  const diffKeys = allKeys.filter(
+    (e) => !keys1.includes(e) || !keys2.includes(e),
+  );
+  const sameKeys = allKeys.filter((e) => !diffKeys.includes(e));
   //const diffKeys=Zotero.Utilities.arrayDiff(keys1, keys2).concat(Zotero.Utilities.arrayDiff(keys2, keys1))
   for (const key of sameKeys) {
     if (obj1[key] !== obj2[key]) {
@@ -131,11 +137,14 @@ export function compareObj(obj1: any, obj2: any) {
  * 排序规则，数字、中英、所有语种的规则？？？
  * 有错误 出现undefined
  * 对象的键或值排序，给出各种排序组合
- * @param obj 
- * @param isPad 
- * @returns 
+ * @param obj
+ * @param isPad
+ * @returns
  */
-export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
+export const objOrder = (
+  obj: { [key: string]: string | number },
+  isPad?: boolean,
+) => {
   const objOrdered: {
     objOrderByKey: object[];
     objOrderByKeyReverse: object[];
@@ -175,23 +184,30 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
   keys.sort();
   let values = Object.values(obj);
   //全部元素均可转为数字
-  const valuesIsNumber = values.filter(e => !isNaN(Number(e))).length == values.length;
-  const keysIsNumber = keys.filter(e => !isNaN(Number(e))).length == keys.length;
+  const valuesIsNumber =
+    values.filter((e) => !isNaN(Number(e))).length == values.length;
+  const keysIsNumber =
+    keys.filter((e) => !isNaN(Number(e))).length == keys.length;
   const vv: any = {};
   const kk: any = {};
   if (isPad !== false) {
     const reg = [];
-    reg.push(/^(\d+)$/m);//纯数字
-    reg.push(/^(\d+).*?[^\d]+$/m);//首尾是数字
-    reg.push(/^[^\d]+.*?(\d+)$/m);//结尾连续数字
-    reg.push(/^[^\d]+.*?(\d+).*?[^\d]+$/m);//首尾非数字
+    reg.push(/^(\d+)$/m); //纯数字
+    reg.push(/^(\d+).*?[^\d]+$/m); //首尾是数字
+    reg.push(/^[^\d]+.*?(\d+)$/m); //结尾连续数字
+    reg.push(/^[^\d]+.*?(\d+).*?[^\d]+$/m); //首尾非数字
     if (!keysIsNumber) {
       for (const reg0 of reg) {
         //提取reg匹配的内容
         //key一定是字符串
         let numbers: any[] = [];
-        numbers = keys.map(k => k.match(reg0)).filter(e => e).map(e => e![1]);
-        if (!numbers.length) { continue; }
+        numbers = keys
+          .map((k) => k.match(reg0))
+          .filter((e) => e)
+          .map((e) => e![1]);
+        if (!numbers.length) {
+          continue;
+        }
         numbers = numbers.filter((e: any) => e);
         //确定最长数字串的长度
         const numLength = numbers.reduce((maxLength: number, num: any) => {
@@ -205,15 +221,15 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
           const condition = k.match(reg0);
           if (condition) {
             const s1 = condition[1];
-            const s2 = s1.padStart(numLength, '0');
+            const s2 = s1.padStart(numLength, "0");
             let temp = k;
             //查看临时对象是否有k对应的值，如果有则给替换后的k赋原值，以便于还原
             if (kk[k]) {
               temp = kk[k];
             }
-            k = k.replace(s1, s2);//keys的元素被替换
+            k = k.replace(s1, s2); //keys的元素被替换
             keys[i] = k;
-            kk[k] = temp;//替换后的keys元素对应的值
+            kk[k] = temp; //替换后的keys元素对应的值
           }
         });
       }
@@ -222,7 +238,7 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
       for (const reg0 of reg) {
         //提取reg匹配的内容
         let numbers: any = [];
-        values.map(k => {
+        values.map((k) => {
           k = k.toString();
           const contition = k.match(reg0);
           if (contition == null) {
@@ -232,7 +248,9 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
             return;
           }
         });
-        if (!numbers.length) { continue; }
+        if (!numbers.length) {
+          continue;
+        }
         numbers = numbers.filter((e: any) => e && e);
         //确定最长数字串的长度
         const numLength = numbers.reduce((maxLength: number, num: any) => {
@@ -246,7 +264,7 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
           const condition = k.match(reg0);
           if (condition) {
             const s1 = condition[1];
-            const s2 = s1.padStart(numLength, '0');
+            const s2 = s1.padStart(numLength, "0");
             let temp = k;
             if (vv[k]) {
               temp = vv[k];
@@ -262,7 +280,7 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
 
   //按键排序
   if (!keysIsNumber) {
-    keys.sort().filter(k => {
+    keys.sort().filter((k) => {
       const objTemp: any = {};
       k = kk[k];
       objTemp[k] = obj[k];
@@ -274,7 +292,7 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
         objOrdered.valuesOrderByKeys.push(obj[k]);
       }
     });
-    keys.reverse().filter(k => {
+    keys.reverse().filter((k) => {
       const objTemp: any = {};
       k = kk[k];
       objTemp[k] = obj[k];
@@ -287,18 +305,20 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
       }
     });
   } else {
-    keys.sort((a, b) => Number(a) - Number(b)).filter(k => {
-      const objTemp: any = {};
-      objTemp[k] = obj[k];
-      objOrdered.objOrderByKey.push(objTemp);
-      objOrdered.keysOrderBykeys.push(Number(k));
-      if (valuesIsNumber) {
-        objOrdered.valuesOrderByKeys.push(Number(obj[k]));
-      } else {
-        objOrdered.valuesOrderByKeys.push(obj[k]);
-      }
-    });
-    keys.reverse().filter(k => {
+    keys
+      .sort((a, b) => Number(a) - Number(b))
+      .filter((k) => {
+        const objTemp: any = {};
+        objTemp[k] = obj[k];
+        objOrdered.objOrderByKey.push(objTemp);
+        objOrdered.keysOrderBykeys.push(Number(k));
+        if (valuesIsNumber) {
+          objOrdered.valuesOrderByKeys.push(Number(obj[k]));
+        } else {
+          objOrdered.valuesOrderByKeys.push(obj[k]);
+        }
+      });
+    keys.reverse().filter((k) => {
       const objTemp: any = {};
       objTemp[k] = obj[k];
       objOrdered.objOrderByKeyReverse.push(objTemp);
@@ -313,8 +333,8 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
   //按值排序,先去重
   values = [...new Set(values)];
   if (!valuesIsNumber) {
-    values.sort().filter(e => {
-      Object.keys(obj).filter(k => {
+    values.sort().filter((e) => {
+      Object.keys(obj).filter((k) => {
         //values的值已经是补齐0后的字符串，故而取出该值对应的字符串
         //由于字符串可能是纯数字转换而来，故而还要和转为数字做比对
         //原始对象有可能部分值为数字，
@@ -333,8 +353,8 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
         }
       });
     });
-    values.reverse().filter(e => {
-      Object.keys(obj).filter(k => {
+    values.reverse().filter((e) => {
+      Object.keys(obj).filter((k) => {
         if (obj[k] == vv[e] || obj[k] == Number(vv[e])) {
           const objTemp: any = {};
           k = vv[k];
@@ -353,24 +373,26 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
     /* 排序后的值未变，逐一和对象的值对比，
     比对上就和相应的键构成单独的对象纳入数组中，
     一个值可以比对多个对象 */
-    values.sort((a, b) => Number(a) - Number(b)).filter(e => {
-      Object.keys(obj).filter(k => {
-        if (obj[k] == e || obj[k] == Number(e)) {
-          const objTemp: any = {};
-          objTemp[k] = obj[k];
-          objOrdered.objOrderByValue.push(objTemp);
-          if (keysIsNumber) {
-            objOrdered.keysOrderByValues.push(Number(k));
-          } else {
-            objOrdered.keysOrderByValues.push(k);
+    values
+      .sort((a, b) => Number(a) - Number(b))
+      .filter((e) => {
+        Object.keys(obj).filter((k) => {
+          if (obj[k] == e || obj[k] == Number(e)) {
+            const objTemp: any = {};
+            objTemp[k] = obj[k];
+            objOrdered.objOrderByValue.push(objTemp);
+            if (keysIsNumber) {
+              objOrdered.keysOrderByValues.push(Number(k));
+            } else {
+              objOrdered.keysOrderByValues.push(k);
+            }
+            objOrdered.valuesOrderByvalues.push(Number(obj[k]));
           }
-          objOrdered.valuesOrderByvalues.push(Number(obj[k]));
-        }
+        });
       });
-    });
     //values已经排序，仅需翻转
-    values.reverse().filter(e => {
-      Object.keys(obj).filter(k => {
+    values.reverse().filter((e) => {
+      Object.keys(obj).filter((k) => {
         if (obj[k] == e || obj[k] == Number(e)) {
           const objTemp: any = {};
           objTemp[k] = obj[k];
@@ -394,13 +416,10 @@ export const objOrder = (obj: { [key: string]: string | number; }, isPad?: boole
   return objOrdered;
 };
 
-
-
-
 /**
  * 对象深度克隆
- * @param value 
- * @returns 
+ * @param value
+ * @returns
  */
 export function deepClone(value: any) {
   const cache = new WeakMap();
@@ -414,7 +433,7 @@ export function deepClone(value: any) {
     const result: any = Array.isArray(value) ? [] : {};
     cache.set(value, result);
     for (const key in value) {
-      if ((Object.prototype.hasOwnProperty.call(value, key))) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
         result[key] = _deepClone(value[key]);
       }
     }
@@ -425,9 +444,9 @@ export function deepClone(value: any) {
 
 /**
  * 对象属性不同返回 true，
- * @param obj1 
- * @param obj2 
- * @returns 
+ * @param obj1
+ * @param obj2
+ * @returns
  */
 export function differObject(obj1: any, obj2: any) {
   const cache1 = new WeakMap();
@@ -454,7 +473,10 @@ export function differObject(obj1: any, obj2: any) {
         return true;
       }
     }
-    if ((cache1.has(obj1) && !cache2.has(obj2)) || (!cache1.has(obj1) && cache2.has(obj2))) {
+    if (
+      (cache1.has(obj1) && !cache2.has(obj2)) ||
+      (!cache1.has(obj1) && cache2.has(obj2))
+    ) {
       return true;
     }
     //缓存保存自身循环引用，即obj1=obj1[key]
@@ -484,7 +506,9 @@ export function differObject(obj1: any, obj2: any) {
   return result;
 }
 function compareType(a: any, b: any) {
-  return Object.prototype.toString.call(a) === Object.prototype.toString.call(b);
+  return (
+    Object.prototype.toString.call(a) === Object.prototype.toString.call(b)
+  );
 }
 export function test1() {
   const obj1: any = { 1: 1, 2: 2, 3: { 4: 5 } };
@@ -497,29 +521,30 @@ export function test1() {
   showInfo("obj1==obj2: " + res);
 }
 
-
 //数组不含对象、集合、字典，函数
 /**
  * 不同返回 true
- * @param array1 
- * @param array2 
- * @returns 
+ * @param array1
+ * @param array2
+ * @returns
  */
 function isDiffer(array1: any[], array2: any[]) {
   if (array1.length != array2.length) return true;
   if (minus(array1, array2).length) return true;
   let allKeys = array1.concat(array2);
   allKeys = [...new Set(allKeys)];
-  const diffKeys = allKeys.filter((e: any) => !array1.includes(e) || !array2.includes(e));
+  const diffKeys = allKeys.filter(
+    (e: any) => !array1.includes(e) || !array2.includes(e),
+  );
   if (diffKeys.length) return diffKeys;
   return false;
 }
 
 /**
  * 对象数组，不同返回 true
- * @param arr1 
- * @param arr2 
- * @returns 
+ * @param arr1
+ * @param arr2
+ * @returns
  */
 export function objArrDiffer(arr1: any[], arr2: any[]) {
   for (let i = 0; i < arr1.length; i++) {
@@ -532,47 +557,46 @@ export function objArrDiffer(arr1: any[], arr2: any[]) {
 
 /**
  * 交集
- * @param a 
- * @param b 
- * @returns 
+ * @param a
+ * @param b
+ * @returns
  */
 function intersect(a: any[], b: any[]) {
   const sb = new Set(b);
-  return a.filter(x => sb.has(x));
+  return a.filter((x) => sb.has(x));
 }
 
 /**
  * 差集
- * @param a 
- * @param b 
- * @returns 
+ * @param a
+ * @param b
+ * @returns
  */
 function minus(a: any[], b: any[]) {
   const sb = new Set(b);
-  return a.filter(x => !sb.has(x));
+  return a.filter((x) => !sb.has(x));
 }
 
 /**
  * 补集
- * @param a 
- * @param b 
- * @returns 
+ * @param a
+ * @param b
+ * @returns
  */
 function complement(a: any[], b: any[]) {
   const sa = new Set(a);
   const sb = new Set(b);
-  return [...a.filter(x => !sb.has(x)), ...b.filter(x => !sa.has(x))];
+  return [...a.filter((x) => !sb.has(x)), ...b.filter((x) => !sa.has(x))];
 }
 /**
  * 并集
- * @param a 
- * @param b 
- * @returns 
+ * @param a
+ * @param b
+ * @returns
  */
 function union(a: any[], b: any[]) {
   return Array.from(new Set([...a, ...b]));
 }
-
 
 export const arrayUtils = {
   intersect,
@@ -581,9 +605,6 @@ export const arrayUtils = {
   union,
   isDiffer,
 };
-
-
-
 
 function arrayRemoveDuplicate(arr: any[]) {
   arr = [...new Set(arr)];
@@ -620,8 +641,10 @@ export function deepEqual(object1: any, object2: any) {
     const val1 = object1[keys1[index]];
     const val2 = object2[keys2[index]];
     const areObjects = isObject(val1) && isObject(val2);
-    if (areObjects && !deepEqual(val1, val2) ||
-      !areObjects && val1 !== val2) {
+    if (
+      (areObjects && !deepEqual(val1, val2)) ||
+      (!areObjects && val1 !== val2)
+    ) {
       return false;
     }
   }
@@ -630,24 +653,37 @@ export function deepEqual(object1: any, object2: any) {
 }
 
 function isObject(object: any) {
-  return object != null && typeof object === 'object';
+  return object != null && typeof object === "object";
 }
 
 /**
  * 递归获取文件路径
- * @param dirPath 
- * @param parents 
- * @param files 
- * @returns 
+ * @param dirPath
+ * @param parents
+ * @param files
+ * @returns
  */
-export async function collectFilesRecursive(dirPath: string, files: any[] = []) {
-  const onEntry = async ({ isDir, _isSymlink, name, path }: { isDir: boolean, _isSymlink: boolean, name: string, path: string; }) => {
+export async function collectFilesRecursive(
+  dirPath: string,
+  files: any[] = [],
+) {
+  const onEntry = async ({
+    isDir,
+    _isSymlink,
+    name,
+    path,
+  }: {
+    isDir: boolean;
+    _isSymlink: boolean;
+    name: string;
+    path: string;
+  }) => {
     if (isDir) {
       //parents.push(name)
       await collectFilesRecursive(path, files);
     }
     // TODO: Also check for hidden file attribute on windows?
-    else if (!name.startsWith('.')) {
+    else if (!name.startsWith(".")) {
       //@ts-ignore has
       files.push({ path, name });
     }
@@ -657,28 +693,26 @@ export async function collectFilesRecursive(dirPath: string, files: any[] = []) 
   return files;
 }
 
-
 /**
  * 获取文件夹中的文件名或路径
  * @param dir
- * @param option 
+ * @param option
  * @returns
  */
 
 /**
- * 
- * @param dir 
+ *
+ * @param dir
  * @param pathOrName 默认 "path"
  * @param subDirectory 默认 false
  * @param extension 默认 false
- * @returns 
+ * @returns
  */
 export async function getFiles(
   dir: string,
   pathOrName: "path" | "name" = "path",
   subDirectory: boolean = false,
-  extension: boolean = false
-
+  extension: boolean = false,
 ) {
   const filesName: string[] = [];
   const filesPath: string[] = [];
@@ -697,8 +731,6 @@ export async function getFiles(
         const nameNoExt = fileNameNoExt(entry.name);
         nameNoExt && filesName.push(nameNoExt);
       }
-
-
     }
   }
   await Zotero.File.iterateDirectory(dir, onOntry);
@@ -707,7 +739,6 @@ export async function getFiles(
   } else {
     return filesName;
   }
-
 }
 export async function testIO() {
   const path = await chooseDirOrFilePath("dir");
@@ -715,16 +746,16 @@ export async function testIO() {
   ztoolkit.log(childs);
 }
 
-
-
-
 /**
  * 文件路径格式转换 win2Unix
- * @param filePath 
- * @returns 
+ * @param filePath
+ * @returns
  */
 export function path2UnixFormat(filePath: string) {
-  return filePath.toLocaleLowerCase().replace(/^([\w]):/, "/$1").replace(/[\\]/g, "/");
+  return filePath
+    .toLocaleLowerCase()
+    .replace(/^([\w]):/, "/$1")
+    .replace(/[\\]/g, "/");
 }
 
 export function arrToObj(keys: string[], values: any[]) {
@@ -738,24 +769,21 @@ export function arrToObj(keys: string[], values: any[]) {
 
 /**
  * get single object or object array
- * @param keys 
- * @returns 
+ * @param keys
+ * @returns
  */
 export function arrsToObjs(keys: string[]) {
   return function (values: any[] | any[][]) {
-    if (!Array.isArray(values[0]))
-      return [arrToObj(keys, values)];
+    if (!Array.isArray(values[0])) return [arrToObj(keys, values)];
     return values.map((value) => arrToObj(keys, value)) as any[];
   };
 }
 
-
-
 export function base64ToBytes(imageDataURL: string):
   | {
-    u8arr: Uint8Array;
-    mime: string;
-  }
+      u8arr: Uint8Array;
+      mime: string;
+    }
   | undefined {
   const parts = imageDataURL.split(",");
   if (!parts[0].includes("base64")) return;
@@ -784,7 +812,6 @@ export async function fileToblob(path: string) {
   const buf = await IOUtils.read(path);
   return new Blob([buf]);
 }
-
 
 export async function readImage(path: string) {
   if (!(await IOUtils.exists(path))) {
@@ -823,8 +850,6 @@ export function fileNameNoExt(fileNameOrPath: string) {
     return fileNameOrPath.split(".").shift();
   }
 }
-
-
 
 export function getExt(fileNameOrPath: string) {
   if (fileNameOrPath.lastIndexOf(".") != -1)
@@ -890,7 +915,6 @@ export function ReadPNG(buf: any) {
   }
 }
 
-
 export function getPopupWin(option?: OptionsPopupWin, header?: string) {
   if (!addon.mountPoint["popupWin"] || option) {
     if (!header) header = config.addonName;
@@ -898,12 +922,14 @@ export function getPopupWin(option?: OptionsPopupWin, header?: string) {
   }
   return addon.mountPoint["popupWin"];
 }
-export function showInfo(infos?: string | string[],
+export function showInfo(
+  infos?: string | string[],
   option?: OptionsPopupWin,
   header?: string,
-  optionsCreatLine?: OptionsPopupWinCreateLine) {
-  const noop = () => { };
-  !header ? header = config.addonName : noop;
+  optionsCreatLine?: OptionsPopupWinCreateLine,
+) {
+  const noop = () => {};
+  !header ? (header = config.addonName) : noop;
   // 默认 options = {closeOnClick: true,closeTime: 5000,}
   const popupWin = new ztoolkit.ProgressWindow(header, option);
   //if (!option || option.closeTime != -1) {
@@ -912,23 +938,21 @@ export function showInfo(infos?: string | string[],
   if (!infos && (!optionsCreatLine || !optionsCreatLine.text)) {
     throw "info and optionsCreatLine.text can't all undefinde";
   }
-  !optionsCreatLine ? optionsCreatLine = {} : noop;
-  !optionsCreatLine.type ? optionsCreatLine.type = "default" : noop;
+  !optionsCreatLine ? (optionsCreatLine = {}) : noop;
+  !optionsCreatLine.type ? (optionsCreatLine.type = "default") : noop;
   if (infos) {
     if (!Array.isArray(infos)) infos = [infos];
     infos.filter((info: string) => {
       optionsCreatLine!.text = info;
       popupWin.createLine(optionsCreatLine!);
     });
-  } else (
-    popupWin.createLine(optionsCreatLine)
-  );
+  } else popupWin.createLine(optionsCreatLine);
   popupWin.show();
-  addon.mountPoint["popupWins"] ? addon.mountPoint["popupWins"].push(popupWin) : addon.mountPoint["popupWins"] = [popupWin];
+  addon.mountPoint["popupWins"]
+    ? addon.mountPoint["popupWins"].push(popupWin)
+    : (addon.mountPoint["popupWins"] = [popupWin]);
   return popupWin;
 }
-
-
 
 /**
  * 通过进度条显示信息
@@ -1011,7 +1035,7 @@ export const getPathDir = (filename: string, dir?: string, ext?: string) => {
     ext = "." + ext;
   }
   dir = PathUtils.normalize(dir);
-  const path = PathUtils.join(dir, (filename + ext));
+  const path = PathUtils.join(dir, filename + ext);
   return {
     path: path,
     dir: dir,
@@ -1040,10 +1064,9 @@ export async function getFilesRecursive(dir: string, ext?: string) {
     }
     dirs.push(entry.path);
     await Zotero.File.iterateDirectory(entry.path, onEntry);
-
   }
   try {
-    if (!await IOUtils.exists(dir)) {
+    if (!(await IOUtils.exists(dir))) {
       ztoolkit.log(`${dir} does not exist`);
       return files;
     }
@@ -1051,8 +1074,7 @@ export async function getFilesRecursive(dir: string, ext?: string) {
     files.sort((a, b) => {
       return b.lastModified - a.lastModified;
     });
-  }
-  catch (e: any) {
+  } catch (e: any) {
     Zotero.logError(e);
   }
   for (let i = 0; i < files.length; i++) {
@@ -1063,24 +1085,24 @@ export async function getFilesRecursive(dir: string, ext?: string) {
   }
   files.push({
     name: "dirs",
-    dirs: dirs
+    dirs: dirs,
   });
-  files = ext ? files.filter(e => (e.name as string).endsWith(ext)) : files;
+  files = ext ? files.filter((e) => (e.name as string).endsWith(ext)) : files;
   ztoolkit.log(files);
   return files;
 }
 
-
-
-
-
-export async function resourceFilesRecursive(url: string = `chrome://${config.addonRef}/content/schema/`, files: any[] = [], ext?: string) {
+export async function resourceFilesRecursive(
+  url: string = `chrome://${config.addonRef}/content/schema/`,
+  files: any[] = [],
+  ext?: string,
+) {
   const req = await Zotero.File.getResourceAsync(url);
   const filesInfo = req.split("\n");
   for (let str of filesInfo) {
     str = str.trim();
     if (str.endsWith("DIRECTORY")) {
-      await resourceFilesRecursive(url + str.split(" ")[1] + '/', files, ext);
+      await resourceFilesRecursive(url + str.split(" ")[1] + "/", files, ext);
     } else if (str.endsWith("FILE")) {
       files.push({
         name: str.split(" ")[1],
@@ -1102,10 +1124,9 @@ export async function resourceFilesRecursive(url: string = `chrome://${config.ad
       });
     }
   }); */
-  files = ext ? files.filter(e => (e.name as string).endsWith(ext)) : files;
+  files = ext ? files.filter((e) => (e.name as string).endsWith(ext)) : files;
   return files;
 }
-
 
 export function reduceDuplicates(arr: any[]) {
   const obj = {} as any;
@@ -1115,8 +1136,7 @@ export function reduceDuplicates(arr: any[]) {
       total.push(next);
     }
     return total;
-  }, [] as any[]
-  );
+  }, [] as any[]);
 }
 
 const arrs = [
@@ -1129,21 +1149,22 @@ const arrs = [
   "DROP TRIGGER IF EXISTS translation_targetTextID_targetText_targetTextID",
   "CREATE TABLE account(serialNumber INT NOT NULL, appID TEXT NOT NULL, secretKey TEXT NOT NULL, charConsum INT NOT NULL, dateMarker TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, usable INT NOT NULL, UNIQUE(serialNumber, appID), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
   "CREATE TABLE accessToken(serialNumber INT NOT NULL, token TEXT NOT NULL UNIQUE, usable INT NOT NULL, UNIQUE(serialNumber, token), FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
-  "CREATE TABLE totalCharConsum(serialNumber INT NOT NULL UNIQUE, totalCharConsum INT NOT NULL, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)"
+  "CREATE TABLE totalCharConsum(serialNumber INT NOT NULL UNIQUE, totalCharConsum INT NOT NULL, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (serialNumber) REFERENCES translateService (serialNumber) ON DELETE CASCADE)",
 ];
 
-
-
 /**
- * 
- * @param args 
+ *
+ * @param args
  */
-export function batchListen(...args: [element: Node, eventType: string[], callBack: Func[]][]) {
+export function batchListen(
+  ...args: [element: Node, eventType: string[], callBack: Func[]][]
+) {
   for (const arg of args) {
-    if (!arg[2]) throw 'At least give one callback';
-    if (Array.isArray(arg[2]) && !arg[2].length) throw 'At least give one callback';
+    if (!arg[2]) throw "At least give one callback";
+    if (Array.isArray(arg[2]) && !arg[2].length)
+      throw "At least give one callback";
     let func;
-    if (typeof arg[2] == 'function') func = arg[2];
+    if (typeof arg[2] == "function") func = arg[2];
     for (let i = 0; i < arg[1].length; i++) {
       const event = arg[1][i];
       func = arg[2][i] ? arg[2][i] : func;
@@ -1151,8 +1172,6 @@ export function batchListen(...args: [element: Node, eventType: string[], callBa
     }
   }
 }
-
-
 
 export function doTryCatch(func: Func) {
   return function (...args: any[]) {
@@ -1170,16 +1189,14 @@ export function doTryCatch(func: Func) {
            };
          }
          return result; */
-      }
-      catch (e) {
+      } catch (e) {
         ztoolkit.log(e);
-        showInfo('Execute failed: ' + args[0]);
+        showInfo("Execute failed: " + args[0]);
         throw e;
       }
     };
   };
 }
-
 
 const getCharCode = function (event: KeyboardEvent) {
   if (event.key) {
@@ -1188,51 +1205,87 @@ const getCharCode = function (event: KeyboardEvent) {
   }
   const charcode = event.charCode;
   if (typeof charcode == "number" && charcode != 0) {
-    showInfo("charcode: " + charcode + " || " + "'" + String.fromCharCode(charcode) + "'");
+    showInfo(
+      "charcode: " +
+        charcode +
+        " || " +
+        "'" +
+        String.fromCharCode(charcode) +
+        "'",
+    );
     return charcode;
   } else {
     //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
-    showInfo("keyCode: " + event.keyCode + " || " + "'" + String.fromCharCode(event.keyCode) + "'");
+    showInfo(
+      "keyCode: " +
+        event.keyCode +
+        " || " +
+        "'" +
+        String.fromCharCode(event.keyCode) +
+        "'",
+    );
     return event.keyCode;
   }
 };
-
 
 /**
  * 自动打开选中文件的上级目录，等待再次选择
  */
 export async function chooseFiles(dir?: string) {
-  const TIP = "Please select Files. Click Cancle will return files already selected.";
+  const TIP =
+    "Please select Files. Click Cancle will return files already selected.";
   const temp: string[] = [];
   while (TIP) {
-    let defaultDir = temp.length ? PathUtils.parent(temp.slice(-1)[0]) : undefined;
+    let defaultDir = temp.length
+      ? PathUtils.parent(temp.slice(-1)[0])
+      : undefined;
     if (!defaultDir) defaultDir = dir ? dir : addonDatabaseDir;
     const paths = await chooseDirOrFilePath("files", defaultDir, TIP);
     if (!paths || !paths.length) break;
-    typeof paths == "string" ? temp.push(paths) : temp.push(...paths);//undefine 无法 ... 解构
-    const confirm = window.confirm("是否继续选择文件？\n点击确定继续选择文件。\n点击取消结束选择");
+    typeof paths == "string" ? temp.push(paths) : temp.push(...paths); //undefine 无法 ... 解构
+    const confirm = window.confirm(
+      "是否继续选择文件？\n点击确定继续选择文件。\n点击取消结束选择",
+    );
     if (!confirm) break;
   }
   return temp;
 }
 
-export async function chooseDirOrFilePath(filesOrDir: "files", defaultPath?: string, windowTip?: string): Promise<string[]>;
-export function chooseDirOrFilePath(filesOrDir: "file" | "dir", defaultPath?: string, windowTip?: string): Promise<string>;
+export async function chooseDirOrFilePath(
+  filesOrDir: "files",
+  defaultPath?: string,
+  windowTip?: string,
+): Promise<string[]>;
+export function chooseDirOrFilePath(
+  filesOrDir: "file" | "dir",
+  defaultPath?: string,
+  windowTip?: string,
+): Promise<string>;
 
 /**
  * 默认目录
  * @param isDir 默认目录
- * @returns 
+ * @returns
  */
-export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" = "dir", defaultPath?: string, windowTip?: string) {
+export async function chooseDirOrFilePath(
+  filesOrDir: "files" | "file" | "dir" = "dir",
+  defaultPath?: string,
+  windowTip?: string,
+) {
   //FilePicker.prototype.modeOpen = 0;
   //FilePicker.prototype.modeSave = 1;
   //FilePicker.prototype.modeGetFolder = 2;
   //FilePicker.prototype.modeOpenMultiple = 3;
   //const FilePicker = window.require("zotero/modules/filePicker").default;
-  const { FilePicker } = ChromeUtils.importESModule('chrome://zotero/content/modules/filePicker.mjs');
+  const { FilePicker } = ChromeUtils.importESModule(
+    "chrome://zotero/content/modules/filePicker.mjs",
+  );
   const fp = new FilePicker();
-  windowTip = windowTip ? windowTip : (filesOrDir == "dir" ? getString("info-SelectDirectory") : "Select Directory");
+  windowTip = windowTip
+    ? windowTip
+    : filesOrDir == "dir"
+      ? getString("info-SelectDirectory")
+      : "Select Directory";
   if (filesOrDir == "dir") {
     if (Zotero.isMac) {
       fp.init(window, windowTip, fp.modeOpen);
@@ -1254,7 +1307,12 @@ export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" =
     if (rv == fp.returnCancel) showInfo(getString("info-userCancle"));
     return;
   }
-  const message = (filesOrDir == "dir" ? "Directory " + `is ${fp.file}` : (filesOrDir == "files" ? "Files " + `are ${fp.files}` : "File " + `is ${fp.file}`));
+  const message =
+    filesOrDir == "dir"
+      ? "Directory " + `is ${fp.file}`
+      : filesOrDir == "files"
+        ? "Files " + `are ${fp.files}`
+        : "File " + `is ${fp.file}`;
 
   Zotero.debug(message);
   if (filesOrDir == "files") return fp.files as string[];
@@ -1262,8 +1320,8 @@ export async function chooseDirOrFilePath(filesOrDir: "files" | "file" | "dir" =
 }
 /**
  * 废弃，请使用 chooseDirOrFilePath
- * @param defaultPath 
- * @returns 
+ * @param defaultPath
+ * @returns
  */
 export async function chooseFilePath(defaultPath?: string) {
   //const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
@@ -1300,9 +1358,15 @@ export function fileSizeFormat(fileSize: number, idx = 0) {
   return fileSizeFormat(fileSize / 1024, ++idx);
 }
 
-export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
+export async function readJsonFromDisk(
+  filename: string,
+  dir?: string,
+  ext?: string,
+) {
   const path = getPathDir(filename, dir, ext).path;
-  if (!await IOUtils.exists(path)) { return; }
+  if (!(await IOUtils.exists(path))) {
+    return;
+  }
   const buf = await IOUtils.read(path);
   const blob = new Blob([buf]);
   const response = await new Promise((resolve, reject) => {
@@ -1318,22 +1382,23 @@ export async function readJsonFromDisk(filename: string, dir?: string, ext?: str
 
 /**
  * c:\\path\\to\\file.json
- * 
+ *
  * /c/path/to/file/json
- * @param path 
- * @returns 
+ * @param path
+ * @returns
  */
 export const getFileInfo = async (path: string) => {
   return await OS.File.stat(path);
-
 };
 
 /**
- * 
+ *
  * @param type 默认"active"
- * @returns 
+ * @returns
  */
-export function getWindow(type: "pref" | "zoteroPane" | "active" | "recent" = "active") {
+export function getWindow(
+  type: "pref" | "zoteroPane" | "active" | "recent" = "active",
+) {
   let winSelected;
 
   switch (type) {

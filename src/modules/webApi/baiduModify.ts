@@ -1,6 +1,9 @@
-
-
-export async function baiduModify(sourceText: string, secretKey: string, sourceLang?: string, targetLang?: string) {
+export async function baiduModify(
+  sourceText: string,
+  secretKey: string,
+  sourceLang?: string,
+  targetLang?: string,
+) {
   if (sourceLang === undefined || sourceLang == "" || sourceLang == null) {
     sourceLang = "en";
   }
@@ -18,7 +21,7 @@ export async function baiduModify(sourceText: string, secretKey: string, sourceL
   const salt = new Date().getTime();
   const sign = Zotero.Utilities.Internal.md5(
     appid + sourceText + salt + key,
-    false
+    false,
   );
   `from=${sourceLang}&to=${targetLang}`;
 
@@ -26,12 +29,11 @@ export async function baiduModify(sourceText: string, secretKey: string, sourceL
   const xhr = await Zotero.HTTP.request(
     "GET",
     `http://api.fanyi.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(
-      sourceText
-    )}&appid=${appid}&from=${sourceLang}&to=${targetLang
-    }&salt=${salt}&sign=${sign}&action=${action}`,
+      sourceText,
+    )}&appid=${appid}&from=${sourceLang}&to=${targetLang}&salt=${salt}&sign=${sign}&action=${action}`,
     {
       responseType: "json",
-    }
+    },
   );
   if (xhr?.status !== 200) {
     throw `Request error: ${xhr?.status}`;
@@ -45,8 +47,8 @@ export async function baiduModify(sourceText: string, secretKey: string, sourceL
     tgt += xhr.response.trans_result[i].dst + "\n";
   }
   const data = {
-    "result": tgt,
-    "error": `${xhr.response.error_code}`
+    result: tgt,
+    error: `${xhr.response.error_code}`,
   };
   return data;
-};
+}

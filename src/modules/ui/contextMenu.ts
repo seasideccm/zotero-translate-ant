@@ -1,41 +1,44 @@
 import { config } from "../../../package.json";
 
 export class ContextMenu {
-    menupopup: XUL.MenuPopup;
-    methodMap: Map<any, any>;
-    constructor(option: any) {
-        this.methodMap = new Map();
-        this.menupopup = this.createContextMenu(option.menuPropsGroupsArr, option.idPostfix);
-        this.observeMenuitem();
+  menupopup: XUL.MenuPopup;
+  methodMap: Map<any, any>;
+  constructor(option: any) {
+    this.methodMap = new Map();
+    this.menupopup = this.createContextMenu(
+      option.menuPropsGroupsArr,
+      option.idPostfix,
+    );
+    this.observeMenuitem();
+  }
+
+  observeMenuitem() {
+    this.menupopup.addEventListener("command", async (e) => {
+      const tagName = (e.target as any).tagName.toLowerCase();
+      if (tagName === "menuitem") {
+        // anchorNode 为操作的目标元素
+        //@ts-ignore has anchorNode
+        await this.handleMenuItem(this.menupopup.anchorNode, e);
+      }
+    });
+  }
+
+  async handleMenuItem(target: Element, menuPopupEvent: Event) {
+    if (!menuPopupEvent || !(menuPopupEvent.target as any).label) return;
+    const labe = (menuPopupEvent.target as any).label;
+    const obj = this.methodMap.get(labe);
+    if (obj) {
+      const fn = obj.fn;
+      const args = [...obj.args];
+      args.push(target, menuPopupEvent);
+      if (judgeAsync(fn)) {
+        fn.apply(this, args);
+      } else {
+        await fn.apply(this, args);
+      }
     }
 
-    observeMenuitem() {
-        this.menupopup.addEventListener("command", async e => {
-            const tagName = (e.target as any).tagName.toLowerCase();
-            if (tagName === 'menuitem') {
-                // anchorNode 为操作的目标元素
-                //@ts-ignore has anchorNode
-                await this.handleMenuItem(this.menupopup.anchorNode, e);
-            }
-        });
-    }
-
-    async handleMenuItem(target: Element, menuPopupEvent: Event) {
-        if (!menuPopupEvent || !((menuPopupEvent.target as any).label)) return;
-        const labe = (menuPopupEvent.target as any).label;
-        const obj = this.methodMap.get(labe);
-        if (obj) {
-            const fn = obj.fn;
-            const args = [...obj.args];
-            args.push(target, menuPopupEvent);
-            if (judgeAsync(fn)) {
-                fn.apply(this, args);
-            } else {
-                await fn.apply(this, args);
-            }
-        }
-
-        /* switch ((menuPopupEvent.target as any).label) {
+    /* switch ((menuPopupEvent.target as any).label) {
             case `${getString("info-copyImage")}`: this.copyImage(target);
                 break;
             case `${getString("info-saveImage")}`: this.saveImage(target);
@@ -59,10 +62,9 @@ export class ContextMenu {
             case `${getString("info-showArticleLocation")}`: await this.showArticleLocation(target);
                 break;
         } */
-    }
+  }
 
-
-    /* creatPropsMeun( menuProps: MenuProps) {          
+  /* creatPropsMeun( menuProps: MenuProps) {          
         
         return {
             label: menuProps[0],
@@ -71,59 +73,69 @@ export class ContextMenu {
         };
     }; */
 
-    createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string) {
-        const menupopup = this.makeMenupopup(idPostfix);
-        if (menupopup.childElementCount) return menupopup;
-        menuPropsGroups.filter((menuPropsGroup: MenuProps[]) => {
-            menuPropsGroup.filter((menuProps: MenuProps) => {
-                this.methodMap.set(menuProps[0], { fn: menuProps[1], args: menuProps[2] });
-                this.makeMenuitem(menuProps[0], menupopup);
-            });
-            if (menuPropsGroups.indexOf(menuPropsGroup) !== menuPropsGroups.length - 1) {
-                this.menuseparator(menupopup);
-            }
-        }
-        );
-        return menupopup;
-    }
+  createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string) {
+    const menupopup = this.makeMenupopup(idPostfix);
+    if (menupopup.childElementCount) return menupopup;
+    menuPropsGroups.filter((menuPropsGroup: MenuProps[]) => {
+      menuPropsGroup.filter((menuProps: MenuProps) => {
+        this.methodMap.set(menuProps[0], {
+          fn: menuProps[1],
+          args: menuProps[2],
+        });
+        this.makeMenuitem(menuProps[0], menupopup);
+      });
+      if (
+        menuPropsGroups.indexOf(menuPropsGroup) !==
+        menuPropsGroups.length - 1
+      ) {
+        this.menuseparator(menupopup);
+      }
+    });
+    return menupopup;
+  }
 
-    menuseparator(menupopup: any) {
-        ztoolkit.UI.appendElement({
-            tag: "menuseparator",
-            namespace: "xul",
-        }, menupopup);
-    }
-    makeMenupopup(idPostfix: string) {
-        const menupopupOld = document.querySelector(`[id$="${idPostfix}"]`) as XUL.MenuPopup | null;
-        if (menupopupOld) return menupopupOld;
-        const menupopup = ztoolkit.UI.appendElement({
-            tag: "menupopup",
-            id: config.addonRef + '-' + idPostfix,
-            namespace: "xul",
-            children: [],
-        }, document.querySelector("#browser")!) as XUL.MenuPopup;
+  menuseparator(menupopup: any) {
+    ztoolkit.UI.appendElement(
+      {
+        tag: "menuseparator",
+        namespace: "xul",
+      },
+      menupopup,
+    );
+  }
+  makeMenupopup(idPostfix: string) {
+    const menupopupOld = document.querySelector(
+      `[id$="${idPostfix}"]`,
+    ) as XUL.MenuPopup | null;
+    if (menupopupOld) return menupopupOld;
+    const menupopup = ztoolkit.UI.appendElement(
+      {
+        tag: "menupopup",
+        id: config.addonRef + "-" + idPostfix,
+        namespace: "xul",
+        children: [],
+      },
+      document.querySelector("#browser")!,
+    ) as XUL.MenuPopup;
 
-        return menupopup;
+    return menupopup;
+  }
 
-    }
-
-    makeMenuitem(
-        label: string,
-        menupopup: any,
-    ) {
-        const menuitem = ztoolkit.UI.appendElement({
-            tag: "menuitem",
-            namespace: "xul",
-            attributes: {
-                label: label || "undefined",
-            }
-        }, menupopup);
-    }
-
-
+  makeMenuitem(label: string, menupopup: any) {
+    const menuitem = ztoolkit.UI.appendElement(
+      {
+        tag: "menuitem",
+        namespace: "xul",
+        attributes: {
+          label: label || "undefined",
+        },
+      },
+      menupopup,
+    );
+  }
 }
 
 export function judgeAsync(fun: any) {
-    const AsyncFunction = (async () => { }).constructor;
-    return fun instanceof AsyncFunction;
+  const AsyncFunction = (async () => {}).constructor;
+  return fun instanceof AsyncFunction;
 }
