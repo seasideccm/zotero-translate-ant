@@ -43,7 +43,7 @@ export async function getLangCode(code: string, type: number) {
 }
 
 export async function getLang(serviceID: string) {
-  const format: { [key: string]: number; } = {
+  const format: { [key: string]: number } = {
     baidufieldModify: 2,
     baiduModify: 2,
   };
@@ -66,14 +66,18 @@ export async function getLang(serviceID: string) {
   if (type == 3) {
     //@ts-ignore xxx
     const ss = Object.keys(langCode_francVsZotero).filter(
-      (key) => langCode_francVsZotero[key as keyof typeof langCode_francVsZotero] == sourceLang,
+      (key) =>
+        langCode_francVsZotero[key as keyof typeof langCode_francVsZotero] ==
+        sourceLang,
     );
     if (ss.length > 0) {
       sourceLang = Object.keys(ss[0])[0];
     }
     //@ts-ignore xxx
     const tt = Object.keys(langCode_francVsZotero).filter(
-      (key) => langCode_francVsZotero[key as keyof typeof langCode_francVsZotero] == targetLang,
+      (key) =>
+        langCode_francVsZotero[key as keyof typeof langCode_francVsZotero] ==
+        targetLang,
     );
     if (tt.length > 0) {
       targetLang = Object.keys(ss[0])[0];

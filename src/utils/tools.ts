@@ -3,29 +3,23 @@ import { addonDatabaseDir, addonStorageDir } from "./constant";
 import { judgeAsync } from "../modules/ui/uiTools";
 import { getString } from "./locale";
 
-
-
 export function utf8Encode(string: string) {
   string = string.replace(/\r\n/g, "\n");
   let utftext = "";
 
   for (let n = 0; n < string.length; n++) {
-
     const c = string.charCodeAt(n);
 
     if (c < 128) {
       utftext += String.fromCharCode(c);
-    }
-    else if ((c > 127) && (c < 2048)) {
+    } else if (c > 127 && c < 2048) {
       utftext += String.fromCharCode((c >> 6) | 192);
       utftext += String.fromCharCode((c & 63) | 128);
-    }
-    else {
+    } else {
       utftext += String.fromCharCode((c >> 12) | 224);
       utftext += String.fromCharCode(((c >> 6) & 63) | 128);
       utftext += String.fromCharCode((c & 63) | 128);
     }
-
   }
 
   return utftext;
@@ -169,7 +163,7 @@ export function compareObj(obj1: any, obj2: any) {
  * @returns
  */
 export const objOrder = (
-  obj: { [key: string]: string | number; },
+  obj: { [key: string]: string | number },
   isPad?: boolean,
 ) => {
   const objOrdered: {
@@ -808,9 +802,9 @@ export function arrsToObjs(keys: string[]) {
 
 export function base64ToBytes(imageDataURL: string):
   | {
-    u8arr: Uint8Array;
-    mime: string;
-  }
+      u8arr: Uint8Array;
+      mime: string;
+    }
   | undefined {
   const parts = imageDataURL.split(",");
   if (!parts[0].includes("base64")) return;
@@ -955,7 +949,7 @@ export function showInfo(
   header?: string,
   optionsCreatLine?: OptionsPopupWinCreateLine,
 ) {
-  const noop = () => { };
+  const noop = () => {};
   !header ? (header = config.addonName) : noop;
   // 默认 options = {closeOnClick: true,closeTime: 5000,}
   const popupWin = new ztoolkit.ProgressWindow(header, option);
@@ -1234,22 +1228,22 @@ const getCharCode = function (event: KeyboardEvent) {
   if (typeof charcode == "number" && charcode != 0) {
     showInfo(
       "charcode: " +
-      charcode +
-      " || " +
-      "'" +
-      String.fromCharCode(charcode) +
-      "'",
+        charcode +
+        " || " +
+        "'" +
+        String.fromCharCode(charcode) +
+        "'",
     );
     return charcode;
   } else {
     //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
     showInfo(
       "keyCode: " +
-      event.keyCode +
-      " || " +
-      "'" +
-      String.fromCharCode(event.keyCode) +
-      "'",
+        event.keyCode +
+        " || " +
+        "'" +
+        String.fromCharCode(event.keyCode) +
+        "'",
     );
     return event.keyCode;
   }

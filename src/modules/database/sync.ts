@@ -119,24 +119,24 @@ class Datasync {
     const zipUnsync = zipFile(path, zipPath);
   }
 
-  addZip() { }
+  addZip() {}
 
   upload(option: any) {
     this.syncWebDav();
     this.syncZFS();
   }
-  download(option: any) { }
+  download(option: any) {}
 
-  syncWebDav() { }
-  syncZFS() { }
+  syncWebDav() {}
+  syncZFS() {}
   jsonFromZip(zipFile: string) {
     return JSON.stringify({
       test: "zip",
     });
   }
-  jsonDownload() { }
+  jsonDownload() {}
 
-  saveData() { }
+  saveData() {}
 }
 
 export const DBsync = new Datasync();
