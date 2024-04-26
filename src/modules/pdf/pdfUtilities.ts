@@ -38,6 +38,7 @@ async function pdf2Note(pdfID: number) {
   if (item.parentKey) {
     note.parentKey = item.parentKey;
   } else if (item.getCollections().length) {
+    //@ts-ignore xxx
     note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
   } else {
     //新建独立笔记

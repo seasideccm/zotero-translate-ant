@@ -266,7 +266,7 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
    * @param force
    * @returns
    */
-  static async bakeupDB(suffix: any = false, force: boolean = false) {
+  async bakeupDB(suffix: any = false, force: boolean = false) {
     this._externalDB = false;
     const result = await this.backupDatabase(suffix, force);
     this._externalDB = true;
