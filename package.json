@@ -1,6 +1,6 @@
 {
   "name": "zotero-translate-ant",
-  "version": "0.1.3.5",
+  "version": "0.1.3",
   "description": "zotero-translate-ant",
   "config": {
     "addonName": "zoteroTranslateAnt",
