@@ -1,6 +1,6 @@
 {
   "name": "zotero-translate-ant",
-  "version": "0.1.2.2",
+  "version": "0.1.2.3",
   "description": "zotero-translate-ant",
   "config": {
     "addonName": "zoteroTranslateAnt",
@@ -151,7 +151,7 @@
       "publish": false
     },
     "github": {
-      "release": false,
+      "release": true,
       "assets": [
         "build/*.xpi",
         "remoteData/*.json"
