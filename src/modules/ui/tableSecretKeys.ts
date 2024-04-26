@@ -139,8 +139,7 @@ export async function replaceSecretKeysTable() {
   }
   function adjustWidth(rows: any[], byDisplay: boolean = true) {
     //@ts-ignore xxx
-    const visibleKeys = tableTreeInstance
-      ._getVisibleColumns()
+    const visibleKeys = tableTreeInstance._getVisibleColumns()
       .map((e: any) => e.dataKey);
     const onResizeData: any = {};
     const totalWidth = tableTreeInstance._topDiv?.clientWidth;
@@ -162,7 +161,7 @@ export async function replaceSecretKeysTable() {
     const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
     const longestCells = strMax(colums);
     const keys = visibleKeys || Object.keys(rows[0]); //可指定keys
-    const keyWidth: { [key: string]: number } = {};
+    const keyWidth: { [key: string]: number; } = {};
     for (let i = 0; i < keys.length; i++) {
       const cellText = longestCells[i];
       const key = keys[i];
@@ -424,8 +423,8 @@ export async function replaceSecretKeysTable() {
     ) {
       const confirm = win?.confirm(
         getString("info-delete-secretKey") +
-          "\n" +
-          getString("info-delete-confirm"),
+        "\n" +
+        getString("info-delete-confirm"),
       );
       if (!confirm) return true; //确认删除，点击cancel则取消
 
@@ -1182,9 +1181,10 @@ export async function replaceSecretKeysTable() {
       return el.getBoundingClientRect().x + el.getBoundingClientRect().width;
     }
     for (let i = 0; i < parent.childNodes.length; i++) {
-      //@ts-ignore has
+
       if (
-        e.x >= left(parent.childNodes[i]) &&
+        //@ts-ignore has
+        e.x >= left(parent.childNodes[i]) &&//@ts-ignore has
         e.x <= right(parent.childNodes[i])
       ) {
         return i;
@@ -1204,6 +1204,7 @@ export async function replaceSecretKeysTable() {
     if (typeof columIndexOrKey === "string") {
       //@ts-ignore has
       const temps = tableTreeInstance
+        //@ts-ignore has
         ._getColumns()
         .filter((e: any) => e.dataKey == columIndexOrKey);
       if (temps.length == 0) return;
@@ -1218,7 +1219,7 @@ export async function replaceSecretKeysTable() {
     const columns = tableTreeInstance._getVisibleColumns(); //@ts-ignore has
     //@ts-ignore has
     tableTreeInstance._columns.onResize(
-      Object.fromEntries(columns.map((c) => [c.dataKey, c.width])),
+      Object.fromEntries(columns.map((c: any) => [c.dataKey, c.width])),
     );
 
     // const styleIndex = tableTreeInstance._columns._columnStyleMap[dataKey]
@@ -1246,7 +1247,7 @@ export async function replaceSecretKeysTable() {
     //tableTreeInstance.render();
     tableTreeInstance.invalidate();
     tableTreeInstance.selection.select(rows.length - 1); //@ts-ignore has
-    const seletedRow = tableTreeInstance._topDiv.querySelectorAll(
+    const seletedRow = tableTreeInstance._topDiv.querySelectorAll(//@ts-ignore has
       `#${tableTreeInstance._jsWindowID} [aria-selected=true]`,
     )[0];
     if (!seletedRow) {
@@ -1954,11 +1955,11 @@ function validateRowData(row: any) {
 
 // ("beforeunload");
 
-async function deleteRecord(e: Event) {}
+async function deleteRecord(e: Event) { }
 
-async function editRecord(e: Event) {}
+async function editRecord(e: Event) { }
 
-async function searchRecord(e: Event) {}
+async function searchRecord(e: Event) { }
 
 async function readTextFilesDroped(e: DragEvent) {
   // 文件拖拽

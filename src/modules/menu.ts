@@ -185,6 +185,7 @@ export function rightClickMenuItem() {
     tag: "menuitem",
     label: getString("menuitem-pdf2Note"),
     commandListener: async (ev) => {
+      //@ts-ignore xxx
       await this.pdf2Note(); //fullTextTranslate.pdf2Note();
     },
     icon: menuIcon,

@@ -1,3 +1,4 @@
+//@ts-nocheck xxx
 import ollama from "./ollamajs.mjs";
 
 export async function aiCHat(

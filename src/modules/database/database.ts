@@ -247,10 +247,10 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
           : null;
         ztoolkit.log(
           Zotero.getString("startupError", Zotero.appName) +
-            "\n\n" +
-            Zotero.getString("db.integrityCheck.reportInForums") +
-            "\n\n" +
-            (stack || e),
+          "\n\n" +
+          Zotero.getString("db.integrityCheck.reportInForums") +
+          "\n\n" +
+          (stack || e),
         );
       }
       ztoolkit.log(e);
@@ -266,7 +266,7 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
    * @param force
    * @returns
    */
-  async bakeupDB(suffix: any = false, force: boolean = false) {
+  static async bakeupDB(suffix: any = false, force: boolean = false) {
     this._externalDB = false;
     const result = await this.backupDatabase(suffix, force);
     this._externalDB = true;
@@ -351,8 +351,8 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
 
   async updateDate(
     tableName: string,
-    data: { [columsField: string]: any },
-    record: { [columsField: string]: any },
+    data: { [columsField: string]: any; },
+    record: { [columsField: string]: any; },
   ) {
     const sqlColumns = Object.keys(data);
     const sqlValues = sqlColumns.map((key) => data[key]);

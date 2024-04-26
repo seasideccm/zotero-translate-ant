@@ -11,7 +11,7 @@ import {
   resourceFilesRecursive,
   showInfo,
 } from "../../utils/tools";
-import { DB, compareSQLUpdateDB } from "./database";
+import { compareSQLUpdateDB } from "./database";
 import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
 
 export class Schema {
@@ -24,8 +24,8 @@ export class Schema {
   _maxCompatibility: number;
   _localUpdateInProgress: boolean;
   isCompatible: boolean | null;
-  versionsFromBD: { [key: string]: number };
-  versionsFromFile: { [key: string]: number };
+  versionsFromBD: { [key: string]: number; };
+  versionsFromFile: { [key: string]: number; };
   DB: DataBase;
 
   constructor() {
@@ -84,7 +84,7 @@ export class Schema {
     if (compatibility > this._maxCompatibility) {
       const dbAddonVersion = await this.DB.valueQueryAsync(
         "SELECT value FROM settings " +
-          "WHERE setting='addon' AND key='lastCompatibleVersion'",
+        "WHERE setting='addon' AND key='lastCompatibleVersion'",
       );
       const msg =
         "Database is incompatible with this addon " +
@@ -113,7 +113,7 @@ export class Schema {
       return this.versionsFromFile;
     const files = await resourceFilesRecursive(undefined, undefined, "sql");
     for (const file of files) {
-      const schema = fileNameNoExt(file.name);
+      const schema = fileNameNoExt(file.name)!;
       const sql = await this.getSchemaSQL(schema);
       if (!sql) continue;
       const match = sql.match(/^-- ([0-9]+)/);
@@ -434,11 +434,11 @@ export class Schema {
 
     ztoolkit.log(
       "Updating" +
-        schema +
-        "data tables from version " +
-        fromVersion +
-        " to " +
-        toVersion,
+      schema +
+      "data tables from version " +
+      fromVersion +
+      " to " +
+      toVersion,
     );
 
     if (options.onBeforeUpdate) {
@@ -702,7 +702,7 @@ export class Schema {
       throw "Schema type not provided to this.getSchemaSQL()";
     }
     dir = dir || `chrome://${config.addonRef}/content/schema/`;
-    schema = fileNameNoExt(schema);
+    schema = fileNameNoExt(schema)!;
     const path = dir + `${schema}.sql`;
 
     return Zotero.File.getResourceAsync(path);

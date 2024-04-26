@@ -27,7 +27,7 @@ class Datasync {
     const file = await this.jsonTofile();
     const libraryID = Zotero.Libraries.userLibraryID;
     const fileBaseName = undefined;
-    const parentItemID = itemSync.id;
+    const parentItemID = itemSync!.id;
     const collections = undefined;
 
     const attachment = await Zotero.Attachments.importFromFile({
@@ -50,6 +50,7 @@ class Datasync {
       return collection;
     }
     collection = new Zotero.Collection();
+    //@ts-ignore xxx
     collection.libraryID = Zotero.Libraries.userLibraryID;
     collection.name = this.collectionName;
     await collection.saveTx();
@@ -118,24 +119,24 @@ class Datasync {
     const zipUnsync = zipFile(path, zipPath);
   }
 
-  addZip() {}
+  addZip() { }
 
   upload(option: any) {
     this.syncWebDav();
     this.syncZFS();
   }
-  download(option: any) {}
+  download(option: any) { }
 
-  syncWebDav() {}
-  syncZFS() {}
+  syncWebDav() { }
+  syncZFS() { }
   jsonFromZip(zipFile: string) {
     return JSON.stringify({
       test: "zip",
     });
   }
-  jsonDownload() {}
+  jsonDownload() { }
 
-  saveData() {}
+  saveData() { }
 }
 
 export const DBsync = new Datasync();

@@ -1,3 +1,4 @@
+//@ts-nocheck xxx
 import OpenAI from "openai";
 import ollama from "./ollamajs.mjs";
 // 实验性兼容
