@@ -1,8 +1,3 @@
-/*
-adapted from Zotero
-*/
-
-//import { schemaConfig } from '../../utils/constant';
 import { version as addonVersion, config } from "../../../package.json";
 import {
   compareObj,
@@ -11,7 +6,6 @@ import {
   resourceFilesRecursive,
   showInfo,
 } from "../../utils/tools";
-import { compareSQLUpdateDB } from "./database";
 import { migrateAddonSystem, migrateTranslation } from "./migrateSchemas";
 
 export class Schema {
@@ -41,7 +35,7 @@ export class Schema {
     this._maxCompatibility = 7;
     this._localUpdateInProgress = false;
     this.isCompatible = null;
-    this.DB = addon.mountPoint.database;
+    this.DB = addon.mountPoint.database as DataBase;
     this.versionsFromBD = {};
     this.versionsFromFile = {};
   }
@@ -305,12 +299,15 @@ export class Schema {
       schemaVersion < schemaSqlFileVersion &&
       !options.minor
     ) {
+      //@ts-ignore xxx
       await this.DB.bakeupDB(schema + schemaVersion, true);
     }
     // Automatic backup
     else if (integrityCheckRequired) {
+      //@ts-ignore xxx
       await this.DB.bakeupDB(false, true);
     }
+
 
     const logLines: any[] = [];
     const listener = function (line: any) {

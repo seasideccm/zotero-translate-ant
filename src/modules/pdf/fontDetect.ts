@@ -141,21 +141,21 @@ export async function identifyRedPointAndItalic(
     chars: string[] | null;
     strs: string[] | null;
     charImg:
-      | {
-          width: number;
-          height: number;
-          base64: string;
-        }
-      | null
-      | undefined;
+    | {
+      width: number;
+      height: number;
+      base64: string;
+    }
+    | null
+    | undefined;
     charsImg:
-      | {
-          width: number;
-          height: number;
-          base64: string;
-        }
-      | null
-      | undefined;
+    | {
+      width: number;
+      height: number;
+      base64: string;
+    }
+    | null
+    | undefined;
     redPointNumbers: number | null;
     isItalic: boolean | null;
     loadName: string;
@@ -839,8 +839,8 @@ export const saveDiskFontSimpleInfo = async (
   //清理掉image
   const obj = JSON.parse(JSON.stringify(fontSimpleInfoArr));
   obj.filter((obj: any) => {
-    obj.charImg ? delete obj.charImg : () => {};
-    obj.charsImg ? delete obj.charsImg : () => {};
+    obj.charImg ? delete obj.charImg : () => { };
+    obj.charsImg ? delete obj.charsImg : () => { };
   });
   obj
     .filter((e: any) => e)
@@ -861,8 +861,8 @@ export const saveDiskFontSimpleInfo = async (
 
   showInfo(
     getString("info-dataWriteToDiskSuccess") +
-      getString("info-fileInfo-size") +
-      fileSizeFormat(fileSize),
+    getString("info-fileInfo-size") +
+    fileSizeFormat(fileSize),
   );
   //返回合并后的数据
   return fromDisk;
@@ -1022,6 +1022,7 @@ export async function capturePdfWorkerMessage() {
   // @ts-ignore
   while (
     !(port =
+      //@ts-ignore xxx
       reader._iframeWindow?.wrappedJSObject?.PDFViewerApplication
         ?.pdfLoadingTask?._worker?._port)
   ) {
