@@ -162,7 +162,7 @@ export async function replaceSecretKeysTable() {
     const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
     const longestCells = strMax(colums);
     const keys = visibleKeys || Object.keys(rows[0]); //可指定keys
-    const keyWidth: { [key: string]: number; } = {};
+    const keyWidth: { [key: string]: number } = {};
     for (let i = 0; i < keys.length; i++) {
       const cellText = longestCells[i];
       const key = keys[i];
@@ -424,8 +424,8 @@ export async function replaceSecretKeysTable() {
     ) {
       const confirm = win?.confirm(
         getString("info-delete-secretKey") +
-        "\n" +
-        getString("info-delete-confirm"),
+          "\n" +
+          getString("info-delete-confirm"),
       );
       if (!confirm) return true; //确认删除，点击cancel则取消
 
@@ -1954,11 +1954,11 @@ function validateRowData(row: any) {
 
 // ("beforeunload");
 
-async function deleteRecord(e: Event) { }
+async function deleteRecord(e: Event) {}
 
-async function editRecord(e: Event) { }
+async function editRecord(e: Event) {}
 
-async function searchRecord(e: Event) { }
+async function searchRecord(e: Event) {}
 
 async function readTextFilesDroped(e: DragEvent) {
   // 文件拖拽
