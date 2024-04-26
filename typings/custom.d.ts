@@ -18,16 +18,16 @@ declare type DocItem = {
 declare type DocCell = {
   id: string;
   type:
-    | "img"
-    | "table"
-    | "paragraph"
-    | "title"
-    | "headMarker"
-    | "tailMarker"
-    | "contentEnd"
-    | "citation"
-    | "header"
-    | "footer";
+  | "img"
+  | "table"
+  | "paragraph"
+  | "title"
+  | "headMarker"
+  | "tailMarker"
+  | "contentEnd"
+  | "citation"
+  | "header"
+  | "footer";
   rawContent: string;
   rawToTranslate?: string | string[];
   translation?: string | string[];
@@ -152,7 +152,7 @@ declare type VTableProps = {
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
-  storeColumnPrefs?: (prefs: { [dataKey: string]: any }) => void;
+  storeColumnPrefs?: (prefs: { [dataKey: string]: any; }) => void;
   getDefaultColumnOrder?: () => {
     [dataKey: string]: any;
   };
@@ -177,8 +177,8 @@ declare type VTableProps = {
   onDragOver?: (e: DragEvent) => boolean;
   onDrop?: (e: DragEvent) => boolean;
   onActivate?:
-    | ((e: MouseEvent) => boolean)
-    | ((event: Event, indices: number[]) => boolean);
+  | ((e: MouseEvent) => boolean)
+  | ((event: Event, indices: number[]) => boolean);
   onFocus?: (e: FocusEvent) => boolean;
   onItemContextMenu?: (
     e: MouseEvent | KeyboardEvent,
@@ -218,7 +218,7 @@ interface VirtualizedTableProps {
   getColumnPrefs?: () => {
     [dataKey: string]: any;
   };
-  storeColumnPrefs?: (prefs: { [dataKey: string]: any }) => void;
+  storeColumnPrefs?: (prefs: { [dataKey: string]: any; }) => void;
   getDefaultColumnOrder?: () => {
     [dataKey: string]: any;
   };
@@ -255,6 +255,7 @@ interface VirtualizedTableProps {
 interface VTable extends React.Component<VirtualizedTableProps, any> {
   selection: TreeSelection;
   _topDiv?: HTMLDivElement;
+  _getVisibleColumns: () => any[];
   invalidate: () => void;
   dataChangedCache?: any;
   rows?: any[];
@@ -263,6 +264,7 @@ interface VTable extends React.Component<VirtualizedTableProps, any> {
   editingRow?: any;
   dataHistory?: any[];
   invalidateRow: (row: number) => void;
+  commitEditingRow: () => void;
 }
 
 declare type columnsProp = {
@@ -310,7 +312,7 @@ interface TreeSelection {
    * @param tree {VirtualizedTable} The tree where selection occurs. Will be used to issue
    * updates.
    */
-  new (tree: VirtualizedTable): this;
+  new(tree: VirtualizedTable): this;
   /**
    * Returns whether the given index is selected.
    * @param index {Number} The index is 0-clamped.
