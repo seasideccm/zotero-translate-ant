@@ -3,7 +3,7 @@
     "translateAnt@sscc.sscc": {
       "updates": [
         {
-          "version": "0.1.1.1",
+          "version": "0.1.5",
           "update_link": "  https://github.com/seasideccm/zotero-translate-ant/releases/latest/download/zotero-translate-ant.xpi",
           "applications": {
             "zotero": {
