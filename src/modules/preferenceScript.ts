@@ -9,7 +9,7 @@ import { getServices } from "./translate/translateServices";
 import { addonSetting, getSettingValue, setCurrentService, setSettingValue } from "./addonSetting";
 import { setHiddenState } from "./command";
 import { llmSettings } from "./ui/llmSettings";
-import { getSingleServiceUnderUse } from "./translate/serviceManage";
+import { getSingleServiceUnderUse, serviceManage } from "./translate/serviceManage";
 import { TranslateService, TranslateServiceAccount } from "./translate/translateService";
 
 
@@ -226,7 +226,7 @@ async function buildPrefsPane() {
         {
           type: "command",
           listener: async (e: Event) => {
-            underUsing();
+            await underUsing();
             await updateLimits();
             const element = e.target as XUL.MenuList;
             const serviceID = element.value;
@@ -383,7 +383,7 @@ async function buildPrefsPane() {
 
 }
 
-function onPrefsEvents(idsuffixOrAction?: string[] | string) {
+async function onPrefsEvents(idsuffixOrAction?: string[] | string) {
   const doc = addon.data.prefs?.window?.document;
   const win = addon.data.prefs?.window;
   if (!doc || !win) {
@@ -395,7 +395,7 @@ function onPrefsEvents(idsuffixOrAction?: string[] | string) {
     switch (type) {
       case "serviceIDUnderUse":
       case "secretKeyUnderUse":
-        underUsing();
+        await underUsing();
         break;
 /*   
     
@@ -706,7 +706,7 @@ export async function clickSwitchService(e?: Event) {
     //未选择行
     const services = await getServices();
     const service = services[serviceID];
-    if (!service.hasSecretKey && service.hasToken) {
+    if (!service.hasSecretKey && !service.hasToken) {
       //引擎没有秘钥
       if (!service.serialNumber) return;
       serialNumber = service.serialNumber.toString();
@@ -724,7 +724,8 @@ export async function clickSwitchService(e?: Event) {
     }
   }
   await setCurrentService(serviceID, serialNumber);
-  underUsing();
+  await underUsing();
+  await serviceManage.onSwitch();//可用就用，pdftranslate 不一致则切换
 }
 
 async function getSerialNumberByAppid(serviceID: string, appID: string) {
@@ -745,6 +746,8 @@ async function underUsing() {
   setElementValue("serviceIDUnderUse", serviceID);
   if (service instanceof TranslateServiceAccount) {
     setElementValue("secretKeyUnderUse", service.appID);
+  } else {
+    setElementValue("secretKeyUnderUse", "");
   }
 
 }

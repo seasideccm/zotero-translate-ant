@@ -10,19 +10,29 @@ import { TranslateService, TranslateServiceAccount } from "./translateService";
  * 
  */
 export async function initTranslateServices() {
+    let parasArr: any[] = [];
     const DB = await getDB();
     const servicesAmount = await DB.valueQueryAsync("SELECT COUNT(*) FROM translateServices");
-    if (!servicesAmount) await fillServiceTypes();
-    let parasArr = [];
+    if (!servicesAmount) {
+        await fillServiceTypes();
+        parasArr = parasArrTranslateService;
+    }
+    if (parasArrTranslateServiceAdd.length) {
+        parasArr.push(...parasArrTranslateServiceAdd);
+    }
     // 数据库已有翻译引擎记录则已完成初始化，
     // 如果有新添加的翻译引擎，则写入数据库
-    servicesAmount ? parasArr = parasArrTranslateServiceAdd : parasArr = parasArrTranslateService;
     if (parasArr.length) {
         await servicesToDB(keysTranslateService, parasArr);
     }
     const services = await getServices();
+    const serviceIDs = Object.keys(services);
+    parasArr = parasArrTranslateService.filter(arr => !serviceIDs.includes(arr[0] as string));
+    if (parasArr.length) {
+        await servicesToDB(keysTranslateService, parasArr);
+        return await getServices();
+    }
     return services;
-
 }
 
 export async function servicesToDB(keys: string[], parasArr: any[]) {

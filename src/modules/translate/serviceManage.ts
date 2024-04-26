@@ -9,7 +9,7 @@ import {
   setPluginsPref,
 } from "../../utils/prefs";
 import { getCharasLimit, getServiceBySN, getServices } from "./translateServices";
-import { getCurrentServiceSN, getServicesOrder, getSettingValue } from "../addonSetting";
+import { getCurrentServiceSN, getServicesOrder, getSettingValue, setCurrentService } from "../addonSetting";
 import { decryptByAESKey } from "../crypto";
 import { updateServiceData } from "../ui/tableSecretKeys";
 
@@ -29,6 +29,9 @@ export class serviceManage {
       niutranspro: 1,
       caiyun: 1,
       microsoft: 1,
+      chatgpt: 1,
+      azuregpt: 1,
+      gemini: 1,
       deeplfree: 1,
       deeplpro: 1,
       deeplcustom: 1,
@@ -271,180 +274,153 @@ export class serviceManage {
   }
 
 
-  /* static async getAccount() {
-
-  } */
-
-
   /**
    *
    * @returns
    */
-  static async onSwitch(isPreferredSameService?: boolean) {
-    if (!isPreferredSameService) isPreferredSameService = getPref("isPreferredSameService") as boolean;
-    const service = await getSingleServiceUnderUse();
+  static async onSwitch(forceSwith: boolean = false) {
+    const info = "无可用引擎和账号";
+    let service = await getSingleServiceUnderUse();
     if (!service) {
-      const info = "无可用引擎和账号";
       showInfo(info);
-      throw info;
+      return false;
     }
-    if (!await this.serviceAvailableCheck(service)) {
-      //getAvilabelService()
-      //switchOne()
+    if (!await this.serviceAvailableCheck(service) || forceSwith) {
+      const serviceNew = await switchOne(service);
+      if (!serviceNew) {
+        showInfo(info);
+        return false;
+      }
+      service = serviceNew;
+      setCurrentService(serviceNew.serviceID, serviceNew.serialNumber!);
+    }
+    await this.switchPDFTranslate(service);
+    return true;
+
+    async function switchOne(service: TranslateService | TranslateServiceAccount) {
+      let keyStr;
+      if (service instanceof TranslateServiceAccount) {
+        keyStr = service.secretKey || service.token;
+      }
+
+      let servicesHasKeyUsable: TranslateService[] = [];
+      const services = await getServices();
+      // 允许付费时可用的引擎（需要秘钥）
+      //允许付费则忽略 secretKey 的 usable 和已经轮换过的秘钥
+      servicesHasKeyUsable = Object.values(services).filter(
+        (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
+      );
+      // 禁用付费时可用的引擎（需要秘钥）
+      if (!getPref("isPay")) {
+        const temp = [];
+        const acountsUsable = [];
+        for (const service of servicesHasKeyUsable) {
+          if (!service.accounts || !service.accounts.length) continue;
+          for (const account of service.accounts) {
+            const key = account.secretKey || account.token;
+            if (!key) continue;
+            if (!account.usable || account.forbidden) continue;
+            if (keyStr && keyStr == key) continue;//除外本轮已经切换过的秘钥
+            if (!secretKeyHasSwitched.includes(key)) continue;//除外上轮已经切换过的秘钥
+            temp.push(service);
+            acountsUsable.push(account);
+          }
+        }
+        servicesHasKeyUsable = temp;
+      }
+
+      // 无秘钥引擎
+      let servicesNoKeyUsable = Object.values(services).filter(
+        (element) =>
+          !element.hasSecretKey && !element.hasToken &&
+          //除外上轮已经切换过的无秘钥翻译引擎
+          //目的主要是避免死循环
+          !serviceIDHasSwitched?.includes(element.serviceID),
+      );
+
+
+      if (getPref("isPriority")) {
+        // 带秘钥引擎按优先顺序排列
+        const servicePriorityWithKey = await getServicesOrder();
+        if (servicePriorityWithKey && servicePriorityWithKey.length) {
+          servicesHasKeyUsable = servicePriorityWithKey.map(
+            (e) => servicesHasKeyUsable.filter((e2) => e2.serviceID == e)[0],
+          );
+        }
+        // 无秘钥引擎按优先顺序排列
+        const servicePriorityWithoutKey = await getServicesOrder(false);
+        if (servicePriorityWithoutKey && servicePriorityWithoutKey.length) {
+          servicesNoKeyUsable = servicePriorityWithoutKey.map(
+            (e) => servicesNoKeyUsable.filter((e2) => e2.serviceID == e)[0],
+          );
+        }
+      }
+      //优先更换同一翻译引擎的不同秘钥
+      const IDUsing = service.serviceID;
+      const sames = servicesHasKeyUsable.filter((e) => e.serviceID.includes(IDUsing)).length;
+      if (getPref("isPreferredSameService") && sames) {
+        const accountFilters = [];
+        const accounts = services[service.serviceID].accounts;
+        if (!accounts || !accounts.length) return;
+        for (const account of accounts) {
+          const key = account.secretKey || account.token;
+          if (!key) continue;
+          if (!account.usable || account.forbidden) continue;
+          if (keyStr && keyStr == key) continue;
+          accountFilters.push(account);
+        }
+        const account = accountFilters.filter(e => e)[0];
+        if (account) {
+          return account;
+        } else {
+          showInfo("当前引擎无其他可用账号，切换为其他引擎");
+        }
+      }
+
+      //更换翻译引擎
+      let availableServices: TranslateService[] = [];
+      if (getPref("isPreferredHasSecretKey")) {
+        // 优先选择带秘钥的引擎
+        if (servicesHasKeyUsable.length) {
+          availableServices = servicesHasKeyUsable;
+        } else {
+          availableServices = servicesNoKeyUsable;
+        }
+      } else {
+        availableServices = servicesNoKeyUsable.concat(servicesHasKeyUsable);
+      }
+      availableServices = availableServices.filter((e) => e.serviceID != service.serviceID);
+      if (!availableServices.length) {
+        showInfo("无可用引擎");
+        return false;
+      }
+      return availableServices[0];
+
     }
 
+
+  }
+
+  static async switchPDFTranslate(service: TranslateService | TranslateServiceAccount) {
     //如果 PDFTranslate 账号与当前设置不一致，予以切换账号
     const IDUsing = service.serviceID;
     let keyUsing;
     const serviceInfoPDFTranslate = getServiceInfoPDFTranslate();
     const keyPDFTranslate = serviceInfoPDFTranslate.key;
-    let result;
+
     if (IDUsing != serviceInfoPDFTranslate.serviceID) {
-      result = await this.switchServiceID(IDUsing, plugin);
+      await this.switchServiceID(IDUsing, plugin);
     }
     // 如果 PDFTranslate 秘钥与当前设置不一致，予以切换秘钥
     if (service instanceof TranslateServiceAccount) {
       keyUsing = await this.secretKeyForPDFTranslate(service);
       if (keyUsing && keyPDFTranslate && keyUsing != keyPDFTranslate) {
-        result = await this.switchServiceKey(keyUsing, plugin, IDUsing);
-      }
-    }
-
-    //当前引擎不可用
-    let keyStr;
-    if (service instanceof TranslateServiceAccount) {
-      keyStr = service.secretKey || service.token;
-    }
-    //if (keyStr) keyUsing = await decryptKey(keyStr);
-
-    let servicesHasKeyUsable: TranslateService[] = [];
-    const services = await getServices();
-    // 允许付费时可用的引擎（需要秘钥）
-    //允许付费则忽略 secretKey 的 usable 和已经轮换过的秘钥
-    servicesHasKeyUsable = Object.values(services).filter(
-      (element) => (element.hasSecretKey || element.hasToken) && !element.forbidden,
-    );
-    // 禁用付费时可用的引擎（需要秘钥）
-    if (!getPref("isPay")) {
-      const temp = [];
-      const acountsUsable = [];
-      for (const service of servicesHasKeyUsable) {
-        if (!service.accounts || !service.accounts.length) continue;
-        for (const account of service.accounts) {
-          const key = account.secretKey || account.token;
-          if (!key) continue;
-          if (!account.usable || account.forbidden) continue;
-          if (keyStr && keyStr == key) continue;//除外本轮已经切换过的秘钥
-          if (!secretKeyHasSwitched.includes(key)) continue;//除外上轮已经切换过的秘钥
-          temp.push(service);
-          acountsUsable.push(account);
-        }
-      }
-      servicesHasKeyUsable = temp;
-    }
-
-    // 无秘钥引擎
-    let servicesNoKeyUsable = Object.values(services).filter(
-      (element) =>
-        !element.hasSecretKey && !element.hasToken &&
-        //除外上轮已经切换过的无秘钥翻译引擎
-        //目的主要是避免死循环
-        !serviceIDHasSwitched?.includes(element.serviceID),
-    );
-    // 带秘钥引擎按优先顺序排列
-    const servicePriorityWithKey = await getServicesOrder();
-    if (getPref("isPriority") && servicePriorityWithKey && servicePriorityWithKey.length) {
-      servicesHasKeyUsable = servicePriorityWithKey.map(
-        (e) => servicesHasKeyUsable.filter((e2) => e2.serviceID == e)[0],
-      );
-    }
-    // 无秘钥引擎按优先顺序排列
-    const servicePriorityWithoutKey = await getServicesOrder(false);
-    if (getPref("isPriority") && servicePriorityWithoutKey && servicePriorityWithoutKey.length) {
-      servicesNoKeyUsable = servicePriorityWithoutKey.map(
-        (e) => servicesNoKeyUsable.filter((e2) => e2.serviceID == e)[0],
-      );
-    }
-
-    //优先更换同一翻译引擎的不同秘钥
-
-    if (isPreferredSameService && servicesHasKeyUsable.filter((e) => e.serviceID.includes(service.serviceID)).length) {
-      const accountFilters = [];
-      const accounts = services[service.serviceID].accounts;
-      if (!accounts || !accounts.length) return;
-      for (const account of accounts) {
-        const key = account.secretKey || account.token;
-        if (!key) continue;
-        if (!account.usable || account.forbidden) continue;
-        if (keyStr && keyStr == key) continue;
-        accountFilters.push(account);
-      }
-      const account = accountFilters.filter(e => e)[0];
-      if (account) {
-        const key = account.secretKey || account.token;
-        if (key) {
-          const secretKey = await this.secretKeyForPDFTranslate(account);
-          await this.switchServiceKey(secretKey, plugin, account.serviceID);
-          secretKeyHasSwitched.push(key);
-          return true;
-        }
-      } else {
-        showInfo("当前引擎无其他可用账号，切换为其他引擎");
-      }
-    }
-
-    //更换翻译引擎
-    let useArr: TranslateService[] = [];
-    if (getPref("isPreferredHasSecretKey")) {
-      // 优先选择带秘钥的引擎
-      if (servicesHasKeyUsable.length) {
-        useArr = servicesHasKeyUsable;
-      } else {
-        useArr = servicesNoKeyUsable;
-      }
-    } else {
-      useArr = servicesNoKeyUsable.concat(servicesHasKeyUsable);
-    }
-    if (!useArr.length) {
-      showInfo("无可用引擎");
-      return false;
-    }
-    useArr = useArr.filter((e) => e.serviceID != service.serviceID);
-    const serviceSingle = useArr[0];
-    const serviceID = serviceSingle.serviceID;
-    if (serviceID && serviceID != "") {
-      await this.switchServiceID(serviceID, plugin);
-      serviceIDHasSwitched.push(service.serviceID);
-    } else {
-      return false;
-    }
-
-    // 如果有秘钥，予以更换
-    let account;
-    const accs = serviceSingle.accounts;
-    if (accs && accs.length) {
-      for (const a of accs) {
-        if (!a.usable || a.forbidden) continue;
-        const key = a.secretKey || a.token;
-        if (key && keyStr && keyStr != key) {
-          account = a;
-          break;
-        }
-
-      }
-    }
-
-    if (account) {
-      const key = account.secretKey || account.token;
-      if (key) {
-        const secretKey = await this.secretKeyForPDFTranslate(account);
-        await this.switchServiceKey(secretKey, plugin, account.serviceID);
-        secretKeyHasSwitched.push(key);
-        return true;
+        await this.switchServiceKey(keyUsing, plugin, IDUsing);
       }
     }
 
   }
+
 
   /**
    * 针对 PDF Translate 更换引擎

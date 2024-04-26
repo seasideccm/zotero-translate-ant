@@ -1378,24 +1378,20 @@ export class fullTextTranslate {
     }
 
     if (!sourceTxtArr) sourceTxtArr = [sourceSegment];
-    let args;
+    let args: any = [];
     if (service instanceof TranslateServiceAccount) {
       const keyStr = service.secretKey || service.token;
       if (keyStr) {
         args = [service.appID + "#" + await decryptKey(keyStr)];
         const lang = await getLang(service.serviceID);
         args.push(lang.sourceLang, lang.targetLang);
-
       }
-
     }
-
-
-
     let func = translateFunc[serviceID];
     if (!func) {
+      await serviceManage.switchPDFTranslate(service);
       func = Zotero.PDFTranslate.api.translate;
-      args = void 0;
+      args = [];
     }
 
     const trans: string[] = [];

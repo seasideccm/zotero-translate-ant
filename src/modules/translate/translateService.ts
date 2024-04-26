@@ -357,6 +357,7 @@ export class TranslateService {
     const sqls: string[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
+      let sql;
       let tableName: string = '';
       switch (key) {
         case "charConsum":
@@ -392,14 +393,15 @@ export class TranslateService {
       }
       if (tableName == "") continue;
       if (tableName == "settings") {
-        const sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', '${this.changedData[key]}')`;
+        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', '${this.changedData[key]}')`;
         sqls.push(sql);
+      } else if (tableName == "charConsum") {
+        sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, '${this.changedData[key]}')`;
       } else {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
-        sqls.push(sql);
+        sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
+
       }
-
-
+      sqls.push(sql);
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {

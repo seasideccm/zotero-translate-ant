@@ -22,6 +22,10 @@ const dataVerify: any = {
     youdaozhiyun: youdaozhiyunVerify,
     deeplfree: deeplVerify,
     deeplpro: deeplVerify,
+    aliyun: aliyunVerify,
+    gemini: geminiVerify,
+    azuregpt: azuregptVerify,
+    chatgpt: chatgptVerify,
 };
 const columnPropKeys = ["dataKey", "label", "staticWidth", "fixedWidth", "flex"];
 
@@ -997,7 +1001,7 @@ export async function replaceSecretKeysTable() {
         const valuesArr = textArr.map((str: string) => str.split(/[# \t,;，；]+/).filter(e => e));
         const keys = Object.keys(rows[0]);
         for (const values of valuesArr) {
-            if (!dataVerify[serviceID](keys, values)) {
+            if (!["chatgpt", "azuregpt", "gemini"].includes(serviceID) && !dataVerify[serviceID](keys, values)) {
                 showInfo(serviceID + "：数据格式未通过验证");
                 const info = "appID#secretKey#usable#consumes: 2222222#g8g8g8g8g8#0#800; or appID#secretKey: 2222222#g8g8g8g8g8";
                 const dataFormat: any = {
@@ -1635,6 +1639,43 @@ function deeplVerify(keys: any[], values: any[]) {
 
     return coreVerify(keys, values, reg);
 }
+
+
+function aliyunVerify(keys: any[], values: any[]) {
+    const reg = {
+        "appID": /^[A-Za-z\d]{24}$/m,
+        "secretKey": /^[A-Za-z\d]{30}$/m,
+    };
+
+    return coreVerify(keys, values, reg);
+}
+function chatgptVerify(keys: any[], values: any[]) {
+    /* const reg = {
+        "appID": /^[A-Za-z\d]{24}$/m,
+        "secretKey": /^[A-Za-z\d]{30}$/m,
+    };
+
+    return coreVerify(keys, values, reg); */
+}
+
+function azuregptVerify(keys: any[], values: any[]) {
+    /* const reg = {
+        "appID": /^[A-Za-z\d]{24}$/m,
+        "secretKey": /^[A-Za-z\d]{30}$/m,
+    };
+
+    return coreVerify(keys, values, reg); */
+}
+
+function geminiVerify(keys: any[], values: any[]) {
+    /* const reg = {
+        "appID": /^[A-Za-z\d]{24}$/m,
+        "secretKey": /^[A-Za-z\d]{30}$/m,
+    };
+
+    return coreVerify(keys, values, reg); */
+}
+
 export function getSelectedRow(singleRow: boolean = true) {
     const tableHelper = getTableByID(`${config.addonRef}-` + "secretKeysTable");
     if (!tableHelper) return;

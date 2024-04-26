@@ -83,7 +83,6 @@ export async function setCurrentService(serviceID: string, serialNumber: string 
     addon.mountPoint.serviceIDUsing = serviceID;
     await setSettingValue("currentServiceSN", serialNumber);
     await setSettingValue("currentServiceID", serviceID);
-
 }
 
 export async function getCurrentServiceSN() {
