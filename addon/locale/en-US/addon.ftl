@@ -231,7 +231,6 @@ info-welcome = Welcome to use AI translation function.
 info-stream = stream
 info-pass = connect narmal
 pref-it = Information Technology
-pref-finance = Finance
 pref-finance = finance
 pref-senimed = senimed
 pref-novel = novel(only zh→en)

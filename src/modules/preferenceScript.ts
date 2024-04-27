@@ -67,7 +67,6 @@ export async function registerPrefsScripts(_window: Window) {
   await priorityWithoutKeyTable();
   await llmSettings();
   onPrefsEvents();
-
   bindPrefEvents();
   addonSetting();
 }
@@ -77,6 +76,7 @@ async function buildPrefsPane() {
   if (!doc) {
     return;
   }
+
   const DB = await getDB();
 
   // 原文语言 目标语言
@@ -130,7 +130,7 @@ async function buildPrefsPane() {
           //@ts-ignore has
           label: defaultSourceLang
             ? //@ts-ignore has
-              Zotero.Locale.availableLocales[defaultSourceLang]
+            Zotero.Locale.availableLocales[defaultSourceLang]
             : getString("autoDetect"),
           value: defaultSourceLang ? defaultSourceLang : "autoDetect",
         },
@@ -179,7 +179,6 @@ async function buildPrefsPane() {
   const observeLangPair = async () => {
     const sourceLangMenulist = getDom("sourceLang")!;
     const targetLangMenulist = getDom("targetLang")!;
-
     const configObserver = {
       attributes: true,
       attributeFilter: ["label"],
@@ -205,12 +204,12 @@ async function buildPrefsPane() {
         if (!value) return;
         showInfo(
           "The " +
-            keyTorecord +
-            " was modified from " +
-            mutation.oldValue +
-            " to " +
-            label +
-            ".",
+          keyTorecord +
+          " was modified from " +
+          mutation.oldValue +
+          " to " +
+          label +
+          ".",
         );
         await setSettingValue(keyTorecord, value, "translate");
         //await DB.executeTransaction(async function () {
@@ -700,12 +699,19 @@ function bindPrefEvents() {
   );
 
   //监控插件菜单的位置，如果有变化，重新加载
-  //@ts-ignore has
-  const mutationObserver = new win.MutationObserver(mountMenu);
-  mutationObserver.observe(getDom("addonMenuLocation")!, {
-    attributes: true,
-    attributeFilter: ["value"],
-  });
+  // mac 菜单和 windows 不同，隐藏选项
+  if (Zotero.isMac) {
+    const menuLocation = getDom("menuLocation") as XUL.GroupBox;
+    if (menuLocation) menuLocation.hidden = true;
+  } else {
+    //@ts-ignore has
+    const mutationObserver = new win.MutationObserver(mountMenu);
+    mutationObserver.observe(getDom("addonMenuLocation")!, {
+      attributes: true,
+      attributeFilter: ["value"],
+    });
+  }
+
   //监控插件设置项目变化
   //@ts-ignore has
   const mutationObserverSettings = new win.MutationObserver(addonSettingUpdate);
@@ -808,20 +814,20 @@ function skipLangsHideShow() {
     if (skipLangs) {
       skipLangs.parentElement
         ? (skipLangs.parentElement.hidden = true)
-        : () => {};
+        : () => { };
       return;
     }
     const placeholder = getDom("skipLanguages-placeholder");
     if (!placeholder) return;
     placeholder.parentElement
       ? (placeholder.parentElement.hidden = true)
-      : () => {};
+      : () => { };
     return;
   }
   if (skipLangs) {
     skipLangs.parentElement
       ? (skipLangs.parentElement.hidden = false)
-      : () => {};
+      : () => { };
     return;
   }
   const checkboxs = Object.keys(Zotero.Locale.availableLocales).map((e) => ({
@@ -872,8 +878,8 @@ function skipLangsHideShow() {
     if (tagName && tagName == "checkbox") {
       showInfo(
         (e.target as XUL.Checkbox).label +
-          ": " +
-          (e.target as XUL.Checkbox).checked,
+        ": " +
+        (e.target as XUL.Checkbox).checked,
       );
     }
   });

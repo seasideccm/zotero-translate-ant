@@ -9,6 +9,7 @@ import { context } from "esbuild";
 import { exit } from "process";
 //import { replaceStringExtra } from "./replaceStringExtra.mjs";
 
+// eslint-disable-next-line no-undef
 process.env.NODE_ENV = "development";
 
 const { zoteroBinPath, profilePath } = cmd.exec;
@@ -17,6 +18,7 @@ const startZoteroCmd = `"${zoteroBinPath}" --debugger --purgecaches -profile "${
 
 async function watch() {
   const watcher = chokidar.watch(["src/**", "addon/**"], {
+    // eslint-disable-next-line no-useless-escape
     ignored: /(^|[\/\\])\../, // ignore dotfiles
     persistent: true,
   });
@@ -82,6 +84,7 @@ main().catch((err) => {
   exit(1);
 });
 
+// eslint-disable-next-line no-undef
 process.on("SIGINT", (code) => {
   execSync("node scripts/stop.mjs");
   Logger.info(`Server terminated with signal ${code}.`);

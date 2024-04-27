@@ -163,7 +163,7 @@ export function compareObj(obj1: any, obj2: any) {
  * @returns
  */
 export const objOrder = (
-  obj: { [key: string]: string | number },
+  obj: { [key: string]: string | number; },
   isPad?: boolean,
 ) => {
   const objOrdered: {
@@ -802,9 +802,9 @@ export function arrsToObjs(keys: string[]) {
 
 export function base64ToBytes(imageDataURL: string):
   | {
-      u8arr: Uint8Array;
-      mime: string;
-    }
+    u8arr: Uint8Array;
+    mime: string;
+  }
   | undefined {
   const parts = imageDataURL.split(",");
   if (!parts[0].includes("base64")) return;
@@ -936,38 +936,42 @@ export function ReadPNG(buf: any) {
   }
 }
 
-export function getPopupWin(option?: OptionsPopupWin, header?: string) {
-  if (!addon.mountPoint["popupWin"] || option) {
-    if (!header) header = config.addonName;
-    addon.mountPoint["popupWin"] = new ztoolkit.ProgressWindow(header, option);
-  }
-  return addon.mountPoint["popupWin"];
-}
+/**
+ * 
+ * @param infos 
+ * @param option 
+ * @param header 
+ * @param optionsCreatLine 
+ * @param log 
+ * @returns 
+ */
 export function showInfo(
   infos?: string | string[],
   option?: OptionsPopupWin,
   header?: string,
   optionsCreatLine?: OptionsPopupWinCreateLine,
+  log?: boolean
 ) {
-  const noop = () => {};
+
+  const noop = () => { };
   !header ? (header = config.addonName) : noop;
   // 默认 options = {closeOnClick: true,closeTime: 5000,}
   const popupWin = new ztoolkit.ProgressWindow(header, option);
-  //if (!option || option.closeTime != -1) {
-  //  Zotero.ProgressWindowSet.closeAll();
-  //}
   if (!infos && (!optionsCreatLine || !optionsCreatLine.text)) {
-    throw "info and optionsCreatLine.text can't all undefinde";
+    throw "info and optionsCreatLine.text can't all empty";
   }
-  !optionsCreatLine ? (optionsCreatLine = {}) : noop;
-  !optionsCreatLine.type ? (optionsCreatLine.type = "default") : noop;
+  if (!optionsCreatLine) optionsCreatLine = {};
+  if (!optionsCreatLine.type) optionsCreatLine.type = "default";
   if (infos) {
     if (!Array.isArray(infos)) infos = [infos];
-    infos.filter((info: string) => {
-      optionsCreatLine!.text = info;
-      popupWin.createLine(optionsCreatLine!);
-    });
-  } else popupWin.createLine(optionsCreatLine);
+    for (const info of infos) {
+      if (log) ztoolkit.log(info);
+      optionsCreatLine.text = info;
+      popupWin.createLine(optionsCreatLine);
+    }
+  } else {
+    popupWin.createLine(optionsCreatLine);
+  }
   popupWin.show();
   addon.mountPoint["popupWins"]
     ? addon.mountPoint["popupWins"].push(popupWin)
@@ -975,46 +979,7 @@ export function showInfo(
   return popupWin;
 }
 
-/**
- * 通过进度条显示信息
- * 关闭其他窗口若为true，则关闭最近一次生成的所有进度条
- * 但不会关闭更早的进度条窗口
- * 不传参数用 undefined 表示
- * @param {string} info 显示的信息
- * @param {number} closeTime 默认不自动关闭
- * @param {Window} window 指定显示在哪个窗口中，如指定 addon.data.prefs.window，否则主窗口
- * @param {boolean} closeOnClick 默认点击时关闭
- * @param {boolean} closeOtherProgressWindows 默认 true
- * @returns
- */
-/* export function showInfo(
-  info: string,
-  closeTime?: number,
-  window?: Window,
-  closeOnClick?: boolean,
-  closeOtherProgressWindows?: boolean,
-) {
-  let popupWin = addon.mountPoint.popupWin;
-  if (!popupWin) {
-    popupWin = new ztoolkit.ProgressWindow(config.addonName, {
-      window: window ? window : undefined,
-      closeOnClick: closeOnClick ? closeOnClick : true,
-      closeTime: closeTime ? closeTime : -1,
-      closeOtherProgressWindows: closeOtherProgressWindows
-        ? closeOtherProgressWindows
-        : true,
-    });
-  }
-  popupWin.createLine({
-    text: info,
-    type: "default",
-    progress: 0,
-  });
-  popupWin.show();
-  if (closeTime) popupWin.startCloseTimer(closeTime);
 
-  return popupWin;
-} */
 
 export async function saveJsonToDisk(
   obj: any,
@@ -1118,12 +1083,18 @@ export async function resourceFilesRecursive(
   files: any[] = [],
   ext?: string,
 ) {
-  const req = await Zotero.File.getResourceAsync(url);
+  const resFetch = await fetch(url);
+  const req = await resFetch.text();
+  //build后出错，zotero.http出错，channel isFile=false 而 dev 下 isFile=true ？？
+  //const req = await Zotero.File.getResourceAsync(url);
   const filesInfo = req.split("\n");
   for (let str of filesInfo) {
     str = str.trim();
+    const reg1 = /\/\/$/m;
+    let urlSub = url + str.split(" ")[1] + "/";
+    urlSub = urlSub.replace(reg1, "/");
     if (str.endsWith("DIRECTORY")) {
-      await resourceFilesRecursive(url + str.split(" ")[1] + "/", files, ext);
+      await resourceFilesRecursive(urlSub, files, ext);
     } else if (str.endsWith("FILE")) {
       files.push({
         name: str.split(" ")[1],
@@ -1132,19 +1103,7 @@ export async function resourceFilesRecursive(
       });
     }
   }
-  /* filesInfo.forEach(async (str: string) => {
-    str = str.trim();
-    if (str.endsWith("DIRECTORY")) {
-      url = url + str.split(" ")[1] + '/';
-      await resourceFilesRecursive(url, files, ext);
-    }else if (str.endsWith("FILE")) {
-      files.push({
-        name: str.split(" ")[1],
-        path: url,
-        size: str.split(" ")[2],
-      });
-    }
-  }); */
+
   files = ext ? files.filter((e) => (e.name as string).endsWith(ext)) : files;
   return files;
 }
@@ -1228,22 +1187,22 @@ const getCharCode = function (event: KeyboardEvent) {
   if (typeof charcode == "number" && charcode != 0) {
     showInfo(
       "charcode: " +
-        charcode +
-        " || " +
-        "'" +
-        String.fromCharCode(charcode) +
-        "'",
+      charcode +
+      " || " +
+      "'" +
+      String.fromCharCode(charcode) +
+      "'",
     );
     return charcode;
   } else {
     //在中文输入法下 keyCode == 229 || keyCode == 197(Opera)
     showInfo(
       "keyCode: " +
-        event.keyCode +
-        " || " +
-        "'" +
-        String.fromCharCode(event.keyCode) +
-        "'",
+      event.keyCode +
+      " || " +
+      "'" +
+      String.fromCharCode(event.keyCode) +
+      "'",
     );
     return event.keyCode;
   }

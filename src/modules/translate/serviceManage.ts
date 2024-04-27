@@ -807,6 +807,28 @@ export async function getAvilabelService(type: "hasSN" | "noSN" | "all") {
   }
 }
 
+
+export async function getLang() {
+  if (addon.mountPoint.langPaire) return addon.mountPoint.langPaire;
+
+  const defaultSourceLang = await getSettingValue(
+    "defaultSourceLang",
+    "translate",
+  );
+  const defaultTargetLang = await getSettingValue(
+    "defaultTargetLang",
+    "translate",
+  );
+
+  const langPaire = {
+    targetLang: defaultTargetLang?.split("-")[0] || "zh",
+    sourceLang: defaultSourceLang?.split("-")[0] || "en",
+  };
+  if (!addon.mountPoint.langPaire) addon.mountPoint.langPaire = langPaire;
+  return langPaire;
+}
+
+
 /* export function updateSingleSecretKey(
   secretKey: SecretKey,
   serviceID?: string,

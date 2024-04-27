@@ -11,7 +11,7 @@ export async function addonSetting() {
   const settingItems = doc.querySelectorAll('[id*="-setting-"]');
   showInfo(
     `插件 prefs 面板中id 包含 "-setting-" 的元素数量：` +
-      settingItems.length.toString(),
+    settingItems.length.toString(),
   );
   const keys = [];
   for (const item of Array.from(settingItems)) {
@@ -146,6 +146,7 @@ export async function getSettingValue(
   keyName: string,
   settingType: string = "addon",
 ) {
+
   const DB = await getDB();
   if (!DB) return;
   const sql = `SELECT value from settings WHERE setting='${settingType}' AND key = '${keyName}' `;

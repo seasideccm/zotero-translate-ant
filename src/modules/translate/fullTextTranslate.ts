@@ -4,15 +4,13 @@ import { getString } from "../../utils/locale";
 import { frequency, pdf2document } from "../pdf/pdfFullText";
 import { showInfo, timer } from "../../utils/tools";
 import {
-  decryptKey,
+  getLang,
   getSingleServiceUnderUse,
   serviceManage,
 } from "./serviceManage";
-import { baiduModify } from "../webApi/baiduModify";
-import { baidufieldModify } from "../webApi/baidufieldModify";
-import { tencentTransmart } from "../webApi/tencentTransmart";
+
 import { html2md, md2html } from "../../utils/mdHtmlConvert";
-import { ServiceMap, getCharasLimit, getServices } from "./translateServices";
+import { getCharasLimit, getServices } from "./translateServices";
 import {
   langCodeNameSpeakers,
   langCode_francVsZotero,
@@ -20,9 +18,8 @@ import {
 import { franc } from "franc-min";
 import { translateFunc } from "./translate";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
-import { getSettingValue } from "../addonSetting";
-import { getElementValue } from "../ui/uiTools";
-import { getLang, getLangCode, zoteroLangCode } from "../../utils/iso-639-3";
+
+
 
 const charConsumRecoder = 0;
 
@@ -238,11 +235,11 @@ export class fullTextTranslate {
         //三码到两码未定义的语言被忽略
         const lang =
           langCode_francVsZotero[
-            francLang as keyof typeof langCode_francVsZotero
+          francLang as keyof typeof langCode_francVsZotero
           ];
         const langCodeNameSpeakersObj =
           langCodeNameSpeakers[
-            francLang as keyof typeof langCode_francVsZotero
+          francLang as keyof typeof langCode_francVsZotero
           ];
         if (lang !== undefined && lang != "") {
           languageArr.push(lang);
@@ -268,7 +265,7 @@ export class fullTextTranslate {
     }
     //对元素合并计数
     const languageObj = languageArr.reduce(
-      (acc: { [key: string]: number }, el) => {
+      (acc: { [key: string]: number; }, el) => {
         acc[el] = acc[el] + 1 || 1;
         return acc;
       },
@@ -289,8 +286,8 @@ export class fullTextTranslate {
 
     showInfo(
       langCodeNameSpeakersString +
-        "\n\n" +
-        "三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言",
+      "\n\n" +
+      "三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言",
     );
     if (langArr.length > 2) {
       langArr.splice(2);
@@ -306,8 +303,8 @@ export class fullTextTranslate {
       isTran = false;
       showInfo(
         getString("info-filteredByLanguageForbidden") +
-          ": " +
-          forbiddenLang.toString(),
+        ": " +
+        forbiddenLang.toString(),
       );
     }
     /*     }
@@ -410,8 +407,8 @@ export class fullTextTranslate {
       const time = start();
       showInfo(
         getString("info-translationTIme") +
-          (time / 1000).toString() +
-          " seconds",
+        (time / 1000).toString() +
+        " seconds",
       );
       await fullTextTranslate.makeTranslation(docItem);
     }
@@ -1093,10 +1090,10 @@ export class fullTextTranslate {
       const failureReason = "";
       showInfo(
         getString("info-translateFailure") +
-          ": " +
-          docItem.itemID?.toString() +
-          ":" +
-          failureReason,
+        ": " +
+        docItem.itemID?.toString() +
+        ":" +
+        failureReason,
       );
       return;
     }
@@ -1526,19 +1523,26 @@ export class fullTextTranslate {
     if (!sourceTxtArr) sourceTxtArr = [sourceSegment];
     let args: any = [];
     if (service instanceof TranslateServiceAccount) {
-      const keyStr = service.secretKey || service.token;
+      let keyStr = service.secretKey || service.token;
       if (keyStr) {
-        args = [service.appID + "#" + (await decryptKey(keyStr))];
-        const lang = await getLang(service.serviceID);
+        keyStr = await serviceManage.secretKeyForPDFTranslate(service);
+        args = [keyStr];
+        //args = [service.appID + "#" + (await decryptKey(keyStr))];
+        const lang = await getLang();
         args.push(lang.sourceLang, lang.targetLang);
       }
     }
     let func = translateFunc[serviceID];
     if (!func) {
-      await serviceManage.switchPDFTranslate(service);
+
       func = Zotero.PDFTranslate.api.translate;
+      if (!func) {
+        showInfo("请安装 Zotero PDF Translate 插件");
+      }
+      await serviceManage.switchPDFTranslate(service);
       args = [];
     }
+
 
     const trans: string[] = [];
     while (sourceTxtArr.length) {

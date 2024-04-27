@@ -18,8 +18,8 @@ export class Schema {
   _maxCompatibility: number;
   _localUpdateInProgress: boolean;
   isCompatible: boolean | null;
-  versionsFromBD: { [key: string]: number };
-  versionsFromFile: { [key: string]: number };
+  versionsFromBD: { [key: string]: number; };
+  versionsFromFile: { [key: string]: number; };
   DB: DataBase;
 
   constructor() {
@@ -78,7 +78,7 @@ export class Schema {
     if (compatibility > this._maxCompatibility) {
       const dbAddonVersion = await this.DB.valueQueryAsync(
         "SELECT value FROM settings " +
-          "WHERE setting='addon' AND key='lastCompatibleVersion'",
+        "WHERE setting='addon' AND key='lastCompatibleVersion'",
       );
       const msg =
         "Database is incompatible with this addon " +
@@ -430,11 +430,11 @@ export class Schema {
 
     ztoolkit.log(
       "Updating" +
-        schema +
-        "data tables from version " +
-        fromVersion +
-        " to " +
-        toVersion,
+      schema +
+      "data tables from version " +
+      fromVersion +
+      " to " +
+      toVersion,
     );
 
     if (options.onBeforeUpdate) {
@@ -693,7 +693,7 @@ export class Schema {
    * @param dir option default:chrome://${config.addonRef}/content/schema/
    * @returns Promise<string>
    */
-  getSchemaSQL(schema: string, dir?: string) {
+  async getSchemaSQL(schema: string, dir?: string) {
     if (!schema) {
       throw "Schema type not provided to this.getSchemaSQL()";
     }
@@ -701,7 +701,7 @@ export class Schema {
     schema = fileNameNoExt(schema)!;
     const path = dir + `${schema}.sql`;
 
-    return Zotero.File.getResourceAsync(path);
+    return await Zotero.File.getResourceAsync(path);
   }
   //doInitSchema()
   async initializeSchema() {

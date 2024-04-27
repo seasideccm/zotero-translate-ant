@@ -146,7 +146,7 @@ export const frequency = (item: any[]) => {
   if (Array.isArray(item[0])) {
     item = item.flat(Infinity);
   }
-  const num: { [key: string]: number } = {};
+  const num: { [key: string]: number; } = {};
   for (let i = 0; i < item.length; i++) {
     /* num[String(hh[i])] ??= 0 的作用是检查 num 对象中是否存在以
          hh[i] 的值作为属性名的属性。
@@ -289,7 +289,7 @@ const objArrQuery = (
   }
 };
 
-const objOrder = (obj: { [key: string]: string | number }, isPad?: boolean) => {
+const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
   const objOrdered: {
     objOrderByKey: object[];
     objOrderByKeyReverse: object[];
@@ -577,7 +577,7 @@ const objOrder = (obj: { [key: string]: string | number }, isPad?: boolean) => {
  * @param item
  * @returns
  */
-const numberKVObjOrderByFrequency = (num: { [key: string]: number }) => {
+const numberKVObjOrderByFrequency = (num: { [key: string]: number; }) => {
   //const num = frequency(item);
   // 以 num 的键作为字符串数组，根据相应键的值为条件，实现高度字符串按众数排序
   /*   const modeArr = Object.keys(num).sort((h1: string, h2: string) =>
@@ -1354,10 +1354,10 @@ const splitPara = (
       if (
         (currentLine.sourceLine[3] &&
           nextLine.sourceLine[0].transform[4] ==
-            currentLine.sourceLine[3].transform[4]) ||
+          currentLine.sourceLine[3].transform[4]) ||
         (currentLine.sourceLine[2] &&
           nextLine.sourceLine[0].transform[4] ==
-            currentLine.sourceLine[2].transform[4])
+          currentLine.sourceLine[2].transform[4])
       ) {
         nextLine.hangingIndent = 2;
       }
@@ -1499,9 +1499,9 @@ const splitPara = (
         ` (nextLine.lineSpaceTop&&lastLine.lineSpaceTop && currentLine.lineSpaceTop)`;
       if (
         currentLine.lineSpaceTop - lastLine.lineSpaceTop >
-          1.5 * lastLine.height &&
+        1.5 * lastLine.height &&
         currentLine.lineSpaceTop - nextLine.lineSpaceTop >
-          1.5 * nextLine.height &&
+        1.5 * nextLine.height &&
         lastLine.y > currentLine.y &&
         currentLine.y > nextLine.y
       ) {
@@ -1730,7 +1730,7 @@ const titleIdentify = (
           if (
             _pagePara[paratitle.pageIndex][i + 1].left >= paratitle.left &&
             _pagePara[paratitle.pageIndex][i + 1].paraSpaceTop <
-              1.5 * paratitle.lineHeight
+            1.5 * paratitle.lineHeight
           )
             _pagePara[paratitle.pageIndex][i + 1].headingLevel = 100;
         }
@@ -1963,7 +1963,7 @@ const getModeFrequencyAndOrder = (arrary: number[]) => {
   for (let i = 1; i < _objArrOrderByFrequency.length; i++) {
     if (
       Object.values(_objArrOrderByFrequency[i - 1])[0] >
-        2 * Object.values(_objArrOrderByFrequency[i])[0] &&
+      2 * Object.values(_objArrOrderByFrequency[i])[0] &&
       Object.values(_objArrOrderByFrequency[i])[0] > 10
     ) {
       highArr = _objArrOrderByFrequency
@@ -2253,11 +2253,11 @@ const IdentifyHeadingLevel = (
   for (let i = 1; i < contentCleanFontInfo.fontOrderByFrequency.length; i++) {
     const fontNum0 =
       contentCleanFontInfo.fontFrequency[
-        contentCleanFontInfo.fontOrderByFrequency[i - 1]
+      contentCleanFontInfo.fontOrderByFrequency[i - 1]
       ];
     const fontNum1 =
       contentCleanFontInfo.fontFrequency[
-        contentCleanFontInfo.fontOrderByFrequency[i]
+      contentCleanFontInfo.fontOrderByFrequency[i]
       ];
     if (
       (fontNum0 + fontNum1) / fontTotalNumber < 0.5 &&
@@ -2401,13 +2401,23 @@ const headerFooterIdentify = (pageLines: any, pages: any) => {
 
 export async function pdf2document(itmeID: number) {
   let isCloseReader = false;
+  let reader;
   if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
-    await Zotero.Reader.open(itmeID);
+    reader = await Zotero.Reader.open(itmeID);
+    let n = 0;
+    //@ts-ignore xxx
+    while ((!reader?._iframeWindow || !reader._iframeWindow.wrappedJSObject?.PDFViewerApplication?.pdfDocument) && n++ < 50) {
+      await Zotero.Promise.delay(100);
+    }
+
     isCloseReader = true;
   }
   const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
   Zotero_Tabs.select(tabID);
-  const reader = Zotero.Reader.getByTabID(tabID) as any;
+  reader = Zotero.Reader.getByTabID(tabID);
+  if (!reader) {
+    throw "reader 出错";
+  }
   await reader._waitForReader();
   await reader._initPromise;
   await reader._internalReader._primaryView.initializedPromise;
@@ -2526,7 +2536,7 @@ export async function pdf2document(itmeID: number) {
   //recordCombine记录需要跨页合并的行，跨越多行合并，行顺序颠倒合并
   const recordCombine: any = {};
   //pagePara对象，键为页码，值为段落组成的数组
-  const pagePara: { [key: string]: PDFLine[][] } = {};
+  const pagePara: { [key: string]: PDFLine[][]; } = {};
   //记录分段的判断条件
   const paraCondition: any = {};
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
@@ -2739,6 +2749,8 @@ export async function pdf2document(itmeID: number) {
               //比较 y 值
               let findNextPage = 1;
               for (let t = i + 1; t < pageParaArr.length; t++) {
+                if (!pageParaArr[t][0]) continue;
+                if (!pageParaArr[i][j]) continue;
                 if (pageParaArr[i][j].y > pageParaArr[t][0].y) {
                   //找到后判断是否需要合并
                   if (
@@ -2809,7 +2821,7 @@ export async function pdf2document(itmeID: number) {
   //paragraphs数组为本页段落组成的数组
   // _pagePara[pageNum]页码作为对象的属性，其值初始化为空数组
   //_pagePara同pagePara
-  const _pagePara: { [key: string]: PDFParagraph[] } = {};
+  const _pagePara: { [key: string]: PDFParagraph[]; } = {};
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     _pagePara[pageNum] = [];
     for (let i = 0; i < pagePara[pageNum].length; i++) {
@@ -3017,6 +3029,7 @@ export async function pdf2document(itmeID: number) {
     } */
   if (isCloseReader) {
     ztoolkit.log("关闭pdf阅读窗口前检查");
+    //@ts-ignore xxx
     reader.close();
   }
   let doc = docs.join("");

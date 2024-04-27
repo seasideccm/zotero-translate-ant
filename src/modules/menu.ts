@@ -4,7 +4,7 @@ import { getPref } from "../utils/prefs";
 import { arrToObj } from "../utils/tools";
 import { clearAllTable } from "./database/database";
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
-import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
+import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { readTextFiles } from "./ui/tableSecretKeys";
 import { aITransUI, showTrans } from "./ui/dataDialog";
@@ -34,6 +34,7 @@ function getParasArrs() {
   return parasArrs;
 }
 export function mountMenu() {
+
   let menu = document.querySelector(`#${makeId("menu")}`);
   if (!menu) {
     const menuProps = makeTagElementProps({
@@ -77,13 +78,27 @@ export function mountMenu() {
   }
   const location = getPref("addonMenuLocation") || "right";
   let ref;
-  if (location == "right") {
-    ref = document.querySelector(".titlebar-button.titlebar-min");
+
+
+
+
+
+
+  if (Zotero.isMac) {
+    ref = document.querySelector("#zotero-tb-tabs-menu");
     ref?.parentElement?.insertBefore(menu, ref);
   } else {
-    ref = document.querySelector("#helpMenu");
-    ref?.insertAdjacentElement("afterend", menu);
+
+    if (location == "right") {
+      ref = document.querySelector(".titlebar-button.titlebar-min");
+      ref?.parentElement?.insertBefore(menu, ref);
+    } else {
+      ref = document.querySelector("#helpMenu");
+      ref?.insertAdjacentElement("afterend", menu);
+    }
   }
+
+
 
   function menuitemObj(argsArr: any[]) {
     return arrToObj(["label", "func", "args", "accesskey"], argsArr);
