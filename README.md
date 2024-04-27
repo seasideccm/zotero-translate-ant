@@ -7,11 +7,17 @@ _适用于 Zotero 7.0 最新测试版_
 ## 安装Zotero 7.0 Beta
 
 [Mac (requires macOS 10.12 or later)](https://www.zotero.org/download/client/dl?platform=mac&channel=beta)
+
 [Windows 64-bit Installer](https://www.zotero.org/download/client/dl?platform=win-x64&channel=beta)
+
 [Windows 64-bit ZIP (recommended for temporary usage; see below)](https://www.zotero.org/download/client/dl?platform=win-x64-zip&channel=beta)
+
 [Windows 32-bit Installer](https://www.zotero.org/download/client/dl?platform=win32&channel=beta)
+
 [Windows 32-bit ZIP](https://www.zotero.org/download/client/dl?platform=win32-zip&channel=beta)
+
 [Linux 64-bit](https://www.zotero.org/download/client/dl?platform=linux-x86_64&channel=beta)
+
 [Linux 32-bit](https://www.zotero.org/download/client/dl?platform=linux-i686&channel=beta)
 
 ## 安装插件
