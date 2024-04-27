@@ -241,3 +241,7 @@ pref-news = news
 pref-law = law
 pref-contract = contract
 info-field = Field Translate
+info-AITranslate = AI Translate
+info-translateText = Translate Text
+info-decryptFile = Decrypt File
+info-encryptFile = Encrypt File

@@ -16,19 +16,19 @@ function getParasArrs() {
     "Mechanical ventilation is frequently needed in patients with cardiogenic shock. The aim of this review is to summarize and discuss the current evidence and the pathophysiological mechanism that a clinician should consider while setting the ventilator.";
   const parasArrs = [
     [
-      ["clearTable", clearAllTable],
-      ["menuAddon-openAddonShortcut", openAddonShortcut],
+      //["读取文件内容", readTextFiles],
+      ["info-AITranslate", aITransUI],
+      ["info-translateText", showTrans],
+      //["测试openai兼容", openAIOllama],
+    ],
+    [
+      ["info-encryptFile", encryptFile],
+      ["info-decryptFile", decryptFileSelected],
+    ],
+    [
+      //["clearTable", clearAllTable],
+      //["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
-    ],
-    [
-      ["加密文件", encryptFile],
-      ["解密文件", decryptFileSelected],
-    ],
-    [
-      ["读取文件内容", readTextFiles],
-      ["AI 翻译", aITransUI],
-      ["翻译", showTrans],
-      ["测试openai兼容", openAIOllama],
     ],
   ];
   return parasArrs;
