@@ -26,3 +26,15 @@ _适用于 Zotero 7.0 最新测试版_
 2. 打开 Zotero，点击“工具”菜单，点击“plugins(插件)”，打开 Add-ons Manager。
 3. 将 zotero-translate-ant.xpi 拖拽到 Add-ons Manager 窗口中。
 4. 重启 Zotero。
+
+## 使用 Zotero Translate Ant
+
+1. 点击菜单栏上 **翻山蚁** 按钮弹出功能菜单。
+
+   <img src="./docs/res/toolbar-ant.png"></img>
+
+   <div align=center><img src="./docs/res/popup-ant.png"></img><div>
+
+2. 在条目上点击右键弹出功能菜单。
+
+   <img src="./docs/res/menuitem-ant.png"></img>
