@@ -76,158 +76,13 @@ async function buildPrefsPane() {
   if (!doc) {
     return;
   }
-
-  const DB = await getDB();
-
   // 原文语言 目标语言
-  const langPair = async () => {
-    let defaultSourceLang, defaultTargetLang;
-    if (DB) {
-      defaultSourceLang = await getSettingValue(
-        "defaultSourceLang",
-        "translate",
-      );
-      defaultTargetLang = await getSettingValue(
-        "defaultTargetLang",
-        "translate",
-      );
-    }
-
-    defaultSourceLang = defaultSourceLang ? defaultSourceLang : void 0;
-    defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
-
-    const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
-    const targetLangPlaceholder = getDom("targetLang-placeholder")!;
-
-    const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(
-      (e) => ({
-        tag: "menuitem",
-        id: makeId(e),
-        attributes: {
-          //@ts-ignore has
-          label: Zotero.Locale.availableLocales[e],
-          value: e,
-        },
-      }),
-    );
-    const autoDetect = {
-      tag: "menuitem",
-      id: makeId("autoDetect"),
-      attributes: {
-        //@ts-ignore has
-        label: getString("autoDetect"),
-        value: "autoDetect",
-      },
-    };
-    sourceLangChilds.unshift(autoDetect);
-    ztoolkit.UI.replaceElement(
-      {
-        // 下拉列表
-        tag: "menulist",
-        id: makeId("sourceLang"),
-        namespace: "xul",
-        attributes: {
-          native: "true",
-          //@ts-ignore has
-          label: defaultSourceLang
-            ? //@ts-ignore has
-            Zotero.Locale.availableLocales[defaultSourceLang]
-            : getString("autoDetect"),
-          value: defaultSourceLang ? defaultSourceLang : "autoDetect",
-        },
-        children: [
-          {
-            tag: "menupopup",
-            //map出的对象数组赋值给键 children
-            children: sourceLangChilds,
-          },
-        ],
-      },
-      // 将要被替换掉的元素
-      sourceLangPlaceholder,
-    );
-
-    // 目标语言
-    ztoolkit.UI.replaceElement(
-      {
-        tag: "menulist",
-        id: makeId("targetLang"),
-        namespace: "xul",
-        attributes: {
-          native: "true",
-          //@ts-ignore has
-          label: Zotero.Locale.availableLocales[defaultTargetLang],
-          value: defaultTargetLang,
-        },
-        children: [
-          {
-            tag: "menupopup",
-            children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
-              tag: "menuitem",
-              attributes: {
-                //@ts-ignore has
-                label: Zotero.Locale.availableLocales[e],
-                value: e,
-              },
-            })),
-          },
-        ],
-      },
-      targetLangPlaceholder,
-    );
-  };
-  await langPair();
-  //监视
-  /*  const observeLangPair = async () => {
-     const sourceLangMenulist = getDom("sourceLang")!;
-     const targetLangMenulist = getDom("targetLang")!;
-     const configObserver = {
-       attributes: true,
-       attributeFilter: ["label"],
-       attributeOldValue: true,
-     };
-     //@ts-ignore has
-     const mutationObserver = new addon.data.prefs!.window.MutationObserver(
-       callback,
-     );
-     mutationObserver.observe(sourceLangMenulist, configObserver);
-     mutationObserver.observe(targetLangMenulist, configObserver);
-     async function callback(mutationsList: any[]) {
-       const DB = await getDB();
-       if (!DB) return;
-       for (const mutation of mutationsList) {
-         if (!mutation.target.id.match(/(sourceLang)|(targetLang)/g)) return;
-         const value = mutation.target.value;
-         const label = mutation.target.label;
-         const keyTorecord = mutation.target.id.includes("sourceLang")
-           ? "defaultSourceLang"
-           : "defaultTargetLang";
-         //const sql =          "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
-         if (!value) return;
-         showInfo(
-           "The " +
-           keyTorecord +
-           " was modified from " +
-           mutation.oldValue +
-           " to " +
-           label +
-           ".",
-         );
-         await setSettingValue(keyTorecord, value, "translate");
-         skipLangsHideShow();
-       }
-     }
-   };
-   await observeLangPair(); */
-
+  //await langPair();
+  await makeLangPaire();
   // 安全设置   在账号表格前设置，以便控制 secretKey 和 token 字段内容
-
   await setHiddenState();
-
   //多账户管理
-
   const services = await getServices();
-
   const childrenArr = Object.values(services)
     .filter((e) => !e.forbidden)
     .map((service) => ({
@@ -552,11 +407,27 @@ function bindPrefEvents() {
 
   skipLangsHideShow();
   // 不能触发，可能和之前监测变化有关
-  const sourceLang = getDom("sourceLang");
-  if (sourceLang) {
-    sourceLang.addEventListener("command", (e) => {
-      skipLangsHideShow();
-    });
+
+  getDom("sourceLang")?.addEventListener("command", async (e) => {
+    skipLangsHideShow();
+    await setLang(e.target as XUL.MenuList, "defaultSourceLang");
+  });
+  getDom("targetLang")?.addEventListener("command", async (e) => {
+    //skipLangsHideShow();
+    await setLang(e.target as XUL.MenuList, "defaultTargetLang");
+  });
+
+  async function setLang(element: XUL.MenuList, key: "defaultSourceLang" | "defaultTargetLang") {
+    const DB = await getDB();
+    if (!DB) return;
+    const value = element.value;
+    const label = element.label;
+    // const keyTorecord = element.id.includes("sourceLang")
+    //   ? "defaultSourceLang"
+    //   : "defaultTargetLang";
+    if (!value) return;
+    showInfo("The " + key + " was modified to " + label + ".",);
+    await setSettingValue(key, value, "translate");
   }
 
 
@@ -940,5 +811,165 @@ export async function openAddonShortcut() {
   )[0];
   if (addonPrefPane.id) {
     Zotero.Utilities.Internal.openPreferences(addonPrefPane.id);
+  }
+}
+
+
+// 原文语言 目标语言
+async function langPair() {
+  // let defaultSourceLang, defaultTargetLang;
+  // defaultSourceLang = await getSettingValue(
+  //   "defaultSourceLang",
+  //   "translate",
+  // );
+  // defaultTargetLang = await getSettingValue(
+  //   "defaultTargetLang",
+  //   "translate",
+  // );
+  //
+  // defaultSourceLang = defaultSourceLang ? defaultSourceLang : "en-US";
+  // defaultTargetLang = defaultTargetLang ? defaultTargetLang : Zotero.locale;
+  const sourceLangPlaceholder = getDom("sourceLang-placeholder")!;
+  const targetLangPlaceholder = getDom("targetLang-placeholder")!;
+  const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(
+    (e) => ({
+      tag: "menuitem",
+      id: makeId(e),
+      attributes: {
+        //@ts-ignore has
+        label: Zotero.Locale.availableLocales[e],
+        value: e,
+      },
+    }),
+  );
+  const autoDetect = {
+    tag: "menuitem",
+    id: makeId("autoDetect"),
+    attributes: {
+      //@ts-ignore has
+      label: getString("autoDetect"),
+      value: "autoDetect",
+    },
+  };
+  sourceLangChilds.unshift(autoDetect);
+  ztoolkit.UI.replaceElement(
+    {
+      // 下拉列表
+      tag: "menulist",
+      id: makeId("sourceLang"),
+      namespace: "xul",
+      attributes: {
+        native: "true",
+        //@ts-ignore has
+        label: defaultSourceLang
+          ? //@ts-ignore has
+          Zotero.Locale.availableLocales[defaultSourceLang]
+          : getString("autoDetect"),
+        //value: defaultSourceLang ? defaultSourceLang : "autoDetect",
+      },
+      children: [
+        {
+          tag: "menupopup",
+          //map出的对象数组赋值给键 children
+          children: sourceLangChilds,
+        },
+      ],
+    },
+    // 将要被替换掉的元素
+    sourceLangPlaceholder,
+  );
+
+  // 目标语言
+  ztoolkit.UI.replaceElement(
+    {
+      tag: "menulist",
+      id: makeId("targetLang"),
+      namespace: "xul",
+      attributes: {
+        native: "true",
+        //@ts-ignore has
+        label: Zotero.Locale.availableLocales[defaultTargetLang],
+        //value: defaultTargetLang,
+      },
+      children: [
+        {
+          tag: "menupopup",
+          children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
+            tag: "menuitem",
+            attributes: {
+              //@ts-ignore has
+              label: Zotero.Locale.availableLocales[e],
+              value: e,
+            },
+          })),
+        },
+      ],
+    },
+    targetLangPlaceholder,
+  );
+
+
+
+
+}
+
+async function makeLangPaire() {
+
+  const availableLocales = Zotero.Locale.availableLocales as any;
+  const langChildsProp = Object.keys(availableLocales).map(
+    (e) => ({
+      tag: "menuitem",
+      id: makeId(e),
+      attributes: {
+        label: availableLocales[e],
+        value: e,
+      },
+    }),
+  );
+  const autoDetect = {
+    tag: "menuitem",
+    id: makeId("autoDetect"),
+    attributes: {
+      label: getString("autoDetect"),
+      value: "autoDetect",
+    },
+  };
+  for (const lang of ["sourceLang", "targetLang"]) {
+    const placeholder = lang == "sourceLang" ? "sourceLang-placeholder" : "targetLang-placeholder";
+    const langPlaceholder = getDom(placeholder);
+    if (!langPlaceholder) continue;
+    const childs = [];
+    if (lang == "sourceLang") {
+      childs.push(autoDetect);
+    }
+    childs.push(...langChildsProp);
+    ztoolkit.UI.replaceElement(
+      {
+        tag: "menulist",
+        id: makeId(lang),
+        namespace: "xul",
+        attributes: {
+          native: "true",
+        },
+        children: [
+          {
+            tag: "menupopup",
+            children: childs,
+          },
+        ],
+      },
+      langPlaceholder,
+    );
+  }
+  await setLangPair();
+}
+
+async function setLangPair() {
+  for (const lang of ["sourceLang", "targetLang"]) {
+    const key = lang == "sourceLang" ? "defaultSourceLang" : "defaultTargetLang";
+    const value = lang == "sourceLang" ? "en-US" : Zotero.locale;
+    const langDefault = (await getSettingValue(key, "translate")) || value;
+    const langDom = getDom(lang) as XUL.MenuList;
+    if (langDom) langDom.value = langDefault;
   }
 }

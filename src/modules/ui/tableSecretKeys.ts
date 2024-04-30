@@ -162,7 +162,7 @@ export async function replaceSecretKeysTable() {
     const colums: any[][] = rowsToColums(rows, visibleKeys) || [[]];
     const longestCells = strMax(colums);
     const keys = visibleKeys || Object.keys(rows[0]); //可指定keys
-    const keyWidth: { [key: string]: number } = {};
+    const keyWidth: { [key: string]: number; } = {};
     for (let i = 0; i < keys.length; i++) {
       const cellText = longestCells[i];
       const key = keys[i];
@@ -424,8 +424,8 @@ export async function replaceSecretKeysTable() {
     ) {
       const confirm = win?.confirm(
         getString("info-delete-secretKey") +
-          "\n" +
-          getString("info-delete-confirm"),
+        "\n" +
+        getString("info-delete-confirm"),
       );
       if (!confirm) return true; //确认删除，点击cancel则取消
 
@@ -1054,12 +1054,10 @@ export async function replaceSecretKeysTable() {
     if (!text) return;
     let serviceID = getElementValue("serviceID") as string;
     if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
       serviceID = "baidu";
     }
     if (!dataVerify[serviceID]) {
-      showInfo("无法验证数据");
-      throw new Error("无法验证数据");
+      throw new Error(serviceID + ": No validation method defined for this engine, unable to validate data");
     }
     const textArr = text.split(/\r?\n/).filter((e) => e);
     const valuesArr = textArr.map((str: string) =>
@@ -1689,21 +1687,10 @@ export async function readTextFiles(filePaths?: string[]) {
 function baiduVerify(keys: any[], values: any[]) {
   const reg = {
     appID: /^\d{17}$/m,
-    secretKey: /^[A-Za-z\d]{20}$/m,
+    secretKey: /^[A-Za-z\d_]{20}$/m,
   };
   return coreVerify(keys, values, reg);
-  /*  function regRes(value: string, reg: RegExp) {
-         const match = value.match(reg);
-         if (match) {
-             if (match[0] == value) return true;
-         }
-     }
- 
-     for (let i = 0; i < values.length; i++) {
-         // @ts-ignore xxx
-         if (!regRes(values[i], reg[keys[i]])) return false;
-     }
-     return true; */
+
 }
 function coreVerify(keys: any[], values: any[], reg: any) {
   const reg2 = {
@@ -1954,11 +1941,11 @@ function validateRowData(row: any) {
 
 // ("beforeunload");
 
-async function deleteRecord(e: Event) {}
+async function deleteRecord(e: Event) { }
 
-async function editRecord(e: Event) {}
+async function editRecord(e: Event) { }
 
-async function searchRecord(e: Event) {}
+async function searchRecord(e: Event) { }
 
 async function readTextFilesDroped(e: DragEvent) {
   // 文件拖拽
