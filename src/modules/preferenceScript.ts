@@ -125,6 +125,7 @@ async function buildPrefsPane() {
         // 下拉列表
         tag: "menulist",
         id: makeId("sourceLang"),
+        namespace: "xul",
         attributes: {
           native: "true",
           //@ts-ignore has
@@ -151,6 +152,7 @@ async function buildPrefsPane() {
       {
         tag: "menulist",
         id: makeId("targetLang"),
+        namespace: "xul",
         attributes: {
           native: "true",
           //@ts-ignore has
@@ -176,49 +178,47 @@ async function buildPrefsPane() {
   };
   await langPair();
   //监视
-  const observeLangPair = async () => {
-    const sourceLangMenulist = getDom("sourceLang")!;
-    const targetLangMenulist = getDom("targetLang")!;
-    const configObserver = {
-      attributes: true,
-      attributeFilter: ["label"],
-      attributeOldValue: true,
-    };
-    //@ts-ignore has
-    const mutationObserver = new addon.data.prefs!.window.MutationObserver(
-      callback,
-    );
-    mutationObserver.observe(sourceLangMenulist, configObserver);
-    mutationObserver.observe(targetLangMenulist, configObserver);
-    async function callback(mutationsList: any[]) {
-      const DB = await getDB();
-      if (!DB) return;
-      for (const mutation of mutationsList) {
-        if (!mutation.target.id.match(/(sourceLang)|(targetLang)/g)) return;
-        const value = mutation.target.value;
-        const label = mutation.target.label;
-        const keyTorecord = mutation.target.id.includes("sourceLang")
-          ? "defaultSourceLang"
-          : "defaultTargetLang";
-        //const sql =          "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
-        if (!value) return;
-        showInfo(
-          "The " +
-          keyTorecord +
-          " was modified from " +
-          mutation.oldValue +
-          " to " +
-          label +
-          ".",
-        );
-        await setSettingValue(keyTorecord, value, "translate");
-        //await DB.executeTransaction(async function () {
-        // await DB.queryAsync(sql, [keyTorecord, value]);
-        // });
-      }
-    }
-  };
-  await observeLangPair();
+  /*  const observeLangPair = async () => {
+     const sourceLangMenulist = getDom("sourceLang")!;
+     const targetLangMenulist = getDom("targetLang")!;
+     const configObserver = {
+       attributes: true,
+       attributeFilter: ["label"],
+       attributeOldValue: true,
+     };
+     //@ts-ignore has
+     const mutationObserver = new addon.data.prefs!.window.MutationObserver(
+       callback,
+     );
+     mutationObserver.observe(sourceLangMenulist, configObserver);
+     mutationObserver.observe(targetLangMenulist, configObserver);
+     async function callback(mutationsList: any[]) {
+       const DB = await getDB();
+       if (!DB) return;
+       for (const mutation of mutationsList) {
+         if (!mutation.target.id.match(/(sourceLang)|(targetLang)/g)) return;
+         const value = mutation.target.value;
+         const label = mutation.target.label;
+         const keyTorecord = mutation.target.id.includes("sourceLang")
+           ? "defaultSourceLang"
+           : "defaultTargetLang";
+         //const sql =          "REPLACE INTO settings (setting, key, value) VALUES ('translate', ?, ?)";
+         if (!value) return;
+         showInfo(
+           "The " +
+           keyTorecord +
+           " was modified from " +
+           mutation.oldValue +
+           " to " +
+           label +
+           ".",
+         );
+         await setSettingValue(keyTorecord, value, "translate");
+         skipLangsHideShow();
+       }
+     }
+   };
+   await observeLangPair(); */
 
   // 安全设置   在账号表格前设置，以便控制 secretKey 和 token 字段内容
 
@@ -227,6 +227,7 @@ async function buildPrefsPane() {
   //多账户管理
 
   const services = await getServices();
+
   const childrenArr = Object.values(services)
     .filter((e) => !e.forbidden)
     .map((service) => ({
@@ -237,7 +238,6 @@ async function buildPrefsPane() {
         value: service.serviceID,
       },
     }));
-
   ztoolkit.UI.replaceElement(
     {
       // 下拉列表
@@ -277,6 +277,9 @@ async function buildPrefsPane() {
     // 将要被替换掉的元素
     doc.querySelector(`#${makeId("serviceID-placeholder")}`)!,
   );
+  const serviceUsing = await getSingleServiceUnderUse();
+  if (serviceUsing) setElementValue("serviceID", serviceUsing.serviceID);
+  await underUsing();
 
   function limit() {
     const limitModes = ["daily", "month", "total", "noLimit", "pay"];
@@ -548,9 +551,14 @@ function bindPrefEvents() {
   });
 
   skipLangsHideShow();
-  getDom("sourceLang")!.addEventListener("command", (e) => {
-    skipLangsHideShow();
-  });
+  // 不能触发，可能和之前监测变化有关
+  const sourceLang = getDom("sourceLang");
+  if (sourceLang) {
+    sourceLang.addEventListener("command", (e) => {
+      skipLangsHideShow();
+    });
+  }
+
 
   getDom("switchService")!.addEventListener("command", clickSwitchService);
 

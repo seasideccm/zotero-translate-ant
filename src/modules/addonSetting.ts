@@ -93,11 +93,7 @@ export async function getCurrentServiceSN() {
   const DB = await getDB();
   const sql = `SELECT value from settings WHERE key = 'currentServiceSN'`;
   const serialNumber = await DB.valueQueryAsync(sql);
-  if (!serialNumber) {
-    await clickSwitchService();
-    return await getCurrentserviceID();
-  }
-  addon.mountPoint.serialNumberUsing = serialNumber;
+  if (serialNumber) addon.mountPoint.serialNumberUsing = serialNumber;
   return serialNumber;
 }
 export async function getCurrentserviceID() {

@@ -744,7 +744,6 @@ export function getServicesInfo() {
  */
 export async function getSingleServiceUnderUse() {
   let serialNumber = await getCurrentServiceSN();
-
   if (serialNumber === false) {
     const serviceOne = (await getAvilabelService("all"))!;
     serialNumber = serviceOne.serialNumber;
