@@ -771,48 +771,7 @@ export class Schema {
       }.bind(this),
     );
 
-    /* await this.DB.executeTransaction(async function (this: any) {
-            try {
-                await this.DB.queryAsync("PRAGMA page_size = 4096");
-                await this.DB.queryAsync("PRAGMA encoding = 'UTF-8'");
-                await this.DB.queryAsync("PRAGMA auto_vacuum = 1");
-                const promises = [];
-                const promisesFollow = [];
-                for (const schema of Object.keys(schemaConfig)) {
-                    const sql = await this.getSchemaSQL(schema);
-                    if (schema != "triggers") {
-                        promises.push(this.DB.executeSQLFile(sql));
-                    }
 
-                }
-                await Promise.all(promises);               
-
-                for (const schema of Object.keys(schemaConfig)) {
-                    const version = schemaConfig[schema]["version"];
-                    if (schema != "triggers") {
-                    promisesFollow.push(this.updateSchemaVersion(schema, version));}
-                }
-                await Promise.all(promisesFollow);
-                await this.updateLastAddonVersion();
-                await this.updateCompatibility(this._maxCompatibility);
-                this.isCompatible = true;
-                await this.DB.queryAsync("INSERT INTO settings (setting, key, value) VALUES ('schema', 'initialized', ?)", 1);
-                this.initialized = true;
-            }
-            catch (e) {
-                ztoolkit.log(e);
-                Components.utils.reportError(e);
-                const ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                    .getService(Components.interfaces.nsIPromptService);
-                ps.alert(
-                    null,
-                    Zotero.getString('general.error'),
-                    Zotero.getString('startupError', Zotero.appName)
-                );
-                throw e;
-            }
-
-        }.bind(this)); */
   }
 
   /*

@@ -34,12 +34,13 @@ export async function llmSettings() {
       listeners: [
         {
           type: "command",
-          listener: (e: Event) => {},
+          listener: (e: Event) => { },
         },
       ],
       children: [
         {
           tag: "menupopup",
+          namespace: "xul",
           //map出的对象数组赋值给键 children
           children: providersArr,
         },

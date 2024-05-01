@@ -49,10 +49,20 @@ export function requireModule(moduleName: string) {
   return module;
 }
 
-export const getPS = () =>
-  Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(
+
+
+export const getPS = () => Services.prompt;
+
+/* {
+  let ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(
     Components.interfaces.nsIPromptService,
   );
+  if (!ps) ps = Services.prompt;
+  if (!ps) throw new Error("No available Prompt Service ");
+  return ps;
+
+}; */
+
 
 export function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);

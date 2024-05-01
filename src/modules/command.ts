@@ -20,7 +20,9 @@ import {
   getKeyNameByContent,
 } from "./crypto";
 import { getDBSync } from "./database/database";
+import { getServices } from "./translate/translateServices";
 import { modifyData } from "./ui/dataDialog";
+import { replaceSecretKeysTable } from "./ui/tableSecretKeys";
 import { getDom } from "./ui/uiTools";
 
 export class Command {
@@ -127,7 +129,13 @@ export class Command {
     const checked = enableEncrypt.checked;
     if (checked == state) return;
     if (!checked) {
-      await decryptAll(true);
+      const result = await decryptAll(true);
+      const decryptAccounts = result ? result.decryptAccounts : void 0;
+      if (decryptAccounts && decryptAccounts.length) {
+        addon.mountPoint.services = null;
+        await getServices();
+        await replaceSecretKeysTable();
+      }
       await Cry.deleteCryKeys();
     } else {
       /* const validKeys = await Cry.checkCryKey();//要么没有有效秘钥，要么 RSA 公钥私钥均有效

@@ -302,8 +302,8 @@ export class Cry {
         getString("info-privateKey");
       showInfo(
         getString("info-formatInvalid") +
-          getString("info-publicKey") +
-          getString("info-privateKey"),
+        getString("info-publicKey") +
+        getString("info-privateKey"),
       );
       return;
     }
@@ -649,8 +649,8 @@ export class Cry {
   static async deleteCryKeys() {
     const cf = confirmWin(
       getString("info-delete-secretKey") +
-        "\n" +
-        getString("info-delete-confirm"),
+      "\n" +
+      getString("info-delete-confirm"),
       "win",
     );
     if (!cf) return;
@@ -1132,7 +1132,7 @@ export async function decryptByAESKey(
     const data = fileBuffer ? fileBuffer : encryptAESInfo.encryptAESString;
     if (!data) {
       //无签名验证？
-      const test = "test";
+      throw new Error("Missing encryptAES string Or fileBuffer");
     }
 
     const verified = await window.crypto.subtle.verify(
@@ -1444,9 +1444,9 @@ export async function decryptAccount(serialNumber: number | string) {
       showInfo(info);
       return false;
     }
-    sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${serialNumber}`;
-
-    await DB.queryAsync(sql);
+    //sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${serialNumber}`;
+    sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = ? WHERE serialNumber = ${serialNumber}`;
+    await DB.queryAsync(sql, value);
     showInfo(`${serialNumber} has decrypted`);
     //删除账号加密记录
     sql = `DELETE FROM encryptAccounts WHERE serialNumber = ${serialNumber}`;
@@ -1466,7 +1466,9 @@ export async function decryptAllAccount() {
     showInfo(getString("info-noEncryptAccount"));
     return;
   }
-  if (!window.confirm(getString("info-decryptAllAccount") + "?")) {
+
+  //!window.confirm(getString("info-decryptAllAccount") + "?")
+  if (!confirmWin(getString("info-decryptAllAccount") + "?")) {
     showInfo(getString("info-userCancle"));
     throw getString("info-userCancle");
   }
@@ -1494,8 +1496,9 @@ export async function decryptAllAccount() {
         showInfo(info);
         throw new Error(info);
       }
-      sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
-      await DB.queryAsync(sql);
+      //sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = '${value}' WHERE serialNumber = ${sn}`;
+      sql = `UPDATE ${tableName} SET ${SK_TK_FIELD[tableName]} = ? WHERE serialNumber = ${sn}`;
+      await DB.queryAsync(sql, value);
 
       decryptAccounts.push(sn);
       showInfo(`${sn} has decrypted`);
@@ -1509,8 +1512,8 @@ export async function decryptAllAccount() {
       addon.mountPoint.decryptFaildSN = decryptFaildSN;
       confirmWin(
         getString("info-correct") +
-          getString("info-then") +
-          getString("info-retry"),
+        getString("info-then") +
+        getString("info-retry"),
       );
       return;
     }

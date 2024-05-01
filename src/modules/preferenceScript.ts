@@ -124,6 +124,7 @@ async function buildPrefsPane() {
       children: [
         {
           tag: "menupopup",
+          namespace: "xul",
           //map出的对象数组赋值给键 children
           children: childrenArr,
         },
@@ -158,6 +159,7 @@ async function buildPrefsPane() {
         children: [
           {
             tag: "menupopup",
+            namespace: "xul",
             children: limitModeChildPro,
           },
         ],
@@ -222,6 +224,7 @@ async function buildPrefsPane() {
             children: [
               {
                 tag: "menupopup",
+                namespace: "xul",
                 children: childPro,
               },
             ],
@@ -870,6 +873,7 @@ async function langPair() {
       children: [
         {
           tag: "menupopup",
+          namespace: "xul",
           //map出的对象数组赋值给键 children
           children: sourceLangChilds,
         },
@@ -894,6 +898,7 @@ async function langPair() {
       children: [
         {
           tag: "menupopup",
+          namespace: "xul",
           children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
             tag: "menuitem",
             attributes: {
@@ -954,6 +959,7 @@ async function makeLangPaire() {
         children: [
           {
             tag: "menupopup",
+            namespace: "xul",
             children: childs,
           },
         ],
