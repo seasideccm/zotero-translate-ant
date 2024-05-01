@@ -51,17 +51,6 @@ export function requireModule(moduleName: string) {
 
 
 
-export const getPS = () => Services.prompt;
-
-/* {
-  let ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(
-    Components.interfaces.nsIPromptService,
-  );
-  if (!ps) ps = Services.prompt;
-  if (!ps) throw new Error("No available Prompt Service ");
-  return ps;
-
-}; */
 
 
 export function stringToArrayBuffer(str: string) {

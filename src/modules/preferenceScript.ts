@@ -32,6 +32,7 @@ import {
   TranslateService,
   TranslateServiceAccount,
 } from "./translate/translateService";
+import { getPref } from "../utils/prefs";
 
 const limitIds = [
   "QPS",
@@ -586,12 +587,7 @@ function bindPrefEvents() {
     const menuLocation = getDom("menuLocation") as XUL.GroupBox;
     if (menuLocation) menuLocation.hidden = true;
   } else {
-    //@ts-ignore has
-    const mutationObserver = new win.MutationObserver(mountMenu);
-    mutationObserver.observe(getDom("addonMenuLocation")!, {
-      attributes: true,
-      attributeFilter: ["value"],
-    });
+    getDom("leftMenuLocation")?.addEventListener("RadioStateChange", mountMenu);
   }
 
   //监控插件设置项目变化

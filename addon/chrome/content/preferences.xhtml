@@ -35,20 +35,18 @@
       <html:h3 data-l10n-id="pref-addonMenuLocation"></html:h3>
     </label>
 
-    <radiogroup
-      id="__addonRef__-addonMenuLocation"
-      preference="extensions.zotero.__addonRef__.addonMenuLocation"
-    >
+    <radiogroup id="__addonRef__-addonMenuLocation">
       <hbox>
+        <radio
+          id="__addonRef__-leftMenuLocation"
+          data-l10n-id="pref-leftMenuLocation"
+          value="left"
+          selected="false"
+        />
         <radio
           data-l10n-id="pref-rightMenuLocation"
           value="right"
           selected="true"
-        />
-        <radio
-          data-l10n-id="pref-leftMenuLocation"
-          value="left"
-          selected="false"
         />
       </hbox>
     </radiogroup>

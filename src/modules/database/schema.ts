@@ -2,7 +2,6 @@ import { version as addonVersion, config } from "../../../package.json";
 import {
   compareObj,
   fileNameNoExt,
-  getPS,
   resourceFilesRecursive,
   showInfo,
 } from "../../utils/tools";
@@ -835,8 +834,8 @@ export class Schema {
 
 function reportError(e: any) {
   Components.utils.reportError(e);
-  const promptService = getPS();
-  promptService.alert(
+
+  Services.prompt.alert(
     null,
     Zotero.getString("general.error"),
     Zotero.getString("startupError", Zotero.appName),

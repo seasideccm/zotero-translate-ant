@@ -4,7 +4,6 @@ import {
   chooseDirOrFilePath,
   confirmWin,
   getFiles,
-  getPS,
   showInfo,
   stringToArrayBuffer,
   stringToUint8Array,
@@ -507,7 +506,7 @@ export class Cry {
   static async replaceConfirm(hasKeys: string[]) {
     let info = "",
       title = "";
-    const promptService = getPS();
+
     if (hasKeys.length == 0) {
       info =
         getString("info-hasNot") +
@@ -522,7 +521,7 @@ export class Cry {
       const win = addon.data.prefs?.window;
       const options = ["不选择", "选择文件夹", "创建新的秘钥"];
       const selectResult = {};
-      const cf = promptService.select(win, title, info, options, selectResult);
+      const cf = Services.prompt.select(win, title, info, options, selectResult);
       if (cf) {
         return selectResult;
       } else {
@@ -556,7 +555,7 @@ export class Cry {
       title = getString("info-replaceOldKey");
     }
 
-    //return promptService.confirm(addon.data.prefs?.window, title, info);
+    //return Services.prompt.confirm(addon.data.prefs?.window, title, info);
   }
 
   static async importCryptoKey(filePaths?: string[]) {
@@ -745,7 +744,7 @@ export class Cry {
       }
       // 是否导入原有秘钥
       fileNames = filesSelected.map((e) => PathUtils.filename(e));
-      const promptService = getPS();
+
       const title = getString("info-addOldCryKey");
       const info =
         getString("info-has") +
@@ -754,15 +753,15 @@ export class Cry {
         getString("info-Confirm") +
         getString("info-addOldCryKey") +
         "?";
-      confirm = promptService.confirm(window, title, info);
+      confirm = Services.prompt.confirm(window, title, info);
       if (confirm) {
         let info = filesSelected.join("\n");
         const title = getString("info-checkPath");
-        confirm = promptService.confirm(window, title, info);
+        confirm = Services.prompt.confirm(window, title, info);
         if (!confirm) {
           const fs = await chooseDirOrFilePath("files", path);
           info = fs.join("\n");
-          confirm = promptService.confirm(window, title, info);
+          confirm = Services.prompt.confirm(window, title, info);
           if (!confirm) {
             showInfo(
               getString("info-cancle") + ": " + getString("info-addOldCryKey"),
@@ -772,7 +771,7 @@ export class Cry {
         }
         return filesSelected;
       } else {
-        confirm = promptService.confirm(
+        confirm = Services.prompt.confirm(
           window,
           "Are You Shoure",
           "create new AES RSA keys?",

@@ -2,7 +2,6 @@ import { getString } from "../utils/locale";
 import {
   chooseDirOrFilePath,
   confirmWin,
-  getPS,
   showInfo,
   showThrowInfo,
 } from "../utils/tools";
@@ -154,8 +153,8 @@ export class Command {
       const win = addon.data.prefs?.window;
       const options = [opt1, opt2, opt3, opt4];
       const selectResult: any = {};
-      const promptService = getPS();
-      const cf = promptService.select(win, title, info, options, selectResult);
+
+      const cf = Services.prompt.select(win, title, info, options, selectResult);
       if (!cf) {
         enableEncrypt.checked = !checked;
         const info1 = getString("info-userCancle");

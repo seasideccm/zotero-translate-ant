@@ -1534,20 +1534,20 @@ export class fullTextTranslate {
     }
     let func = translateFunc[serviceID];
     if (!func) {
-
       func = Zotero.PDFTranslate.api.translate;
       if (!func) {
         showInfo("请安装 Zotero PDF Translate 插件");
+        throw new Error("请安装 Zotero PDF Translate 插件");
       }
       await serviceManage.switchPDFTranslate(service);
       args = [];
     }
+    if (!func) throw new Error("No Avaliable Translate Service");
 
 
     const trans: string[] = [];
     while (sourceTxtArr.length) {
       const string = sourceTxtArr.shift()!;
-
       try {
         const timerStart = timer();
         // 开始翻译
@@ -1557,7 +1557,7 @@ export class fullTextTranslate {
         await fullTextTranslate.updateCharConsum(string!.length, service);
 
         // 等待不超时限
-        if (services[serviceID].QPS) {
+        if (services[serviceID].QPS && sourceTxtArr.length) {
           const timeDiffer = timerStart();
           const sec = 1000 / services[serviceID].QPS - timeDiffer + 100;
           if (sec > 0) {

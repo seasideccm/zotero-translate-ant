@@ -3,7 +3,7 @@ import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
 import { arrToObj } from "../utils/tools";
 import { openAddonPrefPane } from "./preferenceScript";
-import { makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
+import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
@@ -70,27 +70,26 @@ export function mountMenu() {
     ) as Element;
     menu.append(menuPopup);
   }
-  const location = getPref("addonMenuLocation") || "right";
 
   let ref;
   if (Zotero.isMac) {
     ref = document.querySelector("#zotero-tb-tabs-menu");
     ref?.parentElement?.insertBefore(menu, ref);
+    return;
+  }
+  const RadioGroup = getDom("addonMenuLocation") as XUL.RadioGroup;
+  const location = RadioGroup?.value || "right";
+  if (location == "right") {
+    ref = document.querySelector(".titlebar-button.titlebar-min");
+    ref?.parentElement?.insertBefore(menu, ref);
   } else {
-
-    if (location == "right") {
-      ref = document.querySelector(".titlebar-button.titlebar-min");
-      ref?.parentElement?.insertBefore(menu, ref);
-    } else {
-      ref = document.querySelector("#helpMenu");
-      ref?.insertAdjacentElement("afterend", menu);
-    }
+    ref = document.querySelector("#helpMenu");
+    ref?.insertAdjacentElement("afterend", menu);
   }
-
-  function menuitemObj(argsArr: any[]) {
-    return arrToObj(["label", "func", "args", "accesskey"], argsArr);
-    //"acceltext" 可显示，无功能
-  }
+}
+function menuitemObj(argsArr: any[]) {
+  return arrToObj(["label", "func", "args", "accesskey"], argsArr);
+  //"acceltext" 可显示，无功能
 }
 
 export function rightClickMenuItem() {

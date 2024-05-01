@@ -3,6 +3,8 @@ import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
 import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
 import { aiCHat, getModels } from "../largeLanguageModels/ollama";
+import { fullTextTranslate } from "../translate/fullTextTranslate";
+import { getSingleServiceUnderUse } from "../translate/serviceManage";
 import { makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
@@ -43,7 +45,7 @@ export function showTrans() {
   );
 }
 
-function trans(dialogType: string, win: Window, parent: XUL.Box) {
+function transUI(dialogType: string, win: Window, parent: XUL.Box) {
   if (dialogType != "showTrans") return;
   const dialog = win.document.documentElement.children[2] as any;
   const acceptButton = dialog.getButton("accept");
@@ -97,12 +99,15 @@ function trans(dialogType: string, win: Window, parent: XUL.Box) {
     const cache = addon.mountPoint.chatCache;
     const value = originText.value;
     if (!value || value == "") return;
-    const taskTran = { service: "tencent", value: value };
+    const service = await getSingleServiceUnderUse();
+    if (!service) return;
+    const taskTran = { service: service.serviceID, value: value };
     let res;
     if (cache.has(taskTran)) {
       res = cache.get(value);
     } else {
-      res = await addon.mountPoint.transator.polo(value);
+      res = await fullTextTranslate.translateGo(value);
+      //res = await addon.mountPoint.transator.polo(value);
       cache.set(taskTran, res);
     }
     const sp = parent.querySelector("span");
@@ -161,7 +166,7 @@ function onOpenDialog(
   //modal 模态窗口，等待用户关闭或做出选择后才能继续，fitContent=true,
 }
 
-async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
+async function aiTransUI(dialogType: string, win: Window, parent: XUL.Box) {
   if (dialogType != "aiTrans") return;
   const dialog = win.document.documentElement.children[2] as any;
   const acceptButton = dialog.getButton("accept");
@@ -322,7 +327,7 @@ async function aiTrans(dialogType: string, win: Window, parent: XUL.Box) {
       listeners: [
         {
           type: "command",
-          listener: (e: Event) => {},
+          listener: (e: Event) => { },
         },
       ],
     },
@@ -539,8 +544,8 @@ export class DataDialog {
       DataDialog.handleCancel(win),
     );
 
-    trans(dialogType, win, parent);
-    await aiTrans(dialogType, win, parent);
+    transUI(dialogType, win, parent);
+    await aiTransUI(dialogType, win, parent);
 
     if (Array.isArray(fieldNames)) {
       if (dialogType == "input") {
