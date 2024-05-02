@@ -259,6 +259,7 @@ async function aiTransUI(dialogType: string, win: Window, parent: XUL.Box) {
   }
   const childrenProps: any[] = models.map((model: string) => ({
     tag: "menuitem",
+    namespace: "xul",
     properties: {
       value: model,
       label: model == "" ? getString("info-chooseModel") : model,
@@ -303,6 +304,7 @@ async function aiTransUI(dialogType: string, win: Window, parent: XUL.Box) {
   const providrs = ["ollama", "openAI"];
   const providerProps: any[] = providrs.map((model: string) => ({
     tag: "menuitem",
+    namespace: "xul",
     properties: {
       value: model,
       label: model,

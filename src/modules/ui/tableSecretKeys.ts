@@ -1536,6 +1536,7 @@ export async function updateServiceData(
   key: string,
   value: any,
 ) {
+  if (serviceAccount[key as keyof typeof serviceAccount] == value) return;
   if (!serviceAccount.changedData) serviceAccount.changedData = {};
   serviceAccount.changedData[key] = value;
   if (!serviceAccount.previousData) serviceAccount.previousData = {};

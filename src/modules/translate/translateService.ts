@@ -408,6 +408,7 @@ export class TranslateService {
         case "totalCharConsum":
           tableName = "totalCharConsum";
           break;
+        case "serialNumber":
         case "usable":
         case "forbidden":
           tableName = "translateServiceSN";
@@ -420,17 +421,10 @@ export class TranslateService {
         case "charasLimitFactor":
           tableName = "serviceLimits";
           break;
-        case "serialNumber":
-          sqls.push(
-            `UPDATE translateServiceSN SET ${key} = ? WHERE  serviceID = '${this.serviceID}'`,
-          );
-          values.push(this.changedData[key]);
-          break;
       }
       if (tableName == "") continue;
       if (tableName == "settings") {
-        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', ? )`;
-        sqls.push(sql);
+        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES ('${this.serviceID}', '${key}', ? )`;
       } else if (tableName == "charConsum") {
         sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, ?)`;
       } else {
@@ -444,7 +438,6 @@ export class TranslateService {
       for (let i = 0; i < sqls.length; i++) {
         try {
           await DB.queryAsync(sqls[i], values[i]);
-
         } catch (e) {
           showInfo("Execute failed: " + sqls[i] + "====" + values[i]);
           throw e;
@@ -603,6 +596,7 @@ export class TranslateService {
     };
     await DB.executeTransaction(doSave.bind(this));
   }
+
   saveold: any = Zotero.Promise.coroutine(function* (
     this: any,
     options = {},

@@ -88,6 +88,7 @@ async function buildPrefsPane() {
     .filter((e) => !e.forbidden)
     .map((service) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(`${service.serviceID}`),
       attributes: {
         label: getString(`service-${service.serviceID}`),
@@ -98,6 +99,7 @@ async function buildPrefsPane() {
     {
       // 下拉列表
       tag: "menulist",
+      namespace: "xul",
       id: makeId("serviceID"),
       attributes: {
         native: "true",
@@ -152,6 +154,7 @@ async function buildPrefsPane() {
     ztoolkit.UI.replaceElement(
       {
         tag: "menulist",
+        namespace: "xul",
         id: makeId("limitMode"),
         attributes: {
           value: "",
@@ -217,6 +220,7 @@ async function buildPrefsPane() {
           },
           {
             tag: "menulist",
+            namespace: "xul",
             id: makeId("fields"),
             attributes: {
               value: "",
@@ -552,6 +556,7 @@ function bindPrefEvents() {
       if (!serviceMenu_popup) continue;
       const menuItemObj = {
         tag: "menuitem",
+        namespace: "xul",
         id: makeId(`${e.serviceID}`),
         attributes: {
           label: getString(`service-${e.serviceID}`),
@@ -833,6 +838,7 @@ async function langPair() {
   const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(
     (e) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(e),
       attributes: {
         //@ts-ignore has
@@ -843,6 +849,7 @@ async function langPair() {
   );
   const autoDetect = {
     tag: "menuitem",
+    namespace: "xul",
     id: makeId("autoDetect"),
     attributes: {
       //@ts-ignore has
@@ -897,6 +904,7 @@ async function langPair() {
           namespace: "xul",
           children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
             tag: "menuitem",
+            namespace: "xul",
             attributes: {
               //@ts-ignore has
               label: Zotero.Locale.availableLocales[e],
@@ -920,6 +928,7 @@ async function makeLangPaire() {
   const langChildsProp = Object.keys(availableLocales).map(
     (e) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(e),
       attributes: {
         label: availableLocales[e],
@@ -929,6 +938,7 @@ async function makeLangPaire() {
   );
   const autoDetect = {
     tag: "menuitem",
+    namespace: "xul",
     id: makeId("autoDetect"),
     attributes: {
       label: getString("autoDetect"),

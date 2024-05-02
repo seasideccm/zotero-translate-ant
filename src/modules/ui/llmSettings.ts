@@ -17,6 +17,7 @@ export async function llmSettings() {
   //LLM
   const providersArr = providers.map((e) => ({
     tag: "menuitem",
+    namespace: "xul",
     attributes: {
       label: e,
       value: e,
@@ -27,6 +28,7 @@ export async function llmSettings() {
     {
       // 下拉列表
       tag: "menulist",
+      namespace: "xul",
       id: makeId("providers"),
       attributes: {
         native: "true",
