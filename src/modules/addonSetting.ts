@@ -79,14 +79,26 @@ async function setAddon(keys: string[]) {
 
 export async function setCurrentService(
   serviceID: string,
-  serialNumber: string | number,
+  serialNumber?: string | number,
 ) {
-  addon.mountPoint.serialNumberUsing = serialNumber;
-  addon.mountPoint.serviceIDUsing = serviceID;
-  await setSettingValue("currentServiceSN", serialNumber);
-  await setSettingValue("currentServiceID", serviceID);
-}
 
+  addon.mountPoint.serviceIDUsing = serviceID;
+  await setSettingValue("currentServiceID", serviceID);
+  addon.mountPoint.serialNumberUsing = serialNumber;
+  if (!serialNumber) {
+    await deleteSettingValue("currentServiceSN");
+    return;
+  }
+
+  await setSettingValue("currentServiceSN", serialNumber);
+
+}
+export async function deleteSettingValue(keyName: string,
+  settingType: string = "addon",) {
+  const sql = `DELETE FROM settings WHERE key = '${keyName}' AND setting='${settingType}'`;
+  const DB = await getDB();
+  await DB.queryAsync(sql);
+}
 export async function getCurrentServiceSN() {
   if (addon.mountPoint.serialNumberUsing)
     return addon.mountPoint.serialNumberUsing;
@@ -101,10 +113,6 @@ export async function getCurrentserviceID() {
   const DB = await getDB();
   const sql = `SELECT value from settings WHERE key = 'currentServiceID'`;
   const serviceID = await DB.valueQueryAsync(sql);
-  if (!serviceID) {
-    await clickSwitchService();
-    return await getCurrentserviceID();
-  }
   addon.mountPoint.serviceIDUsing = serviceID;
   return serviceID;
 }

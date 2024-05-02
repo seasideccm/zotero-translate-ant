@@ -15,6 +15,7 @@ import {
 } from "./translateServices";
 import {
   getCurrentServiceSN,
+  getCurrentserviceID,
   getServicesOrder,
   getSettingValue,
   setCurrentService,
@@ -348,7 +349,8 @@ export class serviceManage {
       );
       // 禁用付费时可用的引擎（需要秘钥）
       if (!getPref("isPay")) {
-        const temp = [];
+
+        const temp = new Set;
         const acountsUsable = [];
         for (const service of servicesHasKeyUsable) {
           if (!service.accounts || !service.accounts.length) continue;
@@ -357,12 +359,12 @@ export class serviceManage {
             if (!key) continue;
             if (!account.usable || account.forbidden) continue;
             if (keyStr && keyStr == key) continue; //除外本轮已经切换过的秘钥
-            if (!secretKeyHasSwitched.includes(key)) continue; //除外上轮已经切换过的秘钥
-            temp.push(service);
+            if (secretKeyHasSwitched.includes(key)) continue; //除外上轮已经切换过的秘钥
             acountsUsable.push(account);
+            temp.add(service);
           }
         }
-        servicesHasKeyUsable = temp;
+        servicesHasKeyUsable = Array.from(temp) as TranslateService[];
       }
 
       // 无秘钥引擎
@@ -465,12 +467,7 @@ export class serviceManage {
    * @param plugin
    */
   static async switchServiceID(serviceID: string, plugin: string) {
-    if (serviceID.includes("Modify")) {
-      serviceID = serviceID.replace("Modify", "");
-    }
-    if (serviceID == "tencentTransmart") {
-      return;
-    }
+    if (serviceID.includes("Modify") || serviceID == "tencentTransmart") return;
     const keyField = "translateSource";
     const result = setPluginsPref(plugin, keyField, serviceID);
     if (Zotero.PDFTranslate.data.alive) {
@@ -743,34 +740,60 @@ export function getServicesInfo() {
  * @returns
  */
 export async function getSingleServiceUnderUse() {
+  const serviceIDUsing = await getCurrentserviceID();
+  const services = await getServices();
+  if (!serviceIDUsing) {
+    const service = await getAvilabelService("all");
+    if (service) {
+      await setCurrentService(service.serviceID, service.serialNumber);
+    }
+    return service;
+  }
+  const service = services[serviceIDUsing];
   let serialNumber = await getCurrentServiceSN();
   if (serialNumber === false) {
-    const serviceOne = (await getAvilabelService("all"))!;
-    serialNumber = serviceOne.serialNumber;
-  }
-  if (serialNumber === false || serialNumber === void 0) return;
-  return (await getServiceBySN(serialNumber))!;
-  /* if (service instanceof TranslateService) {
-    const serviceID = service.serviceID;
-    return {
-      serviceID,
-      serialNumber,
-      service
-    };
-  }
-  if (service instanceof TranslateServiceAccount) {
-    const key = service.secretKey || service.token;
-    if (key) {
-      //const keyString = await decryptKey(key);
-      return {
-        serviceID: service.serviceID,
-        secretKey: key,//可能加密
-        serialNumber,
-        account: service
-      };
+    let account;
+    if (service.accounts && service.accounts.length) {
+      account = service.accounts.filter(a => !a.forbidden && a.usable)[0];
+      if (!account) {
+        account = await getAvilabelService("all");
+      }
+      if (account) {
+        await setCurrentService(account.serviceID, account.serialNumber);
+      }
+      return account;
     }
   }
- */
+  if (service.serialNumber && service.serialNumber != serialNumber) {
+    await setCurrentService(service.serviceID, service.serialNumber);
+    serialNumber = service.serialNumber;
+  }
+  if (service.accounts) {
+    const sns = service.accounts.filter(a => !a.forbidden && a.usable).map(a => a.serialNumber).filter(e => e);
+    if (!sns || !sns.length) {
+      const service2 = await getAvilabelService("all");
+      if (service2) {
+        await setCurrentService(service2.serviceID, service2.serialNumber);
+      }
+      return service2;
+    }
+    if (!sns.includes(serialNumber)) {
+      serialNumber = sns[0];
+      await setCurrentService(service.serviceID, serialNumber);
+    }
+  }
+  if (!service.serialNumber && !service.accounts) {
+    const service2 = await getAvilabelService("all");
+    if (service2) {
+      await setCurrentService(service2.serviceID, service2.serialNumber);
+    }
+    return service2;
+  }
+  if (serialNumber) {
+    return (await getServiceBySN(serialNumber))!;
+  }
+
+
 }
 
 export async function decryptKey(key: string) {
@@ -818,10 +841,15 @@ export async function getLang() {
     "defaultTargetLang",
     "translate",
   );
+  /*   let sourceLang,targetLang
+    if(defaultSourceLang){
+      sourceLang=defaultTargetLang?.split("-")[0]
+    }
+    if(!sourceLang)sourceLang="zh" */
 
   const langPaire = {
-    targetLang: defaultTargetLang?.split("-")[0] || "zh",
-    sourceLang: defaultSourceLang?.split("-")[0] || "en",
+    targetLang: defaultTargetLang ? defaultTargetLang.split("-")[0] : "zh",
+    sourceLang: defaultSourceLang ? defaultSourceLang.split("-")[0] : "en",
   };
   if (!addon.mountPoint.langPaire) addon.mountPoint.langPaire = langPaire;
   return langPaire;

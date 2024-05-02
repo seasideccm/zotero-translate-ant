@@ -386,18 +386,18 @@ export class fullTextTranslate {
    * @returns
    */
   static async translateFT(type: "note" | "pdf") {
-    let noteIDs: number[] = [];
+    let ids: number[] = [];
     if (type == "pdf") {
-      noteIDs = this.getPDFs();
+      ids = this.getPDFs();
     } else if (type == "note") {
-      noteIDs = await fullTextTranslate.getNoteIDs();
+      ids = await fullTextTranslate.getNoteIDs();
     }
 
-    if (!noteIDs?.length) {
+    if (!ids?.length) {
       return;
     }
-    for (const noteID of noteIDs) {
-      const contentObj = await fullTextTranslate.contentPrepare(noteID);
+    for (const id of ids) {
+      const contentObj = await fullTextTranslate.contentPrepare(id);
       if (!contentObj) {
         continue;
       }
@@ -932,6 +932,12 @@ export class fullTextTranslate {
         }
         //标记翻译失败
         docItem.status = "error";
+        showInfo(
+          getString("info-translateFailure") +
+          ": " +
+          result.slice(-1)[0]
+
+        );
       }
     }
 
@@ -962,8 +968,10 @@ export class fullTextTranslate {
               );
               tableCitationPostTran(e);
             } else {
-              //saveJsonToDisk(docItem, docItemFailure, docsTranslationCacheDir);
               docItem.status = "error";
+              showInfo(
+                getString("info-translateFailure"));
+              ztoolkit.log(e.rawToTranslate);
               break;
             }
           }
@@ -988,8 +996,10 @@ export class fullTextTranslate {
               }
             }
           }
-          //saveJsonToDisk(docItem, docItemFailure, docsTranslationCacheDir);
           docItem.status = "error";
+          showInfo(
+            getString("info-translateFailure"));
+          ztoolkit.log(result.slice(-1)[0]);
         }
       }
     }
@@ -1552,10 +1562,12 @@ export class fullTextTranslate {
         const timerStart = timer();
         // 开始翻译
         const paraResult = await func(string, ...args);
+        if (paraResult.result.includes("[请求错误]")) {
+          throw new Error(paraResult.result);
+        }
         trans.push(paraResult.result);
         // 记录字符消耗
         await fullTextTranslate.updateCharConsum(string!.length, service);
-
         // 等待不超时限
         if (services[serviceID].QPS && sourceTxtArr.length) {
           const timeDiffer = timerStart();
@@ -1567,12 +1579,15 @@ export class fullTextTranslate {
       } catch (e) {
         ztoolkit.log(e);
         //如果更换引擎失败，退出translateGo后保存翻译原文和译文到缓存
-        if (!(await serviceManage.onSwitch())) {
+        if (!(await serviceManage.onSwitch(true))) {
           addon.mountPoint.trans = trans;
           return "no available service";
         }
         // 递归
-        const secondSource = sourceTxtArr.join("");
+
+        sourceTxtArr.unshift(string);
+        const secondSource = sourceTxtArr.join("");//todo 优化合并方案       
+
         const resultSecond = await fullTextTranslate.translateGo(secondSource);
         if (resultSecond == "no available service") {
           if (addon.mountPoint.trans) {

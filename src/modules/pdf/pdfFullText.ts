@@ -758,13 +758,25 @@ const strByFont = (
  * @param isSkipClearCharaters
  * @returns
  */
-const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
+const fontInfo = (items: any[], isSkipClearCharaters: boolean) => {
+  if (!items.length) return;
+  let allItem = [...items];
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
   let arrTemp: any;
   if (isSkipClearCharaters) {
-    if (Object.prototype.hasOwnProperty.call(allItem[0], "text")) {
+    let condition;
+    try {
+      condition = Object.prototype.hasOwnProperty.call(allItem[0], "text");
+    }
+    catch (e: any) {
+      ztoolkit.log(e);
+      ztoolkit.log(allItem[0]);
+      ztoolkit.log(allItem);
+      throw e;
+    }
+    if (condition) {
       arrTemp = allItem.filter(
         (e: PDFLine) =>
           e.text != "" &&
@@ -2995,9 +3007,10 @@ export async function pdf2document(itmeID: number) {
       .map((p) => p.lines)
       .flat(1)
       .filter((e) => e !== undefined);
+    if (!contentCleanLines.length) continue;
     const paralineSpaceTopArr = contentCleanLines.map((l) => l.lineSpaceTop);
     const modelineSpaceTop = getMode(paralineSpaceTopArr, "descending");
-    const contentCleanFontInfo = fontInfo(contentCleanLines, true);
+    const contentCleanFontInfo = fontInfo(contentCleanLines, true)!;
     const contentCleanLineHighArr = contentCleanLines
       .map((l) => l.height)
       .filter((e) => e != undefined);
