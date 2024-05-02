@@ -170,7 +170,8 @@ export async function getLLMs() {
   return llms;
 }
 
-async function llmToDatabase(sqlValues: string[]) {
+async function llmToDatabase(values: string[]) {
+  const sqlValues = [...values];
   const DB = await getDB();
   if (!DB) return;
   const tableName = "largeLanguageModels";
@@ -185,29 +186,30 @@ async function llmToDatabase(sqlValues: string[]) {
   const result: any[] = await DB.queryAsync(sql);
   if (result.length === 0) {
     const serialNumber = await DB.getNextID(tableName, "serialNumber");
-    sqlColumns.unshift("serialNumber");
+    const sqlColumns2 = ["serialNumber", ...sqlColumns];
     sqlValues.unshift(serialNumber);
-    sql = `INSERT INTO ${tableName} (${sqlColumns.join(",")}) VALUES (${sqlValues.map(() => "?").join()})`;
+    sql = `INSERT INTO ${tableName} (${sqlColumns2.join(",")}) VALUES (${sqlValues.map(() => "?").join()})`;
     await DB.executeTransaction(async () => {
       await DB.queryAsync(sql, sqlValues);
     });
   } else {
     //假设每个厂家一个秘钥
-    const resultArr = dbRowsToArray(result, sqlColumns)[0];
-    if (!arrayUtils.isDiffer(resultArr, sqlValues)) return; //数据均相同则返回，否则更新变化的数据
-    sql = `UPDATE ${tableName} SET `;
-    const tempArr: string[] = [];
-    for (let i = 1; i < sqlColumns.length; i++) {
-      if (result[i] == sqlValues[i]) continue;
-      tempArr.push(`${sqlColumns[i]} = '${sqlValues[i]}'`);
+    const resultArrs = dbRowsToArray(result, sqlColumns);//根据sqlColumns生成数组
+    for (const resultArr of resultArrs) {
+      if (!arrayUtils.isDiffer(resultArr, sqlValues)) continue; //数据均相同则跳过
+      sql = `UPDATE ${tableName} SET `;
+      const tempArr: string[] = [];
+      for (let i = 1; i < sqlColumns.length; i++) {
+        if (result[i] == sqlValues[i]) continue;
+        tempArr.push(`${sqlColumns[i]} = '${sqlValues[i]}'`);
+      }
+      sql = sql + tempArr.join(", ") + ` WHERE provider='${sqlValues[0]}'`;
+      await DB.executeTransaction(async () => {
+        await DB.queryAsync(sql);
+      });
     }
-    sql = sql + tempArr.join(", ") + ` WHERE provider='${sqlValues[0]}'`;
-    await DB.executeTransaction(async () => {
-      await DB.queryAsync(sql);
-    });
   }
 }
-
 async function fillModel() {
   const llm = await getCurrenLLM();
   Object.keys(llm).forEach((key) => {
@@ -234,26 +236,24 @@ function inputFill(id: string, value: string) {
 }
 
 async function openAIAndOllamIntoDB() {
-  const openAIModels = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"];
-  const modelsStr = openAIModels.join("; ");
-  let values = [
+  const modelsStr = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"].join("; ");
+  const valuesOpenAI = [
     "openAI",
     "sk-",
     "https://api.openai.com/v1",
     modelsStr,
     "gpt-3.5-turbo",
   ];
-  await llmToDatabase(values);
-  const tempArr = [[...values]];
-  const tempFunc = arrsToObjs([
+  await llmToDatabase(valuesOpenAI);
+
+  const valuesOllama = ["ollama", "", "https://127.0.0.1:11434", "", ""];
+  await llmToDatabase(valuesOllama);
+
+  return arrsToObjs([
     "provider",
     "apikey",
     "baseurl",
     "models",
     "defaultModel",
-  ]);
-  values = ["ollama", "", "https://127.0.0.1:11434", "", ""];
-  await llmToDatabase(values);
-  tempArr.push([...values]);
-  return tempFunc(tempArr);
+  ])([valuesOpenAI, valuesOllama]);
 }

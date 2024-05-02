@@ -8,23 +8,25 @@ import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
 
+
+
 function getParasArrs() {
   const parasArrs = [
     [
-      //["读取文件内容", readTextFiles],
       ["info-AITranslate", aITransUI],
       ["info-translateText", showTrans],
-      //["测试openai兼容", openAIOllama],
     ],
     [
       ["info-encryptFile", encryptFile],
       ["info-decryptFile", decryptFileSelected],
     ],
     [
-      //["clearTable", clearAllTable],
-      //["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
+    [
+      //["google Test", testgoogle],
+    ],
+
   ];
   return parasArrs;
 }

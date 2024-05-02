@@ -298,7 +298,6 @@ async function getCommonProperty(serviceID: string) {
 
 async function getAccounts(serviceID: string, tableName: string) {
   if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
     serviceID = "baidu";
   }
   const DB = await getDB();
@@ -318,15 +317,16 @@ async function getAccounts(serviceID: string, tableName: string) {
       showInfo(
         `There are least one serialNumber in the ${tableName} table. We will delete it in ${tableName}, charConsum and totalCharConsum.`,
       );
+      // 清理 account 或 accessTokens
+      const sql3 = `DELETE FROM ${tableName} WHERE serviceID = '${serviceID}'`;
+      let res = await DB.queryAsync(sql3);
+      // 清理 charConsum totalCharConsum
+      const sql4 = `DELETE FROM charConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
+      res = await DB.queryAsync(sql4);
+      const sql5 = `DELETE FROM totalCharConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
+      res = await DB.queryAsync(sql5);
     }
-    // 清理 account 或 accessTokens
-    const sql3 = `DELETE FROM ${tableName}  WHERE serviceID = '${serviceID}'`;
-    await DB.queryAsync(sql3);
-    // 清理 charConsum totalCharConsum
-    const sql4 = `DELETE FROM charConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
-    await DB.queryAsync(sql4);
-    const sql5 = `DELETE FROM totalCharConsum  WHERE serialNumber not in (SELECT serialNumber FROM translateServiceSN)`;
-    await DB.queryAsync(sql5);
+    return;
   }
   const accuntOptionsArr = dbRowsToObjs(rows, sqlColumns);
   const accounts = accuntOptionsArr?.map((accuntOptions: any) => {

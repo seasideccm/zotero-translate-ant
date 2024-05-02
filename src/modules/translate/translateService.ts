@@ -53,7 +53,7 @@ export class TranslateServiceAccount {
     }
     this.serialNumber = Number(option.serialNumber);
     this.serviceID = option.serviceID;
-    this.usable = option.usable || true;
+    this.usable = option.usable || 1;
     this.charConsum = option.charConsum || 0;
     this.appID = option.appID || Zotero.utilities.randomString(8);
     this.secretKey = option.secretKey;
@@ -137,6 +137,7 @@ export class TranslateServiceAccount {
     if (!this.changedData) return;
     //更新账号
     const sqls: string[] = [];
+    const values: any[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
       let tableNames: string[] = [];
@@ -148,47 +149,42 @@ export class TranslateServiceAccount {
           tableNames = ["accessTokens"];
           break;
         case "charConsum":
-          tableNames = ["charConsum"];
-          break;
         case "dateMarker":
           tableNames = ["charConsum"];
           break;
         case "totalCharConsum":
           tableNames = ["totalCharConsum"];
           break;
+        case "usable":
         case "forbidden":
           tableNames = ["translateServiceSN"];
           break;
         case "appID":
-          if (this.secretKey) {
-            tableNames = ["translateServiceSN", "accounts"];
-          }
-          if (this.token) {
-            tableNames = ["translateServiceSN", "accessTokens"];
-          }
-          break;
-        case "usable":
           tableNames = ["translateServiceSN"];
+          if (this.secretKey) tableNames.push("accounts");
+          if (this.token) tableNames.push("accessTokens");
           break;
         case "serialNumber":
           //tableNames = ['translateServiceSN'];
           sqls.push(
-            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`,
+            `UPDATE translateServiceSN SET ${key} = ? WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`,
           );
+          values.push(this.changedData[key]);
           break;
       }
       tableNames.forEach((tableName) => {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
+        const sql = `UPDATE ${tableName} SET ${key} = ? WHERE serialNumber = ${this.serialNumber}`;
         sqls.push(sql);
+        values.push(this.changedData[key]);
       });
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {
-      for (const sql of sqls) {
+      for (let i = 0; i < sqls.length; i++) {
         try {
-          await DB.queryAsync(sql);
+          await DB.queryAsync(sqls[i], values[i]);
         } catch (e) {
-          showInfo("Execute failed: " + sql);
+          showInfo("Execute failed: " + sqls[i] + "====" + values[i]);
           throw e;
         }
       }
@@ -391,6 +387,7 @@ export class TranslateService {
   async saveChange() {
     if (!this.changedData) return;
     const sqls: string[] = [];
+    const values: any[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
       let sql;
@@ -425,28 +422,31 @@ export class TranslateService {
           break;
         case "serialNumber":
           sqls.push(
-            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = '${this.serviceID}'`,
+            `UPDATE translateServiceSN SET ${key} = ? WHERE  serviceID = '${this.serviceID}'`,
           );
+          values.push(this.changedData[key]);
           break;
       }
       if (tableName == "") continue;
       if (tableName == "settings") {
-        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', '${this.changedData[key]}')`;
+        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', ? )`;
         sqls.push(sql);
       } else if (tableName == "charConsum") {
-        sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, '${this.changedData[key]}')`;
+        sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, ?)`;
       } else {
-        sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
+        sql = `UPDATE ${tableName} SET ${key} = ? WHERE serviceID = '${this.serviceID}'`;
       }
       sqls.push(sql);
+      values.push(this.changedData[key]);
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {
-      for (const sql of sqls) {
+      for (let i = 0; i < sqls.length; i++) {
         try {
-          await DB.queryAsync(sql);
+          await DB.queryAsync(sqls[i], values[i]);
+
         } catch (e) {
-          showInfo("Execute failed: " + sql);
+          showInfo("Execute failed: " + sqls[i] + "====" + values[i]);
           throw e;
         }
       }
@@ -462,7 +462,7 @@ export class TranslateService {
     this.savePromise = this.saveDeferred.promise;
     //const serialNumber = await this.getSerialNumber(this.serviceID);
     if (this.serialNumber) {
-      const doSave = async () => {};
+      const doSave = async () => { };
       await DB.executeTransaction(doSave.bind(this));
       //update
       return;

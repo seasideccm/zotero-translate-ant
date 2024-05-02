@@ -1325,7 +1325,8 @@ export async function priorityWithKeyTable() {
       "servicesWithKeyByOrder",
       "services",
     );
-    if (settingValue) return JSON.parse(settingValue);
+    const oldRows = JSON.parse(settingValue);
+
     const rows = Object.values(services)
       .filter((e) => e.accounts && e.accounts.length)
       .map((e2) => ({
@@ -1337,8 +1338,28 @@ export async function priorityWithKeyTable() {
             : getString("forbidden-false"),
       }));
     const value = JSON.stringify(rows);
-    await setSettingValue("servicesWithKeyByOrder", value, "services");
-    return rows;
+    if (value != settingValue) {
+      const newRows2 = rows.filter((newRow: any) => !oldRows.find((row: any) => !differObject(newRow, row)));
+      const newRows = [];
+      for (const row of rows) {
+        let has = false;
+        for (const oldRow of oldRows) {
+          if (!differObject(oldRow, row)) {
+            has = true;
+            break;
+          }
+        }
+        if (has) continue;
+        newRows.push(row);
+      }
+      if (newRows.length) {
+        oldRows.push(...newRows);
+        const value = JSON.stringify(oldRows);
+        await setSettingValue("servicesWithKeyByOrder", value, "services");
+      }
+    }
+
+    return oldRows;
   }
 
   function handleGetRowString(index: number) {

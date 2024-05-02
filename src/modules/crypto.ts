@@ -827,26 +827,16 @@ export class Cry {
     const value = await DB.valueQueryAsync(sql);
     if (value && path == value) return;
     await DB.executeTransaction(async () => {
-      value
-        ? (sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`)
-        : (sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`);
-      await DB.queryAsync(sql);
+      if (value) {
+        sql = `UPDATE settings SET value =? WHERE key = 'cryptoKeyPath'`;
+      } else {
+        sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath', ?)`;
+      }
+      await DB.queryAsync(sql, path);
     });
   }
 
-  static async setPathRSAKeys(path: string[]) {
-    const DB = await getDB();
-    if (!DB) return;
-    let sql = `SELECT value from settings WHERE key = 'cryptoKeyPath'`;
-    const value = await DB.valueQueryAsync(sql);
-    if (value && path == value) return;
-    await DB.executeTransaction(async () => {
-      value
-        ? (sql = `UPDATE settings SET value = '${path}' WHERE key = 'cryptoKeyPath'`)
-        : (sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','cryptoKeyPath','${path}')`);
-      await DB.queryAsync(sql);
-    });
-  }
+
 
   static async setMD5CryKey() {
     await md5CryKey(modifyValue);
@@ -872,9 +862,9 @@ export class Cry {
     await DB.executeTransaction(async () => {
       let sql;
       old
-        ? (sql = `UPDATE settings SET value = '${importDirectory}' WHERE key = 'importDirectory'`)
-        : (sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','importDirectory','${importDirectory}')`);
-      await DB.queryAsync(sql);
+        ? (sql = `UPDATE settings SET value =? WHERE key = 'importDirectory'`)
+        : (sql = `INSERT INTO settings (setting,key,value) VALUES ('addon','importDirectory', ?)`);
+      await DB.queryAsync(sql, importDirectory);
     });
   }
   static async getKEYS_NAME() {

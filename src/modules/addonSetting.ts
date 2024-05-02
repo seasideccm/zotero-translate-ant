@@ -119,10 +119,13 @@ export async function setSettingValue(
   const result = await DB.valueQueryAsync(sql);
   if (result && result == setValue) return;
   await DB.executeTransaction(async () => {
-    result
-      ? (sql = `UPDATE settings SET value = '${setValue}' WHERE setting='${settingType}' AND key = '${keyName}'`)
-      : (sql = `INSERT INTO settings (setting,key,value) VALUES ('${settingType}','${keyName}','${setValue}')`);
-    await DB.queryAsync(sql);
+    if (result) {
+      sql = `UPDATE settings SET value=? WHERE setting='${settingType}' AND key = '${keyName}'`;
+      await DB.queryAsync(sql, setValue);
+    } else {
+      sql = `INSERT INTO settings (setting,key,value) VALUES (?, ?, ?)`;
+      await DB.queryAsync(sql, [settingType, keyName, setValue]);
+    }
   });
 }
 
@@ -146,7 +149,7 @@ export async function getSettingValue(
   const DB = await getDB();
   if (!DB) return;
   const sql = `SELECT value from settings WHERE setting='${settingType}' AND key = '${keyName}' `;
-  return (await DB.valueQueryAsync(sql)) as string;
+  return await DB.valueQueryAsync(sql);
 }
 
 export async function clearSettingsRecord(queryValue: string | string[]) {
