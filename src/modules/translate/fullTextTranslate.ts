@@ -2,7 +2,7 @@ import { config } from "../../../package.json";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { frequency, pdf2document } from "../pdf/pdfFullText";
-import { saveJsonToDisk, showInfo, timer } from "../../utils/tools";
+import { deleteCacheOrFile, readJsonFromDisk, saveJsonToDisk, showInfo, timer } from "../../utils/tools";
 import {
   getAvilabelService,
   getLang,
@@ -399,6 +399,24 @@ export class fullTextTranslate {
     if (!ids?.length) {
       return;
     }
+
+    const cacheError = await readJsonFromDisk("translatedCache");
+    if (cacheError) {
+      const itemID = cacheError.docItem.itemID;
+      if (ids.includes(itemID)) {
+        const docItemCache = cacheError.docItem;
+        const docItem = await fullTextTranslate.translateDoc(docItemCache);
+        if (docItem) {
+          const res = await fullTextTranslate.makeTranslation(docItem);
+          if (res) {
+            ids.splice(ids.indexOf(itemID), 1);
+            await deleteCacheOrFile("translatedCache");
+          }
+        }
+      }
+    }
+
+
     for (const id of ids) {
       const contentObj = await fullTextTranslate.contentPrepare(id);
       if (!contentObj) {
@@ -536,22 +554,25 @@ export class fullTextTranslate {
     leftArr: string[],
     charasPerTime: number,
   ) {
-    let tempStr = "";
-    const reg = /\n$/gm;//用于替换多余的换行
+
+    const length = 0;
+    const tempArr = [];
     const sourceArr = leftArr.map((e) => e);
     for (let i = 0; i < sourceArr.length; i++) {
-      if (tempStr.length + sourceArr[i].length < charasPerTime) {
-        tempStr = tempStr + sourceArr[i] + "\n";
+      if (length + sourceArr[i].length < charasPerTime) {
+        tempArr.push(sourceArr[i]);
         leftArr.shift();//传入函数内，并不断变化，函数外也会改变
       } else {
         return {
-          str: tempStr.replace(reg, ""),
+          str: tempArr.join("\n"),
+          arr: tempArr,
           leftArr: leftArr,
         };
       }
     }
     return {
-      str: tempStr.replace(reg, ""),
+      str: tempArr.join("\n"),
+      arr: tempArr,
       leftArr: leftArr,
     };
   }
@@ -711,7 +732,7 @@ export class fullTextTranslate {
       } else if (html.match(/^<([^<>]+?>)<\/\1\n?$/g) !== null) {
         const obj: DocCell = {
           id: getID(),
-          type: "paragraph",
+          type: "emptyLine",
           rawContent: html,
         };
         docCellArr.push(obj);
@@ -876,6 +897,9 @@ export class fullTextTranslate {
             rawContent: item,
             rawToTranslate: mdParas,            
           }; */
+
+
+
           const obj: DocCell = {
             id: getID(),
             type: "paragraph",
@@ -900,46 +924,283 @@ export class fullTextTranslate {
    * @returns
    */
   static async translateDoc(docItem: DocItem) {
+
+
+
+
+
     const docCellArr = docItem.content;
+
+    for (const cell of docCellArr) {
+      if (cell.translation) continue;
+      cleanRawToTranslate(cell);
+      cell.rawToTranslate;
+    }
+    function cleanRawToTranslate(cell: DocCell) {
+
+      let str = cell.rawToTranslate;
+      if (!str || Array.isArray(str)) return;
+      const regs = [
+        /[a-zA-z]+:\/\/[^\s"]*/g,//网址
+        /<sup>[^>]+?<\/sup>/g,
+        /<sub>[^>]+?<\/sub>/g,
+        /[^\s\w]+/g,
+        /\d+/g,
+      ];
+
+      for (const reg of regs) {
+        if (!str) break;
+        while (reg.test(str)) {
+          str = str.replace(reg, '');
+        }
+      }
+
+      if (str && str.length) {
+        const wordReg = /\w+/g;
+        const match = str.match(wordReg);
+        if (match == null || (match.length == 1 && match[0].length <= 4)) {
+          cell.rawToTranslate = void 0;
+        }
+      } else {
+        cell.rawToTranslate = void 0;
+      }
+
+
+
+    }
+
+
+
+
+
     const bilingualContrast = getPref("bilingualContrast");
     const isSourceFirst = getPref("isSourceFirst");
     let objArrToTranArr: DocCell[] = [];
     let totranArr;
     let result: TransResult[] | undefined | string;
     objArrToTranArr = docCellArr.filter(
-      (e: DocCell) => e.rawToTranslate && e.rawToTranslate != "" && e.rawToTranslate.length);
-    //段落
-    const paragraph = objArrToTranArr.filter((e) => (e.type == "paragraph" || e.type == "title"));
+      (e: DocCell) => e.rawToTranslate && e.rawToTranslate != "" && e.rawToTranslate.length && !e.translation);
 
+
+
+
+    //段落
+    let paragraph = objArrToTranArr.filter((e) => (e.type == "paragraph" || e.type == "title"));
     totranArr = paragraph.map((e) => e.rawToTranslate);
-    const paraIDs = paragraph.map((e) => e.id);
-    totranArr = totranArr.flat(1) as string[];
-    const indexState: any = {};
-    const leftArr = [];
+    let paraIDs = paragraph.map((e) => e.id);
+
+    let indexState: any = {};
+    let leftArr = [];
     const reg = /\n+/;
     for (let i = 0; i < totranArr.length; i++) {
       const e = totranArr[i];
-      if (e && e.length && !e.match(/^ *$/)) {
-        const e2 = e.split(reg).filter(e => e.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
-        if (e2.length) {
-          leftArr.push(...e2);
+      if (Array.isArray(e)) {
+        if (!indexState[paraIDs[i]]) indexState[paraIDs[i]] = {};
+        for (let j = 0; j < e.length; j++) {
+
+          const string = e[j];
+
+          if (string && string.length && !string.match(/^ *$/)) {
+            const string2 = string.split(reg).filter(s => s.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+            if (string2.length) {
+              leftArr.push(...string2);
+            }
+            indexState[paraIDs[i]][j] = string2.length;
+          } else {
+            indexState[paraIDs[i]][j] = 0;
+          }
+
         }
-        indexState[i] = e2.length;
       } else {
-        indexState[i] = 0;
+        if (e && e.length && !e.match(/^ *$/)) {
+          const e2 = e.split(reg).filter(e => e.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+          if (e2.length) {
+            leftArr.push(...e2);
+          }
+          indexState[paraIDs[i]] = e2.length;
+        } else {
+          indexState[paraIDs[i]] = 0;
+        }
+
       }
     }
+
+
+    const splitError = await readJsonFromDisk("translatedCache-splitError");
+    if (splitError) {
+      const finds = [];
+      for (const str of splitError.toTranArr) {
+        for (const para of paragraph) {
+          if (Array.isArray(para.rawToTranslate)) {
+            if (para.rawToTranslate.some(e => e == str)) {
+              finds.push(para);
+            }
+          } else {
+            if (para.rawToTranslate && para.rawToTranslate == str) finds.push(para);
+          }
+        }
+      }
+      if (finds.length) {
+        const arrs = splitError.toTranArr;
+        const splitArr = splitError.splitArr;
+        let differNumber = splitArr.length - arrs.length;
+        const targets = [...splitArr];
+        const reconstructed = [];
+        const wordReg = /\b\w+\b/g;
+        for (let i = 0; i < arrs.length; i++) {
+          const source = arrs[i];
+          let target = targets.splice(0, 1)[0];
+          while (differNumber) {
+            const words = source.match(wordReg)?.length || 0;
+            const c1 = target.match(/[\u4e00-\u9fa5]/g)?.length || 0;
+            const c2 = target.match(/[A-Za-z\d_*]+/g)?.length || 0;
+            const chineses = c1 + c2;
+            let condition;
+            if (words && chineses) {
+              if (c1 == 0) {
+                condition = false;
+
+                //没有汉字大概率不会断开原文
+                // const n1 = source.match(/[^\s]/g)?.length || 0;
+                // const n2 = target.match(/[^\s]/g)?.length || 0;
+                // if (n1 || n2) {
+                //   condition = (n1 - n2) / (n1 + n2) > 0.1;
+                // }
+              } else {
+                condition = (words - chineses) / chineses > 0.2;
+              }
+
+            }
+            if (condition) {
+              target += targets.splice(0, 1);
+              differNumber--;
+            } else {
+              reconstructed.push(target);
+              break;
+            }
+          }
+          if (!differNumber) {
+            reconstructed.push(...targets);
+            break;
+          }
+        }
+        if (reconstructed.length == splitArr.length) {
+          splitArr.length = 0;
+          splitArr.push(...reconstructed);
+        } else {
+          //手动合并
+
+        }
+        const serviceID = splitError.serviceID || "baiduModify";
+        const result = [];
+        for (const item of splitArr) {
+          const obj: TransResult = {
+            translation: item,
+            serviceID: serviceID,
+            status: "success",
+          };
+          result.push(obj);
+        }
+
+
+        const translation = result.map((e) => e.translation);
+        const serviceIDs = result.map((e) => e.serviceID);
+        if (result.slice(-1)[0].status != "error") {
+          for (const e of finds) {
+            if (!translation.length) break;
+            const paraID = e.id;
+            if (Array.isArray(e.rawToTranslate)) {
+              const obj = indexState[paraID];
+              const raws = e.rawToTranslate;
+              e.translation = [];
+              e.serviceID = [];
+              for (let j = 0; j < raws.length; j++) {
+                const tran = translation.splice(0, obj[j]).join("");
+                const sID = [...new Set(serviceIDs.splice(0, obj[j]))].join("");
+                e.translation.push(tran);
+                e.serviceID.push(sID);
+              }
+
+            } else {
+              const length = indexState[paraID];
+              e.translation = translation.splice(0, length).join("");
+              e.serviceID = [...new Set(serviceIDs.splice(0, length))].join("");
+              await paraPostTran(e);
+            }
+
+          }
+        }
+        await deleteCacheOrFile("translatedCache-splitError");
+      }
+    }
+
+
+
+
+
+
+
+    paragraph = objArrToTranArr.filter((e) => (e.type == "paragraph" || e.type == "title"));
+
+    totranArr = paragraph.map((e) => e.rawToTranslate);
+    paraIDs = paragraph.map((e) => e.id);
+
+    indexState = {};
+    leftArr = [];
+    for (let i = 0; i < totranArr.length; i++) {
+      const e = totranArr[i];
+      if (Array.isArray(e)) {
+        if (!indexState[paraIDs[i]]) indexState[paraIDs[i]] = {};
+        for (let j = 0; j < e.length; j++) {
+
+          const string = e[j];
+
+          if (string && string.length && !string.match(/^ *$/)) {
+            const string2 = string.split(reg).filter(s => s.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+            if (string2.length) {
+              leftArr.push(...string2);
+            }
+            indexState[paraIDs[i]][j] = string2.length;
+          } else {
+            indexState[paraIDs[i]][j] = 0;
+          }
+
+        }
+      } else {
+        if (e && e.length && !e.match(/^ *$/)) {
+          const e2 = e.split(reg).filter(e => e.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+          if (e2.length) {
+            leftArr.push(...e2);
+          }
+          indexState[paraIDs[i]] = e2.length;
+        } else {
+          indexState[paraIDs[i]] = 0;
+        }
+
+      }
+    }
+
+
+
+
+
+
+
     let characterNumber = 0;
     const perTimeArr: string[] = [];
+
+
     while (leftArr.length) {
       const service = await serviceWork();
       const services = await getServices();
       const charasPerTime = services[service.serviceID].charasPerTime;
-      const str = leftArr.shift();
+      const str: string | undefined = leftArr.shift();
       if (!str) break;
+
       characterNumber += str.length;
       if (characterNumber < charasPerTime) {
         perTimeArr.push(str);
+        continue;
       } else {
         leftArr.unshift(str);
         //翻译
@@ -948,6 +1209,7 @@ export class fullTextTranslate {
           // 写入缓存，退出程序，修改错误，下次从缓存读取已经翻译的内容
           const service = await serviceWork();
           await saveJsonToDisk({
+            result: result,
             docItem: docItem,
             totranArr: totranArr,
             paraIDs: paraIDs,
@@ -960,15 +1222,34 @@ export class fullTextTranslate {
           throw new Error("翻译失败" + perTimeArr);
 
         }
-        perTimeArr.length = 0;
-        //"no available service"
+        if (result.length !== perTimeArr.length) {
+          showInfo("译后结果数组不相等");
+        }
         const translation = result.map((e) => e.translation);
         const serviceIDs = result.map((e) => e.serviceID);
         if (result.slice(-1)[0].status != "error") {
           for (const e of paragraph) {
-            e.translation = translation.splice(0, 1)[0];
-            e.serviceID = serviceIDs.splice(0, 1)[0];
-            await paraPostTran(e);
+            if (!translation.length) break;
+            const paraID = e.id;
+            if (Array.isArray(e.rawToTranslate)) {
+              const obj = indexState[paraID];
+              const raws = e.rawToTranslate;
+              e.translation = [];
+              e.serviceID = [];
+              for (let j = 0; j < raws.length; j++) {
+                const tran = translation.splice(0, obj[j]).join("");
+                const sID = [...new Set(serviceIDs.splice(0, obj[j]))].join("");
+                e.translation.push(tran);
+                e.serviceID.push(sID);
+              }
+
+            } else {
+              const length = indexState[paraID];
+              e.translation = translation.splice(0, length).join("");
+              e.serviceID = [...new Set(serviceIDs.splice(0, length))].join("");
+              await paraPostTran(e);
+            }
+
           }
         } else {
           translation.splice(-1);
@@ -979,30 +1260,32 @@ export class fullTextTranslate {
               paragraph[i].serviceID = serviceIDs.splice(0, 1)[0];
               await paraPostTran(paragraph[i]);
             }
-            //标记翻译失败
-            docItem.status = "error";
-            showInfo(
-              getString("info-translateFailure") +
-              ": " +
-              result.slice(-1)[0]
-
-            );
           }
+          //标记翻译失败
+          docItem.status = "error";
+          showInfo(
+            getString("info-translateFailure") +
+            ": " +
+            result.slice(-1)[0]
+          );
+          const service = await serviceWork();
+          await saveJsonToDisk({
+            result: result,
+            docItem: docItem,
+            totranArr: totranArr,
+            paraIDs: paraIDs,
+            indexState: indexState,
+            paragraph: paragraph,
+            perTimeArr: perTimeArr,
+            leftArr: leftArr,
+            serviceID: service.serviceID
+          }, "translatedCache");
+          throw new Error("翻译失败" + perTimeArr);
         }
+        perTimeArr.length = 0;
+        characterNumber = 0;
       }
-
-
     }
-
-
-
-
-
-
-    // 开始翻译
-
-
-
     //表格引用批量翻译后处理
     const tableCitation = objArrToTranArr.filter(
       (e) => (e.type == "table" || e.type == "citation") && e.rawToTranslate,
@@ -1018,6 +1301,8 @@ export class fullTextTranslate {
           // 写入缓存，退出程序，修改错误，下次从缓存读取已经翻译的内容
           const service = await serviceWork();
           await saveJsonToDisk({
+            tableCitation: tableCitation,
+            result: result,
             docItem: docItem,
             totranArr: totranArr,
             serviceID: service.serviceID
@@ -1072,6 +1357,17 @@ export class fullTextTranslate {
           showInfo(
             getString("info-translateFailure"));
           ztoolkit.log(result.slice(-1)[0]);
+
+          const service = await serviceWork();
+          await saveJsonToDisk({
+            tableCitation: tableCitation,
+            result: result,
+            docItem: docItem,
+            totranArr: totranArr,
+            serviceID: service.serviceID
+          }, "translatedCache");
+          throw new Error("翻译失败" + totranArr);
+
         }
       }
     }
@@ -1177,7 +1473,7 @@ export class fullTextTranslate {
         ":" +
         failureReason,
       );
-      return;
+      return false;
     }
     const docCellArr = docItem.content;
     const bilingualContrast = getPref("bilingualContrast");
@@ -1300,6 +1596,8 @@ export class fullTextTranslate {
     const docsTranslationCacheDir = addonStorageDir + "docsTranslationCache\\";
     const docItemSuccess = "Success" + "_" + String(docItem.itemID) + "_" + "docItem"; */
     //saveJsonToDisk(docItem, docItemSuccess, docsTranslationCacheDir);
+
+    return true;
   }
 
   /**
@@ -1455,10 +1753,56 @@ export class fullTextTranslate {
             toTranArr: toTranArr,
             indexState: indexState,
             toTran: toTran,
-            splitArr: splitArr
+            splitArr: splitArr,
+            serviceID: serviceID
           }, "translatedCache-splitError");
-          return "no available service";
 
+          // 重构翻译结果，不会出现合并后翻译，只会出现一段翻译成多段的情况
+          const arrs = combineObj.arr;
+          let differNumber = splitArr.length - arrs.length;
+          const targets = [...splitArr];
+          const reconstructed = [];
+          const wordReg = /\b\w+\b/g;
+          for (let i = 0; i < arrs.length; i++) {
+            const source = arrs[i];
+            let target = targets.splice(0, 1)[0];
+            while (differNumber) {
+              const words = source.match(wordReg)?.length || 0;
+              const c1 = target.match(/[\u4e00-\u9fa5]/g)?.length || 0;
+              const c2 = target.match(/[A-Za-z\d_*]+/g)?.length || 0;
+              const chineses = c1 + c2;
+              let condition;
+              if (words && chineses) {
+                if (c1 == 0) {
+                  //没有汉字大概率不会断开原文
+                  condition = false;
+                } else {
+                  condition = (words - chineses) / chineses > 0.2;
+                }
+
+              }
+              //const condition = (source.length / 3 - target.length) / target.length > 0.05;
+              if (condition) {
+                target += targets.splice(0, 1);
+                differNumber--;
+              } else {
+                reconstructed.push(target);
+                break;
+              }
+
+            }
+            if (!differNumber) {
+              reconstructed.push(...targets);
+              break;
+            }
+          }
+          if (reconstructed.length == splitArr.length) {
+            splitArr.length = 0;
+            splitArr.push(...reconstructed);
+            await deleteCacheOrFile("translatedCache-splitError");
+          } else {
+            return "no available service";
+          }
         }
         // 译文写入结果
         for (const item of splitArr) {

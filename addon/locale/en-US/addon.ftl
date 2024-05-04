@@ -245,3 +245,4 @@ info-AITranslate = AI Translate
 info-translateText = Translate Text
 info-decryptFile = Decrypt File
 info-encryptFile = Encrypt File
+info-targeCombine = Manually merge the translations

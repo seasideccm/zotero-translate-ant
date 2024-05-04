@@ -1,11 +1,13 @@
+import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
-import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
+import { arrsToObjs, chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
 import { aiCHat, getModels } from "../largeLanguageModels/ollama";
 import { fullTextTranslate } from "../translate/fullTextTranslate";
 import { getSingleServiceUnderUse } from "../translate/serviceManage";
-import { makeTagElementProps } from "./uiTools";
+import { columnPropKeys, makeColumnPropValues, tableFactory } from "./tableSecretKeys";
+import { getDom, makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
  * @param fieldNames
@@ -43,6 +45,133 @@ export function showTrans() {
     "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,",
     io,
   );
+}
+
+export function showTargeCombine(soureArr: any[], targetArr: any[]) {
+  const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
+  const title = getString("info-targeCombine");
+  const dialogType = "targeCombine";
+  const io: any = { soureArr, targetArr, title, dialogType };
+  const win = getWindow();
+  const dialog = win.openDialog(
+    url,
+    "dataDialog",
+    "chrome,modal,centerscreen,resizable=yes,scroll=yes",
+    io,
+  );
+  addon.mountPoint.dialog = dialog;
+  return io.dataOut;
+}
+function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, io: any) {
+  if (dialogType != "targeCombine") return;
+  const { soureArr, targetArr } = io;
+  const hbox = ztoolkit.createXULElement(win.document, "hbox");
+  const div1 = ztoolkit.createXULElement(win.document, "div");
+  div1.setAttribute("id", "table-sourceCombine");
+  const div2 = ztoolkit.createXULElement(win.document, "div");
+  div2.setAttribute("id", "table-targetCombine");
+  hbox.appendChild(div1);
+  hbox.appendChild(div2);
+  parent.appendChild(hbox);
+  async function priorityWithKeyTable() {
+    if (!win) return;
+    const id = "sourceCombine";
+    const containerId = `table-sourceCombine`;
+    //if (getDom(containerId)) return;
+    const newArr = soureArr.map((e: string, i: number) => [i, e]);
+    const rows: any[] = arrsToObjs(["序号", "原文"])(newArr) || [];
+    if (!rows || rows.length == 0) return;
+
+    //props
+    const columnPropValues = makeColumnPropValues(rows[0]);
+    const columnsProp = arrsToObjs(columnPropKeys)(
+      columnPropValues,
+    ) as ColumnOptions[];
+    const props: VirtualizedTableProps = {
+      id: id,
+      columns: columnsProp,
+      staticColumns: false,
+      showHeader: true,
+      multiSelect: true,
+      getRowCount: () => rows.length,
+      getRowData: (index: number) => rows[index],
+      getRowString: handleGetRowString,
+      onKeyDown: handleKeyDown,
+    };
+
+    const options: TableFactoryOptions = {
+      win: win,
+      containerId: containerId,
+      props: props,
+    };
+
+    const tableHelper = await tableFactory(options);
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    tableTreeInstance.scrollToRow(rows.length - 1);
+    tableTreeInstance.rows = rows;
+
+    async function serviceWithKeyRowsData() {
+      //let rows= getRowsByOrderFromDB(hasKey:Boolean)
+      const settingValue = await getSettingValue(
+        "servicesWithKeyByOrder",
+        "services",
+      );
+      const oldRows = JSON.parse(settingValue);
+
+      const rows = Object.values(services)
+        .filter((e) => e.accounts && e.accounts.length)
+        .map((e2) => ({
+          serviceID: e2.serviceID,
+          locale: getString(`service-${e2.serviceID}`),
+          forbidden:
+            e2.forbidden !== undefined
+              ? getString(`forbidden-${String(e2.forbidden)}`)
+              : getString("forbidden-false"),
+        }));
+      const value = JSON.stringify(rows);
+      if (value != settingValue) {
+        const newRows2 = rows.filter((newRow: any) => !oldRows.find((row: any) => !differObject(newRow, row)));
+        const newRows = [];
+        for (const row of rows) {
+          let has = false;
+          for (const oldRow of oldRows) {
+            if (!differObject(oldRow, row)) {
+              has = true;
+              break;
+            }
+          }
+          if (has) continue;
+          newRows.push(row);
+        }
+        if (newRows.length) {
+          oldRows.push(...newRows);
+          const value = JSON.stringify(oldRows);
+          await setSettingValue("servicesWithKeyByOrder", value, "services");
+        }
+      }
+
+      return oldRows;
+    }
+
+    function handleGetRowString(index: number) {
+      return getRowString(rows, index, tableTreeInstance);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const oldRows = [...rows];
+      priorityKeyDown(event, rows, tableTreeInstance, services).then(
+        async (res) => {
+          if (objArrDiffer(oldRows, rows)) {
+            const value = JSON.stringify(rows);
+            await setSettingValue("servicesWithKeyByOrder", value, "services");
+          }
+          return res;
+        },
+      );
+      return true;
+    }
+  }
+
 }
 
 function transUI(dialogType: string, win: Window, parent: XUL.Box) {
@@ -545,6 +674,9 @@ export class DataDialog {
     win.document.addEventListener("dialogcancel", () =>
       DataDialog.handleCancel(win),
     );
+    targeCombineUI(dialogType, win, parent);
+
+
 
     transUI(dialogType, win, parent);
     await aiTransUI(dialogType, win, parent);

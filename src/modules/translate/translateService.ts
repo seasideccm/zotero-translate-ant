@@ -64,6 +64,7 @@ export class TranslateServiceAccount {
   async save() {
     if (this.changedData) {
       await this.saveChange();
+      return;
     }
     for (const key of Object.keys(this)) {
       if (typeof this[key as keyof typeof this] == "string") {
@@ -449,6 +450,7 @@ export class TranslateService {
   async save() {
     if (this.changedData) {
       await this.saveChange();
+      return;
     }
     const DB = await getDB();
     this.saveDeferred = Zotero.Promise.defer();

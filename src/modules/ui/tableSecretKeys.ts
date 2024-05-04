@@ -50,7 +50,7 @@ const dataVerify: any = {
   azuregpt: azuregptVerify,
   chatgpt: chatgptVerify,
 };
-const columnPropKeys = [
+export const columnPropKeys = [
   "dataKey",
   "label",
   "staticWidth",
@@ -1518,7 +1518,7 @@ export function stopEvent(e: Event) {
   }
 }
 
-function makeColumnPropValues(row: any) {
+export function makeColumnPropValues(row: any) {
   // 本地化 ftl 文件中条目的前缀
   const prefTableStringPrefix = "prefs-table-";
 

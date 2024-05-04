@@ -1359,6 +1359,16 @@ export async function readJsonFromDisk(
   //特殊符号出乱码return JSON.parse(arrayBufferToString(buf));
 }
 
+export async function deleteCacheOrFile(filename: string,
+  dir?: string,
+  ext?: string,) {
+  const path = getPathDir(filename, dir, ext).path;
+  if (await IOUtils.exists(path)) {
+    IOUtils.remove(path);
+    return true;
+  }
+
+}
 /**
  * c:\\path\\to\\file.json
  *
