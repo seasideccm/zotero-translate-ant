@@ -43,14 +43,10 @@ export class TranslateServiceAccount {
   totalCharConsum?: number;
 
   constructor(option: any) {
-    if (
-      ["baidufield", "baiduModify", "baidufieldModify"].includes(
-        option.serviceID,
-      )
-    ) {
-      // @ts-ignore xxx
-      option.serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(option.serviceID)) {
+      option.serviceID = option.serviceID.replace("Modify", "");
     }
+
     this.serialNumber = Number(option.serialNumber);
     this.serviceID = option.serviceID;
     this.usable = option.usable || 1;
@@ -60,6 +56,7 @@ export class TranslateServiceAccount {
     this.token = option.token;
     this.dateMarker = option.dateMarker;
     this.forbidden = option.forbidden;
+
   }
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
@@ -288,6 +285,9 @@ export class TranslateService {
     vocabid?: string | undefined;
   }) {
     // ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"]
+    /*     if (["baiduModify", "baidufieldModify"].includes(options.serviceID)) {
+          options.serviceID = options.serviceID.replace("Modify", "");
+        } */
     this.serviceID = options.serviceID;
     this.charasPerTime = options.charasPerTime;
     this.QPS = options.QPS;

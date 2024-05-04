@@ -2,8 +2,9 @@ import { config } from "../../../package.json";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { frequency, pdf2document } from "../pdf/pdfFullText";
-import { showInfo, timer } from "../../utils/tools";
+import { saveJsonToDisk, showInfo, timer } from "../../utils/tools";
 import {
+  getAvilabelService,
   getLang,
   getSingleServiceUnderUse,
   serviceManage,
@@ -18,6 +19,8 @@ import {
 import { franc } from "franc-min";
 import { translateFunc } from "./translate";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
+import { setCurrentService } from "../addonSetting";
+import { getDB } from "../database/database";
 
 
 
@@ -525,21 +528,21 @@ export class fullTextTranslate {
 
   /**
    *
-   * @param filteredArr
+   * @param sourceArr
    * @param charasPerTime
    * @returns
    */
   static combineByLimitOneRequest(
-    filteredArr: string[],
+    leftArr: string[],
     charasPerTime: number,
   ) {
     let tempStr = "";
-    const reg = /\n$/g;
-    const leftArr = filteredArr.map((e) => e);
-    for (let i = 0; i < filteredArr.length; i++) {
-      if (tempStr.length + filteredArr[i].length < charasPerTime) {
-        tempStr = tempStr + filteredArr[i] + "\n";
-        leftArr.shift();
+    const reg = /\n$/gm;//用于替换多余的换行
+    const sourceArr = leftArr.map((e) => e);
+    for (let i = 0; i < sourceArr.length; i++) {
+      if (tempStr.length + sourceArr[i].length < charasPerTime) {
+        tempStr = tempStr + sourceArr[i] + "\n";
+        leftArr.shift();//传入函数内，并不断变化，函数外也会改变
       } else {
         return {
           str: tempStr.replace(reg, ""),
@@ -575,6 +578,9 @@ export class fullTextTranslate {
       noteHtml = (await this.getPdfContent(item)) as string;
     }
     const docCellArr: DocCell[] = [];
+    function getID() {
+      return String(itemID) + "#" + docCellArr.length;
+    }
     const docItem: DocItem = {
       itemID: itemID,
       key: item.key,
@@ -883,10 +889,9 @@ export class fullTextTranslate {
         }
       }
     }
+
     return docItem;
-    function getID() {
-      return String(itemID) + "#" + String(new Date().getTime());
-    }
+
   }
 
   /**
@@ -898,48 +903,105 @@ export class fullTextTranslate {
     const docCellArr = docItem.content;
     const bilingualContrast = getPref("bilingualContrast");
     const isSourceFirst = getPref("isSourceFirst");
-
     let objArrToTranArr: DocCell[] = [];
-    let totranArr: string[];
-    let result: TransResult[] | undefined;
+    let totranArr;
+    let result: TransResult[] | undefined | string;
     objArrToTranArr = docCellArr.filter(
-      (e: DocCell) => e.rawToTranslate && e.rawToTranslate != "",
-    );
+      (e: DocCell) => e.rawToTranslate && e.rawToTranslate != "" && e.rawToTranslate.length);
     //段落
-    const paragraph = objArrToTranArr.filter(
-      (e) => (e.type == "paragraph" || e.type == "title") && e.rawToTranslate,
-    );
-    totranArr = paragraph.map((e) => e.rawToTranslate) as string[];
-    // 开始翻译
-    result = await fullTextTranslate.translateExec(totranArr);
-    if (!result || !result.length) return;
-    const translation = result.map((e) => e.translation);
-    const serviceID = result.map((e) => e.serviceID);
-    if (result.slice(-1)[0].status != "error") {
-      for (const e of paragraph) {
-        e.translation = translation!.splice(0, 1)[0];
-        e.serviceID = serviceID!.splice(0, 1)[0];
-        await paraPostTran(e);
-      }
-    } else {
-      translation.splice(-1);
-      serviceID.splice(-1);
-      if (translation.length) {
-        for (let i = 0; i < translation.length; i++) {
-          paragraph[i].translation = translation.splice(0, 1)[0];
-          paragraph[i].serviceID = serviceID.splice(0, 1)[0];
-          await paraPostTran(paragraph[i]);
-        }
-        //标记翻译失败
-        docItem.status = "error";
-        showInfo(
-          getString("info-translateFailure") +
-          ": " +
-          result.slice(-1)[0]
+    const paragraph = objArrToTranArr.filter((e) => (e.type == "paragraph" || e.type == "title"));
 
-        );
+    totranArr = paragraph.map((e) => e.rawToTranslate);
+    const paraIDs = paragraph.map((e) => e.id);
+    totranArr = totranArr.flat(1) as string[];
+    const indexState: any = {};
+    const leftArr = [];
+    const reg = /\n+/;
+    for (let i = 0; i < totranArr.length; i++) {
+      const e = totranArr[i];
+      if (e && e.length && !e.match(/^ *$/)) {
+        const e2 = e.split(reg).filter(e => e.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+        if (e2.length) {
+          leftArr.push(...e2);
+        }
+        indexState[i] = e2.length;
+      } else {
+        indexState[i] = 0;
       }
     }
+    let characterNumber = 0;
+    const perTimeArr: string[] = [];
+    while (leftArr.length) {
+      const service = await serviceWork();
+      const services = await getServices();
+      const charasPerTime = services[service.serviceID].charasPerTime;
+      const str = leftArr.shift();
+      if (!str) break;
+      characterNumber += str.length;
+      if (characterNumber < charasPerTime) {
+        perTimeArr.push(str);
+      } else {
+        leftArr.unshift(str);
+        //翻译
+        result = await fullTextTranslate.translateExec(perTimeArr);
+        if (!result || !result.length || typeof result == "string") {
+          // 写入缓存，退出程序，修改错误，下次从缓存读取已经翻译的内容
+          const service = await serviceWork();
+          await saveJsonToDisk({
+            docItem: docItem,
+            totranArr: totranArr,
+            paraIDs: paraIDs,
+            indexState: indexState,
+            paragraph: paragraph,
+            perTimeArr: perTimeArr,
+            leftArr: leftArr,
+            serviceID: service.serviceID
+          }, "translatedCache");
+          throw new Error("翻译失败" + perTimeArr);
+
+        }
+        perTimeArr.length = 0;
+        //"no available service"
+        const translation = result.map((e) => e.translation);
+        const serviceIDs = result.map((e) => e.serviceID);
+        if (result.slice(-1)[0].status != "error") {
+          for (const e of paragraph) {
+            e.translation = translation.splice(0, 1)[0];
+            e.serviceID = serviceIDs.splice(0, 1)[0];
+            await paraPostTran(e);
+          }
+        } else {
+          translation.splice(-1);
+          serviceIDs.splice(-1);
+          if (translation.length) {
+            for (let i = 0; i < translation.length; i++) {
+              paragraph[i].translation = translation.splice(0, 1)[0];
+              paragraph[i].serviceID = serviceIDs.splice(0, 1)[0];
+              await paraPostTran(paragraph[i]);
+            }
+            //标记翻译失败
+            docItem.status = "error";
+            showInfo(
+              getString("info-translateFailure") +
+              ": " +
+              result.slice(-1)[0]
+
+            );
+          }
+        }
+      }
+
+
+    }
+
+
+
+
+
+
+    // 开始翻译
+
+
 
     //表格引用批量翻译后处理
     const tableCitation = objArrToTranArr.filter(
@@ -952,7 +1014,17 @@ export class fullTextTranslate {
         .flat(Infinity) as string[];
       if (totranArr.length) {
         result = await fullTextTranslate.translateExec(totranArr);
-        if (!result || !result.length) return;
+        if (!result || !result.length || typeof result == "string") {
+          // 写入缓存，退出程序，修改错误，下次从缓存读取已经翻译的内容
+          const service = await serviceWork();
+          await saveJsonToDisk({
+            docItem: docItem,
+            totranArr: totranArr,
+            serviceID: service.serviceID
+          }, "translatedCache");
+          throw new Error("翻译失败" + totranArr);
+
+        }
         const translation = result.map((e) => e.translation);
         const serviceID = result.map((e) => e.serviceID);
         if (result.slice(-1)[0].status != "error") {
@@ -1231,74 +1303,71 @@ export class fullTextTranslate {
   }
 
   /**
-   * 筛选出符合条件的翻译引擎
+   * 筛选出余额够用的翻译引擎
    * @param num
    * @returns
    */
-  static async checkQuotaSwitch(num: number) {
+  static async checkQuotaSwitch(num?: number) {
     let onSwitchResult;
-    const services = await getServices();
     /* eslint-disable no-constant-condition */
     while (true) {
       const service = await getSingleServiceUnderUse();
       if (!service) return;
-      const serviceID = service.serviceID;
-      //const secretKey = service.sec;
-      const charasPerTime = services[serviceID].charasPerTime;
       if (service instanceof TranslateServiceAccount) {
-        //const secretKeyObj = await serviceManage.getAccount(serviceID, secretKey!);
         // 如果有秘钥，则检查该秘钥的余额情况
         const key = service.secretKey || service.token;
         if (key) {
-          let factor = Number(getPref("charasLimitFactor"));
-          if (isNaN(factor)) {
-            factor = 1;
-          }
-          /* if (services[serviceID].charasLimit === undefined) {
-            recoverDefaultLimit(serviceID, "charasLimit");
-          } */
-          let charasLimit;
-          if (factor != undefined) {
-            charasLimit = services[serviceID].charasLimit * factor;
-          } else {
-            charasLimit = services[serviceID].charasLimit;
-          }
-          const availableChars = charasLimit - service.charConsum;
-          if (availableChars < num - 10) {
-            onSwitchResult = await serviceManage.onSwitch(true);
-            //失败后退出，成功则循环检查
-            if (!onSwitchResult) {
-              //失败就存一下
-              return "no available service";
-            }
-            //剩余额度小于每次请求限制数，调整限制数为剩余额度，
-            //避免拆分合并的字符数超过每次请求限制
-            //如果剩余数过少，直接更换引擎
-          } else if (availableChars < charasPerTime) {
-            if (availableChars > 1000) {
-              return availableChars;
-            } else {
-              onSwitchResult = await serviceManage.onSwitch(true);
-              if (!onSwitchResult) {
-                return "no available service";
-              }
-            }
-          } else {
-            break;
-          }
-          //如果引擎需要秘钥，但没有秘钥，则更换引擎
+          const res = await judgeAndSwith(service);
+          if (res) break;//可用退出循环
+          if (res === false) return;
+          // 成功更换，重新校验          
         } else {
+          //如果引擎需要秘钥，但没有秘钥，则更换引擎
           onSwitchResult = await serviceManage.onSwitch(true);
-          if (!onSwitchResult) {
-            return "no available service";
-          }
+          if (!onSwitchResult) return;//无可用，退出函数
+          // 成功更换，重新校验 
         }
-        //无需秘钥则直接退出循环然后退出函数
       } else {
-        break;
+        //无需秘钥
+        const res = await judgeAndSwith(service);
+        if (res) break;//可用退出循环
+        if (res === false) return;//无可用，退出函数
+        // 成功更换，重新校验
+      }
+    }
+
+    return true;// 校验成功
+
+    async function judgeAndSwith(service: TranslateService | TranslateServiceAccount) {
+      const services = await getServices();
+      let parentService;
+      if (service instanceof TranslateService) {
+        parentService = service;
+      } else {
+        parentService = services[service.serviceID];
+      }
+      if (!service.charConsum) return true;
+      const charasLimit = getCharasLimit(parentService);
+      const availableChars = charasLimit - service.charConsum;
+      if (num && availableChars < num - 10) {
+        onSwitchResult = await serviceManage.onSwitch(true);
+        //失败后退出，成功则循环检查
+        if (!onSwitchResult) {
+          return false;
+        }
+      } else if (availableChars < parentService.charasPerTime) {
+        //剩余额度小于每次请求限制数，直接更换引擎
+        onSwitchResult = await serviceManage.onSwitch(true);
+        if (!onSwitchResult) {
+          return false;
+        }
+      } else {
+        return true;
       }
     }
   }
+
+
 
   /**
    *
@@ -1309,127 +1378,89 @@ export class fullTextTranslate {
   static async translateExec(sourceTxt: string | string[]) {
     let toTranArr: string[] = [];
     const transResultArr: TransResult[] = [];
-    if (sourceTxt === undefined) {
-      const obj: TransResult = {
-        translation: "",
-        serviceID: "",
-        status: "error",
-      };
-      return [obj];
-    }
+    if (sourceTxt === undefined) return;
     if (typeof sourceTxt == "string") {
       toTranArr = [sourceTxt];
     } else {
-      toTranArr = sourceTxt.filter((e) => e);
+      toTranArr = [...sourceTxt];
     }
-    //const keyUse = getSingleServiceUnderUse().key;
-    const service = await getSingleServiceUnderUse();
-    if (!service) {
-      showInfo("没有指定翻译引擎或账号");
-      return;
-    }
-    const checkResult = await serviceManage.serviceAvailableCheck(service);
-    if (!checkResult) {
-      showInfo("无可用翻译引擎或账号");
-      throw "无可用翻译引擎或账号";
-    }
-    const translatingProgress = new ztoolkit.ProgressWindow(config.addonName, {
-      closeOnClick: true,
-      closeTime: -1,
-      closeOtherProgressWindows: true,
-    });
-    const translatingInfoA = `${service.serviceID}: ${getString("translating")}...✍️...`;
-    const translatingInfoB = `${service.serviceID}: ✍️...${getString("translating")}...✍️`;
-    const translatingInfoC = `${service.serviceID}: ✍️...✍️...${getString("translating")}`;
-    let LoopCountor = 0;
-    let text = "";
-    translatingProgress
-      .createLine({
-        text:
-          getString(`service-${service.serviceID}`) +
-          getString("start-translating"),
-        type: "default",
-      })
-      .show();
+    let service;
 
-    let leftArr = toTranArr.map((e) => e);
-    let toTran = "";
+    //准备额度充足的引擎
+    const check = await this.checkQuotaSwitch();
+    if (!check) { return "no available service"; }
+
+
+
+
+    const indexState: any = {};
+    const temp = [];
+    const reg = /\n+/;
+    for (let i = 0; i < toTranArr.length; i++) {
+      const e = toTranArr[i];
+      if (e && e.length && !e.match(/^ *$/)) {
+        const e2 = e.split(reg).filter(e => e.length); //以‘\n’分割消除 \n ,过滤掉空字符串;
+        if (e2.length) {
+          temp.push(...e2);
+        }
+        indexState[i] = e2.length;
+      } else {
+        indexState[i] = 0;
+      }
+    }
+    if (!temp || !temp.length) return;
+    const leftArr = [...temp];
+    let toTran;
     let loopTimes = 0;
     let lastServiceID = "";
-    const services = await getServices();
+
+    const tp = translatingProgress();
+
     while (leftArr.length) {
-      //翻译引擎支持多段翻译,合并后翻译提高效率
-      loopTimes += 1;
-      let charasPerTime: number;
-      const num = leftArr[0].length;
-      const check = await this.checkQuotaSwitch(num);
-      const service = await getSingleServiceUnderUse();
-      if (!service) return;
+      service = await serviceWork();
+      if (!service) {
+        return "no available service";
+      }
+      const services = await getServices();
       const serviceID = service.serviceID;
+      const charasPerTime = services[service.serviceID].charasPerTime;
 
-      if (loopTimes != 0 && lastServiceID == serviceID) {
-        if (service instanceof TranslateServiceAccount) {
-          if (service.charConsum == 0) {
-            showInfo("error: characters record failure");
-            break;
-          }
-        }
-      }
-
-      lastServiceID = serviceID;
-      if (check !== undefined && typeof check == "number") {
-        charasPerTime = check;
-      } else if (check !== undefined && check == "no available service") {
-        const obj: TransResult = {
-          translation: "",
-          serviceID: serviceID,
-          status: "error",
-        };
-        transResultArr.push(obj);
-        break;
-      } else {
-        charasPerTime = services[serviceID].charasPerTime;
-      }
-      //判断翻译引擎额度是否够本次翻译
-      if (
-        services[serviceID].supportMultiParas &&
-        leftArr.length > 1 &&
-        leftArr[0].length <= charasPerTime &&
-        leftArr[0].length > 0
-      ) {
-        //将可以合并的句子按翻译引擎字符数限制合并
-        // 超过翻译引擎字符数限制的句子在翻译前拆分，以后合并
-        // 翻译结束再根据"\n"拆分合并的句子
-        const lengthOfBefor = leftArr.length;
-        const combineObj = fullTextTranslate.combineByLimitOneRequest(
-          leftArr,
-          charasPerTime,
-        );
+      //翻译引擎支持多段翻译,合并后翻译提高效率 
+      if (services[service.serviceID].supportMultiParas && leftArr.length > 1 && leftArr[0].length < charasPerTime) {
+        //合并后翻译          
+        const lengthOfBefor = leftArr.length; //合并前数组长度
+        //leftArr 长度随着合并而改变        
+        const combineObj = fullTextTranslate.combineByLimitOneRequest(leftArr, charasPerTime);
         toTran = combineObj.str;
-        leftArr = combineObj.leftArr;
-        const lengthOfAfter = leftArr.length;
-        const arrLengthToTran = lengthOfBefor - lengthOfAfter;
+        if (!toTran.length) continue;//空字符串
+
+
+
+        const lengthOfAfter = leftArr.length;//合并后数组长度
+        const arrLengthToTran = lengthOfBefor - lengthOfAfter;// 翻译数组长度
+        tp(serviceID, loopTimes);
         const resultStr = await fullTextTranslate.translateGo(toTran);
         if (resultStr == "no available service") {
-          const obj: TransResult = {
-            translation: resultStr,
-            serviceID: serviceID,
-            status: "error",
-          };
-          transResultArr.push(obj);
-          break;
+          return "no available service";
         }
         const reg = /\n$/g;
+        // 译文拆分
         const splitArr = resultStr.replace(reg, "").split("\n");
         if (arrLengthToTran != splitArr.length) {
-          const obj: TransResult = {
-            translation: resultStr,
-            serviceID: serviceID,
-            status: "error",
-          };
-          transResultArr.push(obj);
-          break;
+          // 写入缓存，退出程序，修改错误，下次从缓存读取已经翻译的内容
+          await saveJsonToDisk({
+            transResultArr: transResultArr,
+            loopTimes: loopTimes,
+            leftAr: leftArr,
+            toTranArr: toTranArr,
+            indexState: indexState,
+            toTran: toTran,
+            splitArr: splitArr
+          }, "translatedCache-splitError");
+          return "no available service";
+
         }
+        // 译文写入结果
         for (const item of splitArr) {
           const obj: TransResult = {
             translation: item,
@@ -1439,22 +1470,19 @@ export class fullTextTranslate {
           transResultArr.push(obj);
         }
       } else {
-        //翻译引擎不支持多段翻译或者需要拆分
-        //Translation engine does not support multi-paragraph translation
-        toTran = leftArr.shift()!;
+        toTran = leftArr.shift();
+        if (!toTran) {
+          loopTimes++;
+          continue;
+        }
+        // 超限拆分
         if (toTran.length > charasPerTime) {
           toTranArr = this.wholeSentenceSplit(toTran, charasPerTime);
           const tempArr: string[] = [];
           for (const toTran of toTranArr) {
             const resultStr = await fullTextTranslate.translateGo(toTran);
             if (resultStr == "no available service") {
-              const obj: TransResult = {
-                translation: resultStr,
-                serviceID: serviceID,
-                status: "error",
-              };
-              transResultArr.push(obj);
-              break;
+              return "no available service";
             }
             tempArr.push(resultStr);
           }
@@ -1466,6 +1494,47 @@ export class fullTextTranslate {
           };
           transResultArr.push(obj);
         } else {
+          tp(serviceID, loopTimes);
+          const resultStr = await fullTextTranslate.translateGo(toTran);
+          if (resultStr == "no available service") {
+            return "no available service";
+          }
+          const obj: TransResult = {
+            translation: resultStr,
+            serviceID: serviceID,
+            status: "success",
+          };
+          transResultArr.push(obj);
+        }
+      }
+
+
+
+      if (loopTimes != 0 && lastServiceID == serviceID) {
+        // 非首次循环，若有秘钥账号的消耗为零，则有误
+        if (service instanceof TranslateServiceAccount) {
+          if (service.charConsum == 0) {
+            showInfo("error: characters record failure");
+          }
+        }
+      }
+
+      lastServiceID = serviceID;
+
+
+
+      loopTimes += 1;
+    }
+
+    tp('', loopTimes)(true);
+
+    return transResultArr;
+
+    async function todo(toTran: string, charasPerTime: number, serviceID: string) {
+      if (toTran.length > charasPerTime) {
+        toTranArr = fullTextTranslate.wholeSentenceSplit(toTran, charasPerTime);
+        const tempArr: string[] = [];
+        for (const toTran of toTranArr) {
           const resultStr = await fullTextTranslate.translateGo(toTran);
           if (resultStr == "no available service") {
             const obj: TransResult = {
@@ -1476,35 +1545,80 @@ export class fullTextTranslate {
             transResultArr.push(obj);
             break;
           }
+          tempArr.push(resultStr);
+        }
+        const resultStr = tempArr.join("");
+        const obj: TransResult = {
+          translation: resultStr,
+          serviceID: serviceID,
+          status: "success",
+        };
+        transResultArr.push(obj);
+      } else {
+        const resultStr = await fullTextTranslate.translateGo(toTran);
+        if (resultStr == "no available service") {
           const obj: TransResult = {
             translation: resultStr,
             serviceID: serviceID,
-            status: "success",
+            status: "error",
           };
+
           transResultArr.push(obj);
+          throw new Error("翻译失败：" + toTran);
         }
+        const obj: TransResult = {
+          translation: resultStr,
+          serviceID: serviceID,
+          status: "success",
+        };
+        transResultArr.push(obj);
       }
-      LoopCountor % 3 == 0
-        ? (text = translatingInfoA)
-        : LoopCountor % 2
-          ? (text = translatingInfoB)
-          : (text = translatingInfoC);
-      translatingProgress.changeLine({
-        text: text,
-      });
-      LoopCountor += 1;
     }
-    translatingProgress.close();
-    return transResultArr;
+
+
+
+    function translatingProgress() {
+      const translatingProgress = new ztoolkit.ProgressWindow(config.addonName, {
+        closeOnClick: true,
+        closeTime: -1,
+        closeOtherProgressWindows: true,
+      });
+      return function (serviceID: string, loopTimes: number) {
+        const translatingInfoA = `${serviceID}: ${getString("translating")}...✍️...`;
+        const translatingInfoB = `${serviceID}: ✍️...${getString("translating")}...✍️`;
+        const translatingInfoC = `${serviceID}: ✍️...✍️...${getString("translating")}`;
+        let text = "";
+        translatingProgress
+          .createLine({
+            text:
+              getString(`service-${serviceID}`) +
+              getString("start-translating"),
+            type: "default",
+          })
+          .show();
+        loopTimes % 3 == 0
+          ? (text = translatingInfoA)
+          : loopTimes % 2
+            ? (text = translatingInfoB)
+            : (text = translatingInfoC);
+        translatingProgress.changeLine({
+          text: text,
+        });
+        return function (isclose: boolean = true) {
+          if (isclose) {
+            translatingProgress.close();
+          }
+        };
+      };
+    }
   }
 
   static translateGo = async (sourceSegment: string) => {
     if (!Zotero.Streamer._socketOpen()) {
       throw getString("info-networkDisconnected");
     }
-
     let service = await getSingleServiceUnderUse();
-    if (!service) throw "no available service";
+    if (!service) return "no available service";
     const services = await getServices();
     let serviceID = service.serviceID;
     let serviceUsing = services[serviceID];
@@ -1517,7 +1631,7 @@ export class fullTextTranslate {
       //如果更换引擎失败，返回特定字符
       if (!(await serviceManage.onSwitch())) return "no available service";
       service = await getSingleServiceUnderUse();
-      if (!service) throw "no available service";
+      if (!service) return "no available service";
       serviceID = service.serviceID;
       serviceUsing = services[serviceID];
     }
@@ -1547,12 +1661,15 @@ export class fullTextTranslate {
       func = Zotero.PDFTranslate.api.translate;
       if (!func) {
         showInfo("请安装 Zotero PDF Translate 插件");
-        throw new Error("请安装 Zotero PDF Translate 插件");
+        return "no available service";
       }
       await serviceManage.switchPDFTranslate(service);
       args = [];
     }
-    if (!func) throw new Error("No Avaliable Translate Service");
+    if (!func) {
+      showInfo("无相应翻译功能函数");
+      return "no available service";
+    }
 
 
     const trans: string[] = [];
@@ -1563,7 +1680,9 @@ export class fullTextTranslate {
         // 开始翻译
         const paraResult = await func(string, ...args);
         if (paraResult.result.includes("[请求错误]")) {
-          throw new Error(paraResult.result);
+          showInfo(paraResult.result);
+          return "no available service";
+
         }
         trans.push(paraResult.result);
         // 记录字符消耗
@@ -1847,4 +1966,20 @@ export class fullTextTranslate {
     }
     return mdTxtTransResult;
   };
+}
+
+
+async function serviceWork() {
+  let service = await getSingleServiceUnderUse();
+  if (!service) throw new Error("没有指定翻译引擎或账号");
+  const checkResult = await serviceManage.serviceAvailableCheck(service);
+  if (!checkResult) {
+    service = await getAvilabelService("all");
+    if (service) {
+      await setCurrentService(service.serviceID, service.serialNumber);
+    } else {
+      throw "无可用翻译引擎或账号";
+    }
+  }
+  return service;
 }

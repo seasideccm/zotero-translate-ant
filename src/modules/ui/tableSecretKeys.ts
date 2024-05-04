@@ -22,12 +22,13 @@ import {
 import { getDom, getElementValue } from "./uiTools";
 import {
   ServiceMap,
-  deleteAcount,
+  deleteAccount,
   getNextServiceSNSync,
   getSerialNumberSync,
   getServiceAccountSync,
   getServices,
   getServicesFromDB,
+  updateServices,
 } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue } from "../../utils/constant";
 import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from "../crypto";
@@ -36,6 +37,7 @@ import { getSettingValue, setSettingValue } from "../addonSetting";
 
 const dataVerify: any = {
   baidu: baiduVerify,
+  baidufield: baiduVerify,
   caiyun: caiyunVerify,
   tencent: tencentVerify,
   niutranspro: niutransproVerify,
@@ -464,7 +466,7 @@ export async function replaceSecretKeysTable() {
       //删除数据库数据
       //移到回收站？添加删除标志?
       for (const secretkeyDelete of secretkeysDelete) {
-        deleteAcount(Number(secretkeyDelete));
+        deleteAccount(Number(secretkeyDelete));
       }
 
       tableTreeInstance.invalidate();
@@ -889,11 +891,8 @@ export async function replaceSecretKeysTable() {
         return;
       }
       let serviceID = getElementValue("serviceID") as string;
-      if (
-        ["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)
-      ) {
-        // @ts-ignore xxx
-        serviceID = "baidu";
+      if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+        serviceID = serviceID.replace("Modify", "");
       }
       const serialNumber = getSerialNumberSync(serviceID, rowData.appID);
       //比较false==0的结果为true
@@ -919,7 +918,15 @@ export async function replaceSecretKeysTable() {
         serviceAccountsSave.push(serviceAccount);
       } else {
         try {
-          serviceAccountsSave.push(saveNewAccount(rowData));
+          const account = saveNewAccount(rowData);
+          serviceAccountsSave.push(account);
+          if (account.serviceID.includes("baidu")) {
+            const serviceID2 = account.serviceID == "baidu" ? "baidufield" : "baidu";
+            const rowData2 = deepClone(rowData);
+            rowData2.charConsum = 0;
+            const account2 = saveNewAccount(rowData2, serviceID2);
+            serviceAccountsSave.push(account2);
+          }
         } catch (e) {
           notifyAccountSave(serviceAccountsSave);
           clearEditing();
@@ -931,28 +938,28 @@ export async function replaceSecretKeysTable() {
     notifyAccountSave(serviceAccountsSave);
     clearEditing();
     tableTreeInstance.invalidate();
+
   }
-  function saveNewAccount(rowData: any) {
-    const serialNumber = getNextServiceSNSync();
-    const accuntOptions: any = {};
-    let serviceID = getElementValue("serviceID") as string;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
-    }
-    accuntOptions.serviceID = serviceID;
-    accuntOptions.serialNumber = serialNumber; //
-    Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
-    accuntOptions.forbidden = false;
-    const account = new TranslateServiceAccount(accuntOptions);
-    const service = addon.mountPoint.services[serviceID];
-    if (!service) {
-      throw new Error("service not found: " + service);
-    }
-    if (!service.accounts) service.accounts = [];
-    service.accounts.push(account);
-    return account;
-  }
+  /*  export function saveNewAccount(rowData: any, serviceID?: string) {
+      const serialNumber = getNextServiceSNSync();
+      const accuntOptions: any = {};
+      serviceID = serviceID ? serviceID : getElementValue("serviceID") as string;
+      if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+        serviceID = serviceID.replace("Modify", "");
+      }
+      accuntOptions.serviceID = serviceID;
+      accuntOptions.serialNumber = serialNumber; //
+      Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
+      accuntOptions.forbidden = false;
+      const account = new TranslateServiceAccount(accuntOptions);
+      const service = addon.mountPoint.services[serviceID];
+      if (!service) {
+        throw new Error("service not found: " + service);
+      }
+      if (!service.accounts) service.accounts = [];
+      service.accounts.push(account);
+      return account;
+    } */
   function saveNewAccounts(rows: any[]) {
     const serviceAccountsSave = [];
     for (const rowData of rows) {
@@ -968,6 +975,7 @@ export async function replaceSecretKeysTable() {
     notifyAccountSave(serviceAccountsSave);
     clearEditing();
     tableTreeInstance.invalidate();
+
   }
 
   function notifyAccountSave(obj: any | any[]) {
@@ -1053,8 +1061,8 @@ export async function replaceSecretKeysTable() {
   async function batchAddAccount(text: string) {
     if (!text) return;
     let serviceID = getElementValue("serviceID") as string;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+      serviceID = serviceID.replace("Modify", "");
     }
     if (!dataVerify[serviceID]) {
       throw new Error(serviceID + ": No validation method defined for this engine, unable to validate data");
@@ -1267,6 +1275,27 @@ export async function replaceSecretKeysTable() {
     await Cry.importCryptoKey();
     return;
   }
+}
+
+export function saveNewAccount(rowData: any, serviceID?: string) {
+  const serialNumber = getNextServiceSNSync();
+  const accuntOptions: any = {};
+  serviceID = serviceID ? serviceID : getElementValue("serviceID") as string;
+  if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    serviceID = serviceID.replace("Modify", "");
+  }
+  accuntOptions.serviceID = serviceID;
+  accuntOptions.serialNumber = serialNumber; //
+  Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
+  accuntOptions.forbidden = false;
+  const account = new TranslateServiceAccount(accuntOptions);
+  const service = addon.mountPoint.services[serviceID];
+  if (!service) {
+    throw new Error("service not found: " + service);
+  }
+  if (!service.accounts) service.accounts = [];
+  service.accounts.push(account);
+  return account;
 }
 
 export function elemHiddenSwitch(labelIDs: string[], hidden?: boolean) {
@@ -1570,9 +1599,8 @@ async function secretKeysRows<T extends keyof TranslateService>(
   getEmptyData: boolean = false,
 ) {
   let services = await getServices();
-  if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
-    serviceID = "baidu";
+  if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    serviceID = serviceID.replace("Modify", "") as T;
   }
   let serviceSelected = services[serviceID];
   if (!serviceSelected || !serviceSelected.accounts) {

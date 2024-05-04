@@ -7,6 +7,7 @@ import { getPref } from "../../utils/prefs";
 import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { getCurrentserviceID } from "../addonSetting";
 import { fillServiceTypes, getDB, getDBSync } from "../database/database";
+import { saveNewAccount } from "../ui/tableSecretKeys";
 import { TranslateService, TranslateServiceAccount } from "./translateService";
 
 /**
@@ -62,13 +63,54 @@ export interface ServiceMap {
 
 export async function getServices() {
   let services = addon.mountPoint.services as ServiceMap;
-  if (services) return services;
+  if (services) {
+    //如果百度和百度领域账号不同，则更新两者后从数据库重新读取
+    if (!await syncBaiduAndBaidufield(services)) return services;
+  }
   services = await getServicesFromDB();
   if (!services)
     services = await servicesToDB(
       keysTranslateService,
       parasArrTranslateService,
     );
+  if (!services) throw "Database Initial Error";
+  addon.mountPoint.services = services;
+  await getNextServiceSN();
+  //如果百度和百度领域账号不同，则更新两者后从数据库重新读取
+  if (await syncBaiduAndBaidufield(services)) {
+    services = await getServices();
+  }
+  return services;
+}
+
+export async function syncBaiduAndBaidufield(services: ServiceMap) {
+  const acountsBaidu = services["baidu"].accounts;
+  const acountsBaidufield = services["baidufield"].accounts;
+  const savedAccounts = [];
+  if (acountsBaidu?.length !== acountsBaidufield?.length) {
+    const accounts = [];
+    if (acountsBaidu && acountsBaidu.length) accounts.push(...acountsBaidu);
+    if (acountsBaidufield && acountsBaidufield.length) accounts.push(...acountsBaidufield);
+
+    for (const account of accounts) {
+      if (acountsBaidu?.some(a => a.appID == account.appID) && acountsBaidufield?.some(a => a.appID == account.appID)) continue;
+      const serviceID2 = account.serviceID == "baidu" ? "baidufield" : "baidu";
+      const rowData2: any = {};
+      rowData2.appID = account.appID;
+      rowData2.secretKey = account.secretKey;
+      rowData2.usable = account.usable;
+      rowData2.charConsum = 0;
+      const account2 = saveNewAccount(rowData2, serviceID2);
+      await account2.save();
+      savedAccounts.push(account2);
+    }
+  }
+  if (savedAccounts.length) return true;
+  return false;
+}
+
+export async function updateServices() {
+  const services = await getServicesFromDB();
   if (!services) throw "Database Initial Error";
   addon.mountPoint.services = services;
   await getNextServiceSN();
@@ -82,10 +124,18 @@ export async function getTranslateService(serviceID: string) {
 
 export async function getServiceBySN(serialNumber: string | number) {
   const services = await getServices();
-  let service = Object.values(services).filter(
+  let service;
+  service = Object.values(services).filter(
     (s) => s.serialNumber == serialNumber,
   )[0];
   if (service) return service;
+
+  //const services = addon.mountPoint.services as ServiceMap;
+  const serviceWithAccount = Object.values(services).filter(s => s.accounts && s.accounts.length);
+  const accounts = serviceWithAccount.map(s => s.accounts).flat(1).filter(e => e);
+  service = accounts.filter(a => a && a.serialNumber == serialNumber)[0];
+  if (service) return service;
+
   const serviceID = await getCurrentserviceID();
   service = Object.values(services).filter(
     (service) => service.serviceID == serviceID,
@@ -96,11 +146,13 @@ export async function getServiceBySN(serialNumber: string | number) {
       (a) => a.serialNumber == serialNumber,
     );
     if (account) {
-      if (account.serviceID == "baidu") account.serviceID = serviceID;
+      if (account.serviceID == "baidu" || account.serviceID == "baidufield") account.serviceID = serviceID;
       return account;
     }
   }
 }
+
+
 
 export function getSerialNumberSync(serviceID: string, appID: string) {
   const service = addon.mountPoint.services[serviceID];
@@ -133,20 +185,41 @@ export async function getSerialNumber(serviceID: string, appID?: any) {
   return await DB.valueQueryAsync(sql);
 }
 
-export async function deleteAcount(serialNumber: number) {
+export async function deleteAccount(serialNumber: number) {
+  const sns = [serialNumber];
+  const services = addon.mountPoint.services as ServiceMap;
+  const serviceWithAccount = Object.values(services).filter(s => s.accounts && s.accounts.length);
+  const accounts = serviceWithAccount.map(s => s.accounts).flat(1).filter(e => e);
+  const service = accounts.filter(a => a && a.serialNumber == serialNumber)[0];
+
+  if (service && service instanceof TranslateServiceAccount && service.serviceID.includes("baidu")) {
+    const serviceID2 = service.serviceID == "baidu" ? "baidufield" : "baidu";
+    const serialNumber2 = services[serviceID2].accounts?.filter(a => a.appID == service.appID)[0].serialNumber;
+    if (serialNumber2) sns.push(serialNumber2);
+
+  }
   const DB = getDBSync();
   if (!DB) return;
-  await DB.executeTransaction(async () => {
-    await DB.queryAsync(
-      `DELETE FROM translateServiceSN WHERE serialNumber='${serialNumber}'`,
-    );
-    await DB.queryAsync(
-      `DELETE FROM accounts WHERE serialNumber='${serialNumber}'`,
-    );
-    await DB.queryAsync(
-      `DELETE FROM accessTokens WHERE serialNumber='${serialNumber}'`,
-    );
-  });
+  for (const sn of sns) {
+    await DB.executeTransaction(async () => {
+      await DB.queryAsync(
+        `DELETE FROM translateServiceSN WHERE serialNumber='${sn}'`,
+      );
+      await DB.queryAsync(
+        `DELETE FROM accounts WHERE serialNumber='${sn}'`,
+      );
+      await DB.queryAsync(
+        `DELETE FROM accessTokens WHERE serialNumber='${sn}'`,
+      );
+      await DB.queryAsync(
+        `DELETE FROM charConsum WHERE serialNumber='${sn}'`,
+      );
+      await DB.queryAsync(
+        `DELETE FROM totalCharConsum WHERE serialNumber='${sn}'`,
+      );
+    });
+  }
+  await updateServices();
 }
 
 export async function getServiceAccount(
@@ -297,8 +370,8 @@ async function getCommonProperty(serviceID: string) {
 }
 
 async function getAccounts(serviceID: string, tableName: string) {
-  if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    serviceID = "baidu";
+  if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    serviceID = serviceID.replace("Modify", "");
   }
   const DB = await getDB();
   const sqlColumns = [`${tableName}.serialNumber`, `${tableName}.appID`];
@@ -308,6 +381,7 @@ async function getAccounts(serviceID: string, tableName: string) {
   sqlColumns.push("usable", "charConsum", "dateMarker", "forbidden");
   const tableName2 = "translateServiceSN";
   const sql = `SELECT DISTINCT ${sqlColumns.join(", ")} FROM ${tableName} JOIN ${tableName2} USING (serviceID) JOIN charConsum USING (serialNumber) WHERE serviceID = '${serviceID}'`;
+  //todo 删除重复账号
   const rows = await DB.queryAsync(sql);
   if (rows.length == 0) {
     //showInfo("There are no " + serviceID + " accounts in the database.");
@@ -371,3 +445,5 @@ export function dbRowsToArray(rows: any[], sqlColumns: string[]) {
   const valuesArr = rows.map((row: any) => keys.map((column) => row[column]));
   return valuesArr;
 }
+
+

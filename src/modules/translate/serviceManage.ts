@@ -104,6 +104,11 @@ export class serviceManage {
         }
       }
       const result = await Zotero.PDFTranslate.api.translate("hello");
+      if (result.result.includes("Request error:")) {
+        return false;
+      } else {
+        return true;
+      }
     }
     const services = await getServices();
     if (service instanceof TranslateServiceAccount) {
@@ -113,11 +118,6 @@ export class serviceManage {
     }
 
     const date = new Date();
-    //const formatter = new Intl.DateTimeFormat("en-US", {
-    //  day: "2-digit",
-    //  month: "2-digit",
-    //  year: "numeric",
-    //});
     const currentDay = Zotero.Date.dateToSQL(date, false); //"2024-04-25 08:09:30"
     const currentMonth = date.getMonth() + 1;
     const today = date.getDate();
@@ -130,7 +130,7 @@ export class serviceManage {
         service["usable"] = 1;
       }
       await updateServiceData(service, "usable", service["usable"]);
-      return service["usable"];
+      return Boolean(service["usable"]);
     }
     let singleAccount;
     if (
@@ -166,7 +166,7 @@ export class serviceManage {
         singleAccount.usable = 1;
       }
       await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
-      return singleAccount.usable;
+      return Boolean(singleAccount.usable);
     }
     if (!singleAccount.dateMarker) {
       //日期标志错误或未定义
@@ -204,7 +204,7 @@ export class serviceManage {
       singleAccount.usable = 1;
     }
     await updateServiceData(singleAccount, "usable", singleAccount["usable"]);
-    return singleAccount.usable;
+    return Boolean(singleAccount.usable);
 
     function dayOrMonth(dateMarker: string, type: "day" | "month") {
       let date;
@@ -734,9 +734,8 @@ export function getServicesInfo() {
   return servicesPref;
 }
 /**
- * 获取当前使用的引擎对象
- * 如果是 PDFTranslate 插件的翻译引擎，返回其 prefs 相关信息
- * 否则返回本插件的 prefs 相关信息
+ * 获取当前引擎对象
+ * 为空时，提供一个可用引擎
  * @returns
  */
 export async function getSingleServiceUnderUse() {
@@ -751,6 +750,9 @@ export async function getSingleServiceUnderUse() {
   }
   const service = services[serviceIDUsing];
   let serialNumber = await getCurrentServiceSN();
+  if (service.serialNumber && service.serialNumber == serialNumber) {
+    return service;
+  }
   if (serialNumber === false) {
     let account;
     if (service.accounts && service.accounts.length) {
@@ -766,7 +768,7 @@ export async function getSingleServiceUnderUse() {
   }
   if (service.serialNumber && service.serialNumber != serialNumber) {
     await setCurrentService(service.serviceID, service.serialNumber);
-    serialNumber = service.serialNumber;
+    return service;
   }
   if (service.accounts) {
     const sns = service.accounts.filter(a => !a.forbidden && a.usable).map(a => a.serialNumber).filter(e => e);
@@ -777,9 +779,14 @@ export async function getSingleServiceUnderUse() {
       }
       return service2;
     }
-    if (!sns.includes(serialNumber)) {
+    if (!sns.includes(Number(serialNumber))) {
       serialNumber = sns[0];
       await setCurrentService(service.serviceID, serialNumber);
+      return service.accounts[0];
+    } else {
+      const account = service.accounts.filter(a => a.serialNumber == Number(serialNumber))[0];
+      account.serviceID = service.serviceID;
+      return account;
     }
   }
   if (!service.serialNumber && !service.accounts) {
@@ -789,10 +796,6 @@ export async function getSingleServiceUnderUse() {
     }
     return service2;
   }
-  if (serialNumber) {
-    return (await getServiceBySN(serialNumber))!;
-  }
-
 
 }
 

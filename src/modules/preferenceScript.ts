@@ -249,9 +249,9 @@ async function buildPrefsPane() {
   async function updateLimits() {
     const elementService = getDom("serviceID") as XUL.MenuList;
     let serviceID = elementService.value;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
       // @ts-ignore xxx
-      serviceID = "baidu";
+      serviceID = serviceID.replace("Modify", "");
     }
     const services = await getServices();
     const service = services[serviceID] as TranslateService;
@@ -445,9 +445,8 @@ function bindPrefEvents() {
   batchListen([getDom("saveLimitParam")!, ["command"], [saveLimit]]);
   async function saveLimit(e: Event) {
     let serviceID = getElementValue("serviceID") as string;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+      serviceID = serviceID.replace("Modify", "");
     }
     const services = await getServices();
     const service = services[serviceID as keyof typeof services];
@@ -484,9 +483,8 @@ function bindPrefEvents() {
   async function forbiddenService(e: Event) {
     ztoolkit.log(e);
     let serviceID = getElementValue("serviceID") as keyof TranslateService;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+      serviceID = serviceID.replace("Modify", "") as keyof TranslateService;
     }
     const confirm = addon.data.prefs!.window.confirm(
       `${getString("pref-forbiddenService")}:         
@@ -624,11 +622,7 @@ export async function clickSwitchService(e?: Event) {
   const elem = getDom("serviceID") as XUL.MenuList;
   if (!elem) return;
   const serviceID = elem.value;
-  /* if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
-    serviceID = "baidu";
-  } */
-  let serialNumber: string;
+  let serialNumber: string | undefined;
   const row = getSelectedRow();
   if (!row) {
     //未选择行
@@ -636,14 +630,16 @@ export async function clickSwitchService(e?: Event) {
     const service = services[serviceID];
     if (!service.hasSecretKey && !service.hasToken) {
       //引擎没有秘钥
-      if (!service.serialNumber) return;
-      serialNumber = service.serialNumber.toString();
+      if (service.serialNumber) {
+        serialNumber = service.serialNumber.toString();
+      }
     } else {
       //引擎有秘钥，选一个可用的
-      if (!service.accounts || !service.accounts.length) return;
-      serialNumber = service.accounts
-        ?.filter((account) => account.usable && !account.forbidden)[0]
-        .serialNumber.toString();
+      if (service.accounts && service.accounts.length) {
+        serialNumber = service.accounts
+          ?.filter((account) => account.usable && !account.forbidden)[0]
+          .serialNumber.toString();
+      }
     }
   } else {
     const appID = row.children[0].textContent;
@@ -659,9 +655,8 @@ export async function clickSwitchService(e?: Event) {
 }
 
 async function getSerialNumberByAppid(serviceID: string, appID: string) {
-  if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
-    serviceID = "baidu";
+  if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    serviceID = serviceID.replace("Modify", "");
   }
   const sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}' AND appID = '${appID}'`;
   const DB = await getDB();
@@ -671,8 +666,8 @@ async function getSerialNumberByAppid(serviceID: string, appID: string) {
 async function underUsing() {
   const service = await getSingleServiceUnderUse();
   if (!service) return;
-  const serviceID = getElementValue("serviceID");
-  setElementValue("serviceIDUnderUse", serviceID);
+  //const serviceID = getElementValue("serviceID");
+  setElementValue("serviceIDUnderUse", service.serviceID);
   if (service instanceof TranslateServiceAccount) {
     setElementValue("secretKeyUnderUse", service.appID);
   } else {
