@@ -248,11 +248,11 @@ async function buildPrefsPane() {
   await updateLimits();
   async function updateLimits() {
     const elementService = getDom("serviceID") as XUL.MenuList;
-    let serviceID = elementService.value;
-    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = serviceID.replace("Modify", "");
-    }
+    const serviceID = elementService.value;
+    //if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    // @ts-ignore xxx
+    //serviceID = serviceID.replace("Modify", "");
+    //}
     const services = await getServices();
     const service = services[serviceID] as TranslateService;
     //const ids = ["QPS", "charasPerTime", "hasSecretKey", "updateLimits", "limitMode", "charasLimit"];
