@@ -10,6 +10,7 @@ declare type TableFactoryOptions = {
 declare type DocItem = {
   itemID?: number;
   newItemID?: number;
+  parentItemID?: number;
   key?: string;
   content: DocCell[];
   status?: "error" | "success" | "cache";

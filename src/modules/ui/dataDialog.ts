@@ -142,20 +142,32 @@ async function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, 
       return getRowString(rows, index, tableTreeInstance);
     }
 
-    function combineRows(type: "up" | "down") {
+    function combineRows(type: "up" | "down" | "recover") {
+      if (!addon.mountPoint.rowsPrevious) addon.mountPoint.rowsPrevious = [];
+      const rowsPrevious: any[] = addon.mountPoint.rowsPrevious;
       let index = tableTreeInstance.selection.focused;
       if (index == void 0) index = Array.from(tableTreeInstance.selection.selected)[0];
       if (index == void 0) return true;
       if (type == "up") {
         if (index == 0) return true;
+        rowsPrevious.push([...targetArr]);
         targetArr[index - 1] += targetArr[index];
-      } else {
+        targetArr.splice(index, 1);
+
+      } else if (type == "down") {
         if (index == targetArr.length - 1) return;
+        rowsPrevious.push([...targetArr]);
         targetArr[index + 1] += targetArr[index];
+        targetArr.splice(index, 1);
+
+      } else {
+        if (!rowsPrevious || !rowsPrevious.length) return;
+        targetArr.length = 0;
+        targetArr.push(...rowsPrevious.slice(-1)[0]);
       }
-      targetArr.splice(index, 1);
       rows.length = 0;
       rows.push(...getRows());
+
       tableTreeInstance.invalidate();
       //@ts-ignore xxx
       tableTreeInstance._jsWindow.innerElem.style.width = "1400px";
@@ -171,6 +183,9 @@ async function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, 
       if (event.key == "ArrowDown") {
         combineRows("down");
 
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key == "z") {
+        combineRows("recover");
       }
       return true;
     }

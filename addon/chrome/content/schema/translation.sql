@@ -85,3 +85,11 @@ CREATE TABLE  deleteLog (
     translateID INTEGER NOT NULL UNIQUE,
     synced INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE  IF NOT EXISTS documents (    
+    itemID INTEGER PRIMARY KEY,
+    parentItemID INTEGER,
+    doi TEXT NOT NULL DEFAULT '', --doi可缺失
+    docItem TEXT NOT NULL DEFAULT '', --JSON
+    dateAdded TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

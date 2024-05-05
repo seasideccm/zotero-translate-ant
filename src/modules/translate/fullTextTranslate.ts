@@ -22,6 +22,7 @@ import { TranslateService, TranslateServiceAccount } from "./translateService";
 import { setCurrentService } from "../addonSetting";
 import { getDB } from "../database/database";
 import { showTargeCombine } from "../ui/dataDialog";
+import { json } from "stream/consumers";
 
 
 
@@ -137,6 +138,7 @@ export class fullTextTranslate {
     const docItem = await fullTextTranslate.translateDoc(contentObj);
     if (!docItem) return;
     await fullTextTranslate.makeTranslation(docItem);
+
   }
 
   /**
@@ -402,10 +404,13 @@ export class fullTextTranslate {
     }
 
     const cacheError = await readJsonFromDisk("translatedCache");
-    if (cacheError) {
-      const itemID = cacheError.docItem.itemID;
+    const splitOK = await readJsonFromDisk("translatedCache-splitOK");
+    const splitError = await readJsonFromDisk("translatedCache-splitError");
+    if (cacheError || splitOK || splitError) {
+      const docItemCache = cacheError?.docItem || splitOK?.docItem || splitError?.docItem as DocItem;
+      const itemID = docItemCache.itemID;
       if (ids.includes(itemID)) {
-        const docItemCache = cacheError.docItem as DocItem;
+
         const docItem = await fullTextTranslate.translateDoc(docItemCache);
         if (docItem) {
           const res = await fullTextTranslate.makeTranslation(docItem);
@@ -1091,8 +1096,40 @@ export class fullTextTranslate {
       note.setNote(contentTranslation);
       await note.saveTx();
     }
+    await fullTextTranslate.saveDocItem(docItem);
 
     return true;
+  }
+
+
+  static async saveDocItem(docItem: DocItem) {
+    const docJson = JSON.stringify(docItem);
+    const item = Zotero.Items.get(docItem.itemID!);
+    const parent = item.parentItem;
+    const parentItemID = item.parentItemID;
+    let doi = '';
+    const itemID = item.id;
+    if (item && item.isRegularItem()) {
+      doi = item.getField("DOI");
+    } else if (parent && parent.isRegularItem()) {
+      doi = parent.getField("DOI");
+    }
+    //  if (doi == "") {
+    //    await item.loadDataType('primaryData');
+    //    doi = item.getField("DOI");
+    //  }
+    //  if (!doi || doi == "") {
+    //    await item.loadDataType("itemData");
+    //    doi = item.getField("DOI");
+    //  }
+    //const itemDataLoaded=item._loaded["itemData"]
+    //const primaryDataLoaded=item._loaded["primaryData"]
+    const DB = await getDB();
+    const sql = `INSERT INTO documents(itemID, parentItemID, doi, docItem) VALUES (?,?,?,?) ON CONFLICT (itemID) DO UPDATE SET parentItemID =?, doi = ?, docItem = ? `;
+    const values: any = [itemID, parentItemID, doi, docJson, parentItemID, doi, docJson];
+    return await DB.executeTransaction(async () => {
+      await DB.queryAsync(sql, values);
+    });
   }
 
   /**
@@ -1305,7 +1342,7 @@ export class fullTextTranslate {
 
     if (splitOK) {
       sourceArr.length = 0;
-      sourceArr.push(...splitOK.toTranArr);
+      sourceArr.push(...splitOK.sourceArr);
       splitArr.length == 0;
       splitArr.push(...splitOK.splitArr);
     }
