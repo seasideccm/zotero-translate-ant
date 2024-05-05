@@ -7,6 +7,8 @@ import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiToo
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
+import { tabTest } from "./ui/tab";
+import { testReact } from "./ui/testReact";
 
 
 
@@ -24,7 +26,8 @@ function getParasArrs() {
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
     [
-      //["google Test", testgoogle],
+      //["译文标签 Test", tabTest],
+      ["React Test", testReact],
     ],
 
   ];

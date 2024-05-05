@@ -20,6 +20,10 @@ export const keysTranslateService = [
   "hasSecretKey",
   "hasToken",
 ];
+
+
+export const antServices = ["baiduModify", "baidufieldModify", "tencentTransmart", "baiduPictureTranslate", "baiduOcrAccurate"];
+
 export const parasArrTranslateService = [
   ["baidu", 5000, 10, "month", 1000000, false, true, false],
   ["baidufield", 5000, 10, "month", 500000, false, true, false],

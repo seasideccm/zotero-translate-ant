@@ -1006,7 +1006,7 @@ export async function saveJsonToDisk(
  */
 export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
-  dir = dir || addonStorageDir;
+  dir = dir || addonDatabaseDir;
   ext = ext || ".json";
   if (filename.match(/\.[^./\\]+$/m)) {
     ext = filename.match(/\.[^./\\]+$/m)![0];
@@ -1386,7 +1386,7 @@ export const getFileInfo = async (path: string) => {
  * @returns
  */
 export function getWindow(
-  type: "pref" | "zoteroPane" | "active" | "recent" = "active",
+  type: "pref" | "zoteroPane" | "active" | "recent" = "zoteroPane",
 ) {
   let winSelected;
 

@@ -470,7 +470,7 @@ export class serviceManage {
     if (serviceID.includes("Modify") || serviceID == "tencentTransmart") return;
     const keyField = "translateSource";
     const result = setPluginsPref(plugin, keyField, serviceID);
-    if (Zotero.PDFTranslate.data.alive) {
+    if (Zotero.PDFTranslate?.data.alive) {
       Zotero.PDFTranslate.hooks.onReaderTabPanelRefresh();
     }
     showInfo(getString("info-switchServiceID") + serviceID);

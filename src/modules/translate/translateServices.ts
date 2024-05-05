@@ -1,4 +1,5 @@
 import {
+  antServices,
   keysTranslateService,
   parasArrTranslateService,
   parasArrTranslateServiceAdd,
@@ -62,10 +63,22 @@ export interface ServiceMap {
 }
 
 export async function getServices() {
+  const plugins = await Zotero.getInstalledExtensions();
+  const pdfTranslate = plugins.find((plugin: string) => plugin.startsWith('Translate for Zotero'));
   let services = addon.mountPoint.services as ServiceMap;
   if (services) {
     //如果百度和百度领域账号不同，则更新两者后从数据库重新读取
-    if (!await syncBaiduAndBaidufield(services)) return services;
+    if (!await syncBaiduAndBaidufield(services)) {
+      if (!pdfTranslate) {
+        const servicesLess = {};
+        for (const key of Object.keys(services)) {
+          if (!antServices.includes(key)) continue;
+          Object.assign(servicesLess, { [key]: services[key] });
+        }
+        return servicesLess as ServiceMap;
+      }
+      return services;
+    }
   }
   services = await getServicesFromDB();
   if (!services)
@@ -79,6 +92,14 @@ export async function getServices() {
   //如果百度和百度领域账号不同，则更新两者后从数据库重新读取
   if (await syncBaiduAndBaidufield(services)) {
     services = await getServices();
+  }
+  if (!pdfTranslate) {
+    const servicesLess = {};
+    for (const key of Object.keys(services)) {
+      if (!antServices.includes(key)) continue;
+      Object.assign(servicesLess, { key: services[key] });
+    }
+    return servicesLess as ServiceMap;
   }
   return services;
 }

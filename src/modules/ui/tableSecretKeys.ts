@@ -1315,7 +1315,7 @@ export async function priorityWithKeyTable() {
   if (!win) return;
   const id = `${config.addonRef}-` + "servicePriorityWithKey";
   const containerId = `${config.addonRef}-table-servicePriorityWithKey`;
-  if (getDom(containerId)) return;
+  if (getDom(id)) return;
   const services = await getServices();
   const rows: any[] = (await serviceWithKeyRowsData()) || [];
   if (!rows || rows.length == 0) return;
@@ -1416,7 +1416,7 @@ export async function priorityWithoutKeyTable() {
   if (!win) return;
   const id = `${config.addonRef}-` + "servicePriorityWithoutKey";
   const containerId = `${config.addonRef}-table-servicePriorityWithoutKey`;
-  if (getDom(containerId)) return;
+  if (getDom(id)) return;
   const services = await getServices();
   const rows: any[] = (await getWithoutKeyRowsData()) || [];
   if (!rows || rows.length == 0) return;
@@ -1544,7 +1544,7 @@ export function makeColumnPropValues(row: any) {
   });
   return temp;
 }
-function getRowString(rows: any, index: number, tableTreeInstance: any) {
+export function getRowString(rows: any, index: number, tableTreeInstance: any) {
   const rowCellsString = Object.values(rows[index]).filter(
     (e) => typeof e === "string",
   ) as string[];

@@ -12,7 +12,7 @@ declare type DocItem = {
   newItemID?: number;
   key?: string;
   content: DocCell[];
-  status?: "error" | "success";
+  status?: "error" | "success" | "cache";
 };
 
 declare type DocCell = {
