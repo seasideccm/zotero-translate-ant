@@ -211,13 +211,14 @@ export async function updateDBSettings(
 ) {
   const sqlSELECT = `SELECT value FROM settings WHERE setting='addon' AND key='${key}'`;
   const dbValue = await DB.valueQueryAsync(sqlSELECT);
-  const sqlINSERT = `INSERT INTO settings (setting,key,value) VALUES ('addon','${key}',${elementChecked})`;
-  const sqlUPDATE = `UPDATE settings SET value = ${elementChecked} WHERE key = '${key}'`;
+  const sqlINSERT = `INSERT INTO settings (setting,key,value) VALUES (?, ?, ?)`;
+  const valueINSERT = ['addon', key, elementChecked];
+  const sqlUPDATE = `UPDATE settings SET value =? WHERE key = '${key}'`;
   if (dbValue === false) {
-    await DB.queryAsync(sqlINSERT);
+    await DB.queryAsync(sqlINSERT, valueINSERT);
   } else {
     if (dbValue == elementChecked) return;
-    await DB.queryAsync(sqlUPDATE);
+    await DB.queryAsync(sqlUPDATE, elementChecked);
   }
 }
 

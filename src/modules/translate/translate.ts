@@ -9,6 +9,7 @@ import { tencentTransmart } from "../webApi/tencentTransmart";
 import { showTrans } from "../ui/dataDialog";
 import { baidufieldModify } from "../webApi/baidufieldModify";
 import { baiduOcrAccurate, baiduPictureTranslate } from "../ocr/baiduOCR";
+import { baiduModify } from "../webApi/baiduModify";
 
 export class Translator {
   worker: any;
@@ -81,7 +82,7 @@ const OptionsPDFTranslate: OptionsPDFTranslate = {
 //showInfo(result.result);
 
 export const translateFunc: any = {
-  baiduModify: baidufieldModify,
+  baiduModify: baiduModify,
   baidufieldModify: baidufieldModify,
   tencentTransmart: tencentTransmart,
   baiduPictureTranslate: baiduPictureTranslate,

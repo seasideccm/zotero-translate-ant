@@ -123,7 +123,7 @@ export async function compareSQLUpdateDB() {
             if (defaultValue !== void 0) {
               oldFields.push(defaultValue); // 如果没有默认值该如何？
             } else {
-              oldFields.push("");
+              oldFields.push(0);
             }
           } else {
             //新旧表字段名相同, 且复制原值
@@ -247,10 +247,10 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
           : null;
         ztoolkit.log(
           Zotero.getString("startupError", Zotero.appName) +
-            "\n\n" +
-            Zotero.getString("db.integrityCheck.reportInForums") +
-            "\n\n" +
-            (stack || e),
+          "\n\n" +
+          Zotero.getString("db.integrityCheck.reportInForums") +
+          "\n\n" +
+          (stack || e),
         );
       }
       ztoolkit.log(e);
@@ -351,8 +351,8 @@ export class DataBase extends (Zotero.DBConnection as Zotero.DBConnection) {
 
   async updateDate(
     tableName: string,
-    data: { [columsField: string]: any },
-    record: { [columsField: string]: any },
+    data: { [columsField: string]: any; },
+    record: { [columsField: string]: any; },
   ) {
     const sqlColumns = Object.keys(data);
     const sqlValues = sqlColumns.map((key) => data[key]);

@@ -246,3 +246,4 @@ info-AITranslate = AI 翻译
 info-translateText = 文本翻译
 info-decryptFile = 解密文件
 info-encryptFile = 加密文件
+info-targeCombine = 手动合并译文列表

@@ -88,6 +88,7 @@ async function buildPrefsPane() {
     .filter((e) => !e.forbidden)
     .map((service) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(`${service.serviceID}`),
       attributes: {
         label: getString(`service-${service.serviceID}`),
@@ -98,6 +99,7 @@ async function buildPrefsPane() {
     {
       // 下拉列表
       tag: "menulist",
+      namespace: "xul",
       id: makeId("serviceID"),
       attributes: {
         native: "true",
@@ -152,6 +154,7 @@ async function buildPrefsPane() {
     ztoolkit.UI.replaceElement(
       {
         tag: "menulist",
+        namespace: "xul",
         id: makeId("limitMode"),
         attributes: {
           value: "",
@@ -217,6 +220,7 @@ async function buildPrefsPane() {
           },
           {
             tag: "menulist",
+            namespace: "xul",
             id: makeId("fields"),
             attributes: {
               value: "",
@@ -244,11 +248,11 @@ async function buildPrefsPane() {
   await updateLimits();
   async function updateLimits() {
     const elementService = getDom("serviceID") as XUL.MenuList;
-    let serviceID = elementService.value;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
-    }
+    const serviceID = elementService.value;
+    //if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    // @ts-ignore xxx
+    //serviceID = serviceID.replace("Modify", "");
+    //}
     const services = await getServices();
     const service = services[serviceID] as TranslateService;
     //const ids = ["QPS", "charasPerTime", "hasSecretKey", "updateLimits", "limitMode", "charasLimit"];
@@ -441,9 +445,8 @@ function bindPrefEvents() {
   batchListen([getDom("saveLimitParam")!, ["command"], [saveLimit]]);
   async function saveLimit(e: Event) {
     let serviceID = getElementValue("serviceID") as string;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+      serviceID = serviceID.replace("Modify", "");
     }
     const services = await getServices();
     const service = services[serviceID as keyof typeof services];
@@ -480,9 +483,8 @@ function bindPrefEvents() {
   async function forbiddenService(e: Event) {
     ztoolkit.log(e);
     let serviceID = getElementValue("serviceID") as keyof TranslateService;
-    if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-      // @ts-ignore xxx
-      serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+      serviceID = serviceID.replace("Modify", "") as keyof TranslateService;
     }
     const confirm = addon.data.prefs!.window.confirm(
       `${getString("pref-forbiddenService")}:         
@@ -552,6 +554,7 @@ function bindPrefEvents() {
       if (!serviceMenu_popup) continue;
       const menuItemObj = {
         tag: "menuitem",
+        namespace: "xul",
         id: makeId(`${e.serviceID}`),
         attributes: {
           label: getString(`service-${e.serviceID}`),
@@ -619,11 +622,7 @@ export async function clickSwitchService(e?: Event) {
   const elem = getDom("serviceID") as XUL.MenuList;
   if (!elem) return;
   const serviceID = elem.value;
-  /* if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
-    serviceID = "baidu";
-  } */
-  let serialNumber: string;
+  let serialNumber: string | undefined;
   const row = getSelectedRow();
   if (!row) {
     //未选择行
@@ -631,14 +630,16 @@ export async function clickSwitchService(e?: Event) {
     const service = services[serviceID];
     if (!service.hasSecretKey && !service.hasToken) {
       //引擎没有秘钥
-      if (!service.serialNumber) return;
-      serialNumber = service.serialNumber.toString();
+      if (service.serialNumber) {
+        serialNumber = service.serialNumber.toString();
+      }
     } else {
       //引擎有秘钥，选一个可用的
-      if (!service.accounts || !service.accounts.length) return;
-      serialNumber = service.accounts
-        ?.filter((account) => account.usable && !account.forbidden)[0]
-        .serialNumber.toString();
+      if (service.accounts && service.accounts.length) {
+        serialNumber = service.accounts
+          ?.filter((account) => account.usable && !account.forbidden)[0]
+          .serialNumber.toString();
+      }
     }
   } else {
     const appID = row.children[0].textContent;
@@ -654,9 +655,8 @@ export async function clickSwitchService(e?: Event) {
 }
 
 async function getSerialNumberByAppid(serviceID: string, appID: string) {
-  if (["baidufield", "baiduModify", "baidufieldModify"].includes(serviceID)) {
-    // @ts-ignore xxx
-    serviceID = "baidu";
+  if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
+    serviceID = serviceID.replace("Modify", "");
   }
   const sql = `SELECT serialNumber FROM translateServiceSN WHERE serviceID = '${serviceID}' AND appID = '${appID}'`;
   const DB = await getDB();
@@ -666,8 +666,8 @@ async function getSerialNumberByAppid(serviceID: string, appID: string) {
 async function underUsing() {
   const service = await getSingleServiceUnderUse();
   if (!service) return;
-  const serviceID = getElementValue("serviceID");
-  setElementValue("serviceIDUnderUse", serviceID);
+  //const serviceID = getElementValue("serviceID");
+  setElementValue("serviceIDUnderUse", service.serviceID);
   if (service instanceof TranslateServiceAccount) {
     setElementValue("secretKeyUnderUse", service.appID);
   } else {
@@ -833,6 +833,7 @@ async function langPair() {
   const sourceLangChilds = Object.keys(Zotero.Locale.availableLocales).map(
     (e) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(e),
       attributes: {
         //@ts-ignore has
@@ -843,6 +844,7 @@ async function langPair() {
   );
   const autoDetect = {
     tag: "menuitem",
+    namespace: "xul",
     id: makeId("autoDetect"),
     attributes: {
       //@ts-ignore has
@@ -897,6 +899,7 @@ async function langPair() {
           namespace: "xul",
           children: Object.keys(Zotero.Locale.availableLocales).map((e) => ({
             tag: "menuitem",
+            namespace: "xul",
             attributes: {
               //@ts-ignore has
               label: Zotero.Locale.availableLocales[e],
@@ -920,6 +923,7 @@ async function makeLangPaire() {
   const langChildsProp = Object.keys(availableLocales).map(
     (e) => ({
       tag: "menuitem",
+      namespace: "xul",
       id: makeId(e),
       attributes: {
         label: availableLocales[e],
@@ -929,6 +933,7 @@ async function makeLangPaire() {
   );
   const autoDetect = {
     tag: "menuitem",
+    namespace: "xul",
     id: makeId("autoDetect"),
     attributes: {
       label: getString("autoDetect"),

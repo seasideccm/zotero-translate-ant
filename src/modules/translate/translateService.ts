@@ -43,23 +43,20 @@ export class TranslateServiceAccount {
   totalCharConsum?: number;
 
   constructor(option: any) {
-    if (
-      ["baidufield", "baiduModify", "baidufieldModify"].includes(
-        option.serviceID,
-      )
-    ) {
-      // @ts-ignore xxx
-      option.serviceID = "baidu";
+    if (["baiduModify", "baidufieldModify"].includes(option.serviceID)) {
+      option.serviceID = option.serviceID.replace("Modify", "");
     }
+
     this.serialNumber = Number(option.serialNumber);
     this.serviceID = option.serviceID;
-    this.usable = option.usable || true;
+    this.usable = option.usable || 1;
     this.charConsum = option.charConsum || 0;
     this.appID = option.appID || Zotero.utilities.randomString(8);
     this.secretKey = option.secretKey;
     this.token = option.token;
     this.dateMarker = option.dateMarker;
     this.forbidden = option.forbidden;
+
   }
   sqlInsertRow(tableName: string, sqlColumns: string[], sqlValues: any[]) {
     return `INSERT INTO ${tableName} (${sqlColumns.join(", ")}) VALUES (${sqlValues.map(() => "?").join()})`; //"?").join() without ","
@@ -67,6 +64,7 @@ export class TranslateServiceAccount {
   async save() {
     if (this.changedData) {
       await this.saveChange();
+      return;
     }
     for (const key of Object.keys(this)) {
       if (typeof this[key as keyof typeof this] == "string") {
@@ -137,6 +135,7 @@ export class TranslateServiceAccount {
     if (!this.changedData) return;
     //更新账号
     const sqls: string[] = [];
+    const values: any[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
       let tableNames: string[] = [];
@@ -148,47 +147,42 @@ export class TranslateServiceAccount {
           tableNames = ["accessTokens"];
           break;
         case "charConsum":
-          tableNames = ["charConsum"];
-          break;
         case "dateMarker":
           tableNames = ["charConsum"];
           break;
         case "totalCharConsum":
           tableNames = ["totalCharConsum"];
           break;
+        case "usable":
         case "forbidden":
           tableNames = ["translateServiceSN"];
           break;
         case "appID":
-          if (this.secretKey) {
-            tableNames = ["translateServiceSN", "accounts"];
-          }
-          if (this.token) {
-            tableNames = ["translateServiceSN", "accessTokens"];
-          }
-          break;
-        case "usable":
           tableNames = ["translateServiceSN"];
+          if (this.secretKey) tableNames.push("accounts");
+          if (this.token) tableNames.push("accessTokens");
           break;
         case "serialNumber":
           //tableNames = ['translateServiceSN'];
           sqls.push(
-            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`,
+            `UPDATE translateServiceSN SET ${key} = ? WHERE appID = ${this.appID} AND serviceID = ${this.serviceID}`,
           );
+          values.push(this.changedData[key]);
           break;
       }
       tableNames.forEach((tableName) => {
-        const sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serialNumber = ${this.serialNumber}`;
+        const sql = `UPDATE ${tableName} SET ${key} = ? WHERE serialNumber = ${this.serialNumber}`;
         sqls.push(sql);
+        values.push(this.changedData[key]);
       });
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {
-      for (const sql of sqls) {
+      for (let i = 0; i < sqls.length; i++) {
         try {
-          await DB.queryAsync(sql);
+          await DB.queryAsync(sqls[i], values[i]);
         } catch (e) {
-          showInfo("Execute failed: " + sql);
+          showInfo("Execute failed: " + sqls[i] + "====" + values[i]);
           throw e;
         }
       }
@@ -292,6 +286,9 @@ export class TranslateService {
     vocabid?: string | undefined;
   }) {
     // ["serviceID", "charasPerTime", "QPS", "limitMode", "charasLimit", "supportMultiParas", "hasSecretKey", "hasToken"]
+    /*     if (["baiduModify", "baidufieldModify"].includes(options.serviceID)) {
+          options.serviceID = options.serviceID.replace("Modify", "");
+        } */
     this.serviceID = options.serviceID;
     this.charasPerTime = options.charasPerTime;
     this.QPS = options.QPS;
@@ -391,6 +388,7 @@ export class TranslateService {
   async saveChange() {
     if (!this.changedData) return;
     const sqls: string[] = [];
+    const values: any[] = [];
     const keys = Object.keys(this.changedData);
     for (const key of keys) {
       let sql;
@@ -411,6 +409,7 @@ export class TranslateService {
         case "totalCharConsum":
           tableName = "totalCharConsum";
           break;
+        case "serialNumber":
         case "usable":
         case "forbidden":
           tableName = "translateServiceSN";
@@ -423,30 +422,25 @@ export class TranslateService {
         case "charasLimitFactor":
           tableName = "serviceLimits";
           break;
-        case "serialNumber":
-          sqls.push(
-            `UPDATE translateServiceSN SET ${key} ='${this.changedData[key]}' WHERE  serviceID = '${this.serviceID}'`,
-          );
-          break;
       }
       if (tableName == "") continue;
       if (tableName == "settings") {
-        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES('${this.serviceID}', '${key}', '${this.changedData[key]}')`;
-        sqls.push(sql);
+        sql = `INSERT OR REPLACE INTO ${tableName} (setting, key, value) VALUES ('${this.serviceID}', '${key}', ? )`;
       } else if (tableName == "charConsum") {
-        sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, '${this.changedData[key]}')`;
+        sql = `INSERT OR REPLACE INTO ${tableName} (serialNumber, charConsum) VALUES (${this.serialNumber}, ?)`;
       } else {
-        sql = `UPDATE ${tableName} SET ${key} ='${this.changedData[key]}' WHERE serviceID = '${this.serviceID}'`;
+        sql = `UPDATE ${tableName} SET ${key} = ? WHERE serviceID = '${this.serviceID}'`;
       }
       sqls.push(sql);
+      values.push(this.changedData[key]);
     }
     const DB = await getDB();
     await DB.executeTransaction(async () => {
-      for (const sql of sqls) {
+      for (let i = 0; i < sqls.length; i++) {
         try {
-          await DB.queryAsync(sql);
+          await DB.queryAsync(sqls[i], values[i]);
         } catch (e) {
-          showInfo("Execute failed: " + sql);
+          showInfo("Execute failed: " + sqls[i] + "====" + values[i]);
           throw e;
         }
       }
@@ -456,13 +450,14 @@ export class TranslateService {
   async save() {
     if (this.changedData) {
       await this.saveChange();
+      return;
     }
     const DB = await getDB();
     this.saveDeferred = Zotero.Promise.defer();
     this.savePromise = this.saveDeferred.promise;
     //const serialNumber = await this.getSerialNumber(this.serviceID);
     if (this.serialNumber) {
-      const doSave = async () => {};
+      const doSave = async () => { };
       await DB.executeTransaction(doSave.bind(this));
       //update
       return;
@@ -603,6 +598,7 @@ export class TranslateService {
     };
     await DB.executeTransaction(doSave.bind(this));
   }
+
   saveold: any = Zotero.Promise.coroutine(function* (
     this: any,
     options = {},

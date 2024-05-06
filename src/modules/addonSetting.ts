@@ -79,14 +79,26 @@ async function setAddon(keys: string[]) {
 
 export async function setCurrentService(
   serviceID: string,
-  serialNumber: string | number,
+  serialNumber?: string | number,
 ) {
-  addon.mountPoint.serialNumberUsing = serialNumber;
-  addon.mountPoint.serviceIDUsing = serviceID;
-  await setSettingValue("currentServiceSN", serialNumber);
-  await setSettingValue("currentServiceID", serviceID);
-}
 
+  addon.mountPoint.serviceIDUsing = serviceID;
+  await setSettingValue("currentServiceID", serviceID);
+  addon.mountPoint.serialNumberUsing = serialNumber;
+  if (!serialNumber) {
+    await deleteSettingValue("currentServiceSN");
+    return;
+  }
+
+  await setSettingValue("currentServiceSN", serialNumber);
+
+}
+export async function deleteSettingValue(keyName: string,
+  settingType: string = "addon",) {
+  const sql = `DELETE FROM settings WHERE key = '${keyName}' AND setting='${settingType}'`;
+  const DB = await getDB();
+  await DB.queryAsync(sql);
+}
 export async function getCurrentServiceSN() {
   if (addon.mountPoint.serialNumberUsing)
     return addon.mountPoint.serialNumberUsing;
@@ -101,10 +113,6 @@ export async function getCurrentserviceID() {
   const DB = await getDB();
   const sql = `SELECT value from settings WHERE key = 'currentServiceID'`;
   const serviceID = await DB.valueQueryAsync(sql);
-  if (!serviceID) {
-    await clickSwitchService();
-    return await getCurrentserviceID();
-  }
   addon.mountPoint.serviceIDUsing = serviceID;
   return serviceID;
 }
@@ -119,10 +127,13 @@ export async function setSettingValue(
   const result = await DB.valueQueryAsync(sql);
   if (result && result == setValue) return;
   await DB.executeTransaction(async () => {
-    result
-      ? (sql = `UPDATE settings SET value = '${setValue}' WHERE setting='${settingType}' AND key = '${keyName}'`)
-      : (sql = `INSERT INTO settings (setting,key,value) VALUES ('${settingType}','${keyName}','${setValue}')`);
-    await DB.queryAsync(sql);
+    if (result) {
+      sql = `UPDATE settings SET value=? WHERE setting='${settingType}' AND key = '${keyName}'`;
+      await DB.queryAsync(sql, setValue);
+    } else {
+      sql = `INSERT INTO settings (setting,key,value) VALUES (?, ?, ?)`;
+      await DB.queryAsync(sql, [settingType, keyName, setValue]);
+    }
   });
 }
 
@@ -146,7 +157,7 @@ export async function getSettingValue(
   const DB = await getDB();
   if (!DB) return;
   const sql = `SELECT value from settings WHERE setting='${settingType}' AND key = '${keyName}' `;
-  return (await DB.valueQueryAsync(sql)) as string;
+  return await DB.valueQueryAsync(sql);
 }
 
 export async function clearSettingsRecord(queryValue: string | string[]) {

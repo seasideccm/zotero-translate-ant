@@ -1006,7 +1006,7 @@ export async function saveJsonToDisk(
  */
 export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
-  dir = dir || addonStorageDir;
+  dir = dir || addonDatabaseDir;
   ext = ext || ".json";
   if (filename.match(/\.[^./\\]+$/m)) {
     ext = filename.match(/\.[^./\\]+$/m)![0];
@@ -1359,6 +1359,16 @@ export async function readJsonFromDisk(
   //特殊符号出乱码return JSON.parse(arrayBufferToString(buf));
 }
 
+export async function deleteCacheOrFile(filename: string,
+  dir?: string,
+  ext?: string,) {
+  const path = getPathDir(filename, dir, ext).path;
+  if (await IOUtils.exists(path)) {
+    IOUtils.remove(path);
+    return true;
+  }
+
+}
 /**
  * c:\\path\\to\\file.json
  *
@@ -1376,7 +1386,7 @@ export const getFileInfo = async (path: string) => {
  * @returns
  */
 export function getWindow(
-  type: "pref" | "zoteroPane" | "active" | "recent" = "active",
+  type: "pref" | "zoteroPane" | "active" | "recent" = "zoteroPane",
 ) {
   let winSelected;
 

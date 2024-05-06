@@ -1,11 +1,13 @@
+import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { config } from "../../../package.json";
 import { addonDatabaseDir } from "../../utils/constant";
 import { getString } from "../../utils/locale";
-import { chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
+import { arrsToObjs, chooseDirOrFilePath, getWindow, showInfo } from "../../utils/tools";
 import { aiCHat, getModels } from "../largeLanguageModels/ollama";
 import { fullTextTranslate } from "../translate/fullTextTranslate";
 import { getSingleServiceUnderUse } from "../translate/serviceManage";
-import { makeTagElementProps } from "./uiTools";
+import { columnPropKeys, getRowString, makeColumnPropValues, tableFactory } from "./tableSecretKeys";
+import { getDom, makeTagElementProps } from "./uiTools";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
  * @param fieldNames
@@ -43,6 +45,152 @@ export function showTrans() {
     "chrome,centerscreen,resizable=yes,scroll=yes,noDialogMode=true,",
     io,
   );
+}
+
+export function showTargeCombine(soureArr: any[], targetArr: any[]) {
+  const url = `chrome://${config.addonRef}/content/dataDialog.xhtml`;
+  const title = getString("info-targeCombine");
+  const dialogType = "targeCombine";
+  const io: any = { soureArr, targetArr, title, dialogType };
+  const win = getWindow();
+  const dialog = win.openDialog(
+    url,
+    "dataDialog",
+    "chrome,modal,centerscreen,resizable=yes,scroll=yes",
+    io,
+  );
+  addon.mountPoint.dialog = dialog;
+  return {
+    soureArr: io.soureArr,
+    targetArr: io.targetArr
+  };
+}
+async function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, io: any) {
+  if (dialogType != "targeCombine") return;
+  parent.style.width = "1400px";
+  parent.style.height = "800px";
+  win.resizeTo(win.screen.availWidth, win.screen.availHeight);
+  const soureArr = io.soureArr as string[];
+  const targetArr = io.targetArr as string[];
+  const hbox = ztoolkit.createXULElement(win.document, "hbox");
+  const help = ztoolkit.createXULElement(win.document, "div");
+  help.innerText = "选中行，按键 ↑ 箭头译文与向上合并，按键 ↓ 箭头译文向下合并。";
+  const div1 = ztoolkit.createXULElement(win.document, "div");
+  div1.setAttribute("id", "table-sourceCombine");
+  const div2 = ztoolkit.createXULElement(win.document, "div");
+  div2.setAttribute("id", "table-targetCombine");
+  hbox.appendChild(div1);
+  hbox.appendChild(div2);
+  parent.appendChild(help);
+  parent.appendChild(hbox);
+  await translationCombineTable();
+
+  async function translationCombineTable() {
+    if (!win) return;
+    const id = "sourceCombine";
+    const containerId = `table-sourceCombine`;
+    function getRows() {
+      const newArr = [];
+      for (let i = 0; i < targetArr.length; i++) {
+        newArr.push([i, soureArr[i] || '', targetArr[i]]);
+      }
+      const rows: any[] = arrsToObjs(["index", "sourceText", "translation"])(newArr) || [];
+      return rows;
+    }
+    const rows: any[] = getRows();
+
+
+    //props
+    const columnsProp = arrsToObjs([
+      "dataKey",
+      "label",
+      "staticWidth",
+      "fixedWidth",
+      "flex",
+      "width",
+    ])(
+      [
+        ["index", "index", false, false, true, 20],
+        ["sourceText", "sourceText", false, false, true, 400],
+        ["translation", "translation", false, false, true, 400],
+      ]
+    ) as ColumnOptions[];
+    const props: VirtualizedTableProps = {
+      id: id,
+      columns: columnsProp,
+      staticColumns: false,
+      showHeader: true,
+      multiSelect: true,
+      getRowCount: () => rows.length,
+      getRowData: (index: number) => rows[index],
+      getRowString: handleGetRowString,
+      onKeyDown: handleKeyDown,
+      containerWidth: 1200,
+    };
+
+    const options: TableFactoryOptions = {
+      win: win,
+      containerId: containerId,
+      props: props,
+    };
+
+    const tableHelper = await tableFactory(options);
+    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    tableTreeInstance._jsWindow.innerElem.style.width = "1400px";
+
+    function handleGetRowString(index: number) {
+      return getRowString(rows, index, tableTreeInstance);
+    }
+
+    function combineRows(type: "up" | "down" | "recover") {
+      if (!addon.mountPoint.rowsPrevious) addon.mountPoint.rowsPrevious = [];
+      const rowsPrevious: any[] = addon.mountPoint.rowsPrevious;
+      let index = tableTreeInstance.selection.focused;
+      if (index == void 0) index = Array.from(tableTreeInstance.selection.selected)[0];
+      if (index == void 0) return true;
+      if (type == "up") {
+        if (index == 0) return true;
+        rowsPrevious.push([...targetArr]);
+        targetArr[index - 1] += targetArr[index];
+        targetArr.splice(index, 1);
+
+      } else if (type == "down") {
+        if (index == targetArr.length - 1) return;
+        rowsPrevious.push([...targetArr]);
+        targetArr[index + 1] += targetArr[index];
+        targetArr.splice(index, 1);
+
+      } else {
+        if (!rowsPrevious || !rowsPrevious.length) return;
+        targetArr.length = 0;
+        targetArr.push(...rowsPrevious.slice(-1)[0]);
+      }
+      rows.length = 0;
+      rows.push(...getRows());
+
+      tableTreeInstance.invalidate();
+      //@ts-ignore xxx
+      tableTreeInstance._jsWindow.innerElem.style.width = "1400px";
+
+
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key == "ArrowUp") {
+        combineRows("up");
+
+      }
+      if (event.key == "ArrowDown") {
+        combineRows("down");
+
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key == "z") {
+        combineRows("recover");
+      }
+      return true;
+    }
+
+  }
 }
 
 function transUI(dialogType: string, win: Window, parent: XUL.Box) {
@@ -259,6 +407,7 @@ async function aiTransUI(dialogType: string, win: Window, parent: XUL.Box) {
   }
   const childrenProps: any[] = models.map((model: string) => ({
     tag: "menuitem",
+    namespace: "xul",
     properties: {
       value: model,
       label: model == "" ? getString("info-chooseModel") : model,
@@ -303,6 +452,7 @@ async function aiTransUI(dialogType: string, win: Window, parent: XUL.Box) {
   const providrs = ["ollama", "openAI"];
   const providerProps: any[] = providrs.map((model: string) => ({
     tag: "menuitem",
+    namespace: "xul",
     properties: {
       value: model,
       label: model,
@@ -543,270 +693,273 @@ export class DataDialog {
     win.document.addEventListener("dialogcancel", () =>
       DataDialog.handleCancel(win),
     );
+    await targeCombineUI(dialogType, win, parent, io);
+
+
 
     transUI(dialogType, win, parent);
     await aiTransUI(dialogType, win, parent);
-
-    if (Array.isArray(fieldNames)) {
-      if (dialogType == "input") {
-        fieldNames.forEach((field: string, i: number) => {
-          ztoolkit.UI.appendElement(
-            {
-              tag: "input",
-              id: `fieldName-${Zotero.randomString(6)}`,
-              namespace: "html",
-              classList: ["key" + i],
-              attributes: {
-                placeholder: `${field}`,
-                style: style,
-              },
-            },
-            parent,
-          );
-        });
-      }
-      if (dialogType == "multiSelect") {
-        parent.style.marginLeft = "1rem";
-        const checkboxs = fieldNames.map((e: string, i: number) => ({
-          tag: "checkbox",
-          id: `fieldName-${Zotero.randomString(6)}`,
-          classList: ["key" + i],
-          namespace: "xul",
-          attributes: {
-            label: e,
-            native: true,
-            style: style,
-          },
-        }));
-        const multiselet = ztoolkit.UI.appendElement(
-          {
-            tag: "vbox",
-            id: `${config.addonRef}-multiSelectDialog`,
-            namespace: "xul",
-            children: checkboxs,
-          },
-          parent,
-        );
-        const child = parent.childNodes[0].childNodes[0].childNodes; //避免第一个选项自动选中显示边框
-        if (child && child.length == 2)
-          (child[1] as XUL.Box).setAttribute("class", "");
-      }
-      if (dialogType == "directory") {
-        if (!fieldNames) fieldNames = ["none"];
-        const basename = PathUtils.join(fieldNames[0]);
-        const labelProps = makeTagElementProps({
-          tag: "label",
-          id: "fieldName-" + basename,
-          namespace: "html",
-          attributes: {
-            style: style,
-          },
-          properties: {
-            textContent: fieldNames[0],
-          },
-        });
-        const filepickerButton = makeTagElementProps({
-          tag: "button",
-          id: "filepickerButton",
-          namespace: "html",
-          attributes: {
-            style: `margin-inline: 1rem`,
-          },
-          properties: {
-            textContent: getString("info-selectDirectory"),
-          },
-          listeners: [
-            {
-              type: "click",
-              listener: onFilepicker,
-            },
-          ],
-        });
-        ztoolkit.UI.appendElement(
-          {
-            tag: "div",
-            namespace: "html",
-            children: [labelProps],
-          },
-          parent,
-        );
-        ztoolkit.UI.appendElement(
-          {
-            tag: "div",
-            namespace: "html",
-            children: [filepickerButton],
-          },
-          parent,
-        );
-      }
-    } else {
-      const fields = Object.keys(fieldNames);
-      const values = Object.values(fieldNames) as string[];
-      if (dialogType == "input") {
-        const buttonDel = (e: Event) => {
-          const button = e.target as HTMLButtonElement;
-          button?.parentElement?.remove();
-        };
-        const endEdit = (e: Event) => {
-          const hboxRow = win.document.querySelectorAll("#insertHbox")!;
-          if (!hboxRow || hboxRow.length != 1) return;
-          const row = hboxRow[0];
-          const label = addon.mountPoint.label;
-          const labelInput = row.children[1] as HTMLInputElement;
-          label.textContent = labelInput.value;
-          const inputfieldName = row.children[2] as HTMLInputElement;
-          inputfieldName.name = labelInput.value;
-          row.setAttribute("id", "");
-          row.replaceChild(label, labelInput);
-        };
-        const ondelete = {
-          type: "click",
-          listener: buttonDel,
-        };
-        fields.forEach((field: string, i: number) => {
-          ztoolkit.UI.appendElement(
-            {
-              tag: "hbox",
-              namespace: "xul",
-              children: [
-                {
-                  tag: "button",
-                  id: "deleteRow",
-                  namespace: "html",
-                  attributes: {
-                    style: `margin-inline: 1rem`,
-                  },
-                  properties: {
-                    textContent: getString("info-delete"),
-                  },
-                  listeners: [ondelete], //删除父元素 row
-                },
-                {
-                  tag: "label",
-                  namespace: "html",
-                  attributes: {
-                    for: `fieldName-${"key" + i}`,
-                    style: `margin-inline: 1rem`,
-                  },
-                  properties: {
-                    textContent: field,
-                  },
-                },
-                {
-                  tag: "input",
-                  id: `fieldName-${"key" + i}`,
-                  namespace: "html",
-                  classList: ["key" + i],
-                  attributes: {
-                    placeholder: `${fieldNames[field]}`,
-                    type: "text",
-                    name: field,
-                    style: style,
-                  },
-                  properties: {
-                    value: `${fieldNames[field]}`,
-                  },
-                },
-              ],
-            },
-            parent,
-          );
-        });
-        //插入，结束编辑
-        const onInsertRow = {
-          type: "click",
-          listener: (e: Event) => {
-            endEdit(e);
-            const lastRow = parent.children[parent.children.length - 2]; //倒数第二行，最后一行是编辑按钮
-            const newNode = lastRow?.cloneNode(true) as HTMLElement;
-            if (!newNode) return;
-            newNode.setAttribute("id", "insertHbox");
-            const bt = newNode?.childNodes[0];
-            bt.addEventListener("click", buttonDel); //重新添加事件，克隆元素不具有原有 addEventListener 事件
-            const label = newNode?.childNodes[1] as HTMLLabelElement;
-            addon.mountPoint.label = label; //标签挂载到插件挂载点上
-            label.setAttribute("for", "rowInput");
-            label.setAttribute("id", "rowLabel");
-            ztoolkit.UI.replaceElement(
+    if (fieldNames && !["targeCombine"].includes(dialogType))
+      if (Array.isArray(fieldNames)) {
+        if (dialogType == "input") {
+          fieldNames.forEach((field: string, i: number) => {
+            ztoolkit.UI.appendElement(
               {
-                //将 label 改为 input，以便修改字段
                 tag: "input",
-                id: "labelInput",
+                id: `fieldName-${Zotero.randomString(6)}`,
                 namespace: "html",
+                classList: ["key" + i],
                 attributes: {
-                  placeholder: `${label.textContent}`,
-                  type: "text",
+                  placeholder: `${field}`,
                   style: style,
                 },
               },
-              label,
+              parent,
             );
-            lastRow.insertAdjacentElement("afterend", newNode);
-          },
-        };
-        const onSaveRow = {
-          type: "click",
-          listener: endEdit,
-        };
-        const hbox = ztoolkit.UI.createElement(win.document, "hbox", {
-          tag: "hbox",
-          namespace: "xul",
-          attributes: {
-            style: `display: flex; justify-Content: center; margin-inline: auto`,
-          },
-          children: [
-            {
-              tag: "button",
-              id: "insertRow",
-              namespace: "html",
-              attributes: {
-                style: `margin-inline: 1rem`,
-              },
-              properties: {
-                textContent: getString("info-insertRow"),
-              },
-              listeners: [onInsertRow],
-            },
-            {
-              tag: "button",
-              id: "endEdit",
-              namespace: "html",
-              attributes: {
-                style: `margin-inline: 1rem`,
-              },
-              properties: {
-                textContent: getString("info-saveRow"),
-              },
-              listeners: [onSaveRow],
-            },
-          ],
-        });
-        parent.appendChild(hbox);
-      }
-      if (dialogType == "multiSelect") {
-        parent.style.marginLeft = "1rem";
-        const checkboxs = fields.map((e: string, i: number) => ({
-          tag: "checkbox",
-          id: `fieldName - ${Zotero.randomString(6)}`,
-          classList: ["key" + i],
-          namespace: "xul",
-          attributes: {
-            label: fieldNames[e],
-            native: true,
-            style: style,
-          },
-        }));
-        const multiselet = ztoolkit.UI.appendElement(
-          {
-            tag: "vbox",
-            id: `${config.addonRef} - multiSelectDialog`,
+          });
+        }
+        if (dialogType == "multiSelect") {
+          parent.style.marginLeft = "1rem";
+          const checkboxs = fieldNames.map((e: string, i: number) => ({
+            tag: "checkbox",
+            id: `fieldName-${Zotero.randomString(6)}`,
+            classList: ["key" + i],
             namespace: "xul",
-            children: checkboxs,
-          },
-          parent,
-        );
+            attributes: {
+              label: e,
+              native: true,
+              style: style,
+            },
+          }));
+          const multiselet = ztoolkit.UI.appendElement(
+            {
+              tag: "vbox",
+              id: `${config.addonRef}-multiSelectDialog`,
+              namespace: "xul",
+              children: checkboxs,
+            },
+            parent,
+          );
+          const child = parent.childNodes[0].childNodes[0].childNodes; //避免第一个选项自动选中显示边框
+          if (child && child.length == 2)
+            (child[1] as XUL.Box).setAttribute("class", "");
+        }
+        if (dialogType == "directory") {
+          if (!fieldNames) fieldNames = ["none"];
+          const basename = PathUtils.join(fieldNames[0]);
+          const labelProps = makeTagElementProps({
+            tag: "label",
+            id: "fieldName-" + basename,
+            namespace: "html",
+            attributes: {
+              style: style,
+            },
+            properties: {
+              textContent: fieldNames[0],
+            },
+          });
+          const filepickerButton = makeTagElementProps({
+            tag: "button",
+            id: "filepickerButton",
+            namespace: "html",
+            attributes: {
+              style: `margin-inline: 1rem`,
+            },
+            properties: {
+              textContent: getString("info-selectDirectory"),
+            },
+            listeners: [
+              {
+                type: "click",
+                listener: onFilepicker,
+              },
+            ],
+          });
+          ztoolkit.UI.appendElement(
+            {
+              tag: "div",
+              namespace: "html",
+              children: [labelProps],
+            },
+            parent,
+          );
+          ztoolkit.UI.appendElement(
+            {
+              tag: "div",
+              namespace: "html",
+              children: [filepickerButton],
+            },
+            parent,
+          );
+        }
+      } else {
+        const fields = Object.keys(fieldNames);
+        const values = Object.values(fieldNames) as string[];
+        if (dialogType == "input") {
+          const buttonDel = (e: Event) => {
+            const button = e.target as HTMLButtonElement;
+            button?.parentElement?.remove();
+          };
+          const endEdit = (e: Event) => {
+            const hboxRow = win.document.querySelectorAll("#insertHbox")!;
+            if (!hboxRow || hboxRow.length != 1) return;
+            const row = hboxRow[0];
+            const label = addon.mountPoint.label;
+            const labelInput = row.children[1] as HTMLInputElement;
+            label.textContent = labelInput.value;
+            const inputfieldName = row.children[2] as HTMLInputElement;
+            inputfieldName.name = labelInput.value;
+            row.setAttribute("id", "");
+            row.replaceChild(label, labelInput);
+          };
+          const ondelete = {
+            type: "click",
+            listener: buttonDel,
+          };
+          fields.forEach((field: string, i: number) => {
+            ztoolkit.UI.appendElement(
+              {
+                tag: "hbox",
+                namespace: "xul",
+                children: [
+                  {
+                    tag: "button",
+                    id: "deleteRow",
+                    namespace: "html",
+                    attributes: {
+                      style: `margin-inline: 1rem`,
+                    },
+                    properties: {
+                      textContent: getString("info-delete"),
+                    },
+                    listeners: [ondelete], //删除父元素 row
+                  },
+                  {
+                    tag: "label",
+                    namespace: "html",
+                    attributes: {
+                      for: `fieldName-${"key" + i}`,
+                      style: `margin-inline: 1rem`,
+                    },
+                    properties: {
+                      textContent: field,
+                    },
+                  },
+                  {
+                    tag: "input",
+                    id: `fieldName-${"key" + i}`,
+                    namespace: "html",
+                    classList: ["key" + i],
+                    attributes: {
+                      placeholder: `${fieldNames[field]}`,
+                      type: "text",
+                      name: field,
+                      style: style,
+                    },
+                    properties: {
+                      value: `${fieldNames[field]}`,
+                    },
+                  },
+                ],
+              },
+              parent,
+            );
+          });
+          //插入，结束编辑
+          const onInsertRow = {
+            type: "click",
+            listener: (e: Event) => {
+              endEdit(e);
+              const lastRow = parent.children[parent.children.length - 2]; //倒数第二行，最后一行是编辑按钮
+              const newNode = lastRow?.cloneNode(true) as HTMLElement;
+              if (!newNode) return;
+              newNode.setAttribute("id", "insertHbox");
+              const bt = newNode?.childNodes[0];
+              bt.addEventListener("click", buttonDel); //重新添加事件，克隆元素不具有原有 addEventListener 事件
+              const label = newNode?.childNodes[1] as HTMLLabelElement;
+              addon.mountPoint.label = label; //标签挂载到插件挂载点上
+              label.setAttribute("for", "rowInput");
+              label.setAttribute("id", "rowLabel");
+              ztoolkit.UI.replaceElement(
+                {
+                  //将 label 改为 input，以便修改字段
+                  tag: "input",
+                  id: "labelInput",
+                  namespace: "html",
+                  attributes: {
+                    placeholder: `${label.textContent}`,
+                    type: "text",
+                    style: style,
+                  },
+                },
+                label,
+              );
+              lastRow.insertAdjacentElement("afterend", newNode);
+            },
+          };
+          const onSaveRow = {
+            type: "click",
+            listener: endEdit,
+          };
+          const hbox = ztoolkit.UI.createElement(win.document, "hbox", {
+            tag: "hbox",
+            namespace: "xul",
+            attributes: {
+              style: `display: flex; justify-Content: center; margin-inline: auto`,
+            },
+            children: [
+              {
+                tag: "button",
+                id: "insertRow",
+                namespace: "html",
+                attributes: {
+                  style: `margin-inline: 1rem`,
+                },
+                properties: {
+                  textContent: getString("info-insertRow"),
+                },
+                listeners: [onInsertRow],
+              },
+              {
+                tag: "button",
+                id: "endEdit",
+                namespace: "html",
+                attributes: {
+                  style: `margin-inline: 1rem`,
+                },
+                properties: {
+                  textContent: getString("info-saveRow"),
+                },
+                listeners: [onSaveRow],
+              },
+            ],
+          });
+          parent.appendChild(hbox);
+        }
+        if (dialogType == "multiSelect") {
+          parent.style.marginLeft = "1rem";
+          const checkboxs = fields.map((e: string, i: number) => ({
+            tag: "checkbox",
+            id: `fieldName - ${Zotero.randomString(6)}`,
+            classList: ["key" + i],
+            namespace: "xul",
+            attributes: {
+              label: fieldNames[e],
+              native: true,
+              style: style,
+            },
+          }));
+          const multiselet = ztoolkit.UI.appendElement(
+            {
+              tag: "vbox",
+              id: `${config.addonRef} - multiSelectDialog`,
+              namespace: "xul",
+              children: checkboxs,
+            },
+            parent,
+          );
+        }
       }
-    }
 
     if (parent.clientHeight > win.screen.availHeight) {
       parent.style.height = (win.screen.availHeight * 2) / 3 + "px";
@@ -840,6 +993,10 @@ export class DataDialog {
     //@ts-ignore XXX
     const io = win.arguments[0];
     const dialogType = io.dialogType;
+    if (dialogType == "targeCombine") {
+      return;
+    }
+
     if (dialogType == "aiTrans") {
       return false;
     }

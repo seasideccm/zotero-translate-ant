@@ -4,9 +4,9 @@
 
 _适用于 Zotero 7.0 最新测试版_
 
-## 安装Zotero 7.0 Beta
+## [安装Zotero 7.0 Beta](https://www.zotero.org/support/beta_builds)
 
-[Mac (requires macOS 10.12 or later)](https://www.zotero.org/download/client/dl?platform=mac&channel=beta)
+<!-- [Mac (requires macOS 10.12 or later)](https://www.zotero.org/download/client/dl?platform=mac&channel=beta)
 
 [Windows 64-bit Installer](https://www.zotero.org/download/client/dl?platform=win-x64&channel=beta)
 
@@ -18,7 +18,7 @@ _适用于 Zotero 7.0 最新测试版_
 
 [Linux 64-bit](https://www.zotero.org/download/client/dl?platform=linux-x86_64&channel=beta)
 
-[Linux 32-bit](https://www.zotero.org/download/client/dl?platform=linux-i686&channel=beta)
+[Linux 32-bit](https://www.zotero.org/download/client/dl?platform=linux-i686&channel=beta) -->
 
 ## 安装插件
 

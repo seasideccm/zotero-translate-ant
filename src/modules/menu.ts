@@ -7,24 +7,29 @@ import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiToo
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
+import { tabTest } from "./ui/tab";
+import { testReact } from "./ui/testReact";
+
+
 
 function getParasArrs() {
   const parasArrs = [
     [
-      //["读取文件内容", readTextFiles],
       ["info-AITranslate", aITransUI],
       ["info-translateText", showTrans],
-      //["测试openai兼容", openAIOllama],
     ],
     [
       ["info-encryptFile", encryptFile],
       ["info-decryptFile", decryptFileSelected],
     ],
     [
-      //["clearTable", clearAllTable],
-      //["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
+    [
+      //["译文标签 Test", tabTest],
+      ["React Test", testReact],
+    ],
+
   ];
   return parasArrs;
 }

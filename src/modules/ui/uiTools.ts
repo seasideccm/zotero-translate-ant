@@ -147,7 +147,7 @@ export const makeMenuitem = (option: MenuitemProps, menupopup: any) => {
 };
 
 export const judgeAsync = (fun: any) => {
-  const AsyncFunction = (async () => {}).constructor;
+  const AsyncFunction = (async () => { }).constructor;
   return fun instanceof AsyncFunction;
 };
 
@@ -193,7 +193,10 @@ export function selectEle(idSuffix: string) {
 export function getDom(idSuffix: string) {
   const doc = addon.data.prefs?.window?.document;
   if (!doc) return;
-  return doc.querySelector(`#${makeId(idSuffix)}`);
+  let elem = doc.querySelector(`#${makeId(idSuffix)}`);
+  if (elem) return elem;
+  elem = doc.querySelector(`#${idSuffix}`);
+  return elem;
 }
 
 /**

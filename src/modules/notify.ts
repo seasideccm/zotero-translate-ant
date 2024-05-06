@@ -1,4 +1,5 @@
 import { encryptState } from "./crypto";
+import { updateServices } from "./translate/translateServices";
 
 export function registerNotifier() {
   const callback = {
@@ -6,7 +7,7 @@ export function registerNotifier() {
       event: string,
       type: string,
       ids: number[] | string[],
-      extraData: { [key: string]: any },
+      extraData: { [key: string]: any; },
     ) => {
       if (!addon?.data.alive) {
         unregisterNotifier(notifierID);
@@ -35,7 +36,7 @@ async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
-  extraData: { [key: string]: any },
+  extraData: { [key: string]: any; },
 ) {
   //观察 zotero 通知
   ztoolkit.log(
@@ -62,6 +63,7 @@ async function onNotify(
         }
       }
     }
+    await updateServices();
   }
 }
 

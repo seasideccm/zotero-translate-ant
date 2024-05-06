@@ -621,6 +621,7 @@ const toLine = (item: PDFItem) => {
     line.x = Math.round(line.width + line.x);
     line.width = -Math.round(line.width);
   }
+
   return line;
 };
 
@@ -675,6 +676,7 @@ const combineLine = (lastLine: PDFLine, line: PDFLine, fontStyle?: string) => {
     }
   }
   //lastLine 已经是 lines 的元素，其 text 变化
+  if (line.text == " " && line.width < 0.2) lineTxt = "";//舍弃假空格
   lastLine.text += lineTxt;
   lastLine.width += Math.round(line.width);
   //不再负责更新行的高度，//取较大值
@@ -758,13 +760,25 @@ const strByFont = (
  * @param isSkipClearCharaters
  * @returns
  */
-const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
+const fontInfo = (items: any[], isSkipClearCharaters: boolean) => {
+  if (!items.length) return;
+  let allItem = [...items];
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
   let arrTemp: any;
   if (isSkipClearCharaters) {
-    if (Object.prototype.hasOwnProperty.call(allItem[0], "text")) {
+    let condition;
+    try {
+      condition = Object.prototype.hasOwnProperty.call(allItem[0], "text");
+    }
+    catch (e: any) {
+      ztoolkit.log(e);
+      ztoolkit.log(allItem[0]);
+      ztoolkit.log(allItem);
+      throw e;
+    }
+    if (condition) {
       arrTemp = allItem.filter(
         (e: PDFLine) =>
           e.text != "" &&
@@ -2308,6 +2322,7 @@ const docReplaceSpecialCharacter = (text: string) => {
 
 const headerFooterIdentify = (pageLines: any, pages: any) => {
   const pageLinesArr = Object.values(pageLines) as PDFLine[][];
+  const pageNumbers = pageLinesArr.length;
   function extractLinesByLocation(pageLinesArr: PDFLine[][], index: number) {
     const lineArrTop: PDFLine[] = [];
     const lineArrBottom: PDFLine[] = [];
@@ -2344,31 +2359,29 @@ const headerFooterIdentify = (pageLines: any, pages: any) => {
             const yHeaderFrequency = frequency(yHeaderArr).objFrequency;
             const xFooterFrequency = frequency(xFooterArr).objFrequency;
             const yHFooterFrequency = frequency(yFooterArr).objFrequency; */
-    Object.keys(headerFrequency).filter((e) => {
-      if (headerFrequency[e] >= 2) {
-        tempObj.lineArrTop.filter((e2) => {
-          if (removeNumber(e2.text) == e) {
-            //行的y值大于视窗y值的80%才是有效的页眉
-            if (e2.y > pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.8) {
-              header.push(e2);
-            }
-          }
-        });
+    for (const e of Object.keys(headerFrequency)) {
+      if (headerFrequency[e] <= pageNumbers / 3) continue;
+      for (const e2 of tempObj.lineArrTop) {
+        if (removeNumber(e2.text) != e) continue;
+        //行的y值大于视窗y值的80%才是有效的页眉
+        if (e2.y > pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.8) {
+          header.push(e2);
+        }
       }
-    });
+    }
 
-    Object.keys(footerFrequency).filter((e) => {
-      if (footerFrequency[e] >= 2) {
-        tempObj.lineArrBottom.filter((e2) => {
-          if (removeNumber(e2.text) == e) {
-            //行的y值小于视图y值的20%才是有效的页脚
-            if (e2.y < pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.2) {
-              footer.push(e2);
-            }
-          }
-        });
+    for (const e of Object.keys(footerFrequency)) {
+      if (footerFrequency[e] <= pageNumbers / 3) continue;
+      for (const e2 of tempObj.lineArrBottom) {
+        if (removeNumber(e2.text) != e) continue;
+        //行的y值小于视图y值的20%才是有效的页脚
+        if (e2.y < pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.2) {
+          footer.push(e2);
+        }
       }
-    });
+    }
+
+
     const counts2 = header.length + footer.length;
     if (counts2 > counts) {
       index++;
@@ -2481,6 +2494,7 @@ export async function pdf2document(itmeID: number) {
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
+  const referenceReg = /^\W*(<[^>]+>)*references( AND RECOMMENDED)?(<\/[^>]+>)*\W*$/gim;
   let refMarker = 0;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const lines1 = mergePDFItemsToPDFLine(itemsArr[pageNum])!;
@@ -2491,7 +2505,7 @@ export async function pdf2document(itmeID: number) {
       e.pageIndex = pageNum;
       if (refMarker == 0) {
         if (
-          /^\W*(<[^>]+>)*references( AND RECOMMENDED)?(<\/[^>]+>)*\W*$/gim.test(
+          referenceReg.test(
             e.text,
           )
         ) {
@@ -2517,7 +2531,7 @@ export async function pdf2document(itmeID: number) {
   for (let i = 0; i < tempAllLines.length; i++) {
     if (
       skip == 0 &&
-      /^\W*(<[^>]+>)*references(<\/[^>]+>)*\W*$/gim.test(tempAllLines[i].text)
+      referenceReg.test(tempAllLines[i].text)
     ) {
       refIndex = i;
       skip = 1;
@@ -2539,6 +2553,7 @@ export async function pdf2document(itmeID: number) {
   const pagePara: { [key: string]: PDFLine[][]; } = {};
   //记录分段的判断条件
   const paraCondition: any = {};
+  const abandonLinesPage: any = {};
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     //paragraphs数组,每页都初始化为空
     const paragraphs = [];
@@ -2562,6 +2577,10 @@ export async function pdf2document(itmeID: number) {
           (objHeaderFooter.footerY && e.y <= objHeaderFooter.footerY)
         ),
     );
+
+
+    const abandonLines = linesTemp.filter(line => !lines.some(l => l == line));
+    abandonLinesPage[pageNum] = abandonLines;
     //删除当前页的页眉页脚，返回当前页的行
     //const lines = cleanHeadFooter(linesTemp, totalPageNum, headFooderTextArr, headingY, footerY);
     //防止空行中断
@@ -2995,9 +3014,10 @@ export async function pdf2document(itmeID: number) {
       .map((p) => p.lines)
       .flat(1)
       .filter((e) => e !== undefined);
+    if (!contentCleanLines.length) continue;
     const paralineSpaceTopArr = contentCleanLines.map((l) => l.lineSpaceTop);
     const modelineSpaceTop = getMode(paralineSpaceTopArr, "descending");
-    const contentCleanFontInfo = fontInfo(contentCleanLines, true);
+    const contentCleanFontInfo = fontInfo(contentCleanLines, true)!;
     const contentCleanLineHighArr = contentCleanLines
       .map((l) => l.height)
       .filter((e) => e != undefined);
