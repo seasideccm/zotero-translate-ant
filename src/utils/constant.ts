@@ -3,6 +3,12 @@ import { config } from "../../package.json";
 export const ENCRYPT_KEYS = ["secretKey", "token"];
 
 export const EmptyValue = "No Data";
+
+
+export const Latin_Abbreviations = ["aa.", "a.c.", "a.d.", "a.h.", "a.j.", "a.m.", "a.p.", "a.u.agit", "Abs.febr.", "Ac.", "acid.", "Ad.", "add", "Ad lid", "Ad us", "Ad us.ext", "Ad us.int.", "Alt.die.", "a.d.", "Amp.", "Abt.ccen.", "Aq.", "Aq.bull", "Aq.cal.", "Ap.com", "Ap.dest.", "Ap.ferv.", "Ap.font.", "Ap.steril.", "b.i.d.", "Cap", "Caps.amyl.", "Caps.gelat.", "Caps.dur.", "Caps.moll.", "Catapl.", "c.c", "c.g.", "Cit.", "Collum.", "Collut.", "Collyr.", "Co.", "Ccen.", "Cons", "Crem.", "c.t.", "d.", "d.d", "d.i.d", "d.in amp.", "d.in caps.", "Dec.", "Deg.", "Dest.", "Dg.", "Dieb.alt", "Dil.", "Dim.", "Div.", "Div.in p.", "Div.inpar.aeg", "d.t.d", "Em.", "emuls", "Emp.", "Ext", "Extr.", "Feb.urg", "Fl.", "Fol.", "Fort.", "Fr.", "Garg.", "g.", "gm.", "h.", "Hb.", "h.d.", "h.s.", "h.s.s", "Hod.", "In.d", "Inf.", "Inj.", "i.h.", "i.m.", "i.v.", "Lin.", "Liq.", "Lit.", "Mist.", "Ml.", "Mg.", "Muc.", "N", "n.et.m", "Neb.", "o.d.", "O.D.", "O.L.", "O.S.", "O.U.", "Om.bid.", "Om.d.", "o.d.", "Om.hor.", "o.h.", "Om.man.", "Om.noc.", "o.n.", "p.c.", "p.o.", "Pil.", "p.j.", "p.m.", "p.prand.", "Pcoen.", "Pro us.ext", "Pro.us.int.", "Pro us.med.", "Pro us.vet.", "Pulv.", "Pt.", "p.r.n.", "q.d.", "q.h.", "q.4.h.", "q.l.", "q.n.", "q.s.", "q.semih.", "r.", "rad", "Rec", "Rp.", "Rhiz.", "s.", "sig.", "s.i.d", "s.l", "s.o.s", "Sem.", "Ser.", "syr.", "Solut.", "Semih.", "Sp.", "Stat.", "st", "Supp.", "t.i.d.", "t.", "tr.", "Troch.", "Tab.", "Us.", "Ug.", "ung.", "Us.ext.", "Ut dict", "Vesp.",];
+
+export const Latin_Abbreviations_EndDot = ["aa.", "a.c.", "a.d.", "a.h.", "a.j.", "a.m.", "a.p.", "Abs.febr.", "Ac.", "acid.", "Ad.", "Ad us.int.", "Alt.die.", "a.d.", "Amp.", "Abt.ccen.", "Aq.", "Aq.cal.", "Ap.dest.", "Ap.ferv.", "Ap.font.", "Ap.steril.", "b.i.d.", "Caps.amyl.", "Caps.gelat.", "Caps.dur.", "Caps.moll.", "Catapl.", "c.g.", "Cit.", "Collum.", "Collut.", "Collyr.", "Co.", "Ccen.", "Crem.", "c.t.", "d.", "d.in amp.", "d.in caps.", "Dec.", "Deg.", "Dest.", "Dg.", "Dil.", "Dim.", "Div.", "Div.in p.", "Em.", "Emp.", "Extr.", "Fl.", "Fol.", "Fort.", "Fr.", "Garg.", "g.", "gm.", "h.", "Hb.", "h.d.", "h.s.", "Hod.", "Inf.", "Inj.", "i.h.", "i.m.", "i.v.", "Lin.", "Liq.", "Lit.", "Mist.", "Ml.", "Mg.", "Muc.", "Neb.", "o.d.", "O.D.", "O.L.", "O.S.", "O.U.", "Om.bid.", "Om.d.", "o.d.", "Om.hor.", "o.h.", "Om.man.", "Om.noc.", "o.n.", "p.c.", "p.o.", "Pil.", "p.j.", "p.m.", "p.prand.", "Pcoen.", "Pro.us.int.", "Pro us.med.", "Pro us.vet.", "Pulv.", "Pt.", "p.r.n.", "q.d.", "q.h.", "q.4.h.", "q.l.", "q.n.", "q.s.", "q.semih.", "r.", "Rp.", "Rhiz.", "s.", "sig.", "Sem.", "Ser.", "syr.", "Solut.", "Semih.", "Sp.", "Stat.", "Supp.", "t.i.d.", "t.", "tr.", "Troch.", "Tab.", "Us.", "Ug.", "ung.", "Us.ext.", "Vesp."];
+
 //该值用于替换输入框内容，故应为 string
 export const DEFAULT_VALUE = {
   usable: "1",
@@ -13,15 +19,13 @@ export const DEFAULT_VALUE = {
 export const keysTranslateService = [
   "serviceID",
   "charasPerTime",
-  "QPS",
+  "QPS",// 每秒请求次数
   "limitMode",
   "charasLimit",
   "supportMultiParas",
   "hasSecretKey",
   "hasToken",
 ];
-
-export const Latin_Abbreviations = ["aa.", "a.c.", "a.d.", "a.h.", "a.j.", "a.m.", "a.p.", "a.u.agit", "Abs.febr.", "Ac.", "acid.", "Ad.", "add", "Ad lid", "Ad us", "Ad us.ext", "Ad us.int.", "Alt.die.", "a.d.", "Amp.", "Abt.ccen.", "Aq.", "Aq.bull", "Aq.cal.", "Ap.com", "Ap.dest.", "Ap.ferv.", "Ap.font.", "Ap.steril.", "b.i.d.", "Cap", "Caps.amyl.", "Caps.gelat.", "Caps.dur.", "Caps.moll.", "Catapl.", "c.c", "c.g.", "Cit.", "Collum.", "Collut.", "Collyr.", "Co.", "Ccen.", "Cons", "Crem.", "c.t.", "d.", "d.d", "d.i.d", "d.in amp.", "d.in caps.", "Dec.", "Deg.", "Dest.", "Dg.", "Dieb.alt", "Dil.", "Dim.", "Div.", "Div.in p.", "Div.inpar.aeg", "d.t.d", "Em.", "emuls", "Emp.", "Ext", "Extr.", "Feb.urg", "Fl.", "Fol.", "Fort.", "Fr.", "Garg.", "g.", "gm.", "h.", "Hb.", "h.d.", "h.s.", "h.s.s", "Hod.", "In.d", "Inf.", "Inj.", "i.h.", "i.m.", "i.v.", "Lin.", "Liq.", "Lit.", "Mist.", "Ml.", "Mg.", "Muc.", "N", "n.et.m", "Neb.", "o.d.", "O.D.", "O.L.", "O.S.", "O.U.", "Om.bid.", "Om.d.", "o.d.", "Om.hor.", "o.h.", "Om.man.", "Om.noc.", "o.n.", "p.c.", "p.o.", "Pil.", "p.j.", "p.m.", "p.prand.", "Pcoen.", "Pro us.ext", "Pro.us.int.", "Pro us.med.", "Pro us.vet.", "Pulv.", "Pt.", "p.r.n.", "q.d.", "q.h.", "q.4.h.", "q.l.", "q.n.", "q.s.", "q.semih.", "r.", "rad", "Rec", "Rp.", "Rhiz.", "s.", "sig.", "s.i.d", "s.l", "s.o.s", "Sem.", "Ser.", "syr.", "Solut.", "Semih.", "Sp.", "Stat.", "st", "Supp.", "t.i.d.", "t.", "tr.", "Troch.", "Tab.", "Us.", "Ug.", "ung.", "Us.ext.", "Ut dict", "Vesp.",];
 
 export const antServices = ["baiduModify", "baidufieldModify", "tencentTransmart", "baiduPictureTranslate", "baiduOcrAccurate"];
 

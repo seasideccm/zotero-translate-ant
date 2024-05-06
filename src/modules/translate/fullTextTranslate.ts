@@ -14,6 +14,7 @@ import { html2md, md2html } from "../../utils/mdHtmlConvert";
 import { getCharasLimit, getServices } from "./translateServices";
 import {
   Latin_Abbreviations,
+  Latin_Abbreviations_EndDot,
   langCodeNameSpeakers,
   langCode_francVsZotero,
 } from "../../utils/constant";
@@ -411,7 +412,6 @@ export class fullTextTranslate {
       const docItemCache = cacheError?.docItem || splitOK?.docItem || splitError?.docItem as DocItem;
       const itemID = docItemCache.itemID;
       if (ids.includes(itemID)) {
-
         const docItem = await fullTextTranslate.translateDoc(docItemCache);
         if (docItem) {
           const res = await fullTextTranslate.makeTranslation(docItem);
@@ -420,8 +420,6 @@ export class fullTextTranslate {
             for (const type of ["translatedCache", "translatedCache-splitError", "translatedCache-splitOK"]) {
               await deleteCacheOrFile(type);
             }
-
-
           }
         }
       }
@@ -538,17 +536,26 @@ export class fullTextTranslate {
     function splitReg(sourceTxt: string, charasPerTime: number) {
       // 数组合并使用join(''),避免多加 ，号
       // 拉丁缩略语
-      const abbsExist = Latin_Abbreviations.filter(abb => abb.endsWith(".")).filter(abb => sourceTxt.includes(abb));
-      const abbsModify = abbsExist.map(abb => {
-        abb = abb.replace(/\.$/, '')
-          .replace(/\./, '\\\.');
-        abb = `\(?<!${abb}\)`;
+      const abbsExist = Latin_Abbreviations_EndDot.filter(abb => sourceTxt.includes(abb));
+      let abbsRegComponent = abbsExist.map(abb => {
+        return abb.replace(/\./g, '\\\.');
       });
-
+      abbsRegComponent = abbsRegComponent.filter(abb => {
+        const reg = new RegExp(abb + " \[^A-Z\]");//拉丁缩写后面不能跟句子起始标识。允许误判
+        if (reg.test(sourceTxt))
+          return true;
+      });
+      let abbsModify: string[] = [];
+      if (abbsRegComponent.length) {
+        abbsModify = abbsRegComponent.map(abb => {
+          abb = abb.replace(/\\\.$/, '');
+          abb = `\(?<!${abb}\)`;
+          return abb;
+        });
+      }
       const abbsStr = abbsModify.join("");
 
       //判断句子结束标志[! , ? ' "] 前后
-
       //   .前不能是 e.g e后面的点就是实际的点，
       //所以需要先以 \.转义 .
       //然后再以\\ 转义 \,
@@ -572,6 +579,7 @@ export class fullTextTranslate {
         `\(?<!\\\d+\)`,
         abbsStr,
         regexTxt2,
+        ")",
       ];
 
       //const end2 = /? /;
@@ -656,10 +664,13 @@ export class fullTextTranslate {
       return;
     }
     let noteHtml = "";
+    let title = '';
     if (item.isNote()) {
       noteHtml = item.getNote();
-    } else if (item.isPDFAttachment()) {
+      title = item.getNoteTitle();
+    } else {//(item.isPDFAttachment())
       noteHtml = (await this.getPdfContent(item)) as string;
+      title = item.parentItem?.getField("title") || '';
     }
     const docCellArr: DocCell[] = [];
     function getID() {
@@ -692,13 +703,12 @@ export class fullTextTranslate {
       };
       docCellArr.push(obj);
     }
-    //extract title
-    const noteTitle: string = item.getNoteTitle();
+
     const obj: DocCell = {
       id: getID(),
       type: "title" as DocCell["type"],
-      rawContent: noteTitle,
-      rawToTranslate: noteTitle,
+      rawContent: title,
+      rawToTranslate: title,
     };
     docCellArr.push(obj);
 
@@ -1400,7 +1410,6 @@ export class fullTextTranslate {
       splitArr.push(...splitOK.splitArr);
     }
 
-
     if (splitArr.length == sourceArr.length) {
       const serviceID = splitError.serviceID || splitOK.serviceID;
       for (let i = 0; i < sourceArr.length; i++) {
@@ -1423,9 +1432,6 @@ export class fullTextTranslate {
    */
   static async translateDoc(docItem: DocItem) {
     await fullTextTranslate.delError(docItem);
-    if (docItem?.status == "cache") {
-      showInfo("从错误中恢复");
-    }
 
     const docCellArr = docItem.content;
     let objArrToTranArr: DocCell[] = [];
@@ -1433,11 +1439,8 @@ export class fullTextTranslate {
     objArrToTranArr = docCellArr.filter(
       (e: DocCell) => e.rawToTranslate && e.rawToTranslate != " " && e.rawToTranslate.length && !e.translation);
     const paragraph = objArrToTranArr.filter((e) => (e.type == "paragraph" || e.type == "title"));
-
-
     const paragraphs2 = paragraph.filter(e => !e.translation);
     const totranArr = paragraphs2.map(e => e.rawToTranslate) as string[];
-
     let characterNumber = 0;
     const perTimeArr: string[] = [];
     const perTimeParas: DocCell[] = [];
@@ -1454,12 +1457,15 @@ export class fullTextTranslate {
         continue;
       } else {
         //翻译
+        if (!perTimeArr.length) {
+          //开始就超限，至少翻译一条
+          perTimeArr.push(leftArr.shift()!);
+          perTimeParas.push(leftParas.shift()!);
+        }
         result = await fullTextTranslate.translateExec([...perTimeArr], docItem);
         result = await recordError(result, perTimeArr, docItem);
-
         const translation = result.map((e) => e.translation);
         const serviceIDs = result.map((e) => e.serviceID);
-
         for (let i = 0; i < perTimeArr.length; i++) {
           for (const para of perTimeParas) {
             if (!para.rawToTranslate || para.rawToTranslate != perTimeArr[i] || para.translation) continue;
