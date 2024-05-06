@@ -67,9 +67,9 @@ export async function registerPrefsScripts(_window: Window) {
   await priorityWithKeyTable();
   await priorityWithoutKeyTable();
   await llmSettings();
-  onPrefsEvents();
+  await onPrefsEvents();
   bindPrefEvents();
-  addonSetting();
+  await addonSetting();
 }
 
 async function buildPrefsPane() {
