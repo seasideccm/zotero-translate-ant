@@ -13,6 +13,7 @@ import {
 import { html2md, md2html } from "../../utils/mdHtmlConvert";
 import { getCharasLimit, getServices } from "./translateServices";
 import {
+  Latin_Abbreviations,
   langCodeNameSpeakers,
   langCode_francVsZotero,
 } from "../../utils/constant";
@@ -488,6 +489,9 @@ export class fullTextTranslate {
     return filteredArr;
   };
 
+
+
+
   /**
    * 整句拆分
    * 如果未经判断的字串传入，且小于字符限制，则以数组的形式返回
@@ -510,6 +514,8 @@ export class fullTextTranslate {
       "(" + ".{1," + charaLength + regexTxt + regexTxt2 + ")",
       "gm",
     );
+    const regex2 = splitReg(sourceTxt, charasPerTime);
+    const splitArr2 = sourceTxt.split(regex);
     const splitArr = sourceTxt.split(regex);
     let filteredArr = splitArr.filter(
       (item) => item !== undefined && item !== "" && item !== "\n",
@@ -527,6 +533,53 @@ export class fullTextTranslate {
       );
     }
     return filteredArr;
+
+
+    function splitReg(sourceTxt: string, charasPerTime: number) {
+      // 数组合并使用join(''),避免多加 ，号
+      // 拉丁缩略语
+      const abbsExist = Latin_Abbreviations.filter(abb => abb.endsWith(".")).filter(abb => sourceTxt.includes(abb));
+      const abbsModify = abbsExist.map(abb => {
+        abb = abb.replace(/\.$/, '')
+          .replace(/\./, '\\\.');
+        abb = `\(?<!${abb}\)`;
+      });
+
+      const abbsStr = abbsModify.join("");
+
+      //判断句子结束标志[! , ? ' "] 前后
+
+      //   .前不能是 e.g e后面的点就是实际的点，
+      //所以需要先以 \.转义 .
+      //然后再以\\ 转义 \,
+      //合起来最终为 \.表示实际点
+      //如果是正则中表示任意字符的点，只需要 \.转义即可
+
+
+      const charaLength = charasPerTime - 20;
+      const regexTxt2 = `\[\.!?\]\(?![A-Za-z,]+\)\(\["”\]?\)\(\[\\\[\\\(\\\d\]\{0,3\}\[\\\d\]*\[\\\d\\\-,\\\[\\\]\]*\[\\\]\\\)\\\d\]{0,3}\)* ?`;
+      const regComponents = [
+        `\(\.\{1,`,
+        charaLength,
+        `\}`,
+        `\(?<!^\[A-Z\]\)`,
+        `\(?<! \[A-Z\]\)`,
+        `\(?<!e\\\.g\)`,
+        `\(?<![Nn]o\)`,
+        `\(?<!i\\\.e\)`,
+        `\(?<![Ff]\(ig|igure\)\)`,
+        `\(?<!\([Tt]able \\\d+\)\)`,
+        `\(?<!\\\d+\)`,
+        abbsStr,
+        regexTxt2,
+      ];
+
+      //const end2 = /? /;
+
+      //烧脑正则表达式，只有通过new RegExp 构建regex，才能利用变量达到长度为动态的要求
+      const regex = new RegExp(regComponents.join(""), "gm",);
+      return regex;
+    }
   }
 
   /**

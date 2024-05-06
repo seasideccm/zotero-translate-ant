@@ -97,6 +97,7 @@ info-failure = No Translation Service Available, Terminating Translation
 pref-switchService = Service Has Switched To: 
 info-addonName = FullTextTranslate
 info-zptNone = Plug-In Not Installed: Zotero Pdf Translate
+info-pdfTranslateInstall = To use more translation engines, please install zotro pdf translate
 pref-forbiddenService =  Forbidden This ServiceID OR Account
 prefs-table-serviceID = ServiceID
 prefs-table-locale = ServiceName

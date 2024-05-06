@@ -4,6 +4,7 @@ import {
   parasArrTranslateService,
   parasArrTranslateServiceAdd,
 } from "../../utils/constant";
+import { getString } from "../../utils/locale";
 import { getPref } from "../../utils/prefs";
 import { arrToObj, arrsToObjs, showInfo } from "../../utils/tools";
 import { getCurrentserviceID } from "../addonSetting";
@@ -63,20 +64,22 @@ export interface ServiceMap {
 }
 
 export async function getServices() {
-  const plugins = await Zotero.getInstalledExtensions();
-  const pdfTranslate = plugins.find((plugin: string) => plugin.startsWith('Translate for Zotero'));
+  //const plugins = await Zotero.getInstalledExtensions();
+  //const pdfTranslate = plugins.find((plugin: string) => plugin.startsWith('Translate for Zotero'));
   let services = addon.mountPoint.services as ServiceMap;
   if (services) {
     //如果百度和百度领域账号不同，则更新两者后从数据库重新读取
     if (!await syncBaiduAndBaidufield(services)) {
-      if (!pdfTranslate) {
+      const res = await checkPdfTranslate();
+      if (res) return res;
+      /* if (!pdfTranslate) {
         const servicesLess = {};
         for (const key of Object.keys(services)) {
           if (!antServices.includes(key)) continue;
           Object.assign(servicesLess, { [key]: services[key] });
         }
         return servicesLess as ServiceMap;
-      }
+      } */
       return services;
     }
   }
@@ -93,17 +96,33 @@ export async function getServices() {
   if (await syncBaiduAndBaidufield(services)) {
     services = await getServices();
   }
-  if (!pdfTranslate) {
-    const servicesLess = {};
-    for (const key of Object.keys(services)) {
-      if (!antServices.includes(key)) continue;
-      Object.assign(servicesLess, { key: services[key] });
-    }
-    return servicesLess as ServiceMap;
-  }
+  const res = await checkPdfTranslate();
+  if (res) return res;
+  /*  if (!pdfTranslate) {
+     const servicesLess = {};
+     for (const key of Object.keys(services)) {
+       if (!antServices.includes(key)) continue;
+       Object.assign(servicesLess, { key: services[key] });
+     }
+     return servicesLess as ServiceMap;
+   } */
   return services;
-}
 
+
+  async function checkPdfTranslate() {
+    const plugins = await Zotero.getInstalledExtensions();
+    const pdfTranslate = plugins.find((plugin: string) => plugin.startsWith('Translate for Zotero'));
+    if (!pdfTranslate) {
+      showInfo([getString("info-zptNone"), getString("info-pdfTranslateInstall")]);
+      const servicesLess = {};
+      for (const key of Object.keys(services)) {
+        if (!antServices.includes(key)) continue;
+        Object.assign(servicesLess, { key: services[key] });
+      }
+      return servicesLess as ServiceMap;
+    }
+  }
+}
 export async function syncBaiduAndBaidufield(services: ServiceMap) {
   const acountsBaidu = services["baidu"].accounts;
   const acountsBaidufield = services["baidufield"].accounts;

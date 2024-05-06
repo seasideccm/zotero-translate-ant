@@ -671,7 +671,7 @@ async function underUsing() {
   if (service instanceof TranslateServiceAccount) {
     setElementValue("secretKeyUnderUse", service.appID);
   } else {
-    setElementValue("secretKeyUnderUse", "");
+    setElementValue("secretKeyUnderUse", getString("info-noneAvailableSecretKey"));
   }
 }
 
