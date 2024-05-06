@@ -2413,20 +2413,21 @@ const headerFooterIdentify = (pageLines: any, pages: any) => {
 };
 
 export async function pdf2document(itmeID: number) {
-  let isCloseReader = false;
+  //let isCloseReader = false;
   let reader;
   if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
-    reader = await Zotero.Reader.open(itmeID);
+
+    reader = await Zotero.Reader.open(itmeID, undefined, { openInBackground: true });
     let n = 0;
     //@ts-ignore xxx
     while ((!reader?._iframeWindow || !reader._iframeWindow.wrappedJSObject?.PDFViewerApplication?.pdfDocument) && n++ < 50) {
       await Zotero.Promise.delay(100);
     }
 
-    isCloseReader = true;
+    //isCloseReader = true;
   }
   const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
-  Zotero_Tabs.select(tabID);
+  //Zotero_Tabs.select(tabID);
   reader = Zotero.Reader.getByTabID(tabID);
   if (!reader) {
     throw "reader 出错";
@@ -2442,6 +2443,7 @@ export async function pdf2document(itmeID: number) {
   //等待所有页面准备完毕后获取页面
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
+
   //pdfView 是 new PDFView() 创建的实例。它是一个 PDF 视图对象，用于显示和操作 PDF 文档
   //const pdfView = reader._internalReader._primaryView;
 
@@ -2481,6 +2483,8 @@ export async function pdf2document(itmeID: number) {
     });
     itemsArr.push(items as PDFItem[]);
   }
+
+  Zotero_Tabs.close(tabID);
 
   /*     const pageDateArr = [];
         for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
@@ -3047,11 +3051,11 @@ export async function pdf2document(itmeID: number) {
       const pdfTitle = "<h1>" + title + "</h1>" + "\n";
       docs.unshift(pdfTitle);
     } */
-  if (isCloseReader) {
-    ztoolkit.log("关闭pdf阅读窗口前检查");
-    //@ts-ignore xxx
-    reader.close();
-  }
+  /*  if (isCloseReader) {
+     ztoolkit.log("关闭pdf阅读窗口前检查");
+     //@ts-ignore xxx
+     reader.close();
+   } */
   let doc = docs.join("");
   doc = docReplaceSpecialCharacter(doc);
   return doc;

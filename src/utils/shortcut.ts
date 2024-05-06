@@ -5,6 +5,7 @@ import { getString } from "./locale";
 import { config } from "../../package.json";
 import { openAddonPrefPane } from "../modules/preferenceScript";
 import { getElementValue } from "../modules/ui/uiTools";
+import { fullTextTranslate } from "../modules/translate/fullTextTranslate";
 
 export function registerPrefsShortcut() {
   ztoolkit.PreferencePane.register({
@@ -72,7 +73,7 @@ const dispatchDebounced = Zotero.Utilities.debounce(dispatchShortcuts, 1000);
 function dispatchShortcuts(shortcutStr: string) {
   const cachedShortcuts = addon.mountPoint.cachedShortcuts;
   // 清空快捷键缓存
-  cachedShortcuts ? (cachedShortcuts.length = 0) : () => {};
+  cachedShortcuts ? (cachedShortcuts.length = 0) : () => { };
   //获取 Map 对象中键的值（函数），然后直接运行
 
   //
@@ -95,6 +96,7 @@ function dispatchShortcuts(shortcutStr: string) {
 
 export function setShortcut() {
   const argsArr = [
+    ["alt+n", "translateNote.note"],//参数用 . 隔开
     ["b d f y", 百度翻译],
     ["t x f y", 腾讯翻译],
     ["ctrl+t x f y", "txfy"],
@@ -165,4 +167,5 @@ export function registerFn() {
   addon.mountPoint.fn.increaseFontSize = increaseFontSize;
   addon.mountPoint.fn.decreaseFontSize = decreaseFontSize;
   addon.mountPoint.fn.setting = openAddonPrefPane;
+  addon.mountPoint.fn.translateNote = fullTextTranslate.translateFT;
 }

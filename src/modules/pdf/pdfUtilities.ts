@@ -63,7 +63,7 @@ function getPdfID() {
  * @param options
  * @returns
  */
-function getPDFs(options?: {
+export function getPDFs(options?: {
   itemsAllPDFs?: boolean;
   onlySelectedPDFs?: boolean;
   collectionSelected?: boolean;

@@ -7,7 +7,6 @@ declare const _globalThis: {
   document: Document;
   ztoolkit: ZToolkit;
   addon: typeof addon;
-  URL:
 };
 
 declare type ZToolkit = ReturnType<

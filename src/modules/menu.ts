@@ -10,6 +10,7 @@ import { fullTextTranslate } from "./translate/fullTextTranslate";
 import { tabTest } from "./ui/tab";
 import { testReact } from "./ui/testReact";
 import { getPDF } from "./pdf/pdfjsLib";
+import { imageToAnnotation } from "./pdf/imageToAnnotation";
 
 
 
@@ -128,4 +129,15 @@ export function rightClickMenuItem() {
     },
     icon: menuIcon,
   });
+  ztoolkit.Menu.register("item", {
+    tag: "menuitem",
+    label: getString("menuitem-addImgTableAnnotation"),// "添加图片注释",
+    commandListener: (async (ev) => {
+      await imageToAnnotation();
+    }),
+    icon: menuIcon,
+  });
+
+
+
 }
