@@ -9,6 +9,7 @@ import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
 import { tabTest } from "./ui/tab";
 import { testReact } from "./ui/testReact";
+import { getPDF } from "./pdf/pdfjsLib";
 
 
 
@@ -27,7 +28,7 @@ function getParasArrs() {
     ],
     [
       //["译文标签 Test", tabTest],
-      ["React Test", testReact],
+      ["getPDF", getPDF],
     ],
 
   ];

@@ -7,6 +7,7 @@ declare const _globalThis: {
   document: Document;
   ztoolkit: ZToolkit;
   addon: typeof addon;
+  URL:
 };
 
 declare type ZToolkit = ReturnType<
@@ -21,7 +22,7 @@ declare const addon: import("../src/addon").default;
 
 declare const __env__: "production" | "development";
 
-declare class Localization {}
+declare class Localization { }
 
 declare namespace XUL {
   interface MenuPopup {
