@@ -254,9 +254,12 @@ interface VirtualizedTableProps {
   ) => boolean;
 }
 
+
+
 interface VTable extends React.Component<VirtualizedTableProps, any> {
   selection: TreeSelection;
   _topDiv?: HTMLDivElement;
+  _jsWindow: any;
   _getVisibleColumns: () => any[];
   invalidate: () => void;
   dataChangedCache?: any;
@@ -267,6 +270,7 @@ interface VTable extends React.Component<VirtualizedTableProps, any> {
   dataHistory?: any[];
   invalidateRow: (row: number) => void;
   commitEditingRow: () => void;
+  scrollToRow: Func;
 }
 
 declare type columnsProp = {

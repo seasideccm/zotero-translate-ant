@@ -1506,6 +1506,11 @@ export async function tableFactory({
     renderLock.resolve();
   });
   await renderLock.promise;
+  setTimeout(() => {
+    //@ts-ignore xxx
+    tableHelper.treeInstance._jsWindow.render();
+  }, 1000);
+  //return tab
   addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
   return tableHelper;
 }

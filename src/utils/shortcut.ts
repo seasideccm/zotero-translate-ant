@@ -1,5 +1,5 @@
 import { KeyModifier } from "zotero-plugin-toolkit/dist/managers/keyboard";
-import { arrsToObjs, showInfo } from "./tools";
+import { arrsToObjs, batchListen, showInfo } from "./tools";
 import { 百度翻译, 腾讯翻译 } from "../modules/ui/testOpen";
 import { getString } from "./locale";
 import { config } from "../../package.json";
@@ -110,6 +110,10 @@ export async function onShortcutPan() {
   });
 
   await shortcutTable();
+  /*  const length = tableTreeInstance.props.getRowCount();
+   for (let i = length - 1; i > 0; i--) {
+     tableTreeInstance.scrollToRow(i);
+   } */
 }
 
 
@@ -296,6 +300,8 @@ async function shortcutTable() {
     getRowCount: () => rows.length,
     getRowData: handleRowData,//(index: number) => rows[index],
     getRowString: handleGetRowString,
+    onFocus: handleFocus,
+
   };
 
   const options: TableFactoryOptions = {
@@ -306,9 +312,8 @@ async function shortcutTable() {
 
   const tableHelper = await tableFactory(options);
   const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
-  //tableTreeInstance._jsWindow.innerElem.style.width = "1400px";
-  tableTreeInstance.scrollToRow(rows.length - 1);
-  tableTreeInstance._topDiv?.scrollIntoView(false);
+  leTreeInstance;
+
 
   function handleRowData(index: number) {
     const row = { ...rows[index] };
@@ -323,6 +328,44 @@ async function shortcutTable() {
 
   function handleKeyDown(event: KeyboardEvent) {
 
+  }
+  function stopEvent(e: Event) {
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); //@ts-ignore has
+    if (e.nativeEvent) {
+      //@ts-ignore has
+      e.nativeEvent.stopImmediatePropagation();
+      e.stopPropagation();
+    }
+  }
+  function handleFocus(e: FocusEvent) {
+
+    const index = tableTreeInstance.selection.focused;
+    if (index == void 0) return true;
+    const row = tableTreeInstance._jsWindow.getElementByIndex(index) as HTMLDivElement;
+    if (!row) return true;
+
+    //row.setAttribute("tabindex", "0");
+
+    const shortcutSpan = row.children[1] as HTMLSpanElement;
+    shortcutSpan.setAttribute("contenteditable", "true");
+    shortcutSpan.setAttribute("tabindex", "0");
+    shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
+    ztoolkit.log("聚焦：" + shortcutSpan.innerText);
+    const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "dblclick", "focus"];
+    batchListen([shortcutSpan, actions, [stopEvent],]);
+    batchListen([row, actions, [stopEvent],]);
+    shortcutSpan.focus();
+    shortcutSpan.addEventListener("blue", () => {
+      ztoolkit.log("失去焦点：" + shortcutSpan.innerText);
+    });
+    /* setTimeout(() => {
+      shortcutSpan.focus();
+    }); */
+
+
+    //showInfo(row.id);
+
+    return true;
   }
 
 }
