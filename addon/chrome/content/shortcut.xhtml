@@ -7,16 +7,47 @@
   {str:'请设置快捷键'})"
 >
   <label data-l10n-id="pref-shortcut"></label>
+  <hbox>
+    <checkbox
+      id="distinguishLeftRight"
+      checked="true"
+      data-l10n-id="pref-distinguishLeftRight"
+    ></checkbox>
+  </hbox>
 </vbox>
+
 <vbox>
   <hbox>
-    <html:span id="input-function">setting:</html:span>
+    <html:label
+      id="head-command"
+      data-l10n-id="head-command"
+      style="text-align: center; width: 30%"
+    ></html:label>
+    <splitter />
+    <html:label
+      id="head-shortcut"
+      data-l10n-id="head-shortcut"
+      style="text-align: center; width: 30%"
+    ></html:label>
+  </hbox>
+  <separator class="groove" />
+  <hbox>
+    <html:label
+      id="input-function"
+      for="input-shortcut"
+      style="text-align: center; width: 30%"
+      data-l10n-id="pref-setting"
+    ></html:label>
+    <splitter />
     <html:input
       size="10"
       value=""
       type="text"
-      style="text-transform: uppercase"
+      style="text-transform: uppercase; text-align: center; width: 30%"
       id="input-shortcut"
     ></html:input>
   </hbox>
 </vbox>
+
+<separator class="groove" />
+<html:div id="table-shortcut" />

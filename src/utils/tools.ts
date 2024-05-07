@@ -1104,11 +1104,13 @@ export function path2UnixFormat(filePath: string) {
     .replace(/[\\]/g, "/");
 }
 
-export function arrToObj(keys: string[], values: any[]) {
+export function arrToObj(keys: string[], values: any[], fillEmpty: boolean = false) {
   const obj = {};
   keys.forEach((key: string, i: number) => {
-    if (values[i] == void 0) return;
-    Object.assign(obj, { [key]: values[i] });
+    if (values[i] == void 0) {
+      if (!fillEmpty) return;
+    }
+    Object.assign(obj, { [key]: values[i] || '' });
   });
   return obj;
 }
@@ -1119,9 +1121,9 @@ export function arrToObj(keys: string[], values: any[]) {
  * @returns
  */
 export function arrsToObjs(keys: string[]) {
-  return function (values: any[] | any[][]) {
-    if (!Array.isArray(values[0])) return [arrToObj(keys, values)];
-    return values.map((value) => arrToObj(keys, value)) as any[];
+  return function (values: any[] | any[][], fillEmpty?: boolean) {
+    if (!Array.isArray(values[0])) return [arrToObj(keys, values, fillEmpty)];
+    return values.map((value) => arrToObj(keys, value, fillEmpty)) as any[];
   };
 }
 

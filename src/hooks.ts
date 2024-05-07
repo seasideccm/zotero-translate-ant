@@ -85,13 +85,13 @@ async function onShutdown(): Promise<void> {
  * @param type event type
  * @param data event data
  */
-async function onPrefsEvent(type: string, data: { [key: string]: any }) {
+async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
   switch (type) {
     case "load":
       await registerPrefsScripts(data.window);
       break;
     case "shortcut":
-      onShortcutPan();
+      await onShortcutPan();
       showInfo(data.str);
       break;
     default:
@@ -123,10 +123,10 @@ async function onCommand(cmd: string) {
 function onShortcuts(type: string) {
   switch (type) {
     case "larger":
-      () => {};
+      () => { };
       break;
     case "smaller":
-      () => {};
+      () => { };
       break;
     default:
       break;
