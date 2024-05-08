@@ -1514,19 +1514,26 @@ export async function tableFactory({
   addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
   return tableHelper;
 }
-export function stopEvent(e: Event) {
-  if (e.stopImmediatePropagation) {//阻止原生事件向父级和自身同类监听冒泡
-    e.stopImmediatePropagation(); //@ts-ignore has
-  } else if (e.nativeEvent) {//react 自定义事件中的原始事件
-    //@ts-ignore has
-    e.nativeEvent.stopImmediatePropagation();//阻止原生事件向父级和自身同类监听冒泡
-    e.stopPropagation(); //阻止自定义事件向父级冒泡
 
-  } else {
-    e.stopPropagation();//阻止原生事件向父级冒泡
+
+export function stopEvent(e: Event) {//@ts-ignore has
+
+  if (e.stopImmediatePropagation) {
+    e.stopImmediatePropagation();//@ts-ignore has
+  } else if (e.nativeEvent?.stopImmediatePropagation) {//@ts-ignore has
+    e.nativeEvent?.stopImmediatePropagation();
   }
+  // react 没有 stopImmediatePropagation
+  // stopImmediatePropagation 阻止原生事件向父级和自身同类监听冒泡
+  // e.nativeEvent react 自定义事件中的原始事件
+  // e.nativeEvent.stopImmediatePropagation();阻止原生事件向父级和自身同类监听冒泡
+  // e.stopPropagation(); e为自定义事件时，阻止自定义事件向父级冒泡，实际执行的是原生事件的 stopPropagation
+  // e.stopPropagation(); 阻止原生事件向父级冒泡
   //e.preventDefault()//阻止默认行为
 }
+
+
+
 
 export function makeColumnPropValues(row: any) {
   // 本地化 ftl 文件中条目的前缀
