@@ -8,7 +8,7 @@ import { judgeAsync } from "../modules/ui/uiTools";
 import { fullTextTranslate } from "../modules/translate/fullTextTranslate";
 import { getSettingValue, setSettingValue } from "../modules/addonSetting";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { getRowString, tableFactory } from "../modules/ui/tableSecretKeys";
+import { getRowString, stopEvent, tableFactory } from "../modules/ui/tableSecretKeys";
 
 export function registerPrefsShortcut() {
   ztoolkit.PreferencePane.register({
@@ -302,6 +302,7 @@ async function shortcutTable() {
     getRowString: handleGetRowString,
     onFocus: handleFocus,
 
+
   };
 
   const options: TableFactoryOptions = {
@@ -312,7 +313,6 @@ async function shortcutTable() {
 
   const tableHelper = await tableFactory(options);
   const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
-  leTreeInstance;
 
 
   function handleRowData(index: number) {
@@ -329,43 +329,81 @@ async function shortcutTable() {
   function handleKeyDown(event: KeyboardEvent) {
 
   }
-  function stopEvent(e: Event) {
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); //@ts-ignore has
-    if (e.nativeEvent) {
-      //@ts-ignore has
-      e.nativeEvent.stopImmediatePropagation();
-      e.stopPropagation();
-    }
-  }
-  function handleFocus(e: FocusEvent) {
 
-    const index = tableTreeInstance.selection.focused;
-    if (index == void 0) return true;
-    const row = tableTreeInstance._jsWindow.getElementByIndex(index) as HTMLDivElement;
-    if (!row) return true;
+  function handleSelectionChange(selection: TreeSelection) {
 
-    //row.setAttribute("tabindex", "0");
-
+    const row = tableTreeInstance._jsWindow.getElementByIndex(selection.focused) as HTMLDivElement;
+    if (!row) return;
     const shortcutSpan = row.children[1] as HTMLSpanElement;
-    shortcutSpan.setAttribute("contenteditable", "true");
-    shortcutSpan.setAttribute("tabindex", "0");
-    shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
-    ztoolkit.log("聚焦：" + shortcutSpan.innerText);
-    const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "dblclick", "focus"];
-    batchListen([shortcutSpan, actions, [stopEvent],]);
-    batchListen([row, actions, [stopEvent],]);
+    if (shortcutSpan.contentEditable !== "true") {
+      shortcutSpan.setAttribute("contenteditable", "true");
+      shortcutSpan.setAttribute("tabindex", "0");
+      shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
+      shortcutSpan.addEventListener("blur", (e) => {
+        if (!e.target) return;
+        const target = e.target as HTMLElement;
+        const marker = target.id || target.classList.toString();
+        ztoolkit.log(marker + " 失去焦点：" + shortcutSpan.innerText);
+      });
+
+      shortcutSpan.addEventListener("focus", (e) => {
+        if (!e.target) return;
+        const target = e.target as HTMLElement;
+        const marker = target.id || target.classList.toString();
+        ztoolkit.log(marker + " 获得焦点：" + shortcutSpan.innerText);
+      });
+
+      const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick", "focus", "blur"];
+      batchListen([shortcutSpan, actions, [stopEvent],]);
+    }
     shortcutSpan.focus();
-    shortcutSpan.addEventListener("blue", () => {
-      ztoolkit.log("失去焦点：" + shortcutSpan.innerText);
+    /*  setTimeout(() => {
+       shortcutSpan.focus();
+     }); */
+
+  }
+
+
+  function handleFocus(e: Event) {
+
+    if (!e.target) return false;
+    const target = e.target as HTMLElement;
+    showInfo("聚焦：" + target.tagName + " " + (target.id || target.className.toString()));
+    return false;
+    const index = tableTreeInstance.selection.focused;
+    if (index == void 0) return false;
+    const row = tableTreeInstance._jsWindow.getElementByIndex(index) as HTMLDivElement;
+    if (!row) return false;
+    const shortcutSpan = row.children[1] as HTMLSpanElement;
+    if (shortcutSpan.contentEditable !== "true") {
+      shortcutSpan.setAttribute("contenteditable", "true");
+      shortcutSpan.setAttribute("tabindex", "0");
+      shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
+    } else {
+      if (target != shortcutSpan) return true;//已经监听单元格
+    }
+
+    shortcutSpan.addEventListener("blur", (e) => {
+      if (!e.target) return;
+      const target = e.target as HTMLElement;
+      const marker = target.id || target.classList.toString();
+      ztoolkit.log(marker + " 失去焦点：" + shortcutSpan.innerText);
     });
-    /* setTimeout(() => {
+
+    shortcutSpan.addEventListener("focus", (e) => {
+      if (!e.target) return;
+      const target = e.target as HTMLElement;
+      const marker = target.id || target.classList.toString();
+      ztoolkit.log(marker + " 获得焦点：" + shortcutSpan.innerText);
+    });
+
+    const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick", "focus", "blur"];
+    batchListen([shortcutSpan, actions, [stopEvent],]);//阻止相同事件冒泡应当在添加监听之后
+    setTimeout(() => {
       shortcutSpan.focus();
-    }); */
+    });
+    return false;
 
-
-    //showInfo(row.id);
-
-    return true;
   }
 
 }

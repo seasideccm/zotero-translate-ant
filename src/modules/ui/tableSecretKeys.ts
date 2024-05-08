@@ -1515,12 +1515,17 @@ export async function tableFactory({
   return tableHelper;
 }
 export function stopEvent(e: Event) {
-  if (e.stopImmediatePropagation) e.stopImmediatePropagation(); //@ts-ignore has
-  if (e.nativeEvent) {
+  if (e.stopImmediatePropagation) {//阻止原生事件向父级和自身同类监听冒泡
+    e.stopImmediatePropagation(); //@ts-ignore has
+  } else if (e.nativeEvent) {//react 自定义事件中的原始事件
     //@ts-ignore has
-    e.nativeEvent.stopImmediatePropagation();
-    e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();//阻止原生事件向父级和自身同类监听冒泡
+    e.stopPropagation(); //阻止自定义事件向父级冒泡
+
+  } else {
+    e.stopPropagation();//阻止原生事件向父级冒泡
   }
+  //e.preventDefault()//阻止默认行为
 }
 
 export function makeColumnPropValues(row: any) {
