@@ -8,7 +8,8 @@ import { judgeAsync } from "../modules/ui/uiTools";
 import { fullTextTranslate } from "../modules/translate/fullTextTranslate";
 import { getSettingValue, setSettingValue } from "../modules/addonSetting";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
-import { getRowString, stopEvent, tableFactory } from "../modules/ui/tableSecretKeys";
+import { getRowString } from "../modules/ui/tableSecretKeys";
+import { rowToEdit, stopEvent, tableFactory } from "../modules/ui/tableFactory";
 
 export function registerPrefsShortcut() {
   ztoolkit.PreferencePane.register({
@@ -313,7 +314,7 @@ async function shortcutTable() {
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+  const tableTreeInstance = tableHelper.treeInstance as VirtualizedTable;
 
 
   function handleRowData(index: number) {
@@ -374,90 +375,17 @@ async function shortcutTable() {
 
   //react 表格行元素 （node）监听的事件
   //'dragstart','dragend', 'mousedown','mouseup', 'dblclick',
-  const actions = ["mousedown", "mouseup", "dblclick"];
+
   // mousedown,先触发，再阻止
   function handleFocus(e: Event) {
     if (!e.target) return false;
     const target = e.target as HTMLElement;
-    const index = tableTreeInstance.selection.focused;
-    if (index == void 0) return false;
-    const rowOld = tableTreeInstance._jsWindow.getElementByIndex(index) as HTMLDivElement;
-    if (!rowOld) return false;
-    const row = rowOld.cloneNode(true) as HTMLElement;
-    rowOld.replaceWith(row);//替换行
-    const shortcutSpan = row.children[1] as HTMLSpanElement;
-    if (!row.dataset.shortcutEditable) {
-      row.dataset.shortcutEditable = "true";
-      //row.setAttribute("contenteditable", "true");
-      row.setAttribute("tabindex", "0");
-      /* row.addEventListener('mousedown', (e) => {
-        //@ts-ignore xxx
-        const info = "id: " + e.target.id + "; classList: " + e.target.classList.toString();
-        showInfo("点击鼠标: " + info);
-        e.stopImmediatePropagation();
-      });
-      row.addEventListener('mouseup', (e) => {
-        //@ts-ignore xxx
-        const info = "id: " + e.target.id + "; classList: " + e.target.classList.toString();
-        showInfo("松开鼠标: " + info);
-        e.stopImmediatePropagation();
-      });
-      row.addEventListener('dblclick', (e) => {
-        //@ts-ignore xxx
-        const info = "id: " + e.target.id + "; classList: " + e.target.classList.toString();
-        showInfo("鼠标双击: " + info);
-        e.stopImmediatePropagation();
-      }); */
-
-      //batchListen([row, actions, [stopEvent]]);
-    }
-
-
-
-
-
-
-
-    //showInfo("聚焦：" + target.tagName + " " + (target.id || target.className.toString()));
-
-
-
-    if (!shortcutSpan.dataset.shortcutEditable) {
-      shortcutSpan.dataset.shortcutEditable = "true";
-      shortcutSpan.setAttribute("contenteditable", "true");
-      shortcutSpan.setAttribute("tabindex", "0");
-      shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
-      shortcutSpan.addEventListener("blur", (e) => {
-        if (!e.target) return;
-        const target = e.target as HTMLElement;
-        const marker = target.id || target.classList.toString();
-        showInfo(marker + " 失去焦点：" + shortcutSpan.innerText);
-        ztoolkit.log(marker + " 失去焦点：" + shortcutSpan.innerText);
-        const newRow = shortcutSpan.parentElement;
-        const rowOld = tableTreeInstance._jsWindow.getElementByIndex(index) as HTMLDivElement;
-        newRow?.replaceWith(rowOld);//恢复替换的行
-      });
-
-      shortcutSpan.addEventListener("focus", (e) => {
-        if (!e.target) return;
-        const target = e.target as HTMLElement;
-        const marker = target.id || target.classList.toString();
-        showInfo(marker + " 获得焦点：" + shortcutSpan.innerText);
-        ztoolkit.log(marker + " 获得焦点：" + shortcutSpan.innerText);
-      });
-
-      batchListen([shortcutSpan, actions, [stopEvent],]);//阻止相同事件冒泡应当在添加监听之后
-    }
-
-    /* if (target.id == "shortcutTable") return false;
-    if (target.classList.contains("virtualized-table-header")) return false;
-    if (target.id.startsWith("virtualized-table-list")) return false; */
-
-    setTimeout(() => {
-      shortcutSpan.focus();
-    });
+    rowToEdit(tableTreeInstance);
     return false;
 
   }
+
+
+
 
 }

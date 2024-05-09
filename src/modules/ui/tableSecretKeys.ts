@@ -1,7 +1,4 @@
-import {
-  ColumnOptions,
-  VirtualizedTableHelper,
-} from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
+
 import {
   arrToObj,
   arrsToObjs,
@@ -28,12 +25,14 @@ import {
   getServiceAccountSync,
   getServices,
   getServicesFromDB,
-  updateServices,
 } from "../translate/translateServices";
 import { DEFAULT_VALUE, EmptyValue } from "../../utils/constant";
 import { Cry, decryptByAESKey, encryptByAESKey, encryptState } from "../crypto";
 import { getPref } from "../../utils/prefs";
 import { getSettingValue, setSettingValue } from "../addonSetting";
+
+import { stopEvent, tableFactory } from "./tableFactory";
+import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 
 const dataVerify: any = {
   baidu: baiduVerify,
@@ -74,9 +73,9 @@ export async function replaceSecretKeysTable() {
   if (!rows || rows.length == 0) return;
   //props
   const columnPropValues = makeColumnPropValues(rows[0]);
-  const columnsProp = arrsToObjs(columnPropKeys)(
+  const columnsProp: ColumnOptions[] = arrsToObjs(columnPropKeys)(
     columnPropValues,
-  ) as ColumnOptions[];
+  );
 
   const props: VirtualizedTableProps = {
     id: id,
@@ -104,7 +103,7 @@ export async function replaceSecretKeysTable() {
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable;
   tableTreeInstance.scrollToRow(rows.length - 1);
   tableTreeInstance._topDiv?.scrollIntoView(false);
   tableTreeInstance.rows = rows;
@@ -531,22 +530,6 @@ export async function replaceSecretKeysTable() {
     });
   }
 
-  //todo
-  function validateSecretKey(index: number) {
-    const validateFunc = {
-      appID: (value: any) => {
-        if (typeof value != "string") throw "value not string";
-        if (value.length != 17) throw "value length not equal 17";
-        if (!value.match(/^\d+$/)) throw "value has none figure";
-      },
-    };
-    //const validateFunc = sevices[serviceID].validateFunc;
-    const row = rows[index];
-    Object.keys(row).forEach((key) => {
-      validateFunc[key as keyof typeof validateFunc](row[key]);
-    });
-  }
-
   async function cellChangeToInput(cell: HTMLElement) {
     //解密
     if (tableTreeInstance.editIndex != void 0) {
@@ -681,11 +664,7 @@ export async function replaceSecretKeysTable() {
     return inputCell;
   }
 
-  function dataHistory(dataChangedCache: any) {
-    if (!tableTreeInstance.dataHistory) tableTreeInstance.dataHistory = [];
-    const dh = tableTreeInstance.dataHistory;
-    dh.push(dataChangedCache);
-  }
+
   /**
    * 更新表格数据，缓存单元格旧数据
    * @param index
@@ -940,26 +919,7 @@ export async function replaceSecretKeysTable() {
     tableTreeInstance.invalidate();
 
   }
-  /*  export function saveNewAccount(rowData: any, serviceID?: string) {
-      const serialNumber = getNextServiceSNSync();
-      const accuntOptions: any = {};
-      serviceID = serviceID ? serviceID : getElementValue("serviceID") as string;
-      if (["baiduModify", "baidufieldModify"].includes(serviceID)) {
-        serviceID = serviceID.replace("Modify", "");
-      }
-      accuntOptions.serviceID = serviceID;
-      accuntOptions.serialNumber = serialNumber; //
-      Zotero.Utilities.Internal.assignProps(accuntOptions, rowData);
-      accuntOptions.forbidden = false;
-      const account = new TranslateServiceAccount(accuntOptions);
-      const service = addon.mountPoint.services[serviceID];
-      if (!service) {
-        throw new Error("service not found: " + service);
-      }
-      if (!service.accounts) service.accounts = [];
-      service.accounts.push(account);
-      return account;
-    } */
+
   function saveNewAccounts(rows: any[]) {
     const serviceAccountsSave = [];
     for (const rowData of rows) {
@@ -1143,11 +1103,7 @@ export async function replaceSecretKeysTable() {
     });
   }
 
-  function getSelectedTranlateServiceItems() {
-    const selectedIndices = Array.from(tableTreeInstance.selection.selected);
-    //selectedIndexs.filter((i: number) => rows.splice(i, 1));//删除多个元素由于下标变化而出错
-    return rows.filter((v: any, i: number) => selectedIndices.includes(i));
-  }
+
 
   function getColumnWidth(index: number) {
     const COLUMN_PADDING = 16;
@@ -1344,7 +1300,7 @@ export async function priorityWithKeyTable() {
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
   tableTreeInstance.scrollToRow(rows.length - 1);
   tableTreeInstance.rows = rows;
 
@@ -1445,7 +1401,7 @@ export async function priorityWithoutKeyTable() {
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
   tableTreeInstance.scrollToRow(rows.length - 1);
   tableTreeInstance.rows = rows;
 
@@ -1489,48 +1445,8 @@ export async function priorityWithoutKeyTable() {
   }
 }
 
-export async function tableFactory({
-  win,
-  containerId,
-  props,
-}: TableFactoryOptions) {
-  if (!containerId) {
-    throw "Must pass propsOption.containerId which assign table location";
-  }
-  const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
-  const tableHelper = new ztoolkit.VirtualizedTable(win);
-  if (!addon.mountPoint.tables) addon.mountPoint.tables = {};
-  tableHelper.setContainerId(containerId);
-  tableHelper.setProp(props);
-  tableHelper.render(-1, () => {
-    renderLock.resolve();
-  });
-  await renderLock.promise;
-  setTimeout(() => {
-    //@ts-ignore xxx
-    tableHelper.treeInstance._jsWindow.render();
-  }, 1000);
-  //return tab
-  addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
-  return tableHelper;
-}
 
 
-export function stopEvent(e: Event) {//@ts-ignore has
-
-  if (e.stopImmediatePropagation) {
-    e.stopImmediatePropagation();//@ts-ignore has
-  } else if (e.nativeEvent?.stopImmediatePropagation) {//@ts-ignore has
-    e.nativeEvent?.stopImmediatePropagation();
-  }
-  // react 没有 stopImmediatePropagation
-  // stopImmediatePropagation 阻止原生事件向父级和自身同类监听冒泡
-  // e.nativeEvent react 自定义事件中的原始事件
-  // e.nativeEvent.stopImmediatePropagation();阻止原生事件向父级和自身同类监听冒泡
-  // e.stopPropagation(); e为自定义事件时，阻止自定义事件向父级冒泡，实际执行的是原生事件的 stopPropagation
-  // e.stopPropagation(); 阻止原生事件向父级冒泡
-  //e.preventDefault()//阻止默认行为
-}
 
 
 
@@ -1908,111 +1824,13 @@ export function getTableByID(tableID?: string) {
     tableID = `${config.addonRef}-` + tableID;
   const element = addon.data.prefs?.window.document.getElementById(tableID);
   if (!element) return;
-  return tables[tableID] as VirtualizedTableHelper;
+  return tables[tableID];
 }
 
-function makeTableProps(options: VTableProps, rows: any[]) {
-  const defaultVtableProps: VTableProps = {
-    getRowCount: () => rows.length,
-    getRowData: (index: number) => rows[index],
-    showHeader: true,
-    multiSelect: true,
-    getRowString: (index: number) => rows[index].key || "",
-  };
-  //清理options
 
-  const columnPropAvilableKeys = [
-    "id",
-    "getRowCount",
-    "getRowData",
-    "renderItem",
-    "linesPerRow",
-    "disableFontSizeScaling",
-    "alternatingRowColors",
-    "label",
-    "role",
-    "showHeader",
-    "columns",
-    "onColumnPickerMenu",
-    "onColumnSort",
-    "getColumnPrefs",
-    "storeColumnPrefs",
-    "getDefaultColumnOrder",
-    "staticColumns",
-    "containerWidth",
-    "treeboxRef",
-    "hide",
-    "multiSelect",
-    "onSelectionChange",
-    "isSelectable",
-    "getParentIndex",
-    "isContainer",
-    "isContainerEmpty",
-    "isContainerOpen",
-    "toggleOpenState",
-    "getRowString",
-    "onKeyDown",
-    "onKeyUp",
-    "onDragOver",
-    "onDrop",
-    "onActivate",
-    "onActivate",
-    "onFocus",
-    "onItemContextMenu",
-  ];
-  const optionsKeys = Object.keys(options);
-  optionsKeys.filter((key: string) => {
-    if (!columnPropAvilableKeys.includes(key)) {
-      delete options[key as keyof VTableProps];
-    }
-  });
 
-  return Object.assign(defaultVtableProps, options);
-}
 
-/**
- * 有无效数据则返回false
- * 尚未细化至引擎
- * @param row
- * @returns
- */
-function validateRowData(row: any) {
-  const vboolean = (value: string) => {
-    return ["0", "1", "true", "false"].includes(value.toLocaleLowerCase());
-  };
-  const vNumber = (value: string) => {
-    return !isNaN(Number(value));
-  };
-  const vSecretKey = (value: string) => {
-    return !value.match(/[\W_]/);
-  };
-  const validata = {
-    appID: vNumber,
-    secretKey: vSecretKey,
-    usable: vboolean,
-    charConsum: vNumber,
-  };
-  const keys = Object.keys(row);
-  //数据无效时返回key值
-  const res = keys.find((key) => {
-    const fn = validata[key as keyof typeof validata];
-    if (typeof fn != "function") return true;
-    return !fn(row[key]);
-  });
-  if (res) {
-    showInfo(res + " invalid value: " + row[res]);
-  }
-  //有无效数据则返回false
-  return !!res;
-}
 
-// ("beforeunload");
-
-async function deleteRecord(e: Event) { }
-
-async function editRecord(e: Event) { }
-
-async function searchRecord(e: Event) { }
 
 async function readTextFilesDroped(e: DragEvent) {
   // 文件拖拽

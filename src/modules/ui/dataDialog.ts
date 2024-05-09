@@ -6,8 +6,9 @@ import { arrsToObjs, chooseDirOrFilePath, getWindow, showInfo } from "../../util
 import { aiCHat, getModels } from "../largeLanguageModels/ollama";
 import { fullTextTranslate } from "../translate/fullTextTranslate";
 import { getSingleServiceUnderUse } from "../translate/serviceManage";
-import { columnPropKeys, getRowString, makeColumnPropValues, tableFactory } from "./tableSecretKeys";
-import { getDom, makeTagElementProps } from "./uiTools";
+import { getRowString } from "./tableSecretKeys";
+import { makeTagElementProps } from "./uiTools";
+import { tableFactory } from "./tableFactory";
 /**
  * fieldName 用作 Dom id ，不可有空格冒号
  * @param fieldNames
@@ -135,7 +136,7 @@ async function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, 
     };
 
     const tableHelper = await tableFactory(options);
-    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    const tableTreeInstance = tableHelper.treeInstance; //@ts-ignore has
     tableTreeInstance._jsWindow.innerElem.style.width = "1400px";
 
     function handleGetRowString(index: number) {
