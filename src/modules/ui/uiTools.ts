@@ -4,6 +4,7 @@ import {
 } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../../package.json";
 import { getString } from "../../utils/locale";
+import { judgeAsync } from "../../utils/tools";
 
 /**
  * @param option
@@ -128,6 +129,8 @@ export const makeMenuitem = (option: MenuitemProps, menupopup: any) => {
     });
   }
 
+
+
   function localLabel(option: MenuitemProps) {
     let label = getString(option.label);
     label =
@@ -140,10 +143,22 @@ export const makeMenuitem = (option: MenuitemProps, menupopup: any) => {
   }
 };
 
-export const judgeAsync = (fun: any) => {
-  const AsyncFunction = (async () => { }).constructor;
-  return fun instanceof AsyncFunction;
-};
+/**
+ * 坐标在矩形外
+ * @param e
+ * @returns
+ */
+export function outside(e: MouseEvent, element: HTMLElement) {
+  const tableRect = element.getBoundingClientRect();
+  const mouseX = e.x;
+  const mouseY = e.y;
+  return (
+    mouseX < tableRect.left ||
+    mouseX > tableRect.right ||
+    mouseY < tableRect.top ||
+    mouseY > tableRect.bottom
+  );
+}
 
 export function makeId(suffix: string) {
   return `${config.addonRef}-${suffix}`;

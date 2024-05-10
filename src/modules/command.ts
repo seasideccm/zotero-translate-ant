@@ -205,7 +205,7 @@ export class Command {
 }
 
 export async function updateDBSettings(
-  elementChecked: boolean,
+  elementChecked: string,
   key: string,
   DB: DataBase,
 ) {
@@ -225,7 +225,7 @@ export async function updateDBSettings(
 export async function setEncryptState(state: boolean) {
   const DB = getDBSync();
   await DB.executeTransaction(async () => {
-    await updateDBSettings(state, "enableEncrypt", DB);
+    await updateDBSettings(String(state), "enableEncrypt", DB);
   });
   if (!state) {
     const cf = confirmWin(getString("info-clearCryptoRecord"));
@@ -243,7 +243,7 @@ export async function setEncryptState(state: boolean) {
 async function setDeleteSourceFileState(state: boolean) {
   const DB = getDBSync();
   await DB.executeTransaction(async () => {
-    await updateDBSettings(state, "deleteSourceFile", DB);
+    await updateDBSettings(String(state), "deleteSourceFile", DB);
   });
 }
 

@@ -1,4 +1,3 @@
-/* import { VirtualizedTableHelper } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable"; */
 
 
 
@@ -300,13 +299,7 @@ declare type TableFactoryOptions = {
 
 
 
-/* declare type VirtualizedTableProps = ReturnType<
-  typeof import("../src/modules/ui/tableFactory").createVirtualizedTableProps
->; */
 
-/* declare type VirtualizedTable = ReturnType<
-  typeof import("../src/modules/ui/tableFactory").createVirtualizedTable
->; */
 
 interface VirtualizedTableProps extends ReturnType<
   typeof import("../src/modules/ui/tableFactory").createVirtualizedTableProps
@@ -320,29 +313,104 @@ interface TreeSelection extends ReturnType<
 
 }
 
+declare class DataStack {
+  arr: any[];
+  push: (element: any) => void;
+  pop: () => any;
+  top: () => any;
+  size: () => number;
+  clear: () => boolean;
+  toString: () => string;
+}
+
+declare class DataHistory {
+  redoStack: DataStack;
+  undoStack: DataStack;
+  record: (value: any) => void;
+  undo: () => any | undefined;
+  redo: () => any | undefined;
+}
 
 interface VirtualizedTable extends ReturnType<
   typeof import("../src/modules/ui/tableFactory").createVirtualizedTable
 > {
+  //[key: string]: any;
   selection: TreeSelection;
   invalidate: () => void;
-  _topDiv?: HTMLDivElement;
-  _jsWindow: any;
+  _topDiv: HTMLDivElement;
+  _jsWindow: WindowedList;
   scrollToRow: Func;
   _getVisibleColumns: () => any[];
   rows?: any[];
   editIndex?: number;
   editIndices?: number[];
   editingRow?: any;
-  dataHistory?: any[];
   invalidateRow: (row: number) => void;
-  commitEditingRow: () => void;
+  commitEditingRow?: () => void;
   dataChangedCache?: any;
   props: Partial<VirtualizedTableProps>;
+  changeData: (indexRow: number, key: string, value: any) => void;
+  dataHistory: DataHistory;
+  clearEditing: () => void;
+  saveDate: (fn?: Func, ...args: any[]) => Promise<void>;
 
 }
 
-
+/**
+ * @param options - (required):
+ * 	- getItemCount  a function that returns the number of items currently on display
+ * 	- renderItem {Function} a function that returns a DOM element for an individual row to display
+ * 	- itemHeight {Integer}
+ * 	- targetElement {DOMElement} a container DOM element for the windowed-list
+ * 	- customRowHeights {Array|optional} a sorted array of tuples [itemIndex, rowHeight]
+ */
+declare class WindowedList {
+  constructor(options: (...params: any[]) => any);
+  /**
+   * Call once to add the windowed-list DOM element to the container
+   */
+  initialize(): void;
+  /**
+   * Call to remove the windowed-list from the container
+   */
+  destroy(): void;
+  /**
+   * Rerender an individual item. A no-op if the item is not in view
+   */
+  rerenderItem(index: Integer): void;
+  /**
+   * Rerender items within the scrollbox. Call sparingly
+   */
+  invalidate(): void;
+  /**
+   * Render all items within the scrollbox and remove those no longer visible
+   */
+  render(): void;
+  /**
+   * Use to update constructor params
+   * @param options - (see constructor())
+   */
+  update(options: any): void;
+  getWindowHeight(): any;
+  getElementByIndex: any;
+  /**
+   * Scroll the top of the scrollbox to a specified location
+   * @param scrollOffset - offset for the top of the tree
+   */
+  scrollTo(scrollOffset: Integer): void;
+  /**
+   * Scroll the scrollbox to a specified item. No-op if already in view
+   */
+  scrollToRow(index: any): void;
+  getFirstVisibleRow(): any;
+  getLastVisibleRow(): any;
+  _getItemPosition: any;
+  _getRangeToRender(): any;
+  _getItemCount(): any;
+  _handleScroll: any;
+  _binarySearchOffsets(array: any, searchValue: any, lookupByOffset: any): any;
+  _resetScrollDirection: any;
+}
 
 
 

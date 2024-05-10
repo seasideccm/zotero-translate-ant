@@ -935,7 +935,10 @@ export async function encryptState() {
   const DB = await getDB();
   if (!DB) return;
   const dbValue = await DB.valueQueryAsync(sqlSELECT);
-  return Boolean(Number(dbValue)); ////undefined转NaN转false，null转0转false
+  if (dbValue == void 0 || dbValue == "false") return false;
+  return Boolean(dbValue);
+  //Number(dbValue),undefined 和 "true" 转NaN转false，null转0转false,
+  //Boolean("false")为true;
 }
 
 /**
@@ -1384,9 +1387,10 @@ async function md5CryKey(fn: any) {
   const KEYS_NAME = await Cry.getKEYS_NAME();
   if (!KEYS_NAME) return;
   const path = await Cry.getPathCryKey();
+  if (!path) return;
   for (const keyName of Object.keys(KEYS_NAME)) {
     const keyPath = PathUtils.join(
-      path || "",
+      path,
       KEYS_NAME[keyName as "PUBLICKEY_NAME" | "PRIVATEKEY_NAME"],
     );
     if (!(await IOUtils.exists(keyPath))) return;

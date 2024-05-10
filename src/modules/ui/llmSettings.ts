@@ -36,8 +36,12 @@ export async function llmSettings() {
       listeners: [
         {
           type: "command",
-          listener: (e: Event) => { },
-        },
+          listener: async (e: Event) => {
+            if (integrityCheck()) {
+              await saveLLMData();
+            }
+          },
+        }
       ],
       children: [
         {
@@ -104,11 +108,7 @@ export async function llmSettings() {
       await saveLLMData();
     }
   });
-  win.addEventListener("beforeunload", async (e: Event) => {
-    if (integrityCheck()) {
-      await saveLLMData();
-    }
-  });
+
 }
 async function saveLLMData() {
   const values = [];

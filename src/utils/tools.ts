@@ -1,6 +1,5 @@
 import { config } from "../../package.json";
-import { addonDatabaseDir, addonStorageDir } from "./constant";
-import { judgeAsync } from "../modules/ui/uiTools";
+import { addonDatabaseDir } from "./constant";
 import { getString } from "./locale";
 
 
@@ -1479,6 +1478,12 @@ export function batchListen(
     }
   }
 }
+
+export const judgeAsync = (fun: any) => {
+  const AsyncFunction = (async () => { }).constructor;
+  return fun instanceof AsyncFunction;
+};
+
 
 export function doTryCatch(func: Func) {
   return function (...args: any[]) {

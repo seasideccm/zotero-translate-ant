@@ -16,7 +16,7 @@ import {
   TranslateService,
   TranslateServiceAccount,
 } from "../translate/translateService";
-import { getDom, getElementValue } from "./uiTools";
+import { getDom, getElementValue, outside } from "./uiTools";
 import {
   ServiceMap,
   deleteAccount,
@@ -113,7 +113,7 @@ export async function replaceSecretKeysTable() {
   getDom("addRecordBulk")!.addEventListener("command", addRecordBulk);
   getDom("updateCryptoKey")!.addEventListener("command", Cry.updateCryptoKey);
   getDom("addOldCryKey")!.addEventListener("command", addOldCryKey);
-  win.addEventListener("beforeunload", saveAccounts);
+  //win.addEventListener("beforeunload", saveAccounts);
   win.addEventListener("click", clickTableOutsideCommit);
   adjustWidth(rows);
 
@@ -338,9 +338,10 @@ export async function replaceSecretKeysTable() {
     selection: TreeSelection,
     shouldDebounce: boolean,
   ) {
-    if (tableTreeInstance.dataChangedCache) {
-      await saveAccounts();
-    }
+    await tableTreeInstance.saveDate(saveAccounts);
+    /*    if (tableTreeInstance.dataChangedCache) {
+         await saveAccounts();
+       } */
 
     adjustWidth(rows);
     return true;
@@ -598,10 +599,7 @@ export async function replaceSecretKeysTable() {
         inputCell.remove();
         win?.removeEventListener("click", doit);
       }
-      /* const tagName = e.target?.tagName.toLowerCase();
-            if (tagName && tagName != "input") {
-                showInfo("点击输入框外面");
-            } */
+
     }
     adjustWidth(rows, false);
 
@@ -626,13 +624,15 @@ export async function replaceSecretKeysTable() {
       const zIndex = Math.max(...zIndexs) + 100;
       inputCell.style.zIndex = `${zIndex}`;
     }
-    //当选中的行发生变化，先更新表，所以 input 消失了，也未能触发 blur 事件 focusin focusou
+    //当选中的行发生变化，react 会更新表，
+    //导致 input 元素消失，所以 input 的 blur 事件不会被触发
     //inputCell.addEventListener('blur', blurUpdateRow);
     function valueToRows(e?: Event) {
       const key = inputCell.classList[0];
       const index = Number(inputCell.classList[1]);
       if (!rows[index] || !rows[index][key]) return; //空数据也在rows内
-      dataChanged(index, key, inputCell.value);
+
+      tableTreeInstance.changeData(index, key, inputCell.value);
       if (!tableTreeInstance.editIndex) tableTreeInstance.editIndex = index;
       let ei = tableTreeInstance.editIndex;
       if (!tableTreeInstance.editIndices) tableTreeInstance.editIndices = [];
@@ -642,21 +642,7 @@ export async function replaceSecretKeysTable() {
         ei = index;
       }
     }
-    function blurUpdateRow(e: Event) {
-      const value = (e.target as HTMLInputElement).value;
-      if (value == cell.textContent) {
-        inputCell.remove();
-        return;
-      }
-      if (!tableTreeInstance.editIndex)
-        tableTreeInstance.editIndex = Number(
-          (e.target as HTMLInputElement).classList[1],
-        );
-      valueToRows(e);
-      //@ts-ignore has
-      tableTreeInstance.invalidateRow(tableTreeInstance.editIndex);
-      inputCell.remove();
-    }
+
     const doResizeInput = resizeInput(inputCell);
     function updateWidth(e: Event) {
       doResizeInput(inputCell);
@@ -671,19 +657,19 @@ export async function replaceSecretKeysTable() {
    * @param key
    * @param value
    */
-  function dataChanged(index: number, key: string, value: any) {
-    if (!tableTreeInstance.dataChangedCache)
-      tableTreeInstance.dataChangedCache = {};
-    const dc = tableTreeInstance.dataChangedCache;
-    if (!dc[index]) dc[index] = {};
-    // 存储整行原始数据
-    if (!dc[index]["originRow"])
-      dc[index]["originRow"] = deepClone(rows[index]);
-    // 存储 某一个 key 的原始数据，之后保存修改的数据从 rows 中读取
-    if (!dc[index][key]) dc[index][key] = rows[index][key];
-    //修改表格单元格数据 当前数据源 rows，如果刷新表格，则 rows 中修改的数据会显示出来
-    rows[index][key] = value;
-  }
+  /*   function dataChanged(index: number, key: string, value: any) {
+      if (!tableTreeInstance.dataChangedCache)
+        tableTreeInstance.dataChangedCache = {};
+      const dc = tableTreeInstance.dataChangedCache;
+      if (!dc[index]) dc[index] = {};
+      // 存储整行原始数据
+      if (!dc[index]["originRow"])
+        dc[index]["originRow"] = deepClone(rows[index]);
+      // 存储 某一个 key 的原始数据，之后保存修改的数据从 rows 中读取
+      if (!dc[index][key]) dc[index][key] = deepClone(rows[index][key]);
+      //修改表格单元格数据 当前数据源 rows，如果刷新表格，则 rows 中修改的数据会显示出来
+      rows[index][key] = value;
+    } */
 
   function resizeInput(inputCell: HTMLInputElement) {
     const cacheValue = { value: inputCell.value };
@@ -745,8 +731,7 @@ export async function replaceSecretKeysTable() {
     for (let i = 0; i < currentCells.length; i++) {
       currentCells[i].parentNode?.replaceChild(oldCells[i], currentCells[i]);
     }
-    clearEditing();
-
+    tableTreeInstance.clearEditing();
     tableTreeInstance.invalidate();
   }
   //单元格从编辑状态复原
@@ -764,40 +749,15 @@ export async function replaceSecretKeysTable() {
       inputCell.parentNode?.replaceChild(oldCell, inputCell);
       return;
     }
-    //存储旧数据，新数据从 rows 获取
-    if (!tableTreeInstance.dataChangedCache)
-      tableTreeInstance.dataChangedCache = {};
-    //todo 删除行也要处理缓存的修改数据
-    if (!tableTreeInstance.dataChangedCache[index])
-      tableTreeInstance.dataChangedCache[index] = {};
-    tableTreeInstance.dataChangedCache[index][key] = rows[index][key];
-    //修改表格单元格数据
-    rows[index][key] = inputCell.value;
-    /*         oldCell!.textContent = inputCell.value;
-                inputCell.parentNode?.replaceChild(oldCell, inputCell); */
+    tableTreeInstance.changeData(index, key, inputCell.value);
   }
 
-  async function clickTableOutsideCommit(e: MouseEvent) {
+  async function clickTableOutsideCommit(e: MouseEvent,) {
     if (!outside(e, tableTreeInstance._topDiv!)) return;
-    await saveAccounts();
+    await tableTreeInstance.saveDate(saveAccounts);
   }
 
-  /**
-   * 坐标在矩形外
-   * @param e
-   * @returns
-   */
-  function outside(e: MouseEvent, element: HTMLElement) {
-    const tableRect = element.getBoundingClientRect();
-    const mouseX = e.x;
-    const mouseY = e.y;
-    return (
-      mouseX < tableRect.left ||
-      mouseX > tableRect.right ||
-      mouseY < tableRect.top ||
-      mouseY > tableRect.bottom
-    );
-  }
+
 
   function commitEditingRow() {
     if (!tableTreeInstance.editingRow) return;
@@ -808,8 +768,9 @@ export async function replaceSecretKeysTable() {
     const changeCellIndices = [];
     if (tableTreeInstance.editIndex != void 0) {
       const rowElement = getRowElement(tableTreeInstance.editIndex);
+      // 输入单元格为 input 标签，如果为 span 说明为非编辑状态，表明之前没有清除编辑状态
       if (rowElement.children[0].tagName == "span") {
-        clearEditing();
+        tableTreeInstance.clearEditing();
         return;
       }
     }
@@ -853,7 +814,7 @@ export async function replaceSecretKeysTable() {
     if (!dc) return;
     const indices = Object.keys(dc);
     if (!dc || !indices?.length) {
-      clearEditing();
+      tableTreeInstance.clearEditing();
       return;
     }
     const serviceAccountsSave = [];
@@ -908,14 +869,14 @@ export async function replaceSecretKeysTable() {
           }
         } catch (e) {
           notifyAccountSave(serviceAccountsSave);
-          clearEditing();
+          tableTreeInstance.clearEditing();
           tableTreeInstance.invalidate();
           throw e;
         }
       }
     }
     notifyAccountSave(serviceAccountsSave);
-    clearEditing();
+    tableTreeInstance.clearEditing();
     tableTreeInstance.invalidate();
 
   }
@@ -927,13 +888,13 @@ export async function replaceSecretKeysTable() {
         serviceAccountsSave.push(saveNewAccount(rowData));
       } catch (e) {
         notifyAccountSave(serviceAccountsSave);
-        clearEditing();
+        tableTreeInstance.clearEditing();
         tableTreeInstance.invalidate();
         throw e;
       }
     }
     notifyAccountSave(serviceAccountsSave);
-    clearEditing();
+    tableTreeInstance.clearEditing();
     tableTreeInstance.invalidate();
 
   }
@@ -1091,17 +1052,17 @@ export async function replaceSecretKeysTable() {
     await priorityWithKeyTable();
   }
 
-  function clearEditing() {
-    [
-      "dataChangedCache",
-      "editIndex",
-      "editingRow",
-      "editIndices",
-      "editingRow",
-    ].forEach((key) => {
-      (tableTreeInstance as any)[key] = void 0;
-    });
-  }
+  /*  function clearEditing() {
+     [
+       "dataChangedCache",
+       "editIndex",
+       "editingRow",
+       "editIndices",
+       "editingRow",
+     ].forEach((key) => {
+       (tableTreeInstance as any)[key] = void 0;
+     });
+   } */
 
 
 

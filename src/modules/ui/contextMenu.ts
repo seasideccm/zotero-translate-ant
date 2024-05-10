@@ -1,4 +1,5 @@
 import { config } from "../../../package.json";
+import { judgeAsync } from "../../utils/tools";
 
 export class ContextMenu {
   menupopup: XUL.MenuPopup;
@@ -135,7 +136,4 @@ export class ContextMenu {
   }
 }
 
-export function judgeAsync(fun: any) {
-  const AsyncFunction = (async () => {}).constructor;
-  return fun instanceof AsyncFunction;
-}
+

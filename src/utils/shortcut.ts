@@ -1,15 +1,16 @@
 import { KeyModifier } from "zotero-plugin-toolkit/dist/managers/keyboard";
-import { arrsToObjs, batchListen, showInfo } from "./tools";
+import { arrsToObjs, batchListen, judgeAsync, showInfo } from "./tools";
 import { 百度翻译, 腾讯翻译 } from "../modules/ui/testOpen";
 import { getString } from "./locale";
 import { config } from "../../package.json";
 import { openAddonPrefPane } from "../modules/preferenceScript";
-import { judgeAsync } from "../modules/ui/uiTools";
 import { fullTextTranslate } from "../modules/translate/fullTextTranslate";
 import { getSettingValue, setSettingValue } from "../modules/addonSetting";
 import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTable";
 import { getRowString } from "../modules/ui/tableSecretKeys";
 import { rowToEdit, stopEvent, tableFactory } from "../modules/ui/tableFactory";
+import { getDB } from "../modules/database/database";
+import { outside } from "../modules/ui/uiTools";
 
 export function registerPrefsShortcut() {
   ztoolkit.PreferencePane.register({
@@ -60,8 +61,8 @@ export async function onShortcutPan() {
 
 
 
-  const shortcut = doc.querySelector("#input-shortcut") as HTMLInputElement;
-  if (!shortcut) return;
+  const shortcutElem = doc.querySelector("#input-shortcut") as HTMLInputElement;
+  if (!shortcutElem) return;
 
   function shortcutShow(FuncShortcutMap: any, commandFuncMap: any, commandName: string) {
     for (const [key, value] of FuncShortcutMap) {
@@ -76,37 +77,36 @@ export async function onShortcutPan() {
   }
 
 
-  const FuncShortcutMap = addon.mountPoint.FuncShortcutMap;
+  const FuncShortcutMap: Map<any, any> = addon.mountPoint.FuncShortcutMap;
   const shortcutStr = FuncShortcutMap.get(openAddonPrefPane).shortcutStr as string;
   if (shortcutStr) {
-    shortcut.placeholder = shortcutStr.split("+").join(" + ");
+    shortcutElem.placeholder = shortcutStr.split("+").join(" + ");//添加空格
   }
-  shortcut.addEventListener("focus", (e) => {
+  shortcutElem.addEventListener("focus", (e) => {
     win.addEventListener("keydown", recordKeyPress);
     win.addEventListener("click", shortcutBlur);
   });
   async function recordKeyPress(e: KeyboardEvent) {
-    if (e.code && !e.repeat) rawKeyCache.push(e.code);
+    if (e.code && !e.repeat) rawKeyCache.push(e.code);//忽略重复按键
     if (rawKeyCache.length) {
-      shortcut.value = (await rawConvert(rawKeyCache)).join("+");
+      shortcutElem.value = (await rawConvert(rawKeyCache)).join("+");
     }
   }
 
 
   function shortcutBlur(e: Event) {
-    if (e.target && e.target != shortcut) {
-      shortcut.blur();
-    }
+    if (e.target && e.target == shortcutElem) return;
+    shortcutElem.blur();
   }
 
 
-  shortcut.addEventListener("blur", async () => {
+  shortcutElem.addEventListener("blur", async () => {
     win.removeEventListener("keydown", recordKeyPress);
     win.removeEventListener("click", shortcutBlur);
-    shortcut.value = (await rawConvert(rawKeyCache)).join("+");
+    shortcutElem.value = (await rawConvert(rawKeyCache)).join("+");
     rawKeyCache.length = 0;
-    if (shortcut.value && shortcut.value != "") {
-      setShortcut([[openAddonPrefPane, shortcut.value.toLocaleLowerCase(),]]);
+    if (shortcutElem.value && shortcutElem.value != "") {
+      setShortcut([[openAddonPrefPane, shortcutElem.value.toLocaleLowerCase(),]]);
     }
   });
 
@@ -119,9 +119,15 @@ export async function onShortcutPan() {
 
 
 
-async function rawConvert(rawKeyCache: string[]) {
+
+/**
+ * 按键代码转为常用字符串格式
+ * @param {string[]} rawKeyCache:string[]
+ * @returns {string[]}
+ */
+async function rawConvert(rawKeyCache: string[]): Promise<string[]> {
   let distinguishLeftRight = await getSettingValue("distinguishLeftRight", "shortcut");
-  if (distinguishLeftRight === false) distinguishLeftRight = true;
+  if (distinguishLeftRight === false) distinguishLeftRight = true;//面板元素获取不到值则为 false，可能初始未设置，默认设为 true
   distinguishLeftRight = Boolean(distinguishLeftRight);
 
   const strConverted: string[] = [];
@@ -131,11 +137,11 @@ async function rawConvert(rawKeyCache: string[]) {
     if (!str && raw.startsWith('Key')) {
       str = raw.replace('Key', '');
     }
+    //codeMapCurrent 没有 raw，也不是 KeyX
     if (!str) str = raw;
     strConverted.push(str);
   });
   return strConverted;
-
 }
 
 
@@ -193,21 +199,13 @@ async function dispatchShortcuts(rawKeyCache: string[]) {
   rawKeyCache.length = 0;
 }
 
-
-
-
-
 export function setShortcut(argsArr: any[][]) {
   if (!addon.mountPoint.FuncShortcutMap) {
-    addon.mountPoint["FuncShortcutMap"] = new Map();
+    addon.mountPoint.FuncShortcutMap = new Map();
   }
-  const FuncShortcutMap = addon.mountPoint.FuncShortcutMap;
+  const FuncShortcutMap: Map<any, any> = addon.mountPoint.FuncShortcutMap;
   argsArr.forEach((args: any[]) => {
-    const func = args.shift();
-    const shortcutStr = args.shift();
-    const funcAgrs = args;
-
-    FuncShortcutMap.set(func, { shortcutStr: shortcutStr, funcAgrs: funcAgrs });
+    FuncShortcutMap.set(args.shift(), { shortcutStr: args.shift(), funcAgrs: args });
   });
 
 }
@@ -262,20 +260,25 @@ async function shortcutTable() {
     ["decreaseFontSize", decreaseFontSize,],
     ["settingPane", openAddonPrefPane,],
   ];
-  const newArr = commandFuncMap.map(arr => [arr[0]]) as string[][];
+  const newArr = commandFuncMap.map(arr => [arr[0]]) as string[][];//仅有命令名称，快捷键留空
   const id = "shortcutTable";
   const containerId = `table-shortcut`;
+
   async function getRows() {
+    //从数据库获取 JSON 
     const commandShortcutJSON = await getSettingValue("commandShortcut", "shortcut");
     if (commandShortcutJSON) {
-      const commandShortcut = JSON.parse(commandShortcutJSON);//[{command:command,shortcut:shortcut}]
+      const commandShortcut: Shortcut[] = JSON.parse(commandShortcutJSON);//[{command:command,shortcut:shortcut}]
       return commandShortcut;
     }
-    const rows: any[] = arrsToObjs(["command", "shortcut"])(newArr, true) || [];
+    //从数组生成数据
+    const rows: Shortcut[] = arrsToObjs(["command", "shortcut"])(newArr, true) || [];
     if (rows.length) return rows;
-    return [{ command: 'command', shortcut: 'shortcut' }];
+    //默认占位符
+    const placeholderRow: Shortcut[] = [{ command: 'command', shortcut: 'shortcut' }];
+    return placeholderRow;
   }
-  const rows: any[] = await getRows();
+  const rows = await getRows();
 
   //props
   const columnsProp = arrsToObjs([
@@ -299,27 +302,35 @@ async function shortcutTable() {
     showHeader: true,
     multiSelect: true,
     getRowCount: () => rows.length,
-    getRowData: handleRowData,//(index: number) => rows[index],
+    getRowData: handleRowData,
     getRowString: handleGetRowString,
     onFocus: handleFocus,
-    onKeyDown: handleKeyDown
-
+    onSelectionChange: handleSelectionChange,
 
   };
-
+  const win = addon.data.prefs!.window;
   const options: TableFactoryOptions = {
-    win: addon.data.prefs!.window,
+    win: win,
     containerId: containerId,
     props: props,
   };
 
   const tableHelper = await tableFactory(options);
   const tableTreeInstance = tableHelper.treeInstance as VirtualizedTable;
+  tableTreeInstance.rows = rows;
+  tableTreeInstance._topDiv.addEventListener("blur", async () => {
+    await saveShortcutData();
+  });
+  win.addEventListener("click", clickTableOutsideCommit);
+  async function clickTableOutsideCommit(e: MouseEvent) {
+    if (!outside(e, tableTreeInstance._topDiv!)) return;
+    await tableTreeInstance.saveDate(saveShortcutData);
+  }
 
 
   function handleRowData(index: number) {
-    const row = { ...rows[index] };
-    row.command = getString('info-' + rows[index].command);
+    const row = { ...rows[index] };//解构赋值，如果影响原始数据，改为deepclone
+    row.command = getString('info-' + rows[index].command);//单元格显示的内容，多语言支持
     return row;
 
   }
@@ -328,64 +339,33 @@ async function shortcutTable() {
     return getRowString(rows, index, tableTreeInstance);
   }
 
-  function handleKeyDown(event: KeyboardEvent) {
-    showInfo(event.type);
-    return true;
-  }
+
 
   function handleSelectionChange(selection: TreeSelection) {
-
-    const row = tableTreeInstance._jsWindow.getElementByIndex(selection.focused) as HTMLDivElement;
-    if (!row) return;
-    const shortcutSpan = row.children[1] as HTMLSpanElement;
-    if (shortcutSpan.contentEditable !== "true") {
-      shortcutSpan.setAttribute("contenteditable", "true");
-      shortcutSpan.setAttribute("tabindex", "0");
-      shortcutSpan.setAttribute("style", "text-transform: uppercase; text-align: center;");
-      shortcutSpan.addEventListener("blur", (e) => {
-        if (!e.target) return;
-        const target = e.target as HTMLElement;
-        const marker = target.id || target.classList.toString();
-        ztoolkit.log(marker + " 失去焦点：" + shortcutSpan.innerText);
-      });
-
-      shortcutSpan.addEventListener("focus", (e) => {
-        if (!e.target) return;
-        const target = e.target as HTMLElement;
-        const marker = target.id || target.classList.toString();
-        ztoolkit.log(marker + " 获得焦点：" + shortcutSpan.innerText);
-      });
-
-      const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick", "focus", "blur"];
-      batchListen([shortcutSpan, actions, [stopEvent],]);
+    if (tableTreeInstance.dataChangedCache) {
+      tableTreeInstance.saveDate(saveShortcutData);
     }
-    shortcutSpan.focus();
-    /*  setTimeout(() => {
-       shortcutSpan.focus();
-     }); */
 
   }
 
 
-  //const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick"];
-  //  focus    ：在元素获取焦点时触发，不支持冒泡;
-  //  blur     ：在元素失去焦点时触发，不支持冒泡;
-  //  focusin  ：在元素获取焦点时触发，支持冒泡;
-  //  focusout ：在元素失去焦点时触发，支持冒泡;
 
-  //react 表格行元素 （node）监听的事件
-  //'dragstart','dragend', 'mousedown','mouseup', 'dblclick',
-
-  // mousedown,先触发，再阻止
   function handleFocus(e: Event) {
-    if (!e.target) return false;
-    const target = e.target as HTMLElement;
     rowToEdit(tableTreeInstance);
     return false;
 
   }
 
-
-
-
+  async function saveShortcutData() {
+    const rowDatas = tableTreeInstance.rows as Shortcut[];
+    if (!rowDatas || rowDatas.length === 0) return;
+    const commandShortcutArr = rowDatas?.map((row) => ([row.command, row.shortcut]));
+    const json = JSON.stringify(commandShortcutArr);
+    await setSettingValue("commandShortcut", json, "shortcut");
+  }
 }
+
+declare type Shortcut = {
+  command: string;
+  shortcut: string;
+};
