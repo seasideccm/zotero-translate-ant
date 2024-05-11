@@ -1,6 +1,7 @@
 <linkset>
   <html:link rel="localization" href="__addonRef__-preferences.ftl" />
 </linkset>
+
 <commandset id="mainCommandSet">
   <command
     id="cmd_setEnableEncrypt"
@@ -62,7 +63,8 @@
     </label>
 
     <!-- 原文和目标语言设置 -->
-    <hbox>
+    <!-- hbox align="center" 另水平排列的元素垂直方向居中排列 -->
+    <hbox align="center">
       <label data-l10n-id="pref-sourceLang"></label>
       <box id="__addonRef__-sourceLang-placeholder"></box>
 
@@ -75,7 +77,7 @@
   <!-- 屏蔽翻译 -->
   <groupbox>
     <vbox>
-      <hbox>
+      <hbox align="center">
         <label
           style="font-weight: bold"
           data-l10n-id="pref-untranslatedLanguage"
@@ -98,7 +100,7 @@
   <!-- 双语设置 -->
   <groupbox>
     <spacer width="20px" height="20px" />
-    <hbox>
+    <hbox align="center">
       <!-- <caption style="font-weight: bold" data-l10n-id="pref-bilingualSetting" /> -->
       <label data-l10n-id="pref-bilingualSetting"></label>
       <splitter />
@@ -141,7 +143,7 @@
       id="__addonRef__-handleContentBeforeTitle"
       preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
     >
-      <hbox>
+      <hbox align="center">
         <radio
           data-l10n-id="pref-moveToArticleEnd"
           value="moveToArticleEnd"
@@ -216,7 +218,7 @@
     <label data-l10n-id="pref-setEnableEncryptTip" />
   </tooltip>
 
-  <hbox>
+  <hbox align="center">
     <label
       id="__addonRef__-cryptoProtectRun"
       data-l10n-id="pref-cryptoProtectRun"
@@ -235,7 +237,7 @@
       hidden="true"
     ></button>
   </hbox>
-  <hbox>
+  <hbox align="center">
     <button
       id="__addonRef__-updateCryptoKey"
       data-l10n-id="pref-updateCryptoKey"
@@ -271,7 +273,7 @@
     <spacer width="20px" height="20px" />
   </hbox>
 
-  <hbox>
+  <hbox align="center">
     <checkbox
       id="__addonRef__-deleteSourceFile"
       native="true"
@@ -293,33 +295,44 @@
     <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
   </label>
 
-  <hbox>
+  <hbox align="center">
     <label data-l10n-id="pref-underUse"></label>
     <spacer width="10px" />
-    <textbox id="__addonRef__-serviceIDUnderUse" readonly="true" />
+    <textbox
+      id="__addonRef__-serviceIDUnderUse"
+      readonly="true"
+      style="text-align: center; padding: 5px 5px"
+    />
     <spacer width="10px" />
-    <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
+    <textbox
+      id="__addonRef__-secretKeyUnderUse"
+      readonly="true"
+      style="text-align: center; padding: 5px 5px"
+    />
   </hbox>
   <separator class="groove" />
 
-  <hbox>
+  <hbox align="center">
     <label data-l10n-id="pref-multi-service"></label>
     <!-- Replace -->
     <box id="__addonRef__-serviceID-placeholder"></box>
     <button
       id="__addonRef__-switchService"
       data-l10n-id="pref-switchService"
+      style="text-align: center; padding: 5px 5px"
     ></button>
     <button
       id="__addonRef__-forbiddenService"
       data-l10n-id="pref-forbiddenService"
+      style="text-align: center; padding: 5px 5px"
     ></button>
     <button
       id="__addonRef__-saveLimitParam"
       data-l10n-id="pref-saveLimitParam"
+      style="text-align: center; padding: 5px 5px"
     ></button>
   </hbox>
-  <hbox>
+  <hbox align="center">
     <spacer width="20px" height="20px" />
     <label data-l10n-id="pref-QPS"></label>
     <html:input
@@ -342,7 +355,7 @@
       data-l10n-id="pref-hasSecretKey"
     />
   </hbox>
-  <hbox>
+  <hbox align="center">
     <checkbox
       id="__addonRef__-supportMultiParas"
       native="true"
@@ -370,10 +383,11 @@
 
   <vbox>
     <spacer width="20px" height="20px" />
-    <hbox>
+    <hbox align="center">
       <button
         id="__addonRef__-addRecord"
         data-l10n-id="pref-addRecord"
+        style="text-align: center; padding: 5px 5px"
         tooltip="addRecordtip"
       ></button>
       <tooltip id="addRecordtip" orient="vertical">
@@ -384,6 +398,7 @@
       <button
         id="__addonRef__-addRecordBulk"
         data-l10n-id="pref-addRecordBulk"
+        style="text-align: center; padding: 5px 5px"
         tooltip="addRecordBulktip"
       ></button>
       <tooltip id="addRecordBulktip" orient="vertical">
@@ -411,6 +426,7 @@
       <button
         id="__addonRef__-recoverService"
         data-l10n-id="pref-recoverService"
+        style="text-align: center; padding: 5px 5px"
       ></button>
     </hbox>
     <hbox>
@@ -446,7 +462,7 @@
     <html:h3 data-l10n-id="pref-LLM-settings"></html:h3>
   </label>
 
-  <hbox>
+  <hbox align="center">
     <label
       control="__addonRef__-providers"
       data-l10n-id="pref-LLM-provider"
@@ -466,7 +482,7 @@
       id="__addonRef__-providerCustom"
     ></html:input>
   </hbox>
-  <hbox>
+  <hbox align="center">
     <!-- 接口代理地址 -->
     <label control="__addonRef__-baseurl" data-l10n-id="pref-baseURL"></label>
     <html:input
@@ -486,7 +502,7 @@
       id="__addonRef__-models"
     ></html:input>
   </hbox>
-  <hbox>
+  <hbox align="center">
     <!-- 默认模型 -->
     <label
       control="__addonRef__-defaultModel"
@@ -499,7 +515,7 @@
       id="__addonRef__-defaultModel"
     ></html:input>
   </hbox>
-  <hbox>
+  <hbox align="center">
     <!-- API Key -->
     <label control="__addonRef__-apikey">API Key</label>
     <html:input
@@ -510,11 +526,12 @@
     ></html:input>
   </hbox>
 
-  <hbox>
+  <hbox align="center">
     <button
       id="__addonRef__-connectivityCheck"
       data-l10n-id="pref-connectivityCheck"
       width="5rem"
+      style="text-align: center; padding: 5px 5px"
     ></button>
   </hbox>
 </vbox>
@@ -563,7 +580,7 @@
         />
       </hbox>
     </radiogroup>
-    <hbox width="100px">
+    <hbox width="100px" align="center">
       <caption data-l10n-id="pref-backgroundColorDialogImgViewer" />
       <html:input
         type="color"
@@ -575,6 +592,7 @@
       </html:input>
       <button
         data-l10n-id="pref-restoreDefultColor"
+        style="text-align: center; padding: 5px 5px"
         oncommand='const color=document.getElementById("__addonRef__-backgroundColorViewer");
       color.value="#b90f0f";'
       ></button>

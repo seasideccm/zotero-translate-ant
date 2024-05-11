@@ -334,25 +334,141 @@ declare class DataHistory {
 interface VirtualizedTable extends ReturnType<
   typeof import("../src/modules/ui/tableFactory").createVirtualizedTable
 > {
-  //[key: string]: any;
+  [key: string]: any;
   selection: TreeSelection;
-  invalidate: () => void;
   _topDiv: HTMLDivElement;
   _jsWindow: WindowedList;
-  scrollToRow: Func;
+  //scrollToRow: Func;
   _getVisibleColumns: () => any[];
   rows?: any[];
   editIndex?: number;
   editIndices?: number[];
   editingRow?: any;
-  invalidateRow: (row: number) => void;
+  EmptyValue?: string;
+  Nonempty_Keys?: string[];
+  DEFAULT_VALUE?: any;
   commitEditingRow?: () => void;
   dataChangedCache?: any;
+  showRawValueMap?: Map<string, string>;
   props: Partial<VirtualizedTableProps>;
   changeData: (indexRow: number, key: string, value: any) => void;
+  handleValue: Func;
   dataHistory: DataHistory;
   clearEditing: () => void;
   saveDate: (fn?: Func, ...args: any[]) => Promise<void>;
+  rowToEdit: (focusCell?: number, rowIndex2Edit?: number) => false | undefined;
+  /**
+     * Ensure the tree scrolls when dragging over top and bottom parts of it
+     */
+  _onDragOver: (e: Event) => void;
+  /**
+   * Handles page up/down jumps
+   * @param direction - -1 for up, 1 for down
+   */
+  _onJumpSelect(direction: Integer, selectTo: boolean): void;
+  /**
+   * Handles key down events in the tree's container.
+   */
+  _onKeyDown: (e: Event) => void;
+  /**
+   * Scroll the row into view. Delegates to windowed-list
+   */
+  scrollToRow(index: number): void;
+  /**
+   * Updates the selection object
+   */
+  _onSelection: (index: number, shiftSelect: boolean, toggleSelection: boolean, moveFocused: boolean, shouldDebounce: boolean) => void;
+  /**
+   * Get all columns including hidden ones
+   */
+  _getColumns(): void;
+  /**
+   * Toggle [title] attribute on cells when text is truncated
+   * so that a tooltip gets displayed on hover.
+   */
+  _handleMouseOver: (event: Event) => void;
+  /**
+   * Manually handle tooltip setting for table cells with overflowing values.
+   * Temporary, after
+   * https://github.com/zotero/zotero/commit/8e2790e2d2a1d8b15efbf84935f0a80d58db4e44.
+   */
+  _handleMouseMove: (event: Event) => void;
+  /**
+   * Remove manually added fake tooltip from _handleMouseMove when the
+   * mouse leaves the row completely.
+   */
+  _handleMouseLeave: (_: any) => void;
+
+  _handleResizerDragStop: (event: any) => void;
+  _handleColumnDragStart: (index: any, event: any) => false | undefined;
+  _handleColumnDragStop: (event: any, cancelled: any) => void;
+  _handleColumnDrag: (event: any) => void;
+  _handleHeaderMouseUp: (event: any, dataKey: any, index: any) => void;
+  _findColumnDragPosition(x: any): {
+    index: number;
+    offsetX: number;
+  };
+  componentDidMount(): void;
+  /**
+     * Called immediately before a component is destroyed.Perform any necessary cleanup in this method, such as * * * cancelled network requests, or cleaning up any DOM elements created in componentDidMount.
+     */
+  componentWillUnmount(): void;
+  /**
+   * Called immediately after updating occurs.Not called for the initial render.
+   * The snapshot is only present if getSnapshotBeforeUpdate is present and returns non - null.
+   * @param prevProps 
+   */
+  componentDidUpdate(prevProps: any): void;
+
+  /**
+   * Make HTML [title] attribute display a tooltip. Without this
+   * HTML [title] attribute when embedded in a XUL window does not
+   * trigger a tooltip to be displayed
+   * @private
+   */
+  _setXulTooltip(): void;
+
+  _getWindowedListOptions(): {
+    getItemCount: any;
+    itemHeight: number;
+    renderItem: (index: any, oldElem?: null) => any;
+    targetElement: HTMLElement | null;
+  };
+
+  _renderItem: (index: any, oldElem?: null) => any;
+
+  _renderHeaderCells: () => JSX.Element[];
+
+  render(): JSX.Element;
+
+  /**
+   * Invalidates the underlying windowed-list
+   */
+  invalidate(): void;
+  /**
+   * Rerenders/renders the underlying windowed-list. Use for container size changes
+   * to render missing items and update widths
+   */
+  rerender: () => void;
+
+  /**
+     * @param customRowHeights an array of tuples specifying row index and row height: e.g. [[1, 10], [5, 10]]
+     */
+  updateCustomRowHeights: (customRowHeights?: any[]) => void;
+  /**
+   * Rerender a row in the underlying windowed-list
+   */
+  invalidateRow(index: number): void;
+
+  /**
+   * Rerender a row range in the underlying windowed-list
+   */
+  invalidateRange(startIndex: any, endIndex: any): void;
+  /**
+   * When performing custom event handling on rendered rows this allows to ensure that the
+   * focus returns to the virtualized table for kb selection and other event handling
+   */
+  focus(): void;
 
 }
 

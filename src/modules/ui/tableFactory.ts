@@ -1,5 +1,4 @@
-import { DEFAULT_VALUE, EmptyValue, Nonempty_Keys } from "../../utils/constant";
-import { batchListen, deepClone, judgeAsync, showInfo } from "../../utils/tools";
+import { batchListen, deepClone, judgeAsync } from "../../utils/tools";
 
 
 async function tableFactory({
@@ -27,6 +26,7 @@ async function tableFactory({
     treeInstance.dataHistory = new DataHistory();
     treeInstance.clearEditing = clearEditing;
     treeInstance.saveDate = saveDate;
+    treeInstance.rowToEdit = rowToEdit;
     addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
     return tableHelper;
     /**
@@ -52,6 +52,9 @@ async function tableFactory({
         if (!cache[indexRow][key]) cache[indexRow][key] = deepClone(rows[indexRow][key]);
         //修改单元格数据 当前数据源为 rows
         //刷新表格后 rows 中修改的数据会显示在单元格中
+        if (treeInstance.handleValue) {
+            value = treeInstance.handleValue(value);
+        }
         rows[indexRow][key] = value;
     }
 
@@ -87,8 +90,119 @@ async function tableFactory({
         }
         treeInstance.clearEditing();
     }
+
+    function rowToEdit(focusCell?: number, rowIndex2Edit?: number) {
+        if (rowIndex2Edit == void 0) rowIndex2Edit = treeInstance.selection.focused || 0;
+        let rowNew = treeInstance._topDiv.children[1].children[0].children[rowIndex2Edit] as HTMLDivElement;
+        let clone = false;
+        if (!rowNew.dataset.shortcutEditable) {
+            if (!focusCell) {
+                clone = true;
+            } else {
+                const chile = rowNew.children[focusCell] as HTMLDivElement;
+                if (!chile.dataset.shortcutEditable) {
+                    clone = true;
+                }
+            }
+        }
+        if (clone) {
+            let rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
+            if (!rowOld) {
+                //treeInstance.invalidateRow(rowIndex2Edit);
+                treeInstance._jsWindow.invalidate();
+                rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit);
+                if (!rowOld) return;
+            }
+            rowNew = rowOld.cloneNode(true) as HTMLDivElement;
+            rowOld.parentElement?.replaceChild(rowNew, rowOld);//替换行
+            focusCell ? toEdit(rowNew, focusCell) : toEdit(rowNew);
+        }
+
+        setTimeout(() => {
+
+            if (focusCell) {
+                (rowNew.children[focusCell] as HTMLElement).focus();
+            } else {
+                rowNew.focus();
+            }
+        });
+        return false;
+    }
+    function toEdit(rowNew: HTMLElement, cellIndex?: number) {
+        rowNew.setAttribute("tabindex", "0");
+        const elem = cellIndex ? rowNew.children[cellIndex] as HTMLElement : rowNew;
+        if (!elem.dataset.shortcutEditable) {
+            elem.dataset.shortcutEditable = "true";
+            if (treeInstance.editingElementStyle) {
+                elem.setAttribute("style", treeInstance.editingElementStyle);
+            }
+            elem.setAttribute("contenteditable", "true");
+            elem.setAttribute("tabindex", "0");
+            elem.addEventListener("blur", (e) => {
+                stopEditing(rowNew);
+            });
+            batchListen([rowNew, actions, [stopEvent],]);
+        }
+    }
+
+    function stopEditing(rowNew: HTMLElement, rowIndex2Edit?: number) {
+        if (!treeInstance.rows) return;
+        if (rowIndex2Edit == void 0) {
+            rowIndex2Edit = Number(rowNew.id.split("-").slice(-1)[0]);
+        }
+
+        const rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit);
+        const showRawValueMap = treeInstance.showRawValueMap;
+        for (let i = 0; i < rowNew.children.length; i++) {
+            let newValue = rowNew.children[i].textContent;
+            let oldValue = rowOld.children[i].textContent;
+            if (newValue == oldValue) continue;
+            const key = rowNew.children[i].classList[1];
+            newValue = valueVerify(key, newValue, showRawValueMap) || '';
+            oldValue = valueVerify(key, oldValue, showRawValueMap) || '';
+            treeInstance.changeData(rowIndex2Edit, key, newValue);
+        }
+        rowNew.parentElement?.replaceChild(rowOld, rowNew);
+        treeInstance._jsWindow.invalidate();
+
+        /**
+         * 校验数据，并按需将显示值转为原始值
+         * @param key 
+         * @param value 
+         * @param showRawValueMap showValue→rawValue
+         * @returns 
+         */
+        function valueVerify(key: string, value: string | null, showRawValueMap?: Map<string, string>) {
+            let rawValue = value;
+            if (showRawValueMap && value != void 0) {
+                if (showRawValueMap.has(value)) {
+                    rawValue = showRawValueMap.get(value) || null;
+                }
+            }
+            if (rawValue == void 0) return null;
+            if (treeInstance.EmptyValue) {
+                if (!rawValue.includes(treeInstance.EmptyValue)) return rawValue;//返回非空值
+                if (treeInstance.Nonempty_Keys) {
+                    if (treeInstance.Nonempty_Keys.includes(key)) return null;
+                    if (treeInstance.DEFAULT_VALUE) {
+                        return treeInstance.DEFAULT_VALUE[key as keyof typeof treeInstance.DEFAULT_VALUE];//用默认值替换空值标志  
+                    }
+                }
+            }
+            return rawValue;
+        }
+    }
 }
 
+function focusHandler(element: HTMLElement) {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
 
 
 export class DataHistory {
@@ -208,112 +322,11 @@ function stopEvent(e: Event) {//@ts-ignore has
 
 // mousedown,先触发，再阻止
 const actions = ["mousedown", "mouseup", "dblclick"];
-function rowToEdit(tableTreeInstance: VirtualizedTable, rowIndex2Edit?: number) {
-    if (rowIndex2Edit == void 0) rowIndex2Edit = tableTreeInstance.selection.focused;
-    if (rowIndex2Edit == void 0) return false;
-    const rowOld = tableTreeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
-    if (!rowOld) return false;
-    const rowNew = rowOld.cloneNode(true) as HTMLElement;
-    rowOld.parentElement?.replaceChild(rowNew, rowOld);//替换行
-    if (!rowNew.dataset.shortcutEditable) {
-        rowNew.dataset.shortcutEditable = "true";
-        rowNew.setAttribute("contenteditable", "true");
-        rowNew.setAttribute("tabindex", "0");
-        rowNew.addEventListener("blur", (e) => {
-            const rowOld = tableTreeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
-            stopEditing(tableTreeInstance, rowOld, rowNew);//何时保存数据
-            rowNew.parentElement?.replaceChild(rowOld, rowNew);//恢复替换的行
-        });
-        batchListen([rowNew, actions, [stopEvent],]);
-
-    }
-
-    setTimeout(() => {
-        rowNew.focus();
-    });
-    return false;
-}
-
-function cellToEdit(tableTreeInstance: VirtualizedTable, rowIndex2Edit?: number, cellIndex2Edit?: number) {
-    if (cellIndex2Edit == void 0) cellIndex2Edit = 0;
-    if (rowIndex2Edit == void 0) rowIndex2Edit = tableTreeInstance.selection.focused;
-    if (rowIndex2Edit == void 0) return false;
-    const rowOld = tableTreeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
-    if (!rowOld) return false;
-    const rowNew = rowOld.cloneNode(true) as HTMLElement;
-    rowOld.replaceWith(rowNew);//替换行
-    const cell = rowOld.children[cellIndex2Edit] as HTMLSpanElement;
-    if (!rowNew.dataset.shortcutEditable) {
-        rowNew.dataset.shortcutEditable = "true";
-        //row.setAttribute("contenteditable", "true");
-        rowNew.setAttribute("tabindex", "0");
-    }
-    if (!cell.dataset.shortcutEditable) {
-        cell.dataset.shortcutEditable = "true";
-        cell.setAttribute("contenteditable", "true");
-        cell.setAttribute("tabindex", "0");
-        cell.setAttribute("style", "text-transform: uppercase; text-align: center;");
-        cell.addEventListener("blur", (e) => {
-            if (!e.target) return;
-            /* const target = e.target as HTMLElement;
-            const marker = target.id || target.classList.toString();
-            showInfo(marker + " 失去焦点：" + cell.innerText);
-            ztoolkit.log(marker + " 失去焦点：" + cell.innerText); */
-            const newRow = cell.parentElement;
-            const rowOld = tableTreeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
-            newRow?.replaceWith(rowOld);//恢复替换的行
-        });
-
-        cell.addEventListener("focus", (e) => {
-            if (!e.target) return;
-            const target = e.target as HTMLElement;
-            const marker = target.id || target.classList.toString();
-            showInfo(marker + " 获得焦点：" + cell.innerText);
-            ztoolkit.log(marker + " 获得焦点：" + cell.innerText);
-        });
-
-        batchListen([cell, actions, [stopEvent],]);//阻止相同事件冒泡应当在添加监听之后
-    }
-
-    // if (target.id == "shortcutTable") return false;
-    // if (target.classList.contains("virtualized-table-header")) return false;
-    // if (target.id.startsWith("virtualized-table-list")) return false;
-
-    setTimeout(() => {
-        cell.focus();
-    });
-    return false;
-}
-
-function stopEditing(tableTreeInstance: VirtualizedTable, rowNew: HTMLElement, rowOld: HTMLElement) {
-    if (!tableTreeInstance.rows) return;
-    const rowIndex2Edit = tableTreeInstance.selection.focused;
-    for (let i = 0; i < rowNew.children.length; i++) {
-        let newValue = rowNew.children[i].textContent;
-        const key = rowOld.classList[1];
-        newValue = valueVerify(key, newValue);
-        if (!newValue) return;
-        const oldValue = rowOld.children[i].textContent;
-        if (newValue == oldValue) continue;
-        tableTreeInstance.changeData(rowIndex2Edit, key, newValue);
-    }
-    tableTreeInstance.invalidateRow(rowIndex2Edit);
 
 
-    function valueVerify(key: string, value: string | null) {
-        if (value == void 0) {
-            showInfo(key + `: cannot be "null"`);
-            return null;
-        }
-        if (!value.includes(EmptyValue)) return value;//返回非空值
-        if (Nonempty_Keys.includes(key)) {//不允许为空值
-            showInfo(key + `: cannot be "${EmptyValue}"`);
-            return null;
-        }
-        return DEFAULT_VALUE[key as keyof typeof DEFAULT_VALUE]; //用默认值替换空值标志      
 
-    }
-}
+
+
 
 
 
@@ -321,7 +334,6 @@ function stopEditing(tableTreeInstance: VirtualizedTable, rowNew: HTMLElement, r
 export {
     tableFactory,
     stopEvent,
-    rowToEdit,
 
 };
 

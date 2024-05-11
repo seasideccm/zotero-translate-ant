@@ -1,6 +1,6 @@
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { getDom, getElementValue, makeId, setElementValue } from "./ui/uiTools";
+import { getDom, getElementValue, loadCss, makeId, setElementValue } from "./ui/uiTools";
 import { getDB } from "./database/database";
 import { batchListen, showInfo } from "../utils/tools";
 import { mountMenu } from "./menu";
@@ -63,6 +63,7 @@ export async function registerPrefsScripts(_window: Window) {
     addon.data.prefs.window = _window;
   }
   await buildPrefsPane();
+  //loadCss(addon.data.prefs.window.document, [`chrome://${config.addonRef}/content/preferences.css`]);
   await replaceSecretKeysTable();
   await priorityWithKeyTable();
   await priorityWithoutKeyTable();
@@ -70,6 +71,7 @@ export async function registerPrefsScripts(_window: Window) {
   await onPrefsEvents();
   bindPrefEvents();
   await addonSetting();
+
 }
 
 async function buildPrefsPane() {

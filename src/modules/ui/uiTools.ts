@@ -143,6 +143,20 @@ export const makeMenuitem = (option: MenuitemProps, menupopup: any) => {
   }
 };
 
+
+export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/css/viewer.css`]) {
+  cssfilesURL.filter((hrefURL: string) => {
+    document.head.appendChild(ztoolkit.UI.createElement(document, "link", {
+      attributes: {
+        rel: "stylesheet",
+        href: hrefURL,
+        type: "text/css",
+      }
+    }));
+  });
+
+}
+
 /**
  * 坐标在矩形外
  * @param e
