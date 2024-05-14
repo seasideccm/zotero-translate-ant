@@ -6,7 +6,7 @@ async function tableFactory({
     containerId,
     props,
 }: TableFactoryOptions) {
-    if (!containerId) {
+    if (containerId == void 0) {
         throw "Must pass propsOption.containerId which assign table location";
     }
     const renderLock = ztoolkit.getGlobal("Zotero").Promise.defer();
@@ -18,15 +18,15 @@ async function tableFactory({
         renderLock.resolve();
     });
     await renderLock.promise;
-    setTimeout(() => {
+    /* setTimeout(() => {
         (tableHelper.treeInstance as any)._jsWindow.render();//延迟渲染防止显示不全
-    }, 1000);
+    }, 1000); */
     const treeInstance = tableHelper.treeInstance as VirtualizedTable;
     treeInstance.changeData = changeCellData;
     treeInstance.dataHistory = new DataHistory();
     treeInstance.clearEditing = clearEditing;
     treeInstance.saveDate = saveDate;
-    treeInstance.rowToEdit = rowToEdit;
+    treeInstance.startEditing = startEditing;
     addon.mountPoint.tables[tableHelper.props.id] = tableHelper;
     return tableHelper;
     /**
@@ -36,9 +36,12 @@ async function tableFactory({
      * @param value 
      * @returns 
      */
-    function changeCellData(indexRow: number, key: string, value: any) {
-        if (!treeInstance.rows) return;
-        const rows = treeInstance.rows;
+    function changeCellData(indexRow: number, key: string, value: string) {
+        if (value == void 0) {
+            ztoolkit.log("changeCellData: value is null");
+            value = "";
+        }
+        const rows = treeInstance.rows!;
         //存储旧数据，新数据从 rows 获取
         if (!treeInstance.dataChangedCache)
             treeInstance.dataChangedCache = {};
@@ -53,7 +56,7 @@ async function tableFactory({
         //修改单元格数据 当前数据源为 rows
         //刷新表格后 rows 中修改的数据会显示在单元格中
         if (treeInstance.handleValue) {
-            value = treeInstance.handleValue(value);
+            value = treeInstance.handleValue(key, value);
         }
         rows[indexRow][key] = value;
     }
@@ -91,67 +94,88 @@ async function tableFactory({
         treeInstance.clearEditing();
     }
 
-    function rowToEdit(focusCell?: number, rowIndex2Edit?: number) {
+    /**
+     * row or cell of table start editing
+     * @param {number} cellIndex2Edit?:number 切换为可编辑状态的单元格序号
+     * @param {number} rowIndex2Edit?:number 切换为可编辑状态的行序号
+     * @param {number} focusCell?:number 聚焦单元格序号
+     * @returns {boolean}
+     */
+    function startEditing(cellIndex2Edit?: number, rowIndex2Edit?: number, focusCell?: number) {
         if (rowIndex2Edit == void 0) rowIndex2Edit = treeInstance.selection.focused || 0;
-        let rowNew = treeInstance._topDiv.children[1].children[0].children[rowIndex2Edit] as HTMLDivElement;
-        let clone = false;
-        if (!rowNew.dataset.shortcutEditable) {
-            if (!focusCell) {
-                clone = true;
-            } else {
-                const chile = rowNew.children[focusCell] as HTMLDivElement;
-                if (!chile.dataset.shortcutEditable) {
-                    clone = true;
-                }
-            }
-        }
-        if (clone) {
-            let rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit) as HTMLDivElement;
-            if (!rowOld) {
-                //treeInstance.invalidateRow(rowIndex2Edit);
-                treeInstance._jsWindow.invalidate();
-                rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit);
-                if (!rowOld) return;
-            }
-            rowNew = rowOld.cloneNode(true) as HTMLDivElement;
-            rowOld.parentElement?.replaceChild(rowNew, rowOld);//替换行
-            focusCell ? toEdit(rowNew, focusCell) : toEdit(rowNew);
-        }
+        let rowSelected = treeInstance._topDiv.children[1].children[0].children[rowIndex2Edit] as HTMLDivElement;
+        if (!rowSelected.dataset.cloneRow) {
+            const rowNew = rowSelected.cloneNode(true) as HTMLDivElement;
+            rowNew.dataset.cloneRow = "true";
+            //rowNew.setAttribute("tabindex", "0");
+            rowSelected.parentElement?.replaceChild(rowNew, rowSelected);//更换行，点击其他行，react 找不到选中的行，切换首行被选中，因此要阻断点击事件
+            rowSelected = rowNew;
+            switchReactEvent("focusin", "off");//避免重复绑定
 
-        setTimeout(() => {
 
-            if (focusCell) {
-                (rowNew.children[focusCell] as HTMLElement).focus();
-            } else {
-                rowNew.focus();
-            }
+            //rowNew.style.position = "absolute";
+            //rowNew.style.zIndex = "100";           
+            //导致 react 表格聚焦的原生事件为 focusin，根节点为 container
+        }
+        // 单元格或行切换为编辑状态
+        cellIndex2Edit ? toEdit(rowSelected, cellIndex2Edit) : toEdit(rowSelected);
+        setTimeout(() => { // 任务入列，函数执行完毕后开始执行该任务
+            focusCell = focusCell || cellIndex2Edit;
+            const elem = focusCell != void 0 ? (rowSelected.children[focusCell] as HTMLElement) : rowSelected;
+            elem.focus();
+            const idStr = elem.id ? "id: " + elem.id : "class: " + elem.classList[1];
+            getFocusedElement("After focused " + idStr);
+            batchListen([[elem, ["click", "dblclick"], stopEvent]]);
         });
         return false;
     }
     function toEdit(rowNew: HTMLElement, cellIndex?: number) {
-        rowNew.setAttribute("tabindex", "0");
         const elem = cellIndex ? rowNew.children[cellIndex] as HTMLElement : rowNew;
         if (!elem.dataset.shortcutEditable) {
             elem.dataset.shortcutEditable = "true";
-            if (treeInstance.editingElementStyle) {
-                elem.setAttribute("style", treeInstance.editingElementStyle);
-            }
             elem.setAttribute("contenteditable", "true");
             elem.setAttribute("tabindex", "0");
-            elem.addEventListener("blur", (e) => {
-                stopEditing(rowNew);
-            });
-            batchListen([rowNew, actions, [stopEvent],]);
+            elem.addEventListener("blur", funcListener);
+            treeInstance._topDiv.removeAttribute("tabindex");
+            treeInstance._topDiv.children[1].removeAttribute("tabindex");
+            // elem.addEventListener("focusout", funcListener);
+            // elem.addEventListener("focus", funcListener);
+            // elem.addEventListener("focusin", funcListener);
+            // batchListen([rowNew, actions, [stopEvent],]);
+        }
+        function funcListener(e: Event) {
+            let rowNew = e.target as HTMLElement;
+            if (!rowNew.dataset.cloneRow) rowNew = rowNew.parentElement as HTMLElement;
+            const idStr = rowNew.id ? "id: " + rowNew.id : "class: " + rowNew.classList[1];
+            ztoolkit.log(rowNew.id || rowNew.classList.toString(), e.type, e);
+            const selectedIndex = getSelectedIndex();
+            if (selectedIndex == treeInstance.selection.focused) {
+                if (e.type != "blur") e.stopImmediatePropagation();
+                (e.target as HTMLElement).focus();
+                getFocusedElement(`${idStr} blur then refocused`);
+                return;
+            }
+            stopEditing(rowNew);
+            getFocusedElement(`after ${idStr} blur`);
         }
     }
 
+
+
     function stopEditing(rowNew: HTMLElement, rowIndex2Edit?: number) {
-        if (!treeInstance.rows) return;
         if (rowIndex2Edit == void 0) {
             rowIndex2Edit = Number(rowNew.id.split("-").slice(-1)[0]);
         }
-
         const rowOld = treeInstance._jsWindow.getElementByIndex(rowIndex2Edit);
+        modifyRowDatas(rowNew, rowOld, rowIndex2Edit);
+        rowNew.parentElement?.replaceChild(rowOld, rowNew);
+        //rowOld.classList.toggle('selected', treeInstance.selection.isSelected(rowIndex2Edit));
+        //rowOld.classList.toggle('focused', treeInstance.selection.focused == rowIndex2Edit);
+        treeInstance._jsWindow.invalidate();
+        //switchReactEvent("focusin", "on");
+    }
+
+    function modifyRowDatas(rowNew: HTMLElement, rowOld: HTMLElement, rowIndex2Edit: number) {
         const showRawValueMap = treeInstance.showRawValueMap;
         for (let i = 0; i < rowNew.children.length; i++) {
             let newValue = rowNew.children[i].textContent;
@@ -162,16 +186,13 @@ async function tableFactory({
             oldValue = valueVerify(key, oldValue, showRawValueMap) || '';
             treeInstance.changeData(rowIndex2Edit, key, newValue);
         }
-        rowNew.parentElement?.replaceChild(rowOld, rowNew);
-        treeInstance._jsWindow.invalidate();
-
         /**
-         * 校验数据，并按需将显示值转为原始值
-         * @param key 
-         * @param value 
-         * @param showRawValueMap showValue→rawValue
-         * @returns 
-         */
+        * 校验数据，并按需将显示值转为原始值
+        * @param key 
+        * @param value 
+        * @param showRawValueMap showValue→rawValue
+        * @returns 
+        */
         function valueVerify(key: string, value: string | null, showRawValueMap?: Map<string, string>) {
             let rawValue = value;
             if (showRawValueMap && value != void 0) {
@@ -192,6 +213,125 @@ async function tableFactory({
             return rawValue;
         }
     }
+
+
+
+    function switchReactEvent(eventType: keyof DocumentEventMap, change: "off" | "on" = "off") {
+        const doc = treeInstance._topDiv.ownerDocument!;
+        const container = doc.querySelector("#" + containerId) as HTMLElement;
+        if (!container) return;
+        if (change == "on") {
+            container.removeEventListener(eventType, stopIt);
+            container.removeEventListener(eventType, stopIt, true);
+            ztoolkit.log(eventType + ' 事件监听被撤销。');
+            return;
+        }
+        container.addEventListener(eventType, stopIt);
+        container.addEventListener(eventType, stopIt, true);
+        ztoolkit.log(eventType + ' 事件被监听。');
+        function stopIt(this: any, e: Event) {
+            //preventDefault: 如果当前event.cancelable属性为true, 则取消当前默认的动作, 但不阻止当前事件进一步传播.
+            //stopPropagation: 阻止当前冒泡或者捕获阶段的进一步传播 .
+            //stopImmediatePropagation: 阻止调用相同事件的其他监听器
+            // 阻断原生事件到 document 的传播，react 自身的 e.type 事件回调不会再执行
+
+            const phase = e.eventPhase == e.BUBBLING_PHASE ? "冒泡阶段" : "捕获阶段";
+            e.stopImmediatePropagation();
+            ztoolkit.log(this.id, `${phase} ${e.type}  事件被触发, 紧接着被阻断，避免 react 相应合成事件的执行。`);
+        }
+    }
+
+    /* function focusDisable(cancle: boolean = false) {
+        const doc = treeInstance._topDiv.ownerDocument!;
+        const container = doc.getElementById("table-shortcut")!;
+        const cancleit = cancleFocusin.bind(container);
+        //const shortcutTable = doc.getElementById("shortcutTable");
+        //const tablebody = doc.querySelector(".virtualized-table-body");
+        if (cancle) {
+            ztoolkit.log(" 取消 focusin 监听");
+            container.removeEventListener("focusin", cancleit, true);
+           //  shortcutTable?.removeEventListener("focusin", cancleFocusin);
+           //  shortcutTable?.removeEventListener("focusin", cancleFocusin, true);
+           //  tablebody?.removeEventListener("focusin", cancleFocusin);
+           //  tablebody?.removeEventListener("focusin", cancleFocusin, true);
+            return;
+        }
+        //true 指定为捕获阶段（dom 层级由外向内由上向下），冒泡则相反 
+        ztoolkit.log(" 开始 focusin 监听");
+        container.addEventListener("focusin", cancleit, true);
+     //  shortcutTable?.addEventListener("focusin", cancleFocusin);
+     //  shortcutTable?.addEventListener("focusin", cancleFocusin, true);
+     //  tablebody?.addEventListener("focusin", cancleFocusin);
+     //  tablebody?.addEventListener("focusin", cancleFocusin, true); 
+        const test = '';
+
+        function cancleFocusin(this: any, e: Event) {
+            logInfo(this, e);
+            stopEvent(e);
+            focusEditing();
+        }
+
+        function focusEditing() {
+            const row = getSelectedRow();
+            if (!row.dataset.cloneRow) return;
+            if (row.dataset.shortcutEditable) {
+                const focusedElement = getFocusedElement("befor focusEditing");
+                if (focusedElement == row) {
+                    ztoolkit.log("焦点在编辑的行上");
+                } else {
+                    ztoolkit.log("焦点不在编辑的行上，切换焦点到行上");
+                    row.focus();
+                }
+                getFocusedElement("after focusEditing");
+                return;
+            }
+            for (let i = 0; i < row.children.length; i++) {
+                const child = row.children[i] as HTMLElement;
+                if (!child.dataset.shortcutEditable) continue;
+                const focusedElement = getFocusedElement("befor cellIndex2EditEditing");
+                if (focusedElement == child) {
+                    ztoolkit.log("焦点在编辑的单元格上");
+                } else {
+                    ztoolkit.log("焦点不在编辑的单元格上，切换焦点到单元格上");
+                    child.focus();
+                }
+                getFocusedElement("after cellIndex2EditEditing");
+                return;
+            }
+        }
+
+
+        function logInfo(element: HTMLElement, e: Event) {
+            const target = e.target as HTMLElement;
+            const info = target.id ? "id: " + target.id : "class: " + target.classList.toString();
+            const rowIndex = treeInstance.selection.focused;
+            ztoolkit.log("rowIndex: " + rowIndex);
+            ztoolkit.log(info + " 取消 focusin 聚焦");
+            const elemInfo = element.id ? "elem_id: " + element.id : "elem_class: " + element.classList.toString();
+            ztoolkit.log(elemInfo + " 取消 focusin 聚焦");
+        }
+    } */
+
+
+
+
+    function getFocusedElement(where?: string) {
+        const focusedElem = treeInstance._topDiv.ownerDocument.activeElement as HTMLElement;
+        const idOrClass = focusedElem.id || focusedElem.classList.toString();
+        ztoolkit.log(where + " 焦点元素: " + idOrClass);
+        return focusedElem;
+    }
+    function getSelectedRow() {
+        const focusedIndex = treeInstance.selection.focused;
+        return treeInstance._topDiv.children[1].children[0].children[focusedIndex] as HTMLDivElement;
+    }
+
+    function getSelectedIndex() {
+        const selectedRow = getSelectedRow();
+        return Number(selectedRow.id.split("-").slice(-1)[0]);
+    }
+
+
 }
 
 function focusHandler(element: HTMLElement) {
@@ -295,13 +435,14 @@ export class DataStack {
  * 可通过克隆 node 清除事件监听
  * @param e 
  */
-function stopEvent(e: Event) {//@ts-ignore has
+function stopEvent(this: any, e: Event) {//@ts-ignore has
 
     if (e.stopImmediatePropagation) {
         e.stopImmediatePropagation();//@ts-ignore has
-    } else if (e.nativeEvent?.stopImmediatePropagation) {//@ts-ignore has
-        e.nativeEvent?.stopImmediatePropagation();
+    } else if (e.nativeEvent) {//@ts-ignore has
+        e.nativeEvent!.stopImmediatePropagation();
     }
+    ztoolkit.log(this.id || this.classList.toString(), e.type, e);
     // react 没有 stopImmediatePropagation
     // stopImmediatePropagation 阻止原生事件向父级和自身同类监听冒泡
     // e.nativeEvent react 自定义事件中的原始事件
@@ -321,20 +462,10 @@ function stopEvent(e: Event) {//@ts-ignore has
 //'dragstart','dragend', 'mousedown','mouseup', 'dblclick',
 
 // mousedown,先触发，再阻止
-const actions = ["mousedown", "mouseup", "dblclick"];
-
-
-
-
-
-
-
-
-
+const actions = ["mousedown", "mouseup", "dblclick", "click"];
 export {
     tableFactory,
     stopEvent,
-
 };
 
 

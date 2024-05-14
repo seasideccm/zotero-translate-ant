@@ -1462,7 +1462,7 @@ const arrs = [
  *
  * @param args
  */
-export function batchListen(
+/* export function batchListen(
   ...args: [element: Node, eventType: string[], callBack: Func[]][]
 ) {
   for (const arg of args) {
@@ -1477,7 +1477,32 @@ export function batchListen(
       arg[0].addEventListener(event, func!);
     }
   }
+} */
+
+
+/**
+ * 如果仅有一个回调函数，则重复使用，
+ * 否则事件类型和回调函数要一一对应
+ * @param args  
+ */
+export function batchListen(args: [elements: (HTMLElement | Node) | (HTMLElement | Node)[], eventTypes: string | string[], callBack: Func | Func[], capture?: boolean, remove?: boolean][]) {
+  for (const arg of args) {
+    const elements = Array.isArray(arg[0]) ? arg[0] : [arg[0]];
+    const eventTypes = Array.isArray(arg[1]) ? arg[1] : [arg[1]];
+    const cbs = Array.isArray(arg[2]) ? arg[2] : [arg[2]];
+    const capture = arg[3] || false;
+    const remove = arg[4] || false;
+    for (const elem of elements) {
+      for (let i = 0; i < eventTypes.length; i++) {
+        const event = eventTypes[i];
+        const func = cbs[i] || cbs[0];//如果仅有一个回调函数，则重复使用
+        if (typeof func != "function") throw "Must be callback";
+        !remove ? elem.addEventListener(event, func, capture) : elem.removeEventListener(event, func, capture);
+      }
+    }
+  }
 }
+
 
 export const judgeAsync = (fun: any) => {
   const AsyncFunction = (async () => { }).constructor;

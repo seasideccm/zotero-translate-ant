@@ -356,7 +356,13 @@ interface VirtualizedTable extends ReturnType<
   dataHistory: DataHistory;
   clearEditing: () => void;
   saveDate: (fn?: Func, ...args: any[]) => Promise<void>;
-  rowToEdit: (focusCell?: number, rowIndex2Edit?: number) => false | undefined;
+  /**
+     * row or cell of table start editing
+     * @param {number} focusCell?:number 
+     * @param {number} rowIndex2Edit?:number
+     * @returns {boolean}
+     */
+  startEditing: (focusCell?: number, rowIndex2Edit?: number) => boolean;
   /**
      * Ensure the tree scrolls when dragging over top and bottom parts of it
      */

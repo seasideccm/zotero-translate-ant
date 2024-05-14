@@ -91,7 +91,7 @@ async function onPrefsEvent(type: string, data: { [key: string]: any; }) {
       await registerPrefsScripts(data.window);
       break;
     case "shortcut":
-      await onShortcutPan();
+      await onShortcutPan(data.window);
       showInfo(data.str);
       break;
     default:

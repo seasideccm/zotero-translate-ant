@@ -692,7 +692,7 @@ export async function replaceSecretKeysTable() {
     };
   }
 
-  function caculateInputWidth(inputCell: HTMLInputElement) {
+  function teInputWidth(inputCell: HTMLInputElement) {
     const topContainer = inputCell.ownerDocument.querySelector(
       `#zotero-prefpane-${config.addonRef}`,
     );

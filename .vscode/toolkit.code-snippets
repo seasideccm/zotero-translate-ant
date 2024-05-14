@@ -42,4 +42,9 @@
       "});",
     ],
   },
+  "comment chinese punctuation": {
+    "scope": "javascript,typescript",
+    "prefix": "、、",
+    "body": "// $0",
+  },
 }

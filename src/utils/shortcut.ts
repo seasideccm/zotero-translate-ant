@@ -118,7 +118,7 @@ export function defineCommand(argsArr: any[][]) {
   });
 }
 
-const codeMap: any = {//KeyModifier, code值 为键
+const keyCodeMap: any = {//KeyModifier, code值 为键
   ControlLeft: "LCtrl",
   ControlRight: "RCtrl",
   ShiftLeft: "LShift",
@@ -128,7 +128,7 @@ const codeMap: any = {//KeyModifier, code值 为键
   OSLeft: "LOS",
   OSRight: "ROS",
 };
-const codeMapNoLR: any = {//KeyModifier, code值 为键
+const keyCodeMapNoLR: any = {//KeyModifier, code值 为键
   ControlLeft: "Ctrl",
   ControlRight: "Ctrl",
   ShiftLeft: "Shift",
@@ -141,7 +141,14 @@ const codeMapNoLR: any = {//KeyModifier, code值 为键
 
 
 
-export async function onShortcutPan() {
+export async function onShortcutPan(_window: Window) {
+  if (!addon.data.prefs) {
+    addon.data.prefs = {
+      window: _window,
+    };
+  } else {
+    addon.data.prefs.window = _window;
+  }
   const rawKeyCache: string[] = [];
   const doc = addon.data.prefs?.window?.document;
   if (!doc) return;
@@ -250,28 +257,43 @@ async function shortcutTable() {
   tableTreeInstance.EmptyValue = EmptyValue;
   tableTreeInstance.Nonempty_Keys = Nonempty_Keys;
   tableTreeInstance.DEFAULT_VALUE = DEFAULT_VALUE;
-  tableTreeInstance.editingElementStyle = "text-transform: uppercase; text-align: center";
   if (showRawValueMap.size) {
     tableTreeInstance.showRawValueMap = showRawValueMap;
   }
+
+  /*   batchListen([[tableTreeInstance._topDiv.children[1], tableTreeInstance._topDiv, tableTreeInstance._topDiv.parentElement!], ["focusin", "focusout"], showEvent]);
+    function showEvent(this: HTMLElement, e: Event) {
+      ztoolkit.log(e.type + "  " + this.id);
+      ztoolkit.log(e);
+    }
+   */
   tableTreeInstance.handleValue = handleValue;
   function handleValue(key: string, value: string) {
-    if (key == "shortcut") {
-      return value.toLocaleLowerCase().split(" ").join("+");
+    if (key == "shortcut" && value) {
+      value = value.toLocaleLowerCase().split(" ").join("+");
     }
+    return value;
   }
 
-  tableTreeInstance._topDiv.addEventListener("blur", async () => {
+  tableTreeInstance._topDiv.addEventListener("blur", async (e) => {
+    ztoolkit.log(tableTreeInstance._topDiv.id + " saveShortcutData", e.type, e,);
     await saveShortcutData();
-  });
-  setTimeout(() => {
-    const shortcutElements = tableTreeInstance._topDiv.querySelectorAll("span.cell.shortcut");
-    shortcutElements.forEach(e => {
-      e.setAttribute("style", tableTreeInstance.editingElementStyle);
-    });
-  }, 1005);
 
+  });
+
+
+  const doc = win!.document;
+  const styleTag = doc.createElement("style");
+  styleTag.innerHTML = `span.cell.shortcut {
+    text-transform: uppercase; text-align: center;
+  }`;
+  const winElement = doc.getElementById("zotero-prefs")!;
+  winElement.appendChild(styleTag);
   win.addEventListener("click", clickTableOutsideCommit);
+  setTimeout(() => {
+    (tableHelper.treeInstance as any)._jsWindow.render();//延迟渲染防止显示不全
+  }, 1000);
+
 
   async function getRows() {
     //从数据库获取 JSON 
@@ -311,7 +333,14 @@ async function shortcutTable() {
       showRawValueMap.set(showValue, rawValue);
     }
     row.command = showValue;
-    row.shortcut = row.shortcut.split("+").join(" ");
+    let shortcutStr = row.shortcut;
+    //防止 undefined
+    if (shortcutStr == void 0) {
+      shortcutStr = '';// !''== true
+      rows[index].shortcut = '';
+    }
+    shortcutStr = shortcutStr.split("+").join(" ");
+    row.shortcut = shortcutStr;
     return row;
 
   }
@@ -326,21 +355,32 @@ async function shortcutTable() {
     if (tableTreeInstance.dataChangedCache) {
       tableTreeInstance.saveDate(saveShortcutData);
     }
-
+    const selectedRow = selection.focused;
+    ztoolkit.log("selectedRow: " + selectedRow);
   }
 
 
 
-  function handleFocus(e: Event) {
-    tableTreeInstance.rowToEdit(1);
-
+  function handleFocus(e: any) {
+    const t = e.target as HTMLElement;
+    const info = t.id ? t.id : t.classList.toString();
+    ztoolkit.log("react 事件: " + info);
+    ztoolkit.log("e._reactName: " + e._reactName || '');
+    ztoolkit.log(e);
+    tableTreeInstance.startEditing(1);
     return false;
-
   }
 
   async function saveShortcutData() {
     const rowDatas = tableTreeInstance.rows as ShortcutData[];
     if (!rowDatas || rowDatas.length === 0) return;
+    for (const data of rowDatas) {
+      const undefinedValues = Object.values(data).filter(e => e == void 0);// 
+      if (undefinedValues.length) {
+        ztoolkit.log(`shortcut can not be Empty`);
+        return;
+      }
+    }
     //const commandShortcutArr = rowDatas?.map((row) => ([row.command, row.shortcut]));
     const json = JSON.stringify(rowDatas);
     await setSettingValue("commandShortcut", json, "shortcut");
@@ -360,14 +400,14 @@ async function rawConvert(rawKeyCache: string[]): Promise<string[]> {
   distinguishLeftRight = Boolean(distinguishLeftRight);
 
   const strConverted: string[] = [];
-  const codeMapCurrent = distinguishLeftRight ? codeMap : codeMapNoLR;
+  const keyCodeMapCurrent = distinguishLeftRight ? keyCodeMap : keyCodeMapNoLR;
   rawKeyCache.forEach(raw => {
-    let str: string = codeMapCurrent[raw];
-    if (!str && raw.startsWith('Key')) {
-      str = raw.replace('Key', '');
+    let str: string = keyCodeMapCurrent[raw];
+    if (str == void 0 && raw.startsWith('Key')) { //KeyX
+      str = raw.replace('Key', '');// 重新赋值后不为 void 0
     }
-    //codeMapCurrent 没有 raw，也不是 KeyX
-    if (!str) str = raw;
+    //keyCodeMapCurrent 没有 raw，也不是 KeyX
+    if (str == void 0) str = raw;
     strConverted.push(str);
   });
   return strConverted;

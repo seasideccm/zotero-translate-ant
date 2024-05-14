@@ -2,7 +2,7 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref } from "../utils/prefs";
 import { arrToObj } from "../utils/tools";
-import { openAddonPrefPane } from "./preferenceScript";
+import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
@@ -25,6 +25,7 @@ function getParasArrs() {
       ["info-decryptFile", decryptFileSelected],
     ],
     [
+      ["menuAddon-openAddonShortcut", openAddonShortcut],
       ["menuAddon-openAddonPrefPane", openAddonPrefPane],
     ],
     [
