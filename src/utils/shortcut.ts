@@ -249,25 +249,26 @@ async function shortcutTable() {
     win: win,
     containerId: containerId,
     props: props,
+    rowsData: rows,
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as VirtualizedTable;
-  tableTreeInstance.rows = rows;
-  tableTreeInstance.EmptyValue = EmptyValue;
-  tableTreeInstance.Nonempty_Keys = Nonempty_Keys;
-  tableTreeInstance.DEFAULT_VALUE = DEFAULT_VALUE;
+  const treeInstance = tableHelper.treeInstance as VirtualizedTable;
+  const mount = treeInstance.mount;
+  mount.EmptyValue = EmptyValue;
+  mount.Nonempty_Keys = Nonempty_Keys;
+  mount.DEFAULT_VALUE = DEFAULT_VALUE;
   if (showRawValueMap.size) {
-    tableTreeInstance.showRawValueMap = showRawValueMap;
+    treeInstance.mount.showRawValueMap = showRawValueMap;
   }
 
-  /*   batchListen([[tableTreeInstance._topDiv.children[1], tableTreeInstance._topDiv, tableTreeInstance._topDiv.parentElement!], ["focusin", "focusout"], showEvent]);
+  /*   batchListen([[treeInstance._topDiv.children[1], treeInstance._topDiv, treeInstance._topDiv.parentElement!], ["focusin", "focusout"], showEvent]);
     function showEvent(this: HTMLElement, e: Event) {
       ztoolkit.log(e.type + "  " + this.id);
       ztoolkit.log(e);
     }
    */
-  tableTreeInstance.handleValue = handleValue;
+  treeInstance.handleValue = handleValue;
   function handleValue(key: string, value: string) {
     if (key == "shortcut" && value) {
       value = value.toLocaleLowerCase().split(" ").join("+");
@@ -275,8 +276,8 @@ async function shortcutTable() {
     return value;
   }
 
-  tableTreeInstance._topDiv.addEventListener("blur", async (e) => {
-    ztoolkit.log(tableTreeInstance._topDiv.id + " saveShortcutData", e.type, e,);
+  treeInstance._topDiv.addEventListener("blur", async (e) => {
+    ztoolkit.log(treeInstance._topDiv.id + " saveShortcutData", e.type, e,);
     await saveShortcutData();
 
   });
@@ -313,8 +314,8 @@ async function shortcutTable() {
   }
 
   async function clickTableOutsideCommit(e: MouseEvent) {
-    if (!outside(e, tableTreeInstance._topDiv!)) return;
-    await tableTreeInstance.saveDate(saveShortcutData);
+    if (!outside(e, treeInstance._topDiv!)) return;
+    await treeInstance.mount.saveDate(saveShortcutData);
   }
 
 
@@ -346,17 +347,20 @@ async function shortcutTable() {
   }
 
   function handleGetRowString(index: number) {
-    return getRowString(rows, index, tableTreeInstance);
+    return getRowString(rows, index, treeInstance);
   }
 
 
 
   function handleSelectionChange(selection: TreeSelection) {
-    if (tableTreeInstance.dataChangedCache) {
-      tableTreeInstance.saveDate(saveShortcutData);
+    if (treeInstance.mount.dataChangedCache) {
+      treeInstance.mount.saveDate(saveShortcutData);
     }
     const selectedRow = selection.focused;
     ztoolkit.log("selectedRow: " + selectedRow);
+    treeInstance.mount.getFocusedElement("selectionChange");
+    treeInstance.mount.editingElement && treeInstance.mount.editingElement.blur();
+    //treeInstance.render();
   }
 
 
@@ -367,22 +371,22 @@ async function shortcutTable() {
     ztoolkit.log("react 事件: " + info);
     ztoolkit.log("e._reactName: " + e._reactName || '');
     ztoolkit.log(e);
-    tableTreeInstance.startEditing(1);
+    treeInstance.mount.startEditing(1);
     return false;
   }
 
   async function saveShortcutData() {
-    const rowDatas = tableTreeInstance.rows as ShortcutData[];
-    if (!rowDatas || rowDatas.length === 0) return;
-    for (const data of rowDatas) {
+    const rowsData = treeInstance.mount.rowsData as ShortcutData[];
+    if (!rowsData || rowsData.length === 0) return;
+    for (const data of rowsData) {
       const undefinedValues = Object.values(data).filter(e => e == void 0);// 
       if (undefinedValues.length) {
         ztoolkit.log(`shortcut can not be Empty`);
         return;
       }
     }
-    //const commandShortcutArr = rowDatas?.map((row) => ([row.command, row.shortcut]));
-    const json = JSON.stringify(rowDatas);
+    //const commandShortcutArr = rowsData?.map((row) => ([row.command, row.shortcut]));
+    const json = JSON.stringify(rowsData);
     await setSettingValue("commandShortcut", json, "shortcut");
   }
 }

@@ -133,6 +133,7 @@ async function targeCombineUI(dialogType: string, win: Window, parent: XUL.Box, 
       win: win,
       containerId: containerId,
       props: props,
+      rowsData: rows,
     };
 
     const tableHelper = await tableFactory(options);

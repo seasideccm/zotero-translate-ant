@@ -1,6 +1,7 @@
 import { arrsToObjs } from "../../utils/tools";
 import { s, t } from "./tabData";
-import { getRowString, tableFactory } from "./tableSecretKeys";
+import { tableFactory } from "./tableFactory";
+import { getRowString } from "./tableSecretKeys";
 
 export async function tabTest() {
     const tab = Zotero_Tabs.add({
@@ -70,18 +71,19 @@ export async function translationCombineTable(sourceArr: string[], targetArr: st
         win: window,
         containerId: containerId,
         props: props,
+        rowsData: rows,
     };
 
     const tableHelper = await tableFactory(options);
-    const tableTreeInstance = tableHelper.treeInstance as VTable; //@ts-ignore has
+    const treeInstance = tableHelper.treeInstance;
 
     function handleGetRowString(index: number) {
-        return getRowString(rows, index, tableTreeInstance);
+        return getRowString(rows, index, treeInstance);
     }
 
     function combineRows(type: "up" | "down") {
-        let index = tableTreeInstance.selection.focused;
-        if (index == void 0) index = Array.from(tableTreeInstance.selection.selected)[0];
+        let index = treeInstance.selection.focused;
+        if (index == void 0) index = Array.from(treeInstance.selection.selected)[0];
         if (index == void 0) return true;
         if (type == "up") {
             if (index == 0) return true;
@@ -93,7 +95,7 @@ export async function translationCombineTable(sourceArr: string[], targetArr: st
         targetArr.splice(index, 1);
         rows.length = 0;
         rows.push(...getRows());
-        tableTreeInstance.invalidate();
+        treeInstance.invalidate();
 
     }
 

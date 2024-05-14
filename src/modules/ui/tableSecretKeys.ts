@@ -68,7 +68,7 @@ export async function replaceSecretKeysTable() {
   const res = await updateTable("secretKeysTable", serviceID);
   if (res) return;
 
-  //数据 rows 表格创建后挂载至 tableTreeInstance 表格实例上
+  //数据 rows 表格创建后挂载至 treeInstance 表格实例上
   const rows: any[] = (await secretKeysRows(serviceID)) || [];
   if (!rows || rows.length == 0) return;
   //props
@@ -100,13 +100,14 @@ export async function replaceSecretKeysTable() {
     win: win,
     containerId: containerId,
     props: props,
+    rowsData: rows,
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable;
-  tableTreeInstance.scrollToRow(rows.length - 1);
-  tableTreeInstance._topDiv?.scrollIntoView(false);
-  tableTreeInstance.rows = rows;
+  const treeInstance = tableHelper.treeInstance as unknown as VirtualizedTable;
+  treeInstance.scrollToRow(rows.length - 1);
+  treeInstance._topDiv?.scrollIntoView(false);
+
 
   //绑定事件，增删改查
   getDom("addRecord")!.addEventListener("command", addRecord);
@@ -118,7 +119,7 @@ export async function replaceSecretKeysTable() {
   adjustWidth(rows);
 
   function handleGetRowString(index: number) {
-    return getRowString(rows, index, tableTreeInstance);
+    return getRowString(rows, index, treeInstance);
   }
 
   function handleGetRowData(index: number) {
@@ -140,17 +141,17 @@ export async function replaceSecretKeysTable() {
   }
   function adjustWidth(rows: any[], byDisplay: boolean = true) {
     //@ts-ignore xxx
-    const visibleKeys = tableTreeInstance
+    const visibleKeys = treeInstance
       ._getVisibleColumns()
       .map((e: any) => e.dataKey);
     const onResizeData: any = {};
-    const totalWidth = tableTreeInstance._topDiv?.clientWidth;
+    const totalWidth = treeInstance._topDiv?.clientWidth;
     if (byDisplay) {
       const rowsDisplay: any[] = [];
 
       for (let i = 0; i < rows.length; i++) {
-        if (tableTreeInstance.props.getRowData) {
-          const row = tableTreeInstance.props.getRowData(i);
+        if (treeInstance.props.getRowData) {
+          const row = treeInstance.props.getRowData(i);
           rowsDisplay.push(row);
         }
       }
@@ -200,15 +201,15 @@ export async function replaceSecretKeysTable() {
           keyWidth[key] + Math.round(diff * (keyWidth[key] / sum));
       }
     } //@ts-ignore has
-    tableTreeInstance._columns.onResize(onResizeData); //@ts-ignore has
-    tableTreeInstance.rerender();
+    treeInstance._columns.onResize(onResizeData); //@ts-ignore has
+    treeInstance.rerender();
     return onResizeData;
   }
 
   function caculateCellWidth(key: string, cellText: string, index: number = 0) {
     //@ts-ignore has
-    tableTreeInstance.rerender();
-    const container = tableTreeInstance._topDiv?.children[1].children[0]
+    treeInstance.rerender();
+    const container = treeInstance._topDiv?.children[1].children[0]
       .children[0] as HTMLDivElement;
     if (!container) return;
     const span = container.children.item(index);
@@ -270,9 +271,9 @@ export async function replaceSecretKeysTable() {
 
   function handleFocus(e: any) {
     //@ts-ignore has
-    if (tableTreeInstance && tableTreeInstance.prevFocusCell) {
+    if (treeInstance && treeInstance.prevFocusCell) {
       //@ts-ignore has
-      tableTreeInstance.prevFocusCell.focus();
+      treeInstance.prevFocusCell.focus();
       if (e && e.stopPropagation) {
         e.stopPropagation();
       } else {
@@ -338,8 +339,8 @@ export async function replaceSecretKeysTable() {
     selection: TreeSelection,
     shouldDebounce: boolean,
   ) {
-    await tableTreeInstance.saveDate(saveAccounts);
-    /*    if (tableTreeInstance.dataChangedCache) {
+    await treeInstance.mount.saveDate(saveAccounts);
+    /*    if (treeInstance.dataChangedCache) {
          await saveAccounts();
        } */
 
@@ -433,7 +434,7 @@ export async function replaceSecretKeysTable() {
 
       //过滤掉选中行的数据，保留未选中的数据为数组，赋值给rows
       //@ts-ignore has
-      const selectedIndices = Array.from(tableTreeInstance.selection.selected);
+      const selectedIndices = Array.from(treeInstance.selection.selected);
       const rowsDelete =
         rows.filter((v: any, i: number) => selectedIndices.includes(i)) || [];
       selectedIndices.sort((a, b) => a - b);
@@ -469,11 +470,11 @@ export async function replaceSecretKeysTable() {
         deleteAccount(Number(secretkeyDelete));
       }
 
-      tableTreeInstance.invalidate();
+      treeInstance.invalidate();
       return false;
     }
 
-    if (tableTreeInstance.editIndex != void 0) {
+    if (treeInstance.mount.editIndex != void 0) {
       if (e.key == "Enter" || e.key == "Escape") {
         if (e.key != "Escape") {
           commitEditingRow();
@@ -500,10 +501,10 @@ export async function replaceSecretKeysTable() {
 
     /* if (e.key == 'ContextMenu' || (e.key == 'F10' && e.shiftKey)) {
             //@ts-ignore has
-            const selectedElem = document.querySelector(`#${tableTreeInstance._jsWindowID} [aria-selected=true]`);
+            const selectedElem = document.querySelector(`#${treeInstance._jsWindowID} [aria-selected=true]`);
             if (!selectedElem) return;
             const boundingRect = selectedElem.getBoundingClientRect();
-            tableTreeInstance.props.onItemContextMenu(
+            treeInstance.props.onItemContextMenu(
                 e,
                 window.screenX + boundingRect.left + 50,
                 window.screenY + boundingRect.bottom
@@ -515,14 +516,14 @@ export async function replaceSecretKeysTable() {
 
   async function handleActivate(event: Event, indices: number[]) {
     //@ts-ignore has
-    const editingRow = tableTreeInstance._jsWindow._renderedRows.get(
+    const editingRow = treeInstance._jsWindow._renderedRows.get(
       indices[0],
     ) as HTMLDivElement;
     const cellIndex = getcellIndex(event);
     if (cellIndex == void 0) return;
 
     //@ts-ignore has
-    tableTreeInstance.OriginRow = { ...rows[indices[0]] };
+    treeInstance.OriginRow = { ...rows[indices[0]] };
     const cell = editingRow.children[cellIndex] as HTMLSpanElement;
     const inputCell = await cellChangeToInput(cell);
     setTimeout(() => {
@@ -533,11 +534,11 @@ export async function replaceSecretKeysTable() {
 
   async function cellChangeToInput(cell: HTMLElement) {
     //解密
-    if (tableTreeInstance.editIndex != void 0) {
+    if (treeInstance.mount.editIndex != void 0) {
       //@ts-ignore has
-      tableTreeInstance.commitEditingRow();
+      treeInstance.commitEditingRow();
     }
-    const selectedRow = tableTreeInstance.selection.focused;
+    const selectedRow = treeInstance.selection.focused;
     const originRow = rows[selectedRow];
     const state = await encryptState();
     const key = cell.classList[1];
@@ -595,7 +596,7 @@ export async function replaceSecretKeysTable() {
         if (inputCell.value == "" || inputCell.value.endsWith("No Data"))
           return;
         valueToRows();
-        tableTreeInstance.invalidate();
+        treeInstance.invalidate();
         inputCell.remove();
         win?.removeEventListener("click", doit);
       }
@@ -607,11 +608,11 @@ export async function replaceSecretKeysTable() {
     inputCell.addEventListener("input", updateWidth);
     inputCell.addEventListener("input", valueToRows);
     inputCell.addEventListener("focus", upLevel);
-    batchListen([
+    batchListen([[
       inputCell,
       ["keydown", "keyup", "input", "mousedown", "mouseup", "dblclick"],
       [stopEvent],
-    ]);
+    ]]);
 
     function upLevel() {
       const cells = inputCell.parentElement?.querySelectorAll("input");
@@ -632,11 +633,11 @@ export async function replaceSecretKeysTable() {
       const index = Number(inputCell.classList[1]);
       if (!rows[index] || !rows[index][key]) return; //空数据也在rows内
 
-      tableTreeInstance.changeData(index, key, inputCell.value);
-      if (!tableTreeInstance.editIndex) tableTreeInstance.editIndex = index;
-      let ei = tableTreeInstance.editIndex;
-      if (!tableTreeInstance.editIndices) tableTreeInstance.editIndices = [];
-      const eis = tableTreeInstance.editIndices;
+      treeInstance.changeData(index, key, inputCell.value);
+      if (!treeInstance.mount.editIndex) treeInstance.mount.editIndex = index;
+      let ei = treeInstance.mount.editIndex;
+      if (!treeInstance.mount.editIndices) treeInstance.mount.editIndices = [];
+      const eis = treeInstance.mount.editIndices;
       if (index != ei) {
         eis.push(ei);
         ei = index;
@@ -658,9 +659,9 @@ export async function replaceSecretKeysTable() {
    * @param value
    */
   /*   function dataChanged(index: number, key: string, value: any) {
-      if (!tableTreeInstance.dataChangedCache)
-        tableTreeInstance.dataChangedCache = {};
-      const dc = tableTreeInstance.dataChangedCache;
+      if (!treeInstance.dataChangedCache)
+        treeInstance.dataChangedCache = {};
+      const dc = treeInstance.dataChangedCache;
       if (!dc[index]) dc[index] = {};
       // 存储整行原始数据
       if (!dc[index]["originRow"])
@@ -702,7 +703,7 @@ export async function replaceSecretKeysTable() {
     topContainer?.appendChild(spanContainer);
     spanContainer.style.position = "fixed";
     spanContainer.style.top = "-1000px"; //@ts-ignore has
-    tableTreeInstance.spanShowWidth = spanShowWidth;
+    treeInstance.spanShowWidth = spanShowWidth;
     return function () {
       spanShowWidth.textContent = inputCell.value;
       if (inputCell.scrollWidth < inputCell.clientWidth)
@@ -712,36 +713,36 @@ export async function replaceSecretKeysTable() {
   }
 
   function getRowElement(index?: number) {
-    if (!index) index = tableTreeInstance.selection.focused; //@ts-ignore has
-    return tableTreeInstance._jsWindow.getElementByIndex(index);
+    if (!index) index = treeInstance.selection.focused; //@ts-ignore has
+    return treeInstance._jsWindow.getElementByIndex(index);
   }
 
   function getColumn(index: number) {
     //@ts-ignore has
-    const columns = tableTreeInstance._getVisibleColumns(); //@ts-ignore has
+    const columns = treeInstance._getVisibleColumns(); //@ts-ignore has
     return columns[index];
   }
   function discardEditing() {
     //是否需要恢复行数据？
-    if (!tableTreeInstance.editingRow) return;
-    const oldCells = tableTreeInstance.editingRow["oldCells"];
+    if (!treeInstance.mount.editingRow) return;
+    const oldCells = treeInstance.mount.editingRow["oldCells"];
     if (!oldCells) return;
-    const currentCells = tableTreeInstance.editingRow["currentCells"];
+    const currentCells = treeInstance.mount.editingRow["currentCells"];
     if (!oldCells || !currentCells) return;
     for (let i = 0; i < currentCells.length; i++) {
       currentCells[i].parentNode?.replaceChild(oldCells[i], currentCells[i]);
     }
-    tableTreeInstance.clearEditing();
-    tableTreeInstance.invalidate();
+    treeInstance.mount.clearEditing();
+    treeInstance.invalidate();
   }
   //单元格从编辑状态复原
   function commitEditing(newCell?: HTMLElement, oldCell?: HTMLElement) {
     //@ts-ignore has
-    if (!oldCell) oldCell = tableTreeInstance.oldCell; //@ts-ignore has
+    if (!oldCell) oldCell = treeInstance.oldCell; //@ts-ignore has
     if (!oldCell) return; //@ts-ignore has
-    const inputCell = newCell ? newCell : tableTreeInstance.inputCell; //@ts-ignore has
+    const inputCell = newCell ? newCell : treeInstance.inputCell; //@ts-ignore has
     if (!inputCell) return;
-    const index = tableTreeInstance.editIndex;
+    const index = treeInstance.mount.editIndex;
     if (index == void 0) return;
     //@ts-ignore has
     const key: string = oldCell.classList[1];
@@ -749,33 +750,33 @@ export async function replaceSecretKeysTable() {
       inputCell.parentNode?.replaceChild(oldCell, inputCell);
       return;
     }
-    tableTreeInstance.changeData(index, key, inputCell.value);
+    treeInstance.changeData(index, key, inputCell.value);
   }
 
   async function clickTableOutsideCommit(e: MouseEvent,) {
-    if (!outside(e, tableTreeInstance._topDiv!)) return;
-    await tableTreeInstance.saveDate(saveAccounts);
+    if (!outside(e, treeInstance._topDiv!)) return;
+    await treeInstance.mount.saveDate(saveAccounts);
   }
 
 
 
   function commitEditingRow() {
-    if (!tableTreeInstance.editingRow) return;
-    const oldCells = tableTreeInstance.editingRow["oldCells"];
-    const currentCells = tableTreeInstance.editingRow["currentCells"];
+    if (!treeInstance.mount.editingRow) return;
+    const oldCells = treeInstance.mount.editingRow["oldCells"];
+    const currentCells = treeInstance.mount.editingRow["currentCells"];
     if (!oldCells || !currentCells) return;
     const keys = Object.keys(rows[0]);
     const changeCellIndices = [];
-    if (tableTreeInstance.editIndex != void 0) {
-      const rowElement = getRowElement(tableTreeInstance.editIndex);
+    if (treeInstance.mount.editIndex != void 0) {
+      const rowElement = getRowElement(treeInstance.mount.editIndex);
       // 输入单元格为 input 标签，如果为 span 说明为非编辑状态，表明之前没有清除编辑状态
       if (rowElement.children[0].tagName == "span") {
-        tableTreeInstance.clearEditing();
+        treeInstance.mount.clearEditing();
         return;
       }
     }
-    /* const selectedIndex = Array.from(tableTreeInstance.selection.selected)[0];
-        if (selectedIndex != tableTreeInstance.editIndex){
+    /* const selectedIndex = Array.from(treeInstance.selection.selected)[0];
+        if (selectedIndex != treeInstance.mount.editIndex){
      
         } */
     for (let i = 0; i < currentCells.length; i++) {
@@ -807,14 +808,14 @@ export async function replaceSecretKeysTable() {
     // stopRowEditing();
   }
   //@ts-ignore has
-  tableTreeInstance.commitEditingRow = commitEditingRow;
+  treeInstance.commitEditingRow = commitEditingRow;
   //更新翻译引擎账号，清除编辑标志，重新渲染表格
   async function saveAccounts() {
-    const dc = tableTreeInstance.dataChangedCache;
+    const dc = treeInstance.mount.dataChangedCache;
     if (!dc) return;
     const indices = Object.keys(dc);
     if (!dc || !indices?.length) {
-      tableTreeInstance.clearEditing();
+      treeInstance.mount.clearEditing();
       return;
     }
     const serviceAccountsSave = [];
@@ -869,15 +870,15 @@ export async function replaceSecretKeysTable() {
           }
         } catch (e) {
           notifyAccountSave(serviceAccountsSave);
-          tableTreeInstance.clearEditing();
-          tableTreeInstance.invalidate();
+          treeInstance.mount.clearEditing();
+          treeInstance.invalidate();
           throw e;
         }
       }
     }
     notifyAccountSave(serviceAccountsSave);
-    tableTreeInstance.clearEditing();
-    tableTreeInstance.invalidate();
+    treeInstance.mount.clearEditing();
+    treeInstance.invalidate();
 
   }
 
@@ -888,14 +889,14 @@ export async function replaceSecretKeysTable() {
         serviceAccountsSave.push(saveNewAccount(rowData));
       } catch (e) {
         notifyAccountSave(serviceAccountsSave);
-        tableTreeInstance.clearEditing();
-        tableTreeInstance.invalidate();
+        treeInstance.mount.clearEditing();
+        treeInstance.invalidate();
         throw e;
       }
     }
     notifyAccountSave(serviceAccountsSave);
-    tableTreeInstance.clearEditing();
-    tableTreeInstance.invalidate();
+    treeInstance.mount.clearEditing();
+    treeInstance.invalidate();
 
   }
 
@@ -1060,7 +1061,7 @@ export async function replaceSecretKeysTable() {
        "editIndices",
        "editingRow",
      ].forEach((key) => {
-       (tableTreeInstance as any)[key] = void 0;
+       (treeInstance as any)[key] = void 0;
      });
    } */
 
@@ -1069,7 +1070,7 @@ export async function replaceSecretKeysTable() {
   function getColumnWidth(index: number) {
     const COLUMN_PADDING = 16;
     //@ts-ignore has
-    const columns = tableTreeInstance._getVisibleColumns();
+    const columns = treeInstance._getVisibleColumns();
     const proportion =
       columns[index].width /
       columns
@@ -1077,7 +1078,7 @@ export async function replaceSecretKeysTable() {
         .reduce((sum: number, number: number) => sum + number, 0);
 
     //@ts-ignore has
-    const tableWidth = tableTreeInstance._topDiv.getBoundingClientRect().width;
+    const tableWidth = treeInstance._topDiv.getBoundingClientRect().width;
     return Math.round(proportion * tableWidth * window.devicePixelRatio);
   }
 
@@ -1126,34 +1127,31 @@ export async function replaceSecretKeysTable() {
     }
     if (typeof columIndexOrKey === "string") {
       //@ts-ignore has
-      const temps = tableTreeInstance
-        //@ts-ignore has
-        ._getColumns()
-        .filter((e: any) => e.dataKey == columIndexOrKey);
+      const temps = treeInstance._getColumns().filter((e: any) => e.dataKey == columIndexOrKey);
       if (temps.length == 0) return;
       column = temps[0];
     }
     if (!column) return;
     onResizeData[column.dataKey] = column.width + extendValue; //@ts-ignore has
-    tableTreeInstance._columns.onResize(onResizeData);
+    treeInstance._columns.onResize(onResizeData);
   }
   function resize() {
-    const columns = tableTreeInstance._getVisibleColumns(); //@ts-ignore has
-    tableTreeInstance._columns.onResize(
+    const columns = treeInstance._getVisibleColumns(); //@ts-ignore has
+    treeInstance._columns.onResize(
       Object.fromEntries(columns.map((c: any) => [c.dataKey, c.width])),
     );
 
-    // const styleIndex = tableTreeInstance._columns._columnStyleMap[dataKey]
+    // const styleIndex = treeInstance._columns._columnStyleMap[dataKey]
     //@ts-ignore has
-    // tableTreeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
+    // treeInstance._columns._stylesheet.sheet.cssRules[styleIndex].style.setProperty('flex-basis', `200px`);
   }
 
   async function addRecord(e: Event) {
-    if (tableTreeInstance.editIndex != void 0) {
+    if (treeInstance.mount.editIndex != void 0) {
       //@ts-ignore has
-      tableTreeInstance.commitEditingRow();
+      treeInstance.commitEditingRow();
     }
-    const rows = tableTreeInstance.rows || [];
+    const rows = treeInstance.mount.rowsData || [];
     const serviceID = getElementValue("serviceID");
     const emptyrows = (await secretKeysRows(serviceID, true)) || [];
     if (emptyrows.length == 0) {
@@ -1165,12 +1163,12 @@ export async function replaceSecretKeysTable() {
       emptyrows.push(row);
     }
     rows.push(emptyrows[0]);
-    //tableTreeInstance.render();
-    tableTreeInstance.invalidate();
-    tableTreeInstance.selection.select(rows.length - 1); //@ts-ignore has
-    const seletedRow = tableTreeInstance._topDiv.querySelectorAll(
+    //treeInstance.render();
+    treeInstance.invalidate();
+    treeInstance.selection.select(rows.length - 1); //@ts-ignore has
+    const seletedRow = treeInstance._topDiv.querySelectorAll(
       //@ts-ignore has
-      `#${tableTreeInstance._jsWindowID} [aria-selected=true]`,
+      `#${treeInstance._jsWindowID} [aria-selected=true]`,
     )[0];
     if (!seletedRow) {
       showInfo("No seletedRow");
@@ -1234,11 +1232,11 @@ export async function priorityWithKeyTable() {
   const containerId = `${config.addonRef}-table-servicePriorityWithKey`;
   if (getDom(id)) return;
   const services = await getServices();
-  const rows: any[] = (await serviceWithKeyRowsData()) || [];
-  if (!rows || rows.length == 0) return;
+  const rowsData: any[] = (await serviceWithKeyRowsData()) || [];
+  if (!rowsData || rowsData.length == 0) return;
 
   //props
-  const columnPropValues = makeColumnPropValues(rows[0]);
+  const columnPropValues = makeColumnPropValues(rowsData[0]);
   const columnsProp = arrsToObjs(columnPropKeys)(
     columnPropValues,
   ) as ColumnOptions[];
@@ -1248,22 +1246,23 @@ export async function priorityWithKeyTable() {
     staticColumns: false,
     showHeader: true,
     multiSelect: true,
-    getRowCount: () => rows.length,
-    getRowData: (index: number) => rows[index],
+    getRowCount: () => rowsData.length,
+    getRowData: (index: number) => rowsData[index],
     getRowString: handleGetRowString,
     onKeyDown: handleKeyDown,
   };
 
   const options: TableFactoryOptions = {
-    win: win,
-    containerId: containerId,
-    props: props,
+    win,
+    containerId,
+    props,
+    rowsData,
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
-  tableTreeInstance.scrollToRow(rows.length - 1);
-  tableTreeInstance.rows = rows;
+  const treeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
+  treeInstance.scrollToRow(rowsData.length - 1);
+
 
   async function serviceWithKeyRowsData() {
     //let rows= getRowsByOrderFromDB(hasKey:Boolean)
@@ -1309,15 +1308,15 @@ export async function priorityWithKeyTable() {
   }
 
   function handleGetRowString(index: number) {
-    return getRowString(rows, index, tableTreeInstance);
+    return getRowString(rowsData, index, treeInstance);
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    const oldRows = [...rows];
-    priorityKeyDown(event, rows, tableTreeInstance, services).then(
+    const oldRows = [...rowsData];
+    priorityKeyDown(event, rowsData, treeInstance, services).then(
       async (res) => {
-        if (objArrDiffer(oldRows, rows)) {
-          const value = JSON.stringify(rows);
+        if (objArrDiffer(oldRows, rowsData)) {
+          const value = JSON.stringify(rowsData);
           await setSettingValue("servicesWithKeyByOrder", value, "services");
         }
         return res;
@@ -1335,11 +1334,11 @@ export async function priorityWithoutKeyTable() {
   const containerId = `${config.addonRef}-table-servicePriorityWithoutKey`;
   if (getDom(id)) return;
   const services = await getServices();
-  const rows: any[] = (await getWithoutKeyRowsData()) || [];
-  if (!rows || rows.length == 0) return;
+  const rowsData: any[] = (await getWithoutKeyRowsData()) || [];
+  if (!rowsData || rowsData.length == 0) return;
 
   //props
-  const columnPropValues = makeColumnPropValues(rows[0]);
+  const columnPropValues = makeColumnPropValues(rowsData[0]);
   const columnsProp = arrsToObjs(columnPropKeys)(
     columnPropValues,
   ) as ColumnOptions[];
@@ -1349,8 +1348,8 @@ export async function priorityWithoutKeyTable() {
     staticColumns: false,
     showHeader: true,
     multiSelect: true,
-    getRowCount: () => rows.length,
-    getRowData: (index: number) => rows[index],
+    getRowCount: () => rowsData.length,
+    getRowData: (index: number) => rowsData[index],
     getRowString: handleGetRowString,
     onKeyDown: handleKeyDown,
   };
@@ -1359,12 +1358,12 @@ export async function priorityWithoutKeyTable() {
     win: win,
     containerId: containerId,
     props: props,
+    rowsData,
   };
 
   const tableHelper = await tableFactory(options);
-  const tableTreeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
-  tableTreeInstance.scrollToRow(rows.length - 1);
-  tableTreeInstance.rows = rows;
+  const treeInstance = tableHelper.treeInstance as unknown as VirtualizedTable; //@ts-ignore has
+  treeInstance.scrollToRow(rowsData.length - 1);
 
   async function getWithoutKeyRowsData() {
     const settingValue = await getSettingValue(
@@ -1388,14 +1387,14 @@ export async function priorityWithoutKeyTable() {
   }
 
   function handleGetRowString(index: number) {
-    return getRowString(rows, index, tableTreeInstance);
+    return getRowString(rowsData, index, treeInstance);
   }
   function handleKeyDown(event: KeyboardEvent) {
-    const oldRows = [...rows];
-    priorityKeyDown(event, rows, tableTreeInstance, services).then(
+    const oldRows = [...rowsData];
+    priorityKeyDown(event, rowsData, treeInstance, services).then(
       async (res) => {
-        if (objArrDiffer(oldRows, rows)) {
-          const value = JSON.stringify(rows);
+        if (objArrDiffer(oldRows, rowsData)) {
+          const value = JSON.stringify(rowsData);
           await setSettingValue("servicesWithoutKeyByOrder", value, "services");
         }
 
@@ -1438,12 +1437,12 @@ export function makeColumnPropValues(row: any) {
   });
   return temp;
 }
-export function getRowString(rows: any, index: number, tableTreeInstance: any) {
+export function getRowString(rows: any, index: number, treeInstance: any) {
   const rowCellsString = Object.values(rows[index]).filter(
     (e) => typeof e === "string",
   ) as string[];
   if (rowCellsString.length === 0) return ""; //@ts-ignore has
-  const typingString = tableTreeInstance._typingString as string;
+  const typingString = treeInstance._typingString as string;
   const matchCells = rowCellsString.filter((str: string) =>
     str.toLowerCase().includes(typingString),
   );
@@ -1547,7 +1546,7 @@ function kvArrsToObject(keys: string[]) {
 async function priorityKeyDown(
   event: KeyboardEvent,
   rows: any[],
-  tableTreeInstance: any,
+  treeInstance: any,
   services: ServiceMap,
 ) {
   //return返回的是控制默认按键功能是否启用
@@ -1559,7 +1558,7 @@ async function priorityKeyDown(
   ) {
     //获取要禁用的行数据，
     const rowDataForbidden = rows.filter((v, i) =>
-      tableTreeInstance.selection.isSelected(i),
+      treeInstance.selection.isSelected(i),
     );
     //确认删除，点击cancel则取消
     const confirm = addon.data.prefs!.window.confirm(
@@ -1582,11 +1581,11 @@ async function priorityKeyDown(
       }
     }
 
-    tableTreeInstance.invalidate();
+    treeInstance.invalidate();
   }
   if (event.key == "ArrowUp") {
     rows.map((v, i) => {
-      if (tableTreeInstance.selection.isSelected(i)) {
+      if (treeInstance.selection.isSelected(i)) {
         if (i > 0) {
           const temp = rows[i];
           rows[i] = rows[i - 1];
@@ -1594,11 +1593,11 @@ async function priorityKeyDown(
         }
       }
     });
-    tableTreeInstance.invalidate();
+    treeInstance.invalidate();
   }
   if (event.key == "ArrowDown") {
     rows.map((v, i) => {
-      if (tableTreeInstance.selection.isSelected(i)) {
+      if (treeInstance.selection.isSelected(i)) {
         if (i < rows.length - 1) {
           const temp = rows[i];
           rows[i] = rows[i + 1];
@@ -1606,7 +1605,7 @@ async function priorityKeyDown(
         }
       }
     });
-    tableTreeInstance.invalidate();
+    treeInstance.invalidate();
   }
   return true;
 }
@@ -1746,9 +1745,9 @@ function geminiVerify(keys: any[], values: any[]) {
 export function getSelectedRow(singleRow: boolean = true) {
   const tableHelper = getTableByID(`${config.addonRef}-` + "secretKeysTable");
   if (!tableHelper) return;
-  const tableTreeInstance = tableHelper.treeInstance as any;
-  const selecedRows = tableTreeInstance._topDiv.querySelectorAll(
-    `#${tableTreeInstance._jsWindowID} [aria-selected=true]`,
+  const treeInstance = tableHelper.treeInstance as any;
+  const selecedRows = treeInstance._topDiv.querySelectorAll(
+    `#${treeInstance._jsWindowID} [aria-selected=true]`,
   );
   if (singleRow) {
     return selecedRows[0] as HTMLElement;

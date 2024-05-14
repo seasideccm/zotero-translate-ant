@@ -292,6 +292,7 @@ declare type TableFactoryOptions = {
   win: Window;
   containerId: string;
   props: Partial<VirtualizedTableProps>;
+  rowsData: any[];
 };
 
 
@@ -331,38 +332,49 @@ declare class DataHistory {
   redo: () => any | undefined;
 }
 
+declare interface Mount {
+  //[key: string]: any;
+  rowsData?: any[];
+  editIndex?: number;
+  editIndices?: number[];
+  editingRow?: any;
+  editingElement?: HTMLElement | XUL.Element;
+  EmptyValue?: string;
+  Nonempty_Keys?: string[];
+  DEFAULT_VALUE?: any;
+  dataChangedCache?: any;
+  showRawValueMap?: Map<string, string>;
+  dataHistory?: DataHistory;
+  getFocusedElement: (where?: string) => HTMLElement;
+  changeCellData: (indexRow: number, key: string, value: string) => void;
+  clearEditing: () => void;
+  saveDate: (fn?: Func, ...args: any[]) => Promise<void>;
+  /**
+   * row or cell of table start editing
+   * @param {number} focusCell?:number 
+   * @param {number} rowIndex2Edit?:number
+   * @returns {boolean}
+   */
+  startEditing: (focusCell?: number, rowIndex2Edit?: number) => boolean;
+
+}
+
+
 interface VirtualizedTable extends ReturnType<
   typeof import("../src/modules/ui/tableFactory").createVirtualizedTable
 > {
-  [key: string]: any;
+  mount: Mount;
   selection: TreeSelection;
   _topDiv: HTMLDivElement;
   _jsWindow: WindowedList;
   //scrollToRow: Func;
   _getVisibleColumns: () => any[];
-  rows?: any[];
-  editIndex?: number;
-  editIndices?: number[];
-  editingRow?: any;
-  EmptyValue?: string;
-  Nonempty_Keys?: string[];
-  DEFAULT_VALUE?: any;
-  commitEditingRow?: () => void;
-  dataChangedCache?: any;
-  showRawValueMap?: Map<string, string>;
+
+
   props: Partial<VirtualizedTableProps>;
   changeData: (indexRow: number, key: string, value: any) => void;
   handleValue: Func;
-  dataHistory: DataHistory;
-  clearEditing: () => void;
-  saveDate: (fn?: Func, ...args: any[]) => Promise<void>;
-  /**
-     * row or cell of table start editing
-     * @param {number} focusCell?:number 
-     * @param {number} rowIndex2Edit?:number
-     * @returns {boolean}
-     */
-  startEditing: (focusCell?: number, rowIndex2Edit?: number) => boolean;
+
   /**
      * Ensure the tree scrolls when dragging over top and bottom parts of it
      */
