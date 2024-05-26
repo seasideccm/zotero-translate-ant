@@ -13,7 +13,6 @@ import {
 import { html2md, md2html } from "../../utils/mdHtmlConvert";
 import { getCharasLimit, getServices } from "./translateServices";
 import {
-  Latin_Abbreviations,
   Latin_Abbreviations_EndDot,
   langCodeNameSpeakers,
   langCode_francVsZotero,
@@ -24,16 +23,9 @@ import { TranslateService, TranslateServiceAccount } from "./translateService";
 import { setCurrentService } from "../addonSetting";
 import { getDB } from "../database/database";
 import { showTargeCombine } from "../ui/dataDialog";
-import { json } from "stream/consumers";
 
 
 
-const charConsumRecoder = 0;
-
-/* export async function onOpenPdf(id: number) {
-  await Zotero.Reader.open(id);
-  ztoolkit.log("open pdf");
-} */
 export class fullTextTranslate {
   /**
    *

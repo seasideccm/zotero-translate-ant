@@ -1,18 +1,18 @@
 //declare function coroutine(generatorFunction: Function, options?: { yieldHandler: any }): () => Promise<any>;
 interface IncompatibleVersionException {
-  new (msg: any, dbClientVersion: any): this;
+  new(msg: any, dbClientVersion: any): this;
 }
 declare namespace Zotero {
   interface Promise<T = void> extends _ZoteroTypes.Bluebird<T> {
     coroutine(
       generatorFunction: Func,
-      options?: { yieldHandler: any },
+      options?: { yieldHandler: any; },
     ): () => Promise<any>;
   }
 
   interface DBConnection {
     //constructor(dbNameOrPath?: string) { };
-    new (dbNameOrPath?: string): this;
+    new(dbNameOrPath?: string): this;
     MAX_BOUND_PARAMETERS: 999;
     DB_CORRUPTION_STRINGS: ["database disk image is malformed", "2152857611"];
     closed: boolean;
@@ -176,6 +176,9 @@ declare namespace Zotero {
 }
 
 declare namespace _ZoteroTypes {
+  interface ZoteroPane {
+    document: Document;
+  }
   interface Utilities {
     /**
      * Decodes HTML entities within a string, returning plain text
@@ -184,3 +187,4 @@ declare namespace _ZoteroTypes {
     unescapeHTML(str: string): string;
   }
 }
+

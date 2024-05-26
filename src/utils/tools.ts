@@ -763,28 +763,29 @@ export const objOrder = (
 
 /**
  * 对象深度克隆
- * @param value
+ * @param objectCloned 
  * @returns
  */
-export function deepClone(value: any) {
+export function deepClone(objectCloned: any) {
   const cache = new WeakMap();
-  function _deepClone(value: any) {
-    if (value === null || typeof value !== "object") {
-      return value;
+  function _deepClone(obj: any) {
+    if (obj === null || typeof obj !== "object") {
+      return obj;
     }
-    if (cache.has(value)) {
-      return cache.get(value);
+    if (cache.has(obj)) {
+      return cache.get(obj);
     }
-    const result: any = Array.isArray(value) ? [] : {};
-    cache.set(value, result);
-    for (const key in value) {
-      if (Object.prototype.hasOwnProperty.call(value, key)) {
-        result[key] = _deepClone(value[key]);
+    const result: any = Array.isArray(obj) ? [] : {};
+    cache.set(obj, result);
+    // 数组的 key 即为索引
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = _deepClone(obj[key]);
       }
     }
     return result;
   }
-  return _deepClone(value);
+  return _deepClone(objectCloned);
 }
 
 /**
@@ -1302,7 +1303,19 @@ export function showInfo(
   addon.mountPoint["popupWins"]
     ? addon.mountPoint["popupWins"].push(popupWin)
     : (addon.mountPoint["popupWins"] = [popupWin]);
+
+  const _window = option?.window || Zotero.getMainWindow();
+
+  if (_window) {
+    _window.addEventListener("blur", closePopupWin, { once: true });
+    _window.addEventListener("unload", closePopupWin, { once: true });
+  }
+
   return popupWin;
+
+  function closePopupWin(e: Event) {
+    popupWin.close();
+  }
 }
 
 
@@ -1508,6 +1521,16 @@ export const judgeAsync = (fun: any) => {
   const AsyncFunction = (async () => { }).constructor;
   return fun instanceof AsyncFunction;
 };
+
+
+export async function excuteCommand(func: Func, ...args: any[]) {
+  if (judgeAsync(func)) {
+    return await func(args);
+  } else {
+    return func(args);
+  }
+
+}
 
 
 export function doTryCatch(func: Func) {
@@ -1771,3 +1794,93 @@ export function getWindow(
   }
   return winSelected as Window;
 }
+
+
+export class AdvanceSet extends Set {
+
+  /**
+   * @description 交集 , 返回一个新集合
+   * @param  {...AdvanceSet} sets 
+   * @returns {AdvanceSet | null}
+   */
+  getIntersection(...sets: AdvanceSet[]) {
+    const union = this.getUnion(...sets);
+    const intersection = new AdvanceSet();
+    for (const s of union) {
+      if (sets.every(set => set.has(s))) {
+        intersection.add(s);
+      }
+    }
+    return intersection.size > 0 ? intersection : null;
+  }
+
+  /**
+   * @description 并集 , 返回一个新的集合
+   * @param  {...AdvanceSet} sets 
+   * @returns {AdvanceSet}
+   */
+  getUnion(...sets: AdvanceSet[]) {
+    return sets.reduce((prev, cur) => new AdvanceSet([...prev, ...cur]), this);
+  }
+
+  // 绝对补集 ， 返回一个新的集合
+  /**
+   * @description 若给定全集U，有A⊆U，则A在U中的相对补集称为A的绝对补集（或简称补集），写作∁UA。 
+   * 注意：学习补集的概念，首先要理解全集的相对性，补集符号∁UA有三层含义：
+   * 1、A是U的一个子集，即A⊆U；
+   * 2、∁UA表示一个集合，且∁UA⊆U；
+   * 3、∁UA是由U中所有不属于A的元素组成的集合，∁UA与A没有公共元素，U中的元素分布在这两个集合中。
+   * @param {AdvanceSet} universalSet 全集
+   */
+  getComplement(universalSet: AdvanceSet) {
+    return new AdvanceSet([...universalSet].filter(element => !this.has(element)));
+  }
+
+  /**
+   * 是否是当前集合的补集
+   * @param {AdvanceSet} universalSet 全集
+   * @param {AdvanceSet} set 集合
+   * @returns {Boolean} 以 universalSet 为全集， this 与 set 是否互为补集
+   */
+  isComplement(universalSet: AdvanceSet, anotherSet: AdvanceSet) {
+    const isUniversalIncludesAnotherSet = [...anotherSet].every(element => universalSet.has(element));
+    return isUniversalIncludesAnotherSet
+      ? [...this].every(element => universalSet.has(element) && !anotherSet.has(element))
+      : false;
+  }
+
+  /**
+   * 当前集合是否为子集
+   * @param {AdvanceSet} set 
+   * @returns {Boolean}
+   */
+  isSubset(set: AdvanceSet) {
+    return [...this].every(s => set.has(s));
+  }
+
+  /**
+   * 差集， 又称为相对补集， 返回一个新的集合
+   * @description 若 A 和 B 是集合，则 A 在 B 中的相对补集是这样一个集合：其元素属于B但不属于A，B - A = { x| x∈B且x∉A}
+   * @param {AdvanceSet} set 
+   * @returns {AdvanceSet} 
+   */
+  getDifferenceSet(set: AdvanceSet) {
+    return new AdvanceSet([...this].filter(element => !set.has(element)));
+  }
+
+}
+
+
+/* const a = new AdvanceSet([1, 2, 3, 4]);
+const b = new AdvanceSet([`a`, `b`, `c`, 4]);
+const c = new AdvanceSet([{ name: 'sk' }, { name: `loa` }, 4]);
+const d = new AdvanceSet([2, 3, 5]);
+const e = new AdvanceSet([1, 2, 3, 4, 5, 6, 7]);
+const f = new AdvanceSet([1, 4, 6, 7]);
+
+console.log(a.getUnion(b, c));
+console.log(a.getIntersection(b, c));
+console.log(d.isSubset(a));
+console.log(a.getDifferenceSet(d));
+console.log(d.getComplement(e));
+console.log(d.isComplement(e, f)); */

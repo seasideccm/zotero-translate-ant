@@ -256,3 +256,14 @@ info-tencentTranslate = 腾讯翻译
 info-increaseFontSize = 增大字体
 info-decreaseFontSize = 减小字体
 info-settingPane = 打开设置面板
+
+info-selectedItemeZero = 未选择任何条目
+zutilo-checkItems-errorTitle = 选择项目错误
+zutilo-checkItems-regular1 = 请选择至少一个常规条目。 
+zutilo-checkItems-regularSingle = 请选择一个(仅一个)常规条目。 
+zutilo-checkItems-regular2 = 请选择至少两个常规项目。 
+zutilo-checkItems-regularOrNote2 = 请选择至少两个常规项目或笔记。
+zutilo-checkItems-regularNoteAttachment2 =请选择至少两个常规条目笔记或附件
+zutilo-checkItems-regularOrNote1 = 请选择至少一个常规条目或笔记。
+zutilo-checkItems-regularNoteAttachment1 = 请选择至少一个常规条目笔记或附件
+zutilo-checkItems-attachment1 = 请选择至少一个附加项目或者一个无附件的常规项目。 

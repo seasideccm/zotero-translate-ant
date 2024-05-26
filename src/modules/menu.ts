@@ -1,16 +1,14 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
-import { getPref } from "../utils/prefs";
 import { arrToObj } from "../utils/tools";
 import { openAddonPrefPane, openAddonShortcut } from "./preferenceScript";
 import { getDom, makeClickButton, makeId, makeTagElementProps } from "./ui/uiTools";
 import { decryptFileSelected, encryptFile } from "./crypto";
 import { aITransUI, showTrans } from "./ui/dataDialog";
 import { fullTextTranslate } from "./translate/fullTextTranslate";
-import { tabTest } from "./ui/tab";
-import { testReact } from "./ui/testReact";
 import { getPDF } from "./pdf/pdfjsLib";
 import { imageToAnnotation } from "./pdf/imageToAnnotation";
+import { scanCommands } from "../utils/commands";
 
 
 
@@ -31,6 +29,7 @@ function getParasArrs() {
     [
       //["译文标签 Test", tabTest],
       ["getPDF", getPDF],
+      ["scanCommands", scanCommands],
     ],
 
   ];

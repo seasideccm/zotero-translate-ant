@@ -1,6 +1,5 @@
 import { batchListen, deepClone, judgeAsync } from "../../utils/tools";
 
-
 async function tableFactory({
     win,
     containerId,
@@ -118,7 +117,6 @@ async function tableFactory({
             rowSelected = rowNew;
             switchReactEvent("focusin", "off");//避免重复绑定
 
-
             //rowNew.style.position = "absolute";
             //rowNew.style.zIndex = "100";           
             //导致 react 表格聚焦的原生事件为 focusin，根节点为 container
@@ -131,7 +129,7 @@ async function tableFactory({
             elem.focus();
             const idStr = elem.id ? "id: " + elem.id : "class: " + elem.classList[1];
             getFocusedElement("After focused " + idStr);
-            batchListen([[elem, ["click", "dblclick"], stopEvent]]);
+
         });
         return false;
     }
@@ -141,12 +139,17 @@ async function tableFactory({
             elem.dataset.shortcutEditable = "true";
             elem.setAttribute("contenteditable", "true");
             elem.setAttribute("tabindex", "0");
+            elem.style.pointerEvents = 'auto'; //允许光标文本选择和光标移动           
             elem.addEventListener("blur", funcListener);
+            elem.addEventListener("keydown", keydownAction);
+            batchListen([[elem, actions1, stopEvent]]);
+            //const container = elem.ownerDocument.querySelector("#" + containerId) as HTMLElement;
+            //container.addEventListener("keydown", stopEvent, true);
             treeInstance.mount.editingElement = elem;
             treeInstance._topDiv.removeAttribute("tabindex");
             treeInstance._topDiv.children[1].removeAttribute("tabindex");
         }
-        function funcListener(e: Event) {
+        function funcListener(this: any, e: Event) {
             let rowNew = e.target as HTMLElement;
             if (!rowNew.dataset.cloneRow) rowNew = rowNew.parentElement as HTMLElement;
             const idStr = rowNew.id ? "id: " + rowNew.id : "class: " + rowNew.classList[1];
@@ -159,12 +162,45 @@ async function tableFactory({
                 getFocusedElement(`${idStr} blur then refocused`);
                 return;
             }
+            this.removeEventListener("keydown", keydownAction);
+            this.removeEventListener("blur", funcListener);
             stopEditing(rowNew);
             getFocusedElement(`after ${idStr} blur`);
         }
     }
 
+    function keydownAction(this: any, e: any) {
+        const selection = win.getSelection();
+        if (!selection || !selection.anchorNode) return;
+        const anchorNode = selection.anchorNode;
+        const str = selection.anchorNode.textContent;
+        if (["Backspace", "Delete", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+            e.preventDefault();
+            e.stopImmediatePropagation;
 
+
+
+
+
+            let offset = ["ArrowLeft", "Backspace"].includes(e.code) ? -1 : 1;
+            if (e.code == "Delete") offset -= 1;
+            offset += selection.anchorOffset;
+            if (offset > anchorNode!.textContent!.length) offset = anchorNode!.textContent!.length;
+            if (offset < 0) offset = 0;
+            switch (e.code) {
+                case "ArrowLeft":
+                case "ArrowRight":
+                    selection.setPosition(selection.anchorNode, offset);
+                    break;
+                case "Backspace":
+                case "Delete":
+                    if (!str) return;
+                    anchorNode.textContent = str.substring(0, offset) + str.substring(offset + 1);
+                    selection.setPosition(selection.anchorNode, offset);
+                    break;
+            }
+        }
+    }
 
     function stopEditing(rowNew: HTMLElement, rowIndex2Edit?: number) {
         if (rowIndex2Edit == void 0) {
@@ -177,6 +213,7 @@ async function tableFactory({
         switchReactEvent("focusin", "on");
         treeInstance._topDiv.setAttribute("tabindex", "0");
         treeInstance._topDiv.children[1].setAttribute("tabindex", "-1");
+        treeInstance.mount.editingElement = void 0;
     }
 
     function modifyRowsData(rowNew: HTMLElement, rowOld: HTMLElement, rowIndex2Edit: number) {
@@ -218,8 +255,6 @@ async function tableFactory({
         }
     }
 
-
-
     function switchReactEvent(eventType: keyof DocumentEventMap, change: "off" | "on" = "off") {
         const doc = treeInstance._topDiv.ownerDocument!;
         const container = doc.querySelector("#" + containerId) as HTMLElement;
@@ -244,11 +279,6 @@ async function tableFactory({
         }
     }
 
-
-
-
-
-
     function getFocusedElement(where?: string) {
         const focusedElem = treeInstance._topDiv.ownerDocument.activeElement as HTMLElement;
         const idOrClass = focusedElem.id || focusedElem.classList[1];
@@ -267,7 +297,6 @@ async function tableFactory({
         return Number(selectedRow.id.split("-").slice(-1)[0]);
     }
 
-
 }
 
 function focusHandler(element: HTMLElement) {
@@ -279,7 +308,6 @@ function focusHandler(element: HTMLElement) {
     sel.removeAllRanges();
     sel.addRange(range);
 }
-
 
 export class DataHistory {
     redoStack: DataStack;
@@ -363,9 +391,6 @@ export class DataStack {
     }
 }
 
-
-
-
 /**
  * react 渲染 node 添加的事件监听难以阻止 【 'dragstart','dragend', 'mousedown','mouseup', 'dblclick'】
  * 可通过克隆 node 清除事件监听
@@ -388,7 +413,7 @@ function stopEvent(this: any, e: Event) {//@ts-ignore has
     //e.preventDefault()//阻止默认行为
 }
 
-//const actions = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick"];
+const actions1 = ["keydown", "keyup", "input", "mousedown", "mouseup", "click", "dblclick"];
 //  focus    ：在元素获取焦点时触发，不支持冒泡;
 //  blur     ：在元素失去焦点时触发，不支持冒泡;
 //  focusin  ：在元素获取焦点时触发，支持冒泡;
@@ -398,12 +423,11 @@ function stopEvent(this: any, e: Event) {//@ts-ignore has
 //'dragstart','dragend', 'mousedown','mouseup', 'dblclick',
 
 // mousedown,先触发，再阻止
-const actions = ["mousedown", "mouseup", "dblclick", "click"];
+const actions2 = ["mousedown", "mouseup", "dblclick", "click"];
 export {
     tableFactory,
     stopEvent,
 };
-
 
 // 函数返回想要提取类型的对象，然后使用 ts 类型提取工具提取未导出的类型 custom.d.ts 
 
@@ -424,7 +448,4 @@ function createTreeSelection() {
     const tableHelper = new ztoolkit.VirtualizedTable(window);
     return tableHelper.treeInstance.selection;
 }
-
-
-
 

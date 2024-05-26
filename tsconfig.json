@@ -3,7 +3,7 @@
     "experimentalDecorators": true,
     "module": "commonjs",
     "target": "ES2016",
-    "lib": ["ES5", "ES6", "DOM"],
+    "lib": ["ES5", "ES6", "ES2022", "DOM"],
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true

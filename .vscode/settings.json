@@ -3,7 +3,5 @@
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
-  },
-  "CodeGPT.apiKey": "CodeGPT Plus Beta",
-  "i18n-ally.localesPaths": ["F:/zotero-batch-translate/addon/locale"]
+  }
 }
