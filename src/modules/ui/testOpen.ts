@@ -27,12 +27,14 @@ export function 腾讯翻译() {
   const txfy = "https://fanyi.qq.com/";
   ZoteroPane.loadURI(txfy);
 }
+const firefoxPath = "C:\\Program Files\\Mozilla Firefox\\firefox.exe";
+const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const tencentfy = "https://fanyi.qq.com/";
 
-export function openSite() {
-  const chromePath =
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-  const tencentfy = "https://fanyi.qq.com/";
-  Zotero.Utilities.Internal.exec(chromePath, [tencentfy]);
+
+export function openSite(browserPath: string, url: string) {
+  // 有问题
+  Zotero.Utilities.Internal.exec(browserPath, [url]);
 }
 
 export function openDir() {

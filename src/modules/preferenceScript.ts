@@ -816,7 +816,7 @@ export async function openAddonShortcut() {
 }
 
 
-// 原文语言 目标语言
+
 async function langPair() {
   // let defaultSourceLang, defaultTargetLang;
   // defaultSourceLang = await getSettingValue(
@@ -918,7 +918,7 @@ async function langPair() {
 
 
 }
-
+// 原文语言 目标语言
 async function makeLangPaire() {
 
   const availableLocales = Zotero.Locale.availableLocales as any;

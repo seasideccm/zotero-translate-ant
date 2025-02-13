@@ -9,6 +9,7 @@ import { fullTextTranslate } from "./translate/fullTextTranslate";
 import { getPDF } from "./pdf/pdfjsLib";
 import { imageToAnnotation } from "./pdf/imageToAnnotation";
 import { scanCommands } from "../utils/commands";
+import { testService } from "./webApi/baiduModify";
 
 
 
@@ -31,6 +32,9 @@ function getParasArrs() {
       ["getPDF", getPDF],
       ["scanCommands", scanCommands],
     ],
+    [
+      ['test', testService]
+    ]
 
   ];
   return parasArrs;

@@ -23,17 +23,16 @@ export async function baiduModify(
     appid + sourceText + salt + key,
     false,
   );
-  `from=${sourceLang}&to=${targetLang}`;
+
+  const url = `http://api.fanyi.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(
+    sourceText,)}&appid=${appid}&from=${sourceLang}&to=${targetLang}&salt=${salt}&sign=${sign}&action=${action}`;
+  const options = { responseType: "json" };
 
   // Request
   const xhr = await Zotero.HTTP.request(
     "GET",
-    `http://api.fanyi.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(
-      sourceText,
-    )}&appid=${appid}&from=${sourceLang}&to=${targetLang}&salt=${salt}&sign=${sign}&action=${action}`,
-    {
-      responseType: "json",
-    },
+    url,
+    options
   );
   if (xhr?.status !== 200) {
     throw `Request error: ${xhr?.status}`;
@@ -51,4 +50,19 @@ export async function baiduModify(
     error: `${xhr.response.error_code}`,
   };
   return data;
+}
+
+
+
+
+/* (async function test() {
+  const res = await baiduModify(sourceText, secretKey);
+  console.log(res);
+}()); */
+
+export async function testService() {
+  const sourceText = `High-quality evidence of the effect of dispatcher-assisted public-access AED use on critical and important clinical (patient) outcomes`;
+  const secretKey = `20220918001346432#XRnCt_zi4uwNtzuPjcJz`;
+  const res = await baiduModify(sourceText, secretKey);
+  ztoolkit.log(res);
 }
