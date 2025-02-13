@@ -125,6 +125,7 @@ export class Schema {
    */
   async getAllSchemasVersionFromDB() {
     if (Object.keys(this.versionsFromBD).length) return this.versionsFromBD;
+    // 字段 schema 不等于 compatibility，即选择 addonSystem、apiAccount等
     const sql =
       "SELECT schema,version FROM version WHERE schema <> 'compatibility'";
     const rows = await this.DB.queryAsync(sql);
