@@ -71,7 +71,7 @@
     "dotenv-cli": "^7.4.1",
     "esbuild": "^0.19.12",
     "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.1.1",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
     "release-it": "^17.2.1",
